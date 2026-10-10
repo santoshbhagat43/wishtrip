@@ -1,0 +1,140 @@
+"use client";
+
+import { BookOpenCheck, ChevronDown, Globe, Info, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+
+import { ItineraryView } from "@/components/chat/itinerary-view";
+import { Badge, type Tone } from "@/components/ui/badge";
+import type { ChatMessage, Suggestion } from "@/lib/api/client";
+import { minutes, titleCase } from "@/lib/format";
+
+const GROUNDING: Record<string, { label: string; tone: Tone; icon: typeof Globe }> = {
+  knowledge_base: { label: "From WishTrip knowledge base", tone: "ok", icon: BookOpenCheck },
+  partial: { label: "Partly general knowledge", tone: "warn", icon: Info },
+  general: { label: "General knowledge — not in our knowledge base", tone: "warn", icon: Globe },
+};
+
+function SuggestionCard({ s }: { s: Suggestion }) {
+  return (
+    <li className="rounded-2xl border border-border bg-surface p-3.5">
+      <div className="flex flex-wrap-reverse items-start justify-between gap-x-2 gap-y-1">
+        <div className="min-w-0 flex-1 basis-40">
+          {s.location_id ? (
+            <Link href={`/locations/${s.location_id}`} className="font-medium hover:text-brand">{s.name}</Link>
+          ) : (
+            <span className="font-medium">{s.name}</span>
+          )}
+          <p className="text-xs capitalize text-muted">
+            {s.type}
+            {s.time_of_day ? ` · ${s.time_of_day}` : ""}
+            {s.duration_minutes != null ? ` · ${minutes(s.duration_minutes)}` : ""}
+          </p>
+        </div>
+        {s.is_placeholder ? (
+          <Badge tone="warn">Placeholder</Badge>
+        ) : s.from_knowledge_base ? (
+          <Badge tone="ok">Knowledge base</Badge>
+        ) : (
+          <Badge tone="warn">Not in KB</Badge>
+        )}
+      </div>
+      {s.why && <p className="mt-2 text-sm text-muted">{s.why}</p>}
+      <p className="mt-2 text-xs">
+        <span className="text-muted">Price: </span>
+        {s.price ? <span className="font-medium">{s.price}</span> : <span className="italic text-muted">not available yet</span>}
+      </p>
+    </li>
+  );
+}
+
+function Disclosure({ title, icon: Icon, children }: { title: string; icon: typeof Info; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-lg border border-border bg-surface">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-muted">
+        <Icon className="size-3.5" /> {title}
+        <ChevronDown className="ml-auto size-3.5 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-border px-3 py-2.5 text-xs">{children}</div>
+    </details>
+  );
+}
+
+export function AssistantMessage({ message, onFollowUp }: { message: ChatMessage; onFollowUp: (q: string) => void }) {
+  const grounding = GROUNDING[message.grounding ?? "general"];
+  const byDay = new Map<string, Suggestion[]>();
+  for (const s of message.suggestions) {
+    const key = s.day != null ? `Day ${s.day}` : "Suggestions";
+    byDay.set(key, [...(byDay.get(key) ?? []), s]);
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={grounding.tone}><grounding.icon className="size-3.5" /> {grounding.label}</Badge>
+        <span className="flex items-center gap-1 text-xs text-muted">
+          <Sparkles className="size-3" /> {message.model}
+        </span>
+      </div>
+      <div className="prose-chat text-sm leading-relaxed">
+        <ReactMarkdown>{message.content}</ReactMarkdown>
+      </div>
+      {message.feasibility && message.itinerary.length > 0 ? (
+        <ItineraryView days={message.itinerary} feasibility={message.feasibility} />
+      ) : (
+        [...byDay.entries()].map(([day, items]) => (
+        <div key={day}>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted">{day}</p>
+          <ul className="grid gap-2 @xl:grid-cols-2">
+            {items.map((s, i) => <SuggestionCard key={`${s.name}-${i}`} s={s} />)}
+          </ul>
+        </div>
+        ))
+      )}
+      {message.follow_ups.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {message.follow_ups.map((q) => (
+            <button key={q} onClick={() => onFollowUp(q)} className="rounded-full border border-brand/40 px-3 py-1 text-xs text-brand hover:bg-brand-soft">
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-col gap-1.5">
+        {message.validation_notes.length > 0 && (
+          <Disclosure title={`Fact checks applied (${message.validation_notes.length})`} icon={ShieldCheck}>
+            <ul className="list-disc space-y-1 pl-4">{message.validation_notes.map((n) => <li key={n}>{n}</li>)}</ul>
+          </Disclosure>
+        )}
+        {message.sources.length > 0 && (
+          <Disclosure title={`Knowledge base sources (${message.sources.length})`} icon={BookOpenCheck}>
+            <ul className="space-y-1">
+              {message.sources.map((src) => (
+                <li key={src.ref} className="flex justify-between gap-3">
+                  <span>
+                    <span className="font-mono text-muted">{src.ref}</span>{" "}
+                    <Link href={`/locations/${src.location_id}`} className="hover:text-brand">{src.name}</Link>{" "}
+                    <span className="text-muted">· {titleCase(src.type)}{src.city ? ` · ${src.city}` : ""}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-muted">
+                    {src.score != null ? `score ${src.score.toFixed(2)}` : ""}
+                    {src.similarity != null ? ` · sim ${src.similarity.toFixed(2)}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        )}
+        {message.intent && (
+          <Disclosure title="Understood intent" icon={Info}>
+            <pre className="whitespace-pre-wrap font-mono">{JSON.stringify(message.intent, null, 2)}</pre>
+          </Disclosure>
+        )}
+        {typeof message.debug?.context === "string" && (
+          <Disclosure title="What the AI was given" icon={Info}>
+            <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap font-mono">{message.debug.context}</pre>
+          </Disclosure>
+        )}
+      </div>
+    </div>
+  );
+}

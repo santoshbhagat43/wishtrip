@@ -1,0 +1,51 @@
+[project]
+name = "wishtrip-backend"
+version = "0.1.0"
+description = "Wishtrip API: knowledge base, traveler intelligence, recommendations and AI chat"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic-settings>=2.6",
+    "email-validator>=2.2",
+    "pgvector>=0.3.6",
+    "pyjwt>=2.10",
+    "pwdlib[argon2]>=0.2.1",
+    "celery[redis]>=5.4",
+    "redis>=5.2",
+    "httpx>=0.28",
+    "python-multipart>=0.0.18",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/scripts/*" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true

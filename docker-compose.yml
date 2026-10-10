@@ -1,0 +1,101 @@
+name: wishtrip
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://wishtrip:wishtrip@postgres:5432/wishtrip
+  REDIS_URL: redis://redis:6379/0
+  MEDIA_ROOT: /data/media
+  # Ollama runs on the host machine (local embeddings without an API key).
+  OLLAMA_BASE_URL: http://host.docker.internal:11434
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: wishtrip
+      POSTGRES_PASSWORD: wishtrip
+      POSTGRES_DB: wishtrip
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wishtrip -d wishtrip"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment: *backend-env
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./backend/tests:/app/tests
+      - ./client_work/knowledge_base:/client_work/knowledge_base:ro
+      - media:/data/media
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    env_file: .env
+    environment: *backend-env
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend/app:/app/app
+      - media:/data/media
+    depends_on:
+      backend:
+        condition: service_started
+
+  dashboard:
+    build: ./dashboard
+    environment:
+      BACKEND_URL: http://backend:8000
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./dashboard/src:/app/src
+      - ./dashboard/public:/app/public
+    depends_on:
+      - backend
+
+  # Traveler-facing MVP site. Browsers only ever call this origin; it forwards allowlisted
+  # traveler routes to the backend server-side.
+  website:
+    build: ./website
+    environment:
+      BACKEND_URL: http://backend:8000
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./website/src:/app/src
+      - ./website/public:/app/public
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  media:

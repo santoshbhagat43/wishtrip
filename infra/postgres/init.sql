@@ -1,0 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE DATABASE wishtrip_test OWNER wishtrip;
+\c wishtrip_test
+CREATE EXTENSION IF NOT EXISTS vector;

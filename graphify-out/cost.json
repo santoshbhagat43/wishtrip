@@ -1,0 +1,11 @@
+{
+  "runs": [
+    {
+      "files": 2,
+      "input_tokens": 70643,
+      "output_tokens": 0
+    }
+  ],
+  "total_input_tokens": 70643,
+  "total_output_tokens": 0
+}

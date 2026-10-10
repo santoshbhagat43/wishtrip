@@ -1,0 +1,5502 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "WishTrip API",
+  "version": "0.1.0"
+ },
+ "paths": {
+  "/auth/login": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Login",
+    "operationId": "login_auth_login_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LoginRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/register": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Register",
+    "description": "Public sign-up always creates a traveler; staff accounts are created by admins.",
+    "operationId": "register_auth_register_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RegisterRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/refresh": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Refresh",
+    "operationId": "refresh_auth_refresh_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefreshRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/me": {
+   "get": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Me",
+    "operationId": "me_auth_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/users": {
+   "get": {
+    "tags": [
+     "users"
+    ],
+    "summary": "List Users",
+    "operationId": "list_users_admin_users_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "role",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/Role"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Role"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 25,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_UserRead_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Create User",
+    "operationId": "create_user_admin_users_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/users/{user_id}": {
+   "patch": {
+    "tags": [
+     "users"
+    ],
+    "summary": "Update User",
+    "operationId": "update_user_admin_users__user_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/audit-log": {
+   "get": {
+    "tags": [
+     "audit"
+    ],
+    "summary": "List Audit Log",
+    "operationId": "list_audit_log_admin_audit_log_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "entity_type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Type"
+      }
+     },
+     {
+      "name": "entity_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Id"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_AuditLogRead_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/stats": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Knowledge Stats",
+    "operationId": "knowledge_stats_admin_stats_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/KnowledgeStats"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/locations": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "List Locations",
+    "operationId": "list_locations_admin_locations_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LocationType"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "name": "parent_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Parent Id"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/LocationStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "tag_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Tag Id"
+      }
+     },
+     {
+      "name": "source",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Source"
+      }
+     },
+     {
+      "name": "needs_verification",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Needs Verification"
+      }
+     },
+     {
+      "name": "region",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Region"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 25,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_LocationListItem_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Create Location",
+    "operationId": "create_location_admin_locations_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LocationCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LocationRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/locations/{location_id}/children-counts": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Children Counts",
+    "description": "Child counts for each direct child of a location (used by the hierarchy tree).",
+    "operationId": "children_counts_admin_locations__location_id__children_counts_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "integer"
+         },
+         "propertyNames": {
+          "format": "uuid"
+         },
+         "title": "Response Children Counts Admin Locations  Location Id  Children Counts Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/locations/{location_id}": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Get Location",
+    "operationId": "get_location_admin_locations__location_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LocationRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Update Location",
+    "operationId": "update_location_admin_locations__location_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LocationUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LocationRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Delete Location",
+    "operationId": "delete_location_admin_locations__location_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/locations/reindex": {
+   "post": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Reindex Locations",
+    "description": "Re-embed every published location whose embedding is missing or out of date.",
+    "operationId": "reindex_locations_admin_locations_reindex_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Reindex Locations Admin Locations Reindex Post"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/locations/{location_id}/relations": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "List Relations",
+    "operationId": "list_relations_admin_locations__location_id__relations_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/RelationRead"
+         },
+         "title": "Response List Relations Admin Locations  Location Id  Relations Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Add Relation",
+    "operationId": "add_relation_admin_locations__location_id__relations_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RelationCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RelationRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/relations/{relation_id}": {
+   "delete": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Delete Relation",
+    "operationId": "delete_relation_admin_relations__relation_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "relation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Relation Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/tags": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "List Tags",
+    "operationId": "list_tags_admin_tags_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TagRead"
+         },
+         "type": "array",
+         "title": "Response List Tags Admin Tags Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Create Tag",
+    "operationId": "create_tag_admin_tags_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TagCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TagRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/tags/{tag_id}": {
+   "delete": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Delete Tag",
+    "operationId": "delete_tag_admin_tags__tag_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "tag_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tag Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/locations/{location_id}/media": {
+   "get": {
+    "tags": [
+     "media"
+    ],
+    "summary": "List Media",
+    "operationId": "list_media_admin_locations__location_id__media_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MediaRead"
+         },
+         "title": "Response List Media Admin Locations  Location Id  Media Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "media"
+    ],
+    "summary": "Add Media",
+    "operationId": "add_media_admin_locations__location_id__media_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "location_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Location Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_add_media_admin_locations__location_id__media_post"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MediaRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/media/{media_id}": {
+   "delete": {
+    "tags": [
+     "media"
+    ],
+    "summary": "Delete Media",
+    "operationId": "delete_media_admin_media__media_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "media_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Media Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/search/semantic": {
+   "get": {
+    "tags": [
+     "search"
+    ],
+    "summary": "Search",
+    "operationId": "search_search_semantic_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 2,
+       "title": "Q"
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LocationType"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "name": "city_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "City Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 50,
+       "minimum": 1,
+       "default": 10,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SearchResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/profiles/me": {
+   "get": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "My Profile",
+    "operationId": "my_profile_profiles_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProfileRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "put": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "Update My Profile",
+    "operationId": "update_my_profile_profiles_me_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProfileFields"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProfileRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/profiles/me/events": {
+   "post": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "Record Event",
+    "description": "Behavioral signal: the traveler selected, skipped, removed... a location.",
+    "operationId": "record_event_profiles_me_events_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/EventCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EventRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/travelers": {
+   "get": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "List Travelers",
+    "operationId": "list_travelers_admin_travelers_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 25,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_TravelerSummary_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/travelers/{user_id}": {
+   "get": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "Traveler Detail",
+    "operationId": "traveler_detail_admin_travelers__user_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TravelerDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/recommendations": {
+   "get": {
+    "tags": [
+     "recommendations"
+    ],
+    "summary": "My Recommendations",
+    "operationId": "my_recommendations_recommendations_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "city_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "City Id"
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LocationType"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 50,
+       "minimum": 1,
+       "default": 10,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecommendationResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/recommendations/preview": {
+   "get": {
+    "tags": [
+     "recommendations"
+    ],
+    "summary": "Preview Recommendations",
+    "description": "Inspector for staff: what would this traveler be recommended, and why.",
+    "operationId": "preview_recommendations_admin_recommendations_preview_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "city_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "uuid"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "City Id"
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LocationType"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 50,
+       "minimum": 1,
+       "default": 20,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecommendationResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/chat/sessions": {
+   "get": {
+    "tags": [
+     "chat"
+    ],
+    "summary": "List Sessions",
+    "operationId": "list_sessions_chat_sessions_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SessionRead"
+         },
+         "type": "array",
+         "title": "Response List Sessions Chat Sessions Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "chat"
+    ],
+    "summary": "Create Session",
+    "operationId": "create_session_chat_sessions_post",
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/chat/sessions/{chat_id}": {
+   "get": {
+    "tags": [
+     "chat"
+    ],
+    "summary": "Get Chat",
+    "operationId": "get_chat_chat_sessions__chat_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "chat_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Chat Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "chat"
+    ],
+    "summary": "Delete Chat",
+    "operationId": "delete_chat_chat_sessions__chat_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "chat_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Chat Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/chat/sessions/{chat_id}/messages": {
+   "post": {
+    "tags": [
+     "chat"
+    ],
+    "summary": "Send Message",
+    "operationId": "send_message_chat_sessions__chat_id__messages_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "chat_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Chat Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MessageCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChatTurn"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/health": {
+   "get": {
+    "tags": [
+     "system"
+    ],
+    "summary": "Health",
+    "operationId": "health_health_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Health Health Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AuditLogRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "user_email": {
+      "type": "string",
+      "title": "User Email"
+     },
+     "action": {
+      "type": "string",
+      "title": "Action"
+     },
+     "entity_type": {
+      "type": "string",
+      "title": "Entity Type"
+     },
+     "entity_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entity Id"
+     },
+     "changes": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Changes"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "user_email",
+     "action",
+     "entity_type",
+     "entity_id",
+     "changes",
+     "created_at"
+    ],
+    "title": "AuditLogRead"
+   },
+   "Body_add_media_admin_locations__location_id__media_post": {
+    "properties": {
+     "kind": {
+      "$ref": "#/components/schemas/MediaKind"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption",
+      "default": ""
+     },
+     "author": {
+      "type": "string",
+      "title": "Author",
+      "default": ""
+     },
+     "external_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Url"
+     },
+     "file": {
+      "anyOf": [
+       {
+        "type": "string",
+        "contentMediaType": "application/octet-stream"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "File"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "title": "Body_add_media_admin_locations__location_id__media_post"
+   },
+   "ChatTurn": {
+    "properties": {
+     "session": {
+      "$ref": "#/components/schemas/SessionRead"
+     },
+     "user_message": {
+      "$ref": "#/components/schemas/MessageRead"
+     },
+     "assistant_message": {
+      "$ref": "#/components/schemas/MessageDebugRead"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session",
+     "user_message",
+     "assistant_message"
+    ],
+    "title": "ChatTurn"
+   },
+   "Companions": {
+    "type": "string",
+    "enum": [
+     "solo",
+     "couple",
+     "family",
+     "friends"
+    ],
+    "title": "Companions"
+   },
+   "EventCreate": {
+    "properties": {
+     "location_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Location Id"
+     },
+     "event_type": {
+      "$ref": "#/components/schemas/EventType"
+     }
+    },
+    "type": "object",
+    "required": [
+     "location_id",
+     "event_type"
+    ],
+    "title": "EventCreate"
+   },
+   "EventRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "location_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Location Id"
+     },
+     "event_type": {
+      "$ref": "#/components/schemas/EventType"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "location_id",
+     "event_type",
+     "created_at"
+    ],
+    "title": "EventRead"
+   },
+   "EventType": {
+    "type": "string",
+    "enum": [
+     "viewed",
+     "selected",
+     "added",
+     "booked",
+     "skipped",
+     "removed"
+    ],
+    "title": "EventType"
+   },
+   "Feasibility": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "changes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Changes"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/FeasibilityIssue"
+      },
+      "type": "array",
+      "title": "Issues"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status",
+     "changes",
+     "issues"
+    ],
+    "title": "Feasibility"
+   },
+   "FeasibilityIssue": {
+    "properties": {
+     "severity": {
+      "type": "string",
+      "title": "Severity"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     },
+     "day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Day"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "severity",
+     "code",
+     "message",
+     "day",
+     "name"
+    ],
+    "title": "FeasibilityIssue"
+   },
+   "Grounding": {
+    "type": "string",
+    "enum": [
+     "knowledge_base",
+     "partial",
+     "general"
+    ],
+    "title": "Grounding"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "ItineraryDay": {
+    "properties": {
+     "day": {
+      "type": "integer",
+      "title": "Day"
+     },
+     "date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date"
+     },
+     "weekday": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weekday"
+     },
+     "capacity_minutes": {
+      "type": "integer",
+      "title": "Capacity Minutes"
+     },
+     "activity_minutes": {
+      "type": "integer",
+      "title": "Activity Minutes"
+     },
+     "travel_minutes": {
+      "type": "integer",
+      "title": "Travel Minutes"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ScheduledItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "day",
+     "date",
+     "weekday",
+     "capacity_minutes",
+     "activity_minutes",
+     "travel_minutes",
+     "items"
+    ],
+    "title": "ItineraryDay"
+   },
+   "KnowledgeStats": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "by_type": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "By Type"
+     },
+     "by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "By Status"
+     },
+     "incomplete": {
+      "type": "integer",
+      "title": "Incomplete"
+     },
+     "embeddings_pending": {
+      "type": "integer",
+      "title": "Embeddings Pending"
+     },
+     "relations": {
+      "type": "integer",
+      "title": "Relations"
+     },
+     "tags": {
+      "type": "integer",
+      "title": "Tags"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "by_type",
+     "by_status",
+     "incomplete",
+     "embeddings_pending",
+     "relations",
+     "tags"
+    ],
+    "title": "KnowledgeStats"
+   },
+   "LocationCreate": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "summary": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Summary",
+      "default": ""
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 90.0,
+        "minimum": -90.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 180.0,
+        "minimum": -180.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "address": {
+      "type": "string",
+      "title": "Address",
+      "default": ""
+     },
+     "region": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Region",
+      "default": ""
+     },
+     "aliases": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Aliases",
+      "default": []
+     },
+     "highlight": {
+      "type": "boolean",
+      "title": "Highlight",
+      "default": false
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 20160.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "items": {
+       "$ref": "#/components/schemas/TimeOfDay"
+      },
+      "type": "array",
+      "title": "Best Times",
+      "default": []
+     },
+     "seasons": {
+      "items": {
+       "$ref": "#/components/schemas/Season"
+      },
+      "type": "array",
+      "title": "Seasons",
+      "default": []
+     },
+     "opening_hours": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Opening Hours",
+      "default": {}
+     },
+     "cost_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Level"
+     },
+     "price_note": {
+      "type": "string",
+      "title": "Price Note",
+      "default": ""
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "difficulty": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Difficulty"
+     },
+     "family_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Family Friendly"
+     },
+     "couple_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Couple Friendly"
+     },
+     "accessible": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accessible"
+     },
+     "pros": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Pros",
+      "default": []
+     },
+     "cons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Cons",
+      "default": []
+     },
+     "tips": {
+      "type": "string",
+      "title": "Tips",
+      "default": ""
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "parent_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Id"
+     },
+     "status": {
+      "$ref": "#/components/schemas/LocationStatus",
+      "default": "draft"
+     },
+     "tag_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Tag Ids",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "type"
+    ],
+    "title": "LocationCreate"
+   },
+   "LocationListItem": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/LocationStatus"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "parent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tags": {
+      "items": {
+       "$ref": "#/components/schemas/TagRead"
+      },
+      "type": "array",
+      "title": "Tags"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "highlight": {
+      "type": "boolean",
+      "title": "Highlight"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "provenance": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Provenance"
+     },
+     "embedded_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Embedded At"
+     },
+     "embedding_model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Embedding Model"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "completeness": {
+      "type": "number",
+      "title": "Completeness",
+      "default": 1.0
+     },
+     "missing_fields": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Missing Fields",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "status",
+     "name",
+     "slug",
+     "summary",
+     "parent",
+     "tags",
+     "region",
+     "highlight",
+     "source",
+     "provenance",
+     "embedded_at",
+     "embedding_model",
+     "updated_at"
+    ],
+    "title": "LocationListItem"
+   },
+   "LocationRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/LocationStatus"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "summary": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Summary",
+      "default": ""
+     },
+     "parent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tags": {
+      "items": {
+       "$ref": "#/components/schemas/TagRead"
+      },
+      "type": "array",
+      "title": "Tags"
+     },
+     "region": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Region",
+      "default": ""
+     },
+     "highlight": {
+      "type": "boolean",
+      "title": "Highlight",
+      "default": false
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "provenance": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Provenance"
+     },
+     "embedded_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Embedded At"
+     },
+     "embedding_model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Embedding Model"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "completeness": {
+      "type": "number",
+      "title": "Completeness",
+      "default": 1.0
+     },
+     "missing_fields": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Missing Fields",
+      "default": []
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 90.0,
+        "minimum": -90.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 180.0,
+        "minimum": -180.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "address": {
+      "type": "string",
+      "title": "Address",
+      "default": ""
+     },
+     "aliases": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Aliases",
+      "default": []
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 20160.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "items": {
+       "$ref": "#/components/schemas/TimeOfDay"
+      },
+      "type": "array",
+      "title": "Best Times",
+      "default": []
+     },
+     "seasons": {
+      "items": {
+       "$ref": "#/components/schemas/Season"
+      },
+      "type": "array",
+      "title": "Seasons",
+      "default": []
+     },
+     "opening_hours": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Opening Hours",
+      "default": {}
+     },
+     "cost_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Level"
+     },
+     "price_note": {
+      "type": "string",
+      "title": "Price Note",
+      "default": ""
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "difficulty": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Difficulty"
+     },
+     "family_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Family Friendly"
+     },
+     "couple_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Couple Friendly"
+     },
+     "accessible": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accessible"
+     },
+     "pros": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Pros",
+      "default": []
+     },
+     "cons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Cons",
+      "default": []
+     },
+     "tips": {
+      "type": "string",
+      "title": "Tips",
+      "default": ""
+     },
+     "parent_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Id"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "reference": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Reference"
+     },
+     "ancestors": {
+      "items": {
+       "$ref": "#/components/schemas/LocationRef"
+      },
+      "type": "array",
+      "title": "Ancestors",
+      "default": []
+     },
+     "children_count": {
+      "type": "integer",
+      "title": "Children Count",
+      "default": 0
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "embedding_stale": {
+      "type": "boolean",
+      "title": "Embedding Stale",
+      "readOnly": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "status",
+     "name",
+     "slug",
+     "parent",
+     "tags",
+     "source",
+     "provenance",
+     "embedded_at",
+     "embedding_model",
+     "updated_at",
+     "parent_id",
+     "external_id",
+     "reference",
+     "created_at",
+     "embedding_stale"
+    ],
+    "title": "LocationRead"
+   },
+   "LocationRef": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "slug",
+     "type"
+    ],
+    "title": "LocationRef"
+   },
+   "LocationStatus": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "published",
+     "archived"
+    ],
+    "title": "LocationStatus"
+   },
+   "LocationType": {
+    "type": "string",
+    "enum": [
+     "country",
+     "city",
+     "attraction",
+     "hotel",
+     "restaurant",
+     "activity",
+     "experience",
+     "route"
+    ],
+    "title": "LocationType"
+   },
+   "LocationUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "parent_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Id"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tag_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tag Ids"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 90.0,
+        "minimum": -90.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 180.0,
+        "minimum": -180.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "address": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Address"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 100
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region"
+     },
+     "aliases": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Aliases"
+     },
+     "highlight": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Highlight"
+     },
+     "provenance": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provenance"
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 20160.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TimeOfDay"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Best Times"
+     },
+     "seasons": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/Season"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seasons"
+     },
+     "opening_hours": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Opening Hours"
+     },
+     "cost_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Level"
+     },
+     "price_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Note"
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "difficulty": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Difficulty"
+     },
+     "family_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Family Friendly"
+     },
+     "couple_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Couple Friendly"
+     },
+     "accessible": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accessible"
+     },
+     "pros": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pros"
+     },
+     "cons": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cons"
+     },
+     "tips": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tips"
+     }
+    },
+    "type": "object",
+    "title": "LocationUpdate",
+    "description": "Every field optional; only fields sent are changed."
+   },
+   "LoginRequest": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "maxLength": 255,
+      "title": "Email"
+     },
+     "password": {
+      "type": "string",
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "password"
+    ],
+    "title": "LoginRequest"
+   },
+   "MediaKind": {
+    "type": "string",
+    "enum": [
+     "image",
+     "video",
+     "influencer"
+    ],
+    "title": "MediaKind"
+   },
+   "MediaRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "location_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Location Id"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/MediaKind"
+     },
+     "storage_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Storage Key"
+     },
+     "external_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Url"
+     },
+     "content_type": {
+      "type": "string",
+      "title": "Content Type"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption"
+     },
+     "author": {
+      "type": "string",
+      "title": "Author"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url",
+      "readOnly": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "location_id",
+     "kind",
+     "storage_key",
+     "external_url",
+     "content_type",
+     "caption",
+     "author",
+     "created_at",
+     "url"
+    ],
+    "title": "MediaRead"
+   },
+   "MessageCreate": {
+    "properties": {
+     "content": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Content"
+     }
+    },
+    "type": "object",
+    "required": [
+     "content"
+    ],
+    "title": "MessageCreate"
+   },
+   "MessageDebugRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "role": {
+      "$ref": "#/components/schemas/MessageRole"
+     },
+     "content": {
+      "type": "string",
+      "title": "Content"
+     },
+     "intent": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Intent"
+     },
+     "grounding": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Grounding"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/Suggestion"
+      },
+      "type": "array",
+      "title": "Suggestions"
+     },
+     "sources": {
+      "items": {
+       "$ref": "#/components/schemas/Source"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "follow_ups": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Follow Ups"
+     },
+     "validation_notes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Validation Notes"
+     },
+     "itinerary": {
+      "items": {
+       "$ref": "#/components/schemas/ItineraryDay"
+      },
+      "type": "array",
+      "title": "Itinerary",
+      "default": []
+     },
+     "feasibility": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Feasibility"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "debug": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Debug"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "role",
+     "content",
+     "intent",
+     "grounding",
+     "suggestions",
+     "sources",
+     "follow_ups",
+     "validation_notes",
+     "model",
+     "created_at",
+     "debug"
+    ],
+    "title": "MessageDebugRead"
+   },
+   "MessageRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "role": {
+      "$ref": "#/components/schemas/MessageRole"
+     },
+     "content": {
+      "type": "string",
+      "title": "Content"
+     },
+     "intent": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Intent"
+     },
+     "grounding": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Grounding"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/Suggestion"
+      },
+      "type": "array",
+      "title": "Suggestions"
+     },
+     "sources": {
+      "items": {
+       "$ref": "#/components/schemas/Source"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "follow_ups": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Follow Ups"
+     },
+     "validation_notes": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Validation Notes"
+     },
+     "itinerary": {
+      "items": {
+       "$ref": "#/components/schemas/ItineraryDay"
+      },
+      "type": "array",
+      "title": "Itinerary",
+      "default": []
+     },
+     "feasibility": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Feasibility"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "role",
+     "content",
+     "intent",
+     "grounding",
+     "suggestions",
+     "sources",
+     "follow_ups",
+     "validation_notes",
+     "model",
+     "created_at"
+    ],
+    "title": "MessageRead"
+   },
+   "MessageRole": {
+    "type": "string",
+    "enum": [
+     "user",
+     "assistant"
+    ],
+    "title": "MessageRole"
+   },
+   "Page_AuditLogRead_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/AuditLogRead"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[AuditLogRead]"
+   },
+   "Page_LocationListItem_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/LocationListItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[LocationListItem]"
+   },
+   "Page_TravelerSummary_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TravelerSummary"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[TravelerSummary]"
+   },
+   "Page_UserRead_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/UserRead"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[UserRead]"
+   },
+   "PreferenceSummary": {
+    "properties": {
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "budget_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Level"
+     },
+     "companions": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Companions"
+     },
+     "preferred_times": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Preferred Times"
+     },
+     "accessibility_needs": {
+      "type": "boolean",
+      "title": "Accessibility Needs"
+     },
+     "interest_tag_count": {
+      "type": "integer",
+      "title": "Interest Tag Count"
+     },
+     "query_text": {
+      "type": "string",
+      "title": "Query Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "energy_level",
+     "budget_level",
+     "companions",
+     "preferred_times",
+     "accessibility_needs",
+     "interest_tag_count",
+     "query_text"
+    ],
+    "title": "PreferenceSummary"
+   },
+   "ProfileFields": {
+    "properties": {
+     "budget_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Level"
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "companions": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Companions"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "travel_styles": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Travel Styles",
+      "default": []
+     },
+     "food_preferences": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Food Preferences",
+      "default": []
+     },
+     "preferred_times": {
+      "items": {
+       "$ref": "#/components/schemas/TimeOfDay"
+      },
+      "type": "array",
+      "title": "Preferred Times",
+      "default": []
+     },
+     "interest_tag_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Interest Tag Ids",
+      "default": []
+     },
+     "accommodation_preference": {
+      "type": "string",
+      "title": "Accommodation Preference",
+      "default": ""
+     },
+     "accessibility_needs": {
+      "type": "boolean",
+      "title": "Accessibility Needs",
+      "default": false
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 1000,
+      "title": "Notes",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "ProfileFields"
+   },
+   "ProfileRead": {
+    "properties": {
+     "budget_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 4.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Level"
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 5.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "companions": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Companions"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "travel_styles": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Travel Styles",
+      "default": []
+     },
+     "food_preferences": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Food Preferences",
+      "default": []
+     },
+     "preferred_times": {
+      "items": {
+       "$ref": "#/components/schemas/TimeOfDay"
+      },
+      "type": "array",
+      "title": "Preferred Times",
+      "default": []
+     },
+     "interest_tag_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Interest Tag Ids",
+      "default": []
+     },
+     "accommodation_preference": {
+      "type": "string",
+      "title": "Accommodation Preference",
+      "default": ""
+     },
+     "accessibility_needs": {
+      "type": "boolean",
+      "title": "Accessibility Needs",
+      "default": false
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 1000,
+      "title": "Notes",
+      "default": ""
+     },
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "updated_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id"
+    ],
+    "title": "ProfileRead"
+   },
+   "PublicLocation": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "highlight": {
+      "type": "boolean",
+      "title": "Highlight"
+     },
+     "parent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tags": {
+      "items": {
+       "$ref": "#/components/schemas/TagRead"
+      },
+      "type": "array",
+      "title": "Tags"
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Best Times"
+     },
+     "cost_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Level"
+     },
+     "price_note": {
+      "type": "string",
+      "title": "Price Note"
+     },
+     "family_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Family Friendly"
+     },
+     "couple_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Couple Friendly"
+     },
+     "accessible": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accessible"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "name",
+     "slug",
+     "summary",
+     "region",
+     "highlight",
+     "parent",
+     "tags",
+     "latitude",
+     "longitude",
+     "duration_minutes",
+     "best_times",
+     "cost_level",
+     "price_note",
+     "family_friendly",
+     "couple_friendly",
+     "accessible"
+    ],
+    "title": "PublicLocation",
+    "description": "What travelers may see: no provenance, source, reference data, status or index state."
+   },
+   "RecentEvent": {
+    "properties": {
+     "event": {
+      "$ref": "#/components/schemas/EventRead"
+     },
+     "location": {
+      "$ref": "#/components/schemas/LocationRef"
+     }
+    },
+    "type": "object",
+    "required": [
+     "event",
+     "location"
+    ],
+    "title": "RecentEvent"
+   },
+   "RecommendationItem": {
+    "properties": {
+     "location": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationListItem"
+       },
+       {
+        "$ref": "#/components/schemas/PublicLocation"
+       }
+      ],
+      "title": "Location"
+     },
+     "score": {
+      "type": "number",
+      "title": "Score"
+     },
+     "similarity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Similarity"
+     },
+     "components": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "type": "object",
+      "title": "Components"
+     },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Reasons"
+     },
+     "warnings": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Warnings"
+     }
+    },
+    "type": "object",
+    "required": [
+     "location",
+     "score",
+     "similarity",
+     "components",
+     "reasons",
+     "warnings"
+    ],
+    "title": "RecommendationItem"
+   },
+   "RecommendationResponse": {
+    "properties": {
+     "preferences": {
+      "$ref": "#/components/schemas/PreferenceSummary"
+     },
+     "weights": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "type": "object",
+      "title": "Weights"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/RecommendationItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "preferences",
+     "weights",
+     "items"
+    ],
+    "title": "RecommendationResponse"
+   },
+   "RefreshRequest": {
+    "properties": {
+     "refresh_token": {
+      "type": "string",
+      "title": "Refresh Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "refresh_token"
+    ],
+    "title": "RefreshRequest"
+   },
+   "RegisterRequest": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "password": {
+      "type": "string",
+      "minLength": 8,
+      "title": "Password"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "password"
+    ],
+    "title": "RegisterRequest"
+   },
+   "RelationCreate": {
+    "properties": {
+     "target_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Target Id"
+     },
+     "relation": {
+      "$ref": "#/components/schemas/RelationType"
+     },
+     "distance_meters": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Distance Meters"
+     },
+     "travel_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Travel Minutes"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "target_id",
+     "relation"
+    ],
+    "title": "RelationCreate"
+   },
+   "RelationRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "relation": {
+      "$ref": "#/components/schemas/RelationType"
+     },
+     "source": {
+      "$ref": "#/components/schemas/LocationRef"
+     },
+     "target": {
+      "$ref": "#/components/schemas/LocationRef"
+     },
+     "distance_meters": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Distance Meters"
+     },
+     "travel_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Travel Minutes"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "relation",
+     "source",
+     "target",
+     "distance_meters",
+     "travel_minutes",
+     "note"
+    ],
+    "title": "RelationRead"
+   },
+   "RelationType": {
+    "type": "string",
+    "enum": [
+     "near",
+     "route_to",
+     "pairs_with",
+     "similar_to",
+     "alternative_to"
+    ],
+    "title": "RelationType"
+   },
+   "Role": {
+    "type": "string",
+    "enum": [
+     "admin",
+     "editor",
+     "traveler"
+    ],
+    "title": "Role"
+   },
+   "ScheduledItem": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "from_knowledge_base": {
+      "type": "boolean",
+      "title": "From Knowledge Base"
+     },
+     "is_placeholder": {
+      "type": "boolean",
+      "title": "Is Placeholder"
+     },
+     "day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Day"
+     },
+     "time_of_day": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Time Of Day"
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "why": {
+      "type": "string",
+      "title": "Why"
+     },
+     "start": {
+      "type": "string",
+      "title": "Start"
+     },
+     "end": {
+      "type": "string",
+      "title": "End"
+     },
+     "duration_estimated": {
+      "type": "boolean",
+      "title": "Duration Estimated"
+     },
+     "travel_minutes_before": {
+      "type": "integer",
+      "title": "Travel Minutes Before"
+     },
+     "travel_estimated": {
+      "type": "boolean",
+      "title": "Travel Estimated"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "type",
+     "location_id",
+     "from_knowledge_base",
+     "is_placeholder",
+     "day",
+     "time_of_day",
+     "duration_minutes",
+     "price",
+     "why",
+     "start",
+     "end",
+     "duration_estimated",
+     "travel_minutes_before",
+     "travel_estimated"
+    ],
+    "title": "ScheduledItem"
+   },
+   "SearchResponse": {
+    "properties": {
+     "query": {
+      "type": "string",
+      "title": "Query"
+     },
+     "embedder": {
+      "type": "string",
+      "title": "Embedder"
+     },
+     "results": {
+      "items": {
+       "$ref": "#/components/schemas/SearchResult"
+      },
+      "type": "array",
+      "title": "Results"
+     }
+    },
+    "type": "object",
+    "required": [
+     "query",
+     "embedder",
+     "results"
+    ],
+    "title": "SearchResponse"
+   },
+   "SearchResult": {
+    "properties": {
+     "location": {
+      "$ref": "#/components/schemas/PublicLocation"
+     },
+     "similarity": {
+      "type": "number",
+      "title": "Similarity"
+     }
+    },
+    "type": "object",
+    "required": [
+     "location",
+     "similarity"
+    ],
+    "title": "SearchResult"
+   },
+   "Season": {
+    "type": "string",
+    "enum": [
+     "spring",
+     "summer",
+     "autumn",
+     "winter"
+    ],
+    "title": "Season"
+   },
+   "SessionDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "state": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "State"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "messages": {
+      "items": {
+       "$ref": "#/components/schemas/MessageDebugRead"
+      },
+      "type": "array",
+      "title": "Messages"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "state",
+     "created_at",
+     "updated_at",
+     "messages"
+    ],
+    "title": "SessionDetail"
+   },
+   "SessionRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "state": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "State"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "state",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "SessionRead"
+   },
+   "Source": {
+    "properties": {
+     "ref": {
+      "type": "string",
+      "title": "Ref"
+     },
+     "location_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Location Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "similarity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Similarity"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ref",
+     "location_id",
+     "name",
+     "type",
+     "city",
+     "score",
+     "similarity"
+    ],
+    "title": "Source"
+   },
+   "Suggestion": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "type": {
+      "type": "string",
+      "title": "Type"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "from_knowledge_base": {
+      "type": "boolean",
+      "title": "From Knowledge Base"
+     },
+     "is_placeholder": {
+      "type": "boolean",
+      "title": "Is Placeholder"
+     },
+     "day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Day"
+     },
+     "time_of_day": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Time Of Day"
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     },
+     "why": {
+      "type": "string",
+      "title": "Why"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "type",
+     "location_id",
+     "from_knowledge_base",
+     "is_placeholder",
+     "day",
+     "time_of_day",
+     "duration_minutes",
+     "price",
+     "why"
+    ],
+    "title": "Suggestion"
+   },
+   "TagCategory": {
+    "type": "string",
+    "enum": [
+     "interest",
+     "cuisine",
+     "style",
+     "amenity"
+    ],
+    "title": "TagCategory"
+   },
+   "TagCreate": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "category": {
+      "$ref": "#/components/schemas/TagCategory",
+      "default": "interest"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "TagCreate"
+   },
+   "TagRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "category": {
+      "$ref": "#/components/schemas/TagCategory"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "slug",
+     "category"
+    ],
+    "title": "TagRead"
+   },
+   "TimeOfDay": {
+    "type": "string",
+    "enum": [
+     "morning",
+     "afternoon",
+     "evening",
+     "night"
+    ],
+    "title": "TimeOfDay"
+   },
+   "TokenPair": {
+    "properties": {
+     "access_token": {
+      "type": "string",
+      "title": "Access Token"
+     },
+     "refresh_token": {
+      "type": "string",
+      "title": "Refresh Token"
+     },
+     "token_type": {
+      "type": "string",
+      "title": "Token Type",
+      "default": "bearer"
+     }
+    },
+    "type": "object",
+    "required": [
+     "access_token",
+     "refresh_token"
+    ],
+    "title": "TokenPair"
+   },
+   "TravelerDetail": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "profile": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ProfileRead"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "event_count": {
+      "type": "integer",
+      "title": "Event Count"
+     },
+     "recent_events": {
+      "items": {
+       "$ref": "#/components/schemas/RecentEvent"
+      },
+      "type": "array",
+      "title": "Recent Events"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "email",
+     "full_name",
+     "profile",
+     "event_count",
+     "recent_events"
+    ],
+    "title": "TravelerDetail"
+   },
+   "TravelerSummary": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "profile": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ProfileRead"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "event_count": {
+      "type": "integer",
+      "title": "Event Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "email",
+     "full_name",
+     "profile",
+     "event_count"
+    ],
+    "title": "TravelerSummary"
+   },
+   "UserCreate": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "password": {
+      "type": "string",
+      "minLength": 8,
+      "title": "Password"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name",
+      "default": ""
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role",
+      "default": "editor"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "password"
+    ],
+    "title": "UserCreate"
+   },
+   "UserRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "email",
+     "full_name",
+     "role",
+     "is_active",
+     "created_at"
+    ],
+    "title": "UserRead"
+   },
+   "UserUpdate": {
+    "properties": {
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Role"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     },
+     "password": {
+      "anyOf": [
+       {
+        "type": "string",
+        "minLength": 8
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Password"
+     }
+    },
+    "type": "object",
+    "title": "UserUpdate"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  },
+  "securitySchemes": {
+   "HTTPBearer": {
+    "type": "http",
+    "scheme": "bearer"
+   }
+  }
+ }
+}

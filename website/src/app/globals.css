@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* WishTrip Design Tokens v1.0 (client design system: client_work/brand-tokens.css).
+   Teal is the single interaction voice; coral is for commit + delight only. */
+:root {
+  --bg: #fbf8f2;
+  --surface: #ffffff;
+  --surface-2: #f6f1e8;
+  --border: #e9e1d4;
+  --text: #16211e;
+  --muted: #57635e;
+  --brand: #0e5e52;
+  --brand-strong: #147a6b;
+  --brand-soft: #e9f3f0;
+  --on-brand: #ffffff;
+  --accent: #e8663d;
+  --accent-strong: #c6522e;
+  --accent-soft: #fbe7dc;
+  --accent-text: #c6522e;
+  --value: #efa23f;
+  --value-soft: #f7ebd3;
+  --ok: #1e7a5a;
+  --ok-soft: #e4f2ec;
+  --warn: #b87814;
+  --warn-soft: #f7ebd3;
+  --danger: #c0492b;
+  --danger-soft: #fae6df;
+  --info: #147a6b;
+  --info-soft: #e9f3f0;
+  --shadow-sm: 0 1px 3px rgba(22, 33, 30, 0.07);
+  --shadow-md: 0 8px 22px rgba(22, 33, 30, 0.1);
+}
+
+/* Dark theme: warm pine-ink, never cold slate. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1513;
+    --surface: #131d1a;
+    --surface-2: #1a2622;
+    --border: #24322d;
+    --text: #edefe9;
+    --muted: #a3afa8;
+    --brand: #2e9b87;
+    --brand-strong: #57b8a3;
+    --brand-soft: #12332d;
+    --on-brand: #08221e;
+    --accent: #e8663d;
+    --accent-strong: #f2916e;
+    --accent-soft: #3a2119;
+    --accent-text: #f2916e;
+    --value: #efa23f;
+    --value-soft: #332711;
+    --ok: #37a57e;
+    --ok-soft: #143026;
+    --warn: #d69a3c;
+    --warn-soft: #332711;
+    --danger: #e06842;
+    --danger-soft: #3a1f16;
+    --info: #57b8a3;
+    --info-soft: #12332d;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-value: var(--value);
+  --color-value-soft: var(--value-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-display-serif);
+  --font-mono: var(--font-geist-mono);
+  --shadow-card: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --ease-brand: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, .font-display {
+  font-family: var(--font-display-serif), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+.prose-chat p { margin: 0.4rem 0; }
+.prose-chat ul { list-style: disc; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-chat ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-chat h1, .prose-chat h2, .prose-chat h3 { font-weight: 600; margin: 0.75rem 0 0.25rem; }
+.prose-chat strong { font-weight: 600; }

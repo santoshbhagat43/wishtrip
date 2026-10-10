@@ -1,0 +1,223 @@
+/* ============================================================
+   WishTrip Design Tokens — v1.0 (July 2026)
+   Drop-in themeable token layer. Raw palette → semantic roles.
+   Light is default; dark via [data-theme="dark"] or media query.
+   Naming: keeps the shipped names (--teal-700, --primary, …)
+   and layers semantics on top. Prefer role tokens in new code.
+   ============================================================ */
+
+:root{
+  /* ---------- RAW PALETTE (theme-independent) ---------- */
+  /* Primary — Deep Pine Teal: the single voice for all interaction */
+  --teal-900:#08423A;  /* pressed / darkest */
+  --teal-700:#0E5E52;  /* PRIMARY */
+  --teal-600:#147A6B;
+  --teal-400:#2E9B87;  /* NEW — dark-theme interaction voice */
+  --teal-300:#57B8A3;  /* NEW — dark-theme links / small text */
+  --teal-100:#CFE6E0;
+  --teal-050:#E9F3F0;  /* tint / selected fill */
+
+  /* Accent — Warm Coral: commit + delight ONLY */
+  --clay-600:#C6522E;  /* pressed; also small-text-safe coral */
+  --clay-500:#E8663D;  /* ACCENT */
+  --clay-400:#F2916E;
+  --clay-100:#FBE7DC;
+
+  /* Highlight — Saffron / gold: "value / worth it" */
+  --saffron-400:#EFA23F;
+  --gold-100:#F7EBD3;
+
+  /* Warm neutrals */
+  --sand-50:#FBF8F2;
+  --sand-100:#F4EEE4;
+  --sand-200:#E7DFD1;
+  --ink-900:#16211E;
+  --ink-600:#57635E;
+  --ink-400:#8B958F;
+  --white:#fff;
+
+  /* Dark-theme neutrals (raw; referenced by the dark block) */
+  --pine-950:#0D1513;  /* app bg (dark) */
+  --pine-900:#131D1A;  /* surface (dark) */
+  --pine-850:#1A2622;  /* surface-2 (dark) */
+  --pine-800:#24322D;  /* line (dark) */
+  --mist-100:#EDEFE9;  /* text (dark) — warm white */
+  --mist-400:#A3AFA8;  /* secondary text (dark) */
+  --mist-600:#6F7C75;  /* tertiary text (dark) */
+
+  /* ---------- SEMANTIC ROLES (light theme) ---------- */
+  /* Interaction — teal only */
+  --primary:var(--teal-700);
+  --primary-press:var(--teal-900);
+  --primary-hover:var(--teal-600);
+  --primary-tint:var(--teal-050);
+  --primary-line:var(--teal-100);
+  --on-primary:#fff;
+  --link:var(--teal-700);
+  --focus-ring:var(--teal-600);
+
+  /* Commit + delight — coral only */
+  --accent:var(--clay-500);
+  --accent-press:var(--clay-600);
+  --accent-tint:var(--clay-100);
+  --on-accent:#fff;
+  --accent-text:var(--clay-600); /* coral used AS small text (AA) */
+
+  /* Value / worth-it */
+  --value:var(--saffron-400);
+  --value-tint:var(--gold-100);
+  --value-text:#6B4E16;
+
+  /* Surfaces & structure */
+  --bg:var(--sand-50);
+  --bg-gradient:
+    radial-gradient(1200px 620px at 12% -12%, #f3ede1, transparent),
+    radial-gradient(1000px 720px at 112% 18%, #e7efea, transparent),
+    #eee7db;
+  --surface:#fff;
+  --surface-2:#F6F1E8;
+  --surface-sunken:var(--sand-100);
+  --line:#E9E1D4;
+  --line-strong:var(--sand-200);
+
+  /* Text */
+  --text:var(--ink-900);
+  --text-2:var(--ink-600);
+  --text-3:var(--ink-400);
+  --text-disabled:var(--ink-400);
+  --text-inverse:#fff;
+
+  /* Semantic status */
+  --success:#1E7A5A; --success-tint:#E4F2EC;
+  --warn:#B87814;    --warn-tint:var(--gold-100);
+  --danger:#C0492B;  --danger-tint:#FAE6DF;
+
+  /* Disabled */
+  --disabled-fill:var(--sand-200);
+  --disabled-text:var(--ink-400);
+
+  /* ---------- TYPE ---------- */
+  --font-display:'Fraunces',Georgia,serif;   /* emotion: headings, trip titles, PRICES */
+  --font-ui:'Plus Jakarta Sans',system-ui,sans-serif; /* everything functional */
+  --fs-brand:46px;   /* brand H1 (desktop panel) */
+  --fs-hero:40px;    /* hero H2 */
+  --fs-price:30px;   /* price hero */
+  --fs-h1:27px;      /* question / screen H1 */
+  --fs-title:18px;   /* section titles (17–18) */
+  --fs-body:15px;    /* body 14–16.5 */
+  --fs-sub:14px;
+  --fs-small:12.5px; /* 12–13 */
+  --fs-eyebrow:11.5px; /* 700 · ls .14em · uppercase · coral */
+  --lh-display:1.08; /* 1.03–1.12 */
+  --lh-body:1.5;     /* 1.45–1.6 */
+  --ls-display:-.015em;
+  --ls-eyebrow:.14em;
+
+  /* ---------- SHAPE ---------- */
+  --r-sm:10px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-pill:999px;
+
+  /* ---------- ELEVATION (warm-tinted) ---------- */
+  --sh-sm:0 1px 3px rgba(22,33,30,.07);
+  --sh-md:0 8px 22px rgba(22,33,30,.10);
+  --sh-lg:0 20px 46px rgba(22,33,30,.20);
+  --glow-primary:0 8px 20px rgba(15,76,69,.28);
+  --glow-accent:0 8px 20px rgba(226,97,62,.30);
+
+  /* ---------- MOTION ---------- */
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --t-fast:.16s;   /* chips, hovers */
+  --t-base:.2s;    /* buttons */
+  --t-slow:.34s;   /* sheets, accordions */
+  --press-scale:.97;   /* :active on cards/chips (.94–.98) */
+  --press-shift:1px;   /* :active translateY on buttons */
+
+  /* ---------- SPACE (4px base) ---------- */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+
+  /* ---------- LAYOUT ---------- */
+  --tap-min:44px;          /* minimum touch target */
+  --phone-w:390px; --phone-h:844px;
+  --bp-fullbleed:760px;    /* ≤ this: browser IS the device */
+  --bp-desktop:1040px;     /* ≥ this: split shell / desktop grid */
+  --content-max:1200px;
+}
+
+/* ============================================================
+   DARK THEME — full parity. Warm pine-ink, never cold slate.
+   The interaction voice lightens (teal-400/300) so it carries
+   on dark surfaces; coral discipline is unchanged.
+   ============================================================ */
+[data-theme="dark"]{
+  --primary:var(--teal-400);
+  --primary-press:var(--teal-600);
+  --primary-hover:var(--teal-300);
+  --primary-tint:#12332D;
+  --primary-line:#1E4A42;
+  --on-primary:#08221E;
+  --link:var(--teal-300);
+  --focus-ring:var(--teal-300);
+
+  --accent:var(--clay-500);
+  --accent-press:var(--clay-400); /* press lightens on dark */
+  --accent-tint:#3A2119;
+  --on-accent:#fff;
+  --accent-text:var(--clay-400);
+
+  --value:var(--saffron-400);
+  --value-tint:#332711;
+  --value-text:#EFC77F;
+
+  --bg:var(--pine-950);
+  --bg-gradient:
+    radial-gradient(1200px 620px at 12% -12%, #14201C, transparent),
+    radial-gradient(1000px 720px at 112% 18%, #10201B, transparent),
+    #0B1210;
+  --surface:var(--pine-900);
+  --surface-2:var(--pine-850);
+  --surface-sunken:#0F1815;
+  --line:var(--pine-800);
+  --line-strong:#2E3E38;
+
+  --text:var(--mist-100);
+  --text-2:var(--mist-400);
+  --text-3:var(--mist-600);
+  --text-disabled:var(--mist-600);
+  --text-inverse:var(--ink-900);
+
+  --success:#37A57E; --success-tint:#143026;
+  --warn:#D69A3C;    --warn-tint:#332711;
+  --danger:#E06842;  --danger-tint:#3A1F16;
+
+  --disabled-fill:#22302B;
+  --disabled-text:var(--mist-600);
+
+  --sh-sm:0 1px 3px rgba(0,0,0,.35);
+  --sh-md:0 8px 22px rgba(0,0,0,.45);
+  --sh-lg:0 20px 46px rgba(0,0,0,.6);
+  --glow-primary:0 8px 20px rgba(46,155,135,.25);
+  --glow-accent:0 8px 20px rgba(232,102,61,.28);
+}
+
+/* Optional: follow the OS when no explicit choice is stored. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){
+    /* Mirror of [data-theme="dark"] — keep in sync. */
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
+
+/* ---------- Focus (keyboard only) ---------- */
+:focus-visible{
+  outline:2px solid var(--focus-ring);
+  outline-offset:2px;
+  border-radius:4px;
+}

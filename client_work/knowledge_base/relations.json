@@ -1,0 +1,370 @@
+[
+ {
+  "source_external_id": "goexperience-kb:city:kerala:alleppey",
+  "target_external_id": "goexperience-kb:city:kerala:kochi",
+  "relation": "route_to",
+  "travel_minutes": 90,
+  "distance_meters": 53000,
+  "note": "drive — through backwater country (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:alleppey",
+  "target_external_id": "goexperience-kb:city:kerala:munnar",
+  "relation": "route_to",
+  "travel_minutes": 300,
+  "distance_meters": 170000,
+  "note": "drive — up into the tea hills (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:alleppey",
+  "target_external_id": "goexperience-kb:city:kerala:thekkady",
+  "relation": "route_to",
+  "travel_minutes": 240,
+  "distance_meters": 140000,
+  "note": "drive — up into the spice hills (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:alleppey",
+  "target_external_id": "goexperience-kb:city:kerala:varkala",
+  "relation": "route_to",
+  "travel_minutes": 240,
+  "distance_meters": 110000,
+  "note": "drive — south past the backwaters (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:kochi",
+  "target_external_id": "goexperience-kb:city:kerala:munnar",
+  "relation": "route_to",
+  "travel_minutes": 240,
+  "distance_meters": 130000,
+  "note": "drive — scenic drive up from Kochi (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:kochi",
+  "target_external_id": "goexperience-kb:city:kerala:thekkady",
+  "relation": "route_to",
+  "travel_minutes": 300,
+  "distance_meters": 166000,
+  "note": "drive — into the spice hills (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:kochi",
+  "target_external_id": "goexperience-kb:city:kerala:varkala",
+  "relation": "route_to",
+  "travel_minutes": 300,
+  "distance_meters": 160000,
+  "note": "drive — down the coast (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:munnar",
+  "target_external_id": "goexperience-kb:city:kerala:thekkady",
+  "relation": "route_to",
+  "travel_minutes": 210,
+  "distance_meters": 110000,
+  "note": "drive — through spice plantations (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:munnar",
+  "target_external_id": "goexperience-kb:city:kerala:varkala",
+  "relation": "route_to",
+  "travel_minutes": 420,
+  "distance_meters": 246000,
+  "note": "drive — down from the tea hills to the coast (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:kerala:thekkady",
+  "target_external_id": "goexperience-kb:city:kerala:varkala",
+  "relation": "route_to",
+  "travel_minutes": 300,
+  "distance_meters": 177000,
+  "note": "drive — down through the hills to the coast (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:bangkok",
+  "target_external_id": "goexperience-kb:city:thailand:chiangmai",
+  "relation": "route_to",
+  "travel_minutes": 70,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:bangkok",
+  "target_external_id": "goexperience-kb:city:thailand:krabi",
+  "relation": "route_to",
+  "travel_minutes": 80,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:bangkok",
+  "target_external_id": "goexperience-kb:city:thailand:pattaya",
+  "relation": "route_to",
+  "travel_minutes": 150,
+  "distance_meters": 142000,
+  "note": "drive — down the coast from Bangkok (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:bangkok",
+  "target_external_id": "goexperience-kb:city:thailand:phuket",
+  "relation": "route_to",
+  "travel_minutes": 85,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:bangkok",
+  "target_external_id": "goexperience-kb:city:thailand:samui",
+  "relation": "route_to",
+  "travel_minutes": 65,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:chiangmai",
+  "target_external_id": "goexperience-kb:city:thailand:krabi",
+  "relation": "route_to",
+  "travel_minutes": 120,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:chiangmai",
+  "target_external_id": "goexperience-kb:city:thailand:pattaya",
+  "relation": "route_to",
+  "travel_minutes": 80,
+  "distance_meters": null,
+  "note": "flight — direct south to Pattaya (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:chiangmai",
+  "target_external_id": "goexperience-kb:city:thailand:phuket",
+  "relation": "route_to",
+  "travel_minutes": 120,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:chiangmai",
+  "target_external_id": "goexperience-kb:city:thailand:samui",
+  "relation": "route_to",
+  "travel_minutes": 120,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:krabi",
+  "target_external_id": "goexperience-kb:city:thailand:pattaya",
+  "relation": "route_to",
+  "travel_minutes": 80,
+  "distance_meters": null,
+  "note": "flight — via Bangkok (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:krabi",
+  "target_external_id": "goexperience-kb:city:thailand:phuket",
+  "relation": "route_to",
+  "travel_minutes": 210,
+  "distance_meters": 165000,
+  "note": "drive — coastal drive (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:krabi",
+  "target_external_id": "goexperience-kb:city:thailand:samui",
+  "relation": "route_to",
+  "travel_minutes": 50,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:pattaya",
+  "target_external_id": "goexperience-kb:city:thailand:phuket",
+  "relation": "route_to",
+  "travel_minutes": 100,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:pattaya",
+  "target_external_id": "goexperience-kb:city:thailand:samui",
+  "relation": "route_to",
+  "travel_minutes": 65,
+  "distance_meters": null,
+  "note": "flight — direct from Pattaya’s own airport (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:thailand:phuket",
+  "target_external_id": "goexperience-kb:city:thailand:samui",
+  "relation": "route_to",
+  "travel_minutes": 55,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:hiroshima",
+  "relation": "route_to",
+  "travel_minutes": 365,
+  "distance_meters": null,
+  "note": "rail — out to the shinkansen line, then west via Shin-Osaka (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:hokkaido",
+  "relation": "route_to",
+  "travel_minutes": 100,
+  "distance_meters": null,
+  "note": "flight — flight north from Tokyo (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:kyoto",
+  "relation": "route_to",
+  "travel_minutes": 250,
+  "distance_meters": null,
+  "note": "rail — out to the shinkansen line, then west (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:okinawa",
+  "relation": "route_to",
+  "travel_minutes": 175,
+  "distance_meters": null,
+  "note": "flight — flight south from Tokyo (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:osaka",
+  "relation": "route_to",
+  "travel_minutes": 265,
+  "distance_meters": null,
+  "note": "rail — out to the shinkansen line, then west (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:fuji_hakone",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 120,
+  "distance_meters": null,
+  "note": "rail — down from the Fuji–Hakone hills (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hiroshima",
+  "target_external_id": "goexperience-kb:city:japan:hokkaido",
+  "relation": "route_to",
+  "travel_minutes": 125,
+  "distance_meters": null,
+  "note": "flight — flight north (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hiroshima",
+  "target_external_id": "goexperience-kb:city:japan:kyoto",
+  "relation": "route_to",
+  "travel_minutes": 100,
+  "distance_meters": null,
+  "note": "rail — shinkansen from Hiroshima to Kyoto (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hiroshima",
+  "target_external_id": "goexperience-kb:city:japan:okinawa",
+  "relation": "route_to",
+  "travel_minutes": 105,
+  "distance_meters": null,
+  "note": "flight — flight south (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hiroshima",
+  "target_external_id": "goexperience-kb:city:japan:osaka",
+  "relation": "route_to",
+  "travel_minutes": 85,
+  "distance_meters": null,
+  "note": "rail (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hiroshima",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 240,
+  "distance_meters": null,
+  "note": "rail — shinkansen from Hiroshima to Tokyo (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hokkaido",
+  "target_external_id": "goexperience-kb:city:japan:kyoto",
+  "relation": "route_to",
+  "travel_minutes": 125,
+  "distance_meters": null,
+  "note": "flight — flight south via Kansai (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hokkaido",
+  "target_external_id": "goexperience-kb:city:japan:okinawa",
+  "relation": "route_to",
+  "travel_minutes": 225,
+  "distance_meters": null,
+  "note": "flight — the long hop south (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hokkaido",
+  "target_external_id": "goexperience-kb:city:japan:osaka",
+  "relation": "route_to",
+  "travel_minutes": 120,
+  "distance_meters": null,
+  "note": "flight — flight south (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:hokkaido",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 100,
+  "distance_meters": null,
+  "note": "flight (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:kyoto",
+  "target_external_id": "goexperience-kb:city:japan:okinawa",
+  "relation": "route_to",
+  "travel_minutes": 130,
+  "distance_meters": null,
+  "note": "flight — flight south from Kansai (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:kyoto",
+  "target_external_id": "goexperience-kb:city:japan:osaka",
+  "relation": "route_to",
+  "travel_minutes": 15,
+  "distance_meters": null,
+  "note": "rail — train from Kyoto (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:kyoto",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 135,
+  "distance_meters": null,
+  "note": "rail (verified 2026-08-20)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:okinawa",
+  "target_external_id": "goexperience-kb:city:japan:osaka",
+  "relation": "route_to",
+  "travel_minutes": 130,
+  "distance_meters": null,
+  "note": "flight — flight north (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:okinawa",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 155,
+  "distance_meters": null,
+  "note": "flight — flight north (verified 2026-08-19)"
+ },
+ {
+  "source_external_id": "goexperience-kb:city:japan:osaka",
+  "target_external_id": "goexperience-kb:city:japan:tokyo",
+  "relation": "route_to",
+  "travel_minutes": 150,
+  "distance_meters": 515000,
+  "note": "rail — shinkansen from Osaka to Tokyo (verified 2026-08-19)"
+ }
+]
