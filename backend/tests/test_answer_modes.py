@@ -85,7 +85,7 @@ async def test_plans_still_get_a_checked_itinerary(client, traveler, london, int
     planner = ScriptedPlanner(intent)
     msg = await chat_once(client, traveler, planner, "Plan 2 days in London")
     system = planner_calls(planner)[0][1][0]["content"]
-    assert "group itineraries by day" in system
+    assert "COMPLETE day-by-day itinerary" in system  # the planner prompt, not the answer one
     assert msg["feasibility"] is not None and msg["itinerary"]
 
 

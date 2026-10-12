@@ -5,15 +5,15 @@ import clsx from "clsx";
 import { Bookmark, Image as ImageIcon, Link2, MessageSquare, MessageSquarePlus, SendHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { AssistantReply } from "@/components/chat/assistant-reply";
+import { hasCheckedPlan, hasGeneralPlan, TripBoard } from "@/components/chat/trip-board";
 import { Button } from "@/components/ui/button";
 import { ErrorNote, Spinner } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/field";
 import { Tabs } from "@/components/ui/tabs";
 import { api, unwrap, type ChatMessage } from "@/lib/api/client";
-import { COST_LABELS, tripStateRows } from "@/lib/format";
 
 type InputMode = "chat" | "link" | "screenshot" | "saved";
 
@@ -24,6 +24,19 @@ const STARTERS = [
   "3 days in Kyoto, temples early in the morning",
 ];
 
+/** The trip board sits beside the chat from this width; below it, plans show inline. */
+function useWide() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1280px)");
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
 function Planner() {
   const queryClient = useQueryClient();
   const prompt = useSearchParams().get("prompt");
@@ -31,7 +44,11 @@ function Planner() {
   const [draft, setDraft] = useState(prompt ?? "");
   const [mode, setMode] = useState<InputMode>("chat");
   const [pending, setPending] = useState<string | null>(null);
-  const latest = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const shownChat = useRef<string | null>(null);
+  const wide = useWide();
+  // The reply whose plan is on the board: picked by the traveler, else the latest plan.
+  const [picked, setPicked] = useState<{ chat: string | null; message: string } | null>(null);
 
   const sessions = useQuery({ queryKey: ["chats"], queryFn: async () => unwrap(await api.GET("/chat/sessions")) });
   const activeId = selected === undefined ? (sessions.data?.[0]?.id ?? null) : selected;
@@ -43,10 +60,22 @@ function Planner() {
   const profile = useQuery({ queryKey: ["profile"], queryFn: async () => unwrap(await api.GET("/profiles/me")) });
   const saved = useQuery({ queryKey: ["saved"], queryFn: async () => unwrap(await api.GET("/profiles/me/saved")) });
 
-  // Bring the newest message's start into view (not the page bottom), so replies read top-down.
-  useEffect(() => {
-    latest.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [chat.data, pending]);
+  // Show the start of the latest turn (the traveler's message, then the reply below it), so a
+  // long plan reads top-down. Opening a conversation jumps there; a new reply glides there.
+  useLayoutEffect(() => {
+    const box = scroller.current;
+    if (!box) return;
+    if (pending) {
+      box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+      return;
+    }
+    const turns = box.querySelectorAll<HTMLElement>("[data-user-turn]");
+    const last = turns[turns.length - 1];
+    if (!last) return;
+    const opened = shownChat.current !== activeId;
+    shownChat.current = activeId;
+    box.scrollTo({ top: Math.max(0, last.offsetTop - 16), behavior: opened ? "auto" : "smooth" });
+  }, [activeId, chat.data, pending]);
 
   const send = useMutation({
     mutationFn: async (content: string) => {
@@ -81,22 +110,24 @@ function Planner() {
   }
 
   const messages = (chat.data?.messages ?? []) as ChatMessage[];
+  const plans = messages.filter((m) => m.role === "assistant" && (hasCheckedPlan(m) || hasGeneralPlan(m)));
+  const boardPlan =
+    (picked?.chat === activeId ? plans.find((m) => m.id === picked?.message) : undefined) ?? plans.at(-1) ?? null;
   const state = chat.data?.state ?? {};
-  const p = profile.data;
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-5 px-4 py-6 xl:grid-cols-[220px_minmax(0,1fr)_260px]">
-      <aside className="flex flex-col gap-2">
+    <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-4 py-6 xl:h-[calc(100dvh-65px)] xl:grid-cols-[200px_minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden">
+      <aside className="flex min-w-0 flex-col gap-2 xl:overflow-y-auto">
         <Button variant="secondary" onClick={() => setSelected(null)}><MessageSquarePlus className="size-4" /> New trip</Button>
-        <ul className="flex gap-1 overflow-x-auto xl:flex-col">
+        <ul className="flex min-w-0 gap-1 overflow-x-auto pb-1 xl:flex-col xl:pb-0">
           {sessions.data?.map((s) => (
             <li key={s.id} className="shrink-0">
               <div className={clsx("group flex items-start justify-between gap-2 rounded-xl px-3 py-2 text-sm", activeId === s.id ? "bg-brand-soft text-brand" : "hover:bg-surface-2")}>
                 <button onClick={() => setSelected(s.id)} className="min-w-0 text-left">
-                  <span className="block max-w-44 truncate font-medium">{s.title}</span>
+                  <span className="line-clamp-2 w-44 font-medium xl:w-auto" title={s.title}>{s.title}</span>
                 </button>
                 <button aria-label={`Delete ${s.title}`} onClick={() => confirm("Delete this trip conversation?") && remove.mutate(s.id)}>
-                  <Trash2 className="size-3.5 text-muted opacity-0 hover:text-danger group-hover:opacity-100" />
+                  <Trash2 className="size-3.5 text-muted opacity-0 hover:text-danger group-hover:opacity-100 [@media(hover:none)]:opacity-100" />
                 </button>
               </div>
             </li>
@@ -104,8 +135,8 @@ function Planner() {
         </ul>
       </aside>
 
-      <section className="@container flex min-h-[75dvh] flex-col rounded-[22px] border border-border bg-surface shadow-card">
-        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+      <section className="@container flex min-h-[75dvh] min-w-0 flex-col xl:min-h-0 rounded-[22px] border border-border bg-surface shadow-card">
+        <div ref={scroller} className="relative flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
           {!activeId && !pending && (
             <div className="mx-auto max-w-xl py-8 text-center">
               <h1 className="text-[32px] leading-tight">Where to next?</h1>
@@ -118,18 +149,26 @@ function Planner() {
             </div>
           )}
           {activeId && chat.isLoading && <Spinner />}
-          {messages.map((m, i) =>
+          {messages.map((m) =>
             m.role === "user" ? (
-              <div key={m.id} ref={!pending && i === messages.length - 2 ? latest : undefined} className="flex justify-end">
+              <div key={m.id} data-user-turn className="flex justify-end">
                 <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">{m.content}</p>
               </div>
             ) : (
-              <AssistantReply key={m.id} message={m} onFollowUp={submit} />
+              <AssistantReply
+                key={m.id}
+                message={m}
+                onFollowUp={submit}
+                startDate={typeof state.start_date === "string" ? state.start_date : null}
+                wide={wide}
+                onBoard={boardPlan?.id === m.id}
+                onShowOnBoard={() => setPicked({ chat: activeId, message: m.id })}
+              />
             ),
           )}
           {pending && (
             <>
-              <div ref={latest} className="flex justify-end"><p className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">{pending}</p></div>
+              <div className="flex justify-end"><p className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">{pending}</p></div>
               <p className="flex items-center gap-2 text-sm text-muted">
                 <span className="size-3 animate-pulse rounded-full bg-brand" /> Understanding your trip, finding places and checking the plan works…
               </p>
@@ -201,30 +240,13 @@ function Planner() {
         )}
       </section>
 
-      <aside className="flex flex-col gap-4 xl:self-start">
-        <div className="rounded-[22px] border border-border bg-surface p-4 shadow-card">
-          <h2 className="font-display text-lg">Your trip so far</h2>
-          {Object.keys(state).length === 0 ? (
-            <p className="mt-2 text-sm text-muted">We&apos;ll fill this in as we understand your trip.</p>
-          ) : (
-            <dl className="mt-3 space-y-2 text-sm">
-              {tripStateRows(state as Record<string, unknown>).map(({ label, value }) => (
-                <div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="break-words">{value}</dd></div>
-              ))}
-            </dl>
-          )}
-        </div>
-        <div className="rounded-[22px] border border-border bg-surface p-4 text-sm shadow-card">
-          <div className="flex items-center justify-between"><h2 className="font-display text-lg">From your profile</h2><Link href="/profile" className="text-xs font-semibold text-brand">Edit</Link></div>
-          <ul className="mt-2 space-y-1 text-muted">
-            <li>Travelling: <span className="capitalize text-text">{p?.companions ?? "not set"}</span></li>
-            <li>Budget: <span className="text-text">{p?.budget_level != null ? COST_LABELS[p.budget_level] : "not set"}</span></li>
-            <li>Pace: <span className="text-text">{p?.energy_level ? `${p.energy_level}/5` : "not set"}</span></li>
-            {p?.accessibility_needs && <li className="text-text">Wheelchair-accessible places only</li>}
-            <li>Saved places: <span className="text-text">{saved.data?.length ?? 0}</span></li>
-          </ul>
-        </div>
-      </aside>
+      <TripBoard
+        state={state as Record<string, unknown>}
+        plan={boardPlan}
+        showPlan={wide}
+        profile={profile.data}
+        savedCount={saved.data?.length ?? 0}
+      />
     </div>
   );
 }

@@ -253,3 +253,13 @@ async def test_profile_hard_constraints_apply_to_what_was_asked_too(client, trav
     names = [s["name"] for s in turn["assistant_message"]["sources"]]
     assert names, "London places should still be offered"
     assert "Thames Kayaking" not in names
+
+
+async def test_conversation_reads_question_then_answer(client, traveler, london):
+    # Both messages of a turn are saved together; the question must still come first.
+    h = auth(traveler)
+    chat, _ = await _chat(client, h, "Plan 2 days in London", "make it 3 days")
+    detail = (await client.get(f"/chat/sessions/{chat['id']}", headers=h)).json()
+    roles = [m["role"] for m in detail["messages"]]
+    assert roles == ["user", "assistant", "user", "assistant"]
+    assert detail["messages"][0]["content"] == "Plan 2 days in London"

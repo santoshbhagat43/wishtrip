@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
@@ -82,7 +83,15 @@ async def send_message(
     chat = await _own_session(session, chat_id, user)
     history = [{"role": m.role.value, "content": m.content} for m in chat.messages]
 
-    user_message = ChatMessage(session_id=chat.id, role=MessageRole.USER, content=data.content)
+    # Stamp each message when it happens. The database default is the transaction's start
+    # time, which would give the question and its answer the same timestamp — and the
+    # conversation no order between them.
+    user_message = ChatMessage(
+        session_id=chat.id,
+        role=MessageRole.USER,
+        content=data.content,
+        created_at=datetime.now(UTC),
+    )
     session.add(user_message)
     if not chat.messages:
         chat.title = data.content[:80]
@@ -91,6 +100,7 @@ async def send_message(
     assistant = ChatMessage(
         session_id=chat.id,
         role=MessageRole.ASSISTANT,
+        created_at=datetime.now(UTC),
         content=result.content,
         intent=result.intent.to_dict(),
         grounding=result.grounding,

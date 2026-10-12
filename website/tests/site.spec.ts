@@ -110,7 +110,7 @@ test.describe("Traveler journey", () => {
     await expect(page.getByText("not available yet").first()).toBeVisible();
     await expect(page.getByRole("complementary").getByText("Kerala", { exact: true }).first()).toBeVisible();
 
-    const plan = page.getByText(/Checked — /);
+    const plan = page.getByText(/Checked — /).first();
     if (await plan.isVisible()) {
       await expect(page.getByText(/^Day 1/).first()).toBeVisible();
       await page.getByRole("button", { name: "Book this trip" }).click();

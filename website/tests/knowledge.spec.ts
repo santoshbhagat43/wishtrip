@@ -165,7 +165,7 @@ test.describe("Knowledge → plan @knowledge @demo", () => {
     });
 
     await test.step("Honesty rules: the plan is checked, and no price is invented", async () => {
-      await expect(page.getByText(/Checked — /)).toBeVisible();
+      await expect(page.getByText(/Checked — /).first()).toBeVisible();
       await expect(page.getByText(/planned · fits/).first()).toBeVisible();
       await expect(page.getByText("not available yet").first()).toBeVisible();
       expect(message.content).not.toMatch(/[₹$£€]\s?\d/);
@@ -176,6 +176,12 @@ test.describe("Knowledge → plan @knowledge @demo", () => {
       const general = await send(page, UNCOVERED);
       await expect(page.getByText("General ideas — not from our checked places")).toBeVisible();
       expect(general.assistant_message.sources).toEqual([]);
+      // Still a real itinerary: day by day, with times of day, labelled as unchecked.
+      await expect(page.getByText("A general plan.")).toBeVisible();
+      await expect(page.getByText(/^Day 1/).first()).toBeVisible();
+      await expect(page.getByText(/^(Morning|Afternoon|Evening)$/i).first()).toBeVisible();
+      const days = new Set(general.assistant_message.suggestions.map((s: { day: number | null }) => s.day).filter(Boolean));
+      expect(days.size, "a 3-day request should give 3 planned days").toBe(3);
       await expect(page.getByText("not available yet").first()).toBeVisible();
     });
   });

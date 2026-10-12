@@ -47,7 +47,7 @@ test.describe("Demo @demo", () => {
 
     // --- Act 3: how the answer is presented.
     await expect(page.getByText("From places WishTrip has checked")).toBeVisible();
-    await expect(page.getByText(/Checked — /)).toBeVisible(); // feasibility verdict on the plan
+    await expect(page.getByText(/Checked — /).first()).toBeVisible(); // feasibility verdict on the plan
     await expect(page.getByText(/^Day 1/).first()).toBeVisible();
     await expect(page.getByText(/planned · fits/).first()).toBeVisible(); // day load vs capacity
     await expect(page.getByText("not available yet").first()).toBeVisible(); // never an invented price

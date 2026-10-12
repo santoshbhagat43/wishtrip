@@ -225,18 +225,18 @@
     "semantic_hash": ""
   },
   "backend/app/modules/chat/models.py": {
-    "mtime": 1791606526.5455549,
-    "ast_hash": "bce282079c0ff08ae28e257a183143bc",
+    "mtime": 1791784827.5802517,
+    "ast_hash": "2110875ac6bd5c50643d982eef713e68",
     "semantic_hash": ""
   },
   "backend/app/modules/chat/pipeline.py": {
-    "mtime": 1791782485.2191176,
-    "ast_hash": "25056fa0aec0b69c42f7a2792c2d0863",
+    "mtime": 1791785250.6714697,
+    "ast_hash": "df72e726b53d8b9452b80dea3a902623",
     "semantic_hash": ""
   },
   "backend/app/modules/chat/router.py": {
-    "mtime": 1791606526.546042,
-    "ast_hash": "6821668f119e6ccf7f1547944ce08090",
+    "mtime": 1791784806.7747574,
+    "ast_hash": "14bbf502df1a13f8017e1eda72f29dd4",
     "semantic_hash": ""
   },
   "backend/app/modules/chat/schemas.py": {
@@ -510,8 +510,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_answer_modes.py": {
-    "mtime": 1791649150.5089846,
-    "ast_hash": "c6c3d058bb4f582c162eb9ef644cbf81",
+    "mtime": 1791784860.7502272,
+    "ast_hash": "cd1c289f8c7901612f3bf2453965c7ff",
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
@@ -520,8 +520,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_chat.py": {
-    "mtime": 1791782482.8242855,
-    "ast_hash": "c5ca743ba26462dd587684e7126c7c4f",
+    "mtime": 1791784835.7804704,
+    "ast_hash": "25bd0d5da32d6e1a87ebd22763bc8530",
     "semantic_hash": ""
   },
   "backend/tests/test_embeddings.py": {
@@ -1090,8 +1090,8 @@
     "semantic_hash": ""
   },
   "website/src/app/plan/page.tsx": {
-    "mtime": 1791780715.3822277,
-    "ast_hash": "bfd8f781bf31c0a9b61d16146930c422",
+    "mtime": 1791785774.3613713,
+    "ast_hash": "430a627bc3cb6c6e4dfc3e6efeca9f05",
     "semantic_hash": ""
   },
   "website/src/app/profile/page.tsx": {
@@ -1115,13 +1115,13 @@
     "semantic_hash": ""
   },
   "website/src/components/chat/assistant-reply.tsx": {
-    "mtime": 1791780622.9266713,
-    "ast_hash": "d5394ddd6c9fabb97f8e58196df1a0b5",
+    "mtime": 1791785693.2426217,
+    "ast_hash": "f2d8363a41afc51e23fbfdae0f63f3fd",
     "semantic_hash": ""
   },
   "website/src/components/chat/itinerary.tsx": {
-    "mtime": 1791780622.9260497,
-    "ast_hash": "60cf1afed887f99d1f14efdef41a2c49",
+    "mtime": 1791785839.8671563,
+    "ast_hash": "c70a1011983bed38f9043b82683c7f53",
     "semantic_hash": ""
   },
   "website/src/components/providers.tsx": {
@@ -1210,7 +1210,7 @@
     "semantic_hash": ""
   },
   "website/test-results/.last-run.json": {
-    "mtime": 1791783479.627697,
+    "mtime": 1791786056.6519873,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
@@ -1220,8 +1220,8 @@
     "semantic_hash": ""
   },
   "website/tests/demo.spec.ts": {
-    "mtime": 1791781413.1062255,
-    "ast_hash": "69eccc1a7727fb19653868ab07b40404",
+    "mtime": 1791785883.6985881,
+    "ast_hash": "6acbb881af2438936567ee0e510364d4",
     "semantic_hash": ""
   },
   "website/tests/fixtures.ts": {
@@ -1235,8 +1235,8 @@
     "semantic_hash": ""
   },
   "website/tests/site.spec.ts": {
-    "mtime": 1791777719.092046,
-    "ast_hash": "22df671d818de24ab95d44023c5bb209",
+    "mtime": 1791786031.5747237,
+    "ast_hash": "2717a66b51ac37bacd11ca34ae146583",
     "semantic_hash": ""
   },
   "website/tsconfig.json": {
@@ -1345,8 +1345,8 @@
     "semantic_hash": ""
   },
   "docs/DEMO.md": {
-    "mtime": 1791782695.4125562,
-    "ast_hash": "a6e217311a860d9f5e6230617cab1a91",
+    "mtime": 1791783487.5087936,
+    "ast_hash": "b4606fae884ee03daef1db0ab2d9a300",
     "semantic_hash": ""
   },
   "docs/SCHEMA.md": {
@@ -1475,8 +1475,23 @@
     "semantic_hash": ""
   },
   "website/tests/knowledge.spec.ts": {
-    "mtime": 1791781181.860352,
-    "ast_hash": "ffcd6c5e2f6d8961490dc0744bfcec7b",
+    "mtime": 1791785883.6989121,
+    "ast_hash": "89fe84c7e003330b19258dc534164bc4",
+    "semantic_hash": ""
+  },
+  "website/src/components/chat/blank-slot.tsx": {
+    "mtime": 1791785795.9382188,
+    "ast_hash": "8b6ca787da11c208cf9d7eed4babc018",
+    "semantic_hash": ""
+  },
+  "website/src/components/chat/general-itinerary.tsx": {
+    "mtime": 1791785820.8206778,
+    "ast_hash": "667973cef5ee8465416929a746868b1d",
+    "semantic_hash": ""
+  },
+  "website/src/components/chat/trip-board.tsx": {
+    "mtime": 1791785849.9436526,
+    "ast_hash": "b7193a23e54638ba062e31e2c265c10f",
     "semantic_hash": ""
   }
 }

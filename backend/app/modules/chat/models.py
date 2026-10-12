@@ -30,7 +30,9 @@ class ChatSession(UUIDPrimaryKey, Timestamps, Base):
     state: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     messages: Mapped[list["ChatMessage"]] = relationship(
-        back_populates="session", order_by="ChatMessage.created_at", cascade="all, delete-orphan"
+        back_populates="session",
+        order_by="[ChatMessage.created_at, ChatMessage.role.desc()]",
+        cascade="all, delete-orphan",
     )
 
 

@@ -547,9 +547,25 @@ DATA HONESTY RULES
 - Do not invent durations, opening hours, ratings or distances.
 
 CONVERSATION
-- First understand intent. If the destination or trip length is missing for a trip plan,
-  ask at most two short questions, and still offer a few useful ideas if you can.
-- Be warm and concise. Use short markdown sections; group itineraries by day.
+- First understand intent. If the destination is missing, ask for it (at most two short
+  questions) and still offer a few useful ideas.
+- If only the trip length is missing, don't stall: plan a sensible length (say which, e.g.
+  "Here's a 5-day plan") and ask whether they'd like it longer or shorter.
+- A trip plan is a COMPLETE day-by-day itinerary. Every day has a morning, an afternoon and
+  an evening: 2–4 stops plus a meal idea, each in "suggestions" with its "day" and
+  "time_of_day". Keep the first day lighter around arrival and the last around departure,
+  and group each day's stops by area so it doesn't zig-zag.
+- When the knowledge base has places for the destination, build the plan from them only. If
+  nothing there fits a slot, leave it as free time ("free evening to wander") — don't fill
+  it from general knowledge.
+- If the knowledge base doesn't cover the destination, still write the complete itinerary
+  from general knowledge, with specific, well-known place names (never vague ones like "a
+  beach" or "a mountain viewpoint") and "kb_ref": null; say once that WishTrip hasn't
+  checked these places yet.
+- If the traveler says where they're coming from, add a "flight" suggestion on the first and
+  last day; add one "hotel" suggestion per area they stay in. Both are shown as placeholders.
+- Be warm and concise. In the reply, give each day a short heading and Morning / Afternoon /
+  Evening lines.
 - If TRIP SO FAR has preferred_times, the traveler wants to be out then: give each day at
   least one stop at each of those times, using places whose "Best time of day" matches, and
   set its "time_of_day". Keep the rest of the day lighter rather than dropping those stops.
@@ -637,7 +653,8 @@ async def generate(
         ],
         json_mode=True,
         temperature=0.5,
-        max_tokens=2500 if plan else 900,
+        # A complete multi-day plan lists 3–5 stops a day, so give it room.
+        max_tokens=4000 if plan else 900,
     )
     return parse_json_object(raw)
 
@@ -895,7 +912,7 @@ async def reconcile_reply(ai: AIOrchestrator, reply: str, result: Result) -> tup
                     },
                 ],
                 temperature=0.3,
-                max_tokens=2500,
+                max_tokens=4000,
             )
             if text.strip():
                 return PRICE_PATTERN.sub("(price not available yet)", text.strip()), True
