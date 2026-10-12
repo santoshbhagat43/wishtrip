@@ -2,12 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Bookmark, Image as ImageIcon, Link2, MessageSquare, MessageSquarePlus, SendHorizontal, Trash2 } from "lucide-react";
+import { Bookmark, Image as ImageIcon, Link2, MessageSquare, MessageSquarePlus, SendHorizontal, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { AssistantReply } from "@/components/chat/assistant-reply";
+import { UserBubble, withQuestion } from "@/components/chat/follow-ups";
 import { hasCheckedPlan, hasGeneralPlan, TripBoard } from "@/components/chat/trip-board";
 import { Button } from "@/components/ui/button";
 import { ErrorNote, Spinner } from "@/components/ui/card";
@@ -42,6 +43,9 @@ function Planner() {
   const prompt = useSearchParams().get("prompt");
   const [selected, setSelected] = useState<string | null | undefined>(prompt ? null : undefined);
   const [draft, setDraft] = useState(prompt ?? "");
+  // The question the traveler is typing an answer to ("Type my own…"), sent along with it.
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<InputMode>("chat");
   const [pending, setPending] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -106,7 +110,22 @@ function Planner() {
 
   function submit(text = draft) {
     const content = text.trim();
-    if (content && !send.isPending) send.mutate(content);
+    if (!content || send.isPending) return;
+    send.mutate(replyTo ? withQuestion(replyTo, content) : content);
+    setReplyTo(null);
+  }
+
+  /** A tapped answer goes with its question: "Under 5" means nothing on its own. */
+  function sendAnswer(question: string, answer: string) {
+    if (send.isPending) return;
+    setReplyTo(null);
+    send.mutate(withQuestion(question, answer));
+  }
+
+  function answerOwn(question: string) {
+    setReplyTo(question);
+    setMode("chat");
+    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   const messages = (chat.data?.messages ?? []) as ChatMessage[];
@@ -118,12 +137,12 @@ function Planner() {
   return (
     <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-5 px-4 py-6 xl:h-[calc(100dvh-65px)] xl:grid-cols-[200px_minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden">
       <aside className="flex min-w-0 flex-col gap-2 xl:overflow-y-auto">
-        <Button variant="secondary" onClick={() => setSelected(null)}><MessageSquarePlus className="size-4" /> New trip</Button>
+        <Button variant="secondary" onClick={() => { setSelected(null); setReplyTo(null); }}><MessageSquarePlus className="size-4" /> New trip</Button>
         <ul className="flex min-w-0 gap-1 overflow-x-auto pb-1 xl:flex-col xl:pb-0">
           {sessions.data?.map((s) => (
             <li key={s.id} className="shrink-0">
               <div className={clsx("group flex items-start justify-between gap-2 rounded-xl px-3 py-2 text-sm", activeId === s.id ? "bg-brand-soft text-brand" : "hover:bg-surface-2")}>
-                <button onClick={() => setSelected(s.id)} className="min-w-0 text-left">
+                <button onClick={() => { setSelected(s.id); setReplyTo(null); }} className="min-w-0 text-left">
                   <span className="line-clamp-2 w-44 font-medium xl:w-auto" title={s.title}>{s.title}</span>
                 </button>
                 <button aria-label={`Delete ${s.title}`} onClick={() => confirm("Delete this trip conversation?") && remove.mutate(s.id)}>
@@ -151,14 +170,16 @@ function Planner() {
           {activeId && chat.isLoading && <Spinner />}
           {messages.map((m) =>
             m.role === "user" ? (
-              <div key={m.id} data-user-turn className="flex justify-end">
-                <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">{m.content}</p>
+              <div key={m.id} data-user-turn>
+                <UserBubble content={m.content} />
               </div>
             ) : (
               <AssistantReply
                 key={m.id}
                 message={m}
-                onFollowUp={submit}
+                onAnswer={sendAnswer}
+                onOwnAnswer={answerOwn}
+                latest={!pending && m.id === messages.at(-1)?.id}
                 startDate={typeof state.start_date === "string" ? state.start_date : null}
                 wide={wide}
                 onBoard={boardPlan?.id === m.id}
@@ -168,7 +189,7 @@ function Planner() {
           )}
           {pending && (
             <>
-              <div className="flex justify-end"><p className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">{pending}</p></div>
+              <UserBubble content={pending} />
               <p className="flex items-center gap-2 text-sm text-muted">
                 <span className="size-3 animate-pulse rounded-full bg-brand" /> Understanding your trip, finding places and checking the plan works…
               </p>
@@ -189,13 +210,22 @@ function Planner() {
             ]}
           />
         </div>
+        {mode === "chat" && replyTo && (
+          <div className="mx-3 mt-2 flex items-start gap-2 rounded-xl bg-brand-soft px-3 py-2 text-xs text-brand">
+            <span className="min-w-0 flex-1"><span className="font-semibold">Answering: </span>{replyTo}</span>
+            <button type="button" aria-label="Stop answering this question" onClick={() => setReplyTo(null)} className="shrink-0 hover:text-text">
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
         {mode === "chat" && (
           <form className="flex items-end gap-2 p-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
             <MessageSquare className="mb-3 size-4 shrink-0 text-muted" />
             <Textarea
+              ref={inputRef}
               rows={1}
               className="min-h-11 resize-none"
-              placeholder="e.g. 4 days in Munnar with my wife, slow pace, love tea and views"
+              placeholder={replyTo ? "Your answer…" : "e.g. 4 days in Munnar with my wife, slow pace, love tea and views"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {

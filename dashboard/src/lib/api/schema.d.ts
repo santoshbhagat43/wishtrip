@@ -1159,6 +1159,19 @@ export interface components {
             name: string | null;
         };
         /**
+         * FollowUp
+         * @description A question the assistant asks the traveler, with replies they can send as they are.
+         */
+        FollowUp: {
+            /** Question */
+            question: string;
+            /**
+             * Answers
+             * @default []
+             */
+            answers: string[];
+        };
+        /**
          * Grounding
          * @enum {string}
          */
@@ -1812,7 +1825,7 @@ export interface components {
             /** Sources */
             sources: components["schemas"]["Source"][];
             /** Follow Ups */
-            follow_ups: string[];
+            follow_ups: components["schemas"]["FollowUp"][];
             /** Validation Notes */
             validation_notes: string[];
             /**
@@ -1853,7 +1866,7 @@ export interface components {
             /** Sources */
             sources: components["schemas"]["Source"][];
             /** Follow Ups */
-            follow_ups: string[];
+            follow_ups: components["schemas"]["FollowUp"][];
             /** Validation Notes */
             validation_notes: string[];
             /**

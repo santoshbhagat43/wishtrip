@@ -9,6 +9,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import type { ChatMessage } from "@/lib/api/client";
 import { minutes, titleCase } from "@/lib/format";
 
+import { FollowUps } from "./follow-ups";
 import { GeneralItinerary } from "./general-itinerary";
 import { Itinerary } from "./itinerary";
 import { hasCheckedPlan, hasGeneralPlan, planDays } from "./trip-board";
@@ -70,14 +71,21 @@ function PlanCard({ message, onBoard, onShow }: { message: ChatMessage; onBoard:
 
 export function AssistantReply({
   message,
-  onFollowUp,
+  onAnswer,
+  onOwnAnswer,
+  latest = false,
   startDate,
   wide = false,
   onBoard = false,
   onShowOnBoard,
 }: {
   message: ChatMessage;
-  onFollowUp: (q: string) => void;
+  /** Send a ready-made answer to one of the reply's questions. */
+  onAnswer: (question: string, answer: string) => void;
+  /** Start typing an answer to this question. */
+  onOwnAnswer: (question: string) => void;
+  /** Only the newest reply's questions are still open. */
+  latest?: boolean;
   /** Day 1 of the trip, when the traveler gave dates — puts dates on a general plan's days. */
   startDate?: string | null;
   /** Wide layout: plans are shown on the trip board, so the chat shows a compact card. */
@@ -124,12 +132,8 @@ export function AssistantReply({
             </ul>
           )
         )}
-        {message.follow_ups.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {message.follow_ups.map((q) => (
-              <button key={q} onClick={() => onFollowUp(q)} className="rounded-full border border-brand/40 px-3 py-1 text-xs font-medium text-brand hover:bg-brand-soft">{q}</button>
-            ))}
-          </div>
+        {latest && message.follow_ups.length > 0 && (
+          <FollowUps items={message.follow_ups} onAnswer={onAnswer} onOwnAnswer={onOwnAnswer} />
         )}
         {inlinePlan && (
           <div>

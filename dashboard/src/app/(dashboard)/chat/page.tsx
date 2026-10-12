@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { MessageSquarePlus, RotateCcw, SendHorizontal, Trash2 } from "lucide-react";
+import { MessageSquarePlus, RotateCcw, SendHorizontal, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { AssistantMessage } from "@/components/chat/assistant-message";
+import { AssistantMessage, UserBubble, withQuestion } from "@/components/chat/assistant-message";
 import { Button } from "@/components/ui/button";
 import { ErrorNote, PageHeader, Spinner } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/field";
@@ -68,6 +68,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  // The question being answered with "Type my own…"; sent along with the answer.
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shownChat = useRef<string | null>(null);
@@ -151,11 +153,25 @@ export default function ChatPage() {
 
   function submit(text = draft) {
     const content = text.trim();
-    if (content && !send.isPending) send.mutate(content);
+    if (!content || send.isPending) return;
+    send.mutate(replyTo ? withQuestion(replyTo, content) : content);
+    setReplyTo(null);
+  }
+
+  function sendAnswer(question: string, answer: string) {
+    if (send.isPending) return;
+    setReplyTo(null);
+    send.mutate(withQuestion(question, answer));
+  }
+
+  function answerOwn(question: string) {
+    setReplyTo(question);
+    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   function startNew() {
     setSelectedId(null);
+    setReplyTo(null);
     setFailed(null);
     send.reset();
     inputRef.current?.focus();
@@ -184,7 +200,10 @@ export default function ChatPage() {
             {sessions.data?.map((s) => (
               <li key={s.id} className="group relative w-56 shrink-0 xl:w-auto">
                 <button
-                  onClick={() => setSelectedId(s.id)}
+                  onClick={() => {
+                    setSelectedId(s.id);
+                    setReplyTo(null);
+                  }}
                   aria-current={activeId === s.id ? "true" : undefined}
                   title={s.title}
                   className={clsx(
@@ -230,18 +249,22 @@ export default function ChatPage() {
             <ErrorNote error={detail.error} />
             {messages.map((m) =>
               m.role === "user" ? (
-                <div key={m.id} data-user-turn className="flex justify-end">
-                  <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand px-4 py-2 text-sm text-on-brand">{m.content}</p>
+                <div key={m.id} data-user-turn>
+                  <UserBubble content={m.content} />
                 </div>
               ) : (
-                <AssistantMessage key={m.id} message={m} onFollowUp={submit} />
+                <AssistantMessage
+                  key={m.id}
+                  message={m}
+                  onAnswer={sendAnswer}
+                  onOwnAnswer={answerOwn}
+                  latest={!pending && m.id === messages.at(-1)?.id}
+                />
               ),
             )}
             {pending && (
               <>
-                <div className="flex justify-end">
-                  <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand px-4 py-2 text-sm text-on-brand">{pending}</p>
-                </div>
+                <UserBubble content={pending} />
                 <p role="status" className="flex items-center gap-2 text-sm text-muted">
                   <span className="size-3 animate-pulse rounded-full bg-brand" />
                   {stage.label}…
@@ -265,13 +288,21 @@ export default function ChatPage() {
               submit();
             }}
           >
+            {replyTo && (
+              <div className="mb-2 flex items-start gap-2 rounded-xl bg-brand-soft px-3 py-2 text-xs text-brand">
+                <span className="min-w-0 flex-1"><span className="font-semibold">Answering: </span>{replyTo}</span>
+                <button type="button" aria-label="Stop answering this question" onClick={() => setReplyTo(null)} className="shrink-0 hover:text-text">
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <Textarea
                 ref={inputRef}
                 rows={1}
                 aria-label="Message"
                 className="min-h-10 resize-none"
-                placeholder="Where do you want to go, with whom, and what do you love?"
+                placeholder={replyTo ? "Your answer…" : "Where do you want to go, with whom, and what do you love?"}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {

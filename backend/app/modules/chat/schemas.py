@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.modules.chat.models import Grounding, MessageRole
 
@@ -68,6 +68,13 @@ class Source(BaseModel):
     similarity: float | None
 
 
+class FollowUp(BaseModel):
+    """A question the assistant asks the traveler, with replies they can send as they are."""
+
+    question: str
+    answers: list[str] = []
+
+
 class MessageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,12 +85,18 @@ class MessageRead(BaseModel):
     grounding: Grounding | None
     suggestions: list[Suggestion]
     sources: list[Source]
-    follow_ups: list[str]
+    follow_ups: list[FollowUp]
     validation_notes: list[str]
     itinerary: list[ItineraryDay] = []
     feasibility: Feasibility | None = None
     model: str
     created_at: datetime
+
+    @field_validator("follow_ups", mode="before")
+    @classmethod
+    def _questions_without_answers(cls, value: Any) -> Any:
+        # Older messages stored plain question strings.
+        return [{"question": q} if isinstance(q, str) else q for q in value or []]
 
 
 class MessageDebugRead(MessageRead):

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, ChevronDown, Globe, Info, Lightbulb, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpenCheck, ChevronDown, Globe, Info, Lightbulb, MessageCircleQuestion, PenLine, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -87,7 +87,36 @@ function Disclosure({ title, icon: Icon, children }: { title: string; icon: type
   );
 }
 
-export function AssistantMessage({ message, onFollowUp }: { message: ChatMessage; onFollowUp: (q: string) => void }) {
+/** An answer travels with its question ("> question\nanswer"): "Under 5" means nothing on its own. */
+export function withQuestion(question: string, answer: string) {
+  return `> ${question}\n${answer}`;
+}
+
+/** The traveler's message; an answer to one of our questions shows that question above it. */
+export function UserBubble({ content }: { content: string }) {
+  const match = content.match(/^> (.+)\n([\s\S]*)$/);
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-2 text-sm text-on-brand">
+        {match && <p className="mb-1 border-l-2 border-on-brand/40 pl-2 text-xs text-on-brand/75">{match[1]}</p>}
+        <p className="whitespace-pre-wrap">{match ? match[2] : content}</p>
+      </div>
+    </div>
+  );
+}
+
+export function AssistantMessage({
+  message,
+  onAnswer,
+  onOwnAnswer,
+  latest = false,
+}: {
+  message: ChatMessage;
+  onAnswer: (question: string, answer: string) => void;
+  onOwnAnswer: (question: string) => void;
+  /** Only the newest reply's questions are still open. */
+  latest?: boolean;
+}) {
   const grounding = GROUNDING[message.grounding ?? "general"];
   const byDay = new Map<string, Suggestion[]>();
   for (const s of message.suggestions) {
@@ -117,13 +146,28 @@ export function AssistantMessage({ message, onFollowUp }: { message: ChatMessage
         </div>
         ))
       )}
-      {message.follow_ups.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {message.follow_ups.map((q) => (
-            <button key={q} onClick={() => onFollowUp(q)} className="rounded-full border border-brand/40 px-3 py-1 text-xs text-brand hover:bg-brand-soft">
-              {q}
-            </button>
-          ))}
+      {latest && message.follow_ups.length > 0 && (
+        <div className="rounded-2xl border border-border p-3.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+            <MessageCircleQuestion className="size-3.5" /> Questions for the traveler
+          </p>
+          <ul className="mt-2 space-y-2.5">
+            {message.follow_ups.map((f) => (
+              <li key={f.question}>
+                <p className="text-sm font-medium">{f.question}</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {(f.answers ?? []).map((a) => (
+                    <button key={a} type="button" onClick={() => onAnswer(f.question, a)} className="rounded-full border border-brand/40 px-3 py-1 text-xs text-brand hover:bg-brand-soft">
+                      {a}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => onOwnAnswer(f.question)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted hover:border-brand hover:text-brand">
+                    <PenLine className="size-3" /> Type my own…
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <div className="flex flex-col gap-1.5">

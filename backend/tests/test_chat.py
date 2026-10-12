@@ -144,7 +144,7 @@ async def test_model_chat_is_grounded_and_validated(client, traveler, london):
     suggestion = msg["suggestions"][0]
     assert suggestion["duration_minutes"] == 120  # KB value wins over the model's 60
     assert suggestion["price"] == "Pay per stall"
-    assert msg["follow_ups"] == ["Any dietary needs?"]
+    assert msg["follow_ups"] == [{"question": "Any dietary needs?", "answers": []}]
 
 
 async def test_destination_aliases_resolve(client, editor, traveler, london):
@@ -263,3 +263,45 @@ async def test_conversation_reads_question_then_answer(client, traveler, london)
     roles = [m["role"] for m in detail["messages"]]
     assert roles == ["user", "assistant", "user", "assistant"]
     assert detail["messages"][0]["content"] == "Plan 2 days in London"
+
+
+def test_follow_ups_carry_ready_answers_and_accept_bare_questions():
+    from app.modules.chat.pipeline import follow_ups_from
+    from app.modules.chat.schemas import MessageRead
+
+    parsed = follow_ups_from(
+        [
+            {
+                "question": "Preferred arrival time?",
+                "answers": ["Morning", "Evening", "Morning", ""],
+            },
+            "Any dietary needs?",
+            {"answers": ["no question"]},
+            "a",
+            "b",
+        ]
+    )
+    assert parsed[0] == {"question": "Preferred arrival time?", "answers": ["Morning", "Evening"]}
+    assert parsed[1] == {"question": "Any dietary needs?", "answers": []}
+    assert len(parsed) == 3  # at most three; the one without a question is dropped
+    # Messages stored before ready answers existed still read back.
+    assert (
+        MessageRead.model_validate(
+            {
+                "id": __import__("uuid").uuid4(),
+                "role": "assistant",
+                "content": "",
+                "intent": None,
+                "grounding": None,
+                "suggestions": [],
+                "sources": [],
+                "follow_ups": ["Old question?"],
+                "validation_notes": [],
+                "model": "",
+                "created_at": "2026-10-12T00:00:00Z",
+            }
+        )
+        .follow_ups[0]
+        .question
+        == "Old question?"
+    )

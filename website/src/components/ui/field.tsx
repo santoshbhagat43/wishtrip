@@ -1,5 +1,5 @@
 import { cn as clsx } from "@/lib/cn";
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { ComponentProps, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 const control =
   "w-full rounded-xl border-[1.5px] border-border bg-surface px-3 text-sm text-text placeholder:text-muted/70 " +
@@ -9,7 +9,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={clsx(control, "h-10", className)} {...props} />;
 }
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea className={clsx(control, "min-h-20 py-2", className)} {...props} />;
 }
 

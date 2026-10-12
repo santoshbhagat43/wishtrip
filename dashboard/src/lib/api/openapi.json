@@ -3915,6 +3915,28 @@
     ],
     "title": "FeasibilityIssue"
    },
+   "FollowUp": {
+    "properties": {
+     "question": {
+      "type": "string",
+      "title": "Question"
+     },
+     "answers": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Answers",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "question"
+    ],
+    "title": "FollowUp",
+    "description": "A question the assistant asks the traveler, with replies they can send as they are."
+   },
    "Grounding": {
     "type": "string",
     "enum": [
@@ -5765,7 +5787,7 @@
      },
      "follow_ups": {
       "items": {
-       "type": "string"
+       "$ref": "#/components/schemas/FollowUp"
       },
       "type": "array",
       "title": "Follow Ups"
@@ -5879,7 +5901,7 @@
      },
      "follow_ups": {
       "items": {
-       "type": "string"
+       "$ref": "#/components/schemas/FollowUp"
       },
       "type": "array",
       "title": "Follow Ups"

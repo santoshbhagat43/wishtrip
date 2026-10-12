@@ -131,7 +131,7 @@ class ChatResult:
     grounding: Grounding
     suggestions: list[dict[str, Any]]
     sources: list[dict[str, Any]]
-    follow_ups: list[str]
+    follow_ups: list[dict[str, Any]]
     validation_notes: list[str]
     model: str
     debug: dict[str, Any]
@@ -580,7 +580,10 @@ Return ONLY a JSON object:
      "day": integer or null, "time_of_day": "morning|afternoon|evening|night" or null,
      "duration_minutes": integer or null, "why": "one sentence"}
   ],
-  "follow_up_questions": ["up to 3 short questions"]
+  "follow_up_questions": [
+    {"question": "a short question for the traveler",
+     "answers": ["2-4 short likely answers, e.g. \"Morning\", \"Evening\""]}
+  ]   (up to 3; skip questions the traveler has already answered)
 }"""
 
 
@@ -599,7 +602,10 @@ Return ONLY a JSON object:
   "reply": "markdown answer",
   "suggestions": [{"kb_ref": "K1" or null, "name": "...", "type": one of %(types)s,
                    "why": "one sentence"}],
-  "follow_up_questions": ["up to 3 short questions"]
+  "follow_up_questions": [
+    {"question": "a short question for the traveler",
+     "answers": ["2-4 short likely answers, e.g. \"Morning\", \"Evening\""]}
+  ]   (up to 3; skip questions the traveler has already answered)
 }"""
 
 # Intents that get a day plan; everything else gets a direct answer.
@@ -680,13 +686,20 @@ def fallback_answer(
         "\n_The AI planner is unavailable right now, so this is a knowledge-base listing only._"
     )
 
-    follow_ups = []
+    follow_ups: list[dict[str, Any]] = []
     if not state.get("destination"):
-        follow_ups.append("Where would you like to go?")
+        follow_ups.append({"question": "Where would you like to go?", "answers": []})
     if not state.get("duration_days"):
-        follow_ups.append("How many days is your trip?")
+        follow_ups.append(
+            {"question": "How many days is your trip?", "answers": ["3 days", "5 days", "A week"]}
+        )
     if not state.get("companions"):
-        follow_ups.append("Who are you travelling with?")
+        follow_ups.append(
+            {
+                "question": "Who are you travelling with?",
+                "answers": ["Just me", "With my partner", "Family with kids", "Friends"],
+            }
+        )
     return {
         "reply": "\n".join(lines),
         "suggestions": [
@@ -706,6 +719,29 @@ def fallback_answer(
 
 
 # Validation -------------------------------------------------------------------------------
+
+
+def follow_ups_from(raw: Any) -> list[dict[str, Any]]:
+    """Questions for the traveler, each with up to 4 ready replies (models sometimes send
+    bare strings, which become questions without ready replies)."""
+    follow_ups: list[dict[str, Any]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if isinstance(item, str):
+            question, answers = item, []
+        elif isinstance(item, dict):
+            question, answers = item.get("question"), item.get("answers")
+        else:
+            continue
+        question = str(question or "").strip()[:200]
+        if not question:
+            continue
+        replies = (
+            [str(a).strip()[:80] for a in answers or [] if str(a).strip()]
+            if isinstance(answers, list)
+            else []
+        )
+        follow_ups.append({"question": question, "answers": list(dict.fromkeys(replies))[:4]})
+    return follow_ups[:3]
 
 
 def normalize_type(value: Any) -> str:
@@ -1007,7 +1043,7 @@ async def run(
             }
             for i in items
         ],
-        follow_ups=[str(q)[:200] for q in (answer.get("follow_up_questions") or [])][:3],
+        follow_ups=follow_ups_from(answer.get("follow_up_questions")),
         validation_notes=notes,
         model=model,
         debug={"context": context, "state": state, "embedder": ai.embedder.name},
