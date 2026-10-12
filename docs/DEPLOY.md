@@ -10,6 +10,11 @@ deploy key (`/root/.ssh/github_wishtrip`, read-only on GitHub).
 | Staff dashboard | https://wishtrip-dashboard.listnr.co | `dashboard` (Next.js, `next start`) |
 | API + docs | https://wishtrip-api.listnr.co (`/docs`) | `backend` (FastAPI) |
 
+The traveler website is behind a browser login (basic auth) while it's private: the user is
+`SITE_USER` and the password `SITE_PASSWORD` in `.env.production`. To change it, set a new
+`SITE_PASSWORD`, empty `SITE_PASSWORD_HASH=`, and run `./deploy/deploy.sh`. To make the site
+public, remove the `basic_auth` block from `deploy/Caddyfile`.
+
 Caddy (`deploy/Caddyfile`) terminates HTTPS with automatic Let's Encrypt certificates; nothing
 else is published. Postgres, Redis and the Celery worker are internal only. On the server the
 LLM and embeddings both go through OpenRouter (no Ollama).

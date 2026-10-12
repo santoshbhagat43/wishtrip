@@ -93,6 +93,8 @@ services:
       WEBSITE_DOMAIN: ${WEBSITE_DOMAIN}
       DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN}
       API_DOMAIN: ${API_DOMAIN}
+      SITE_USER: ${SITE_USER}
+      SITE_PASSWORD_HASH: ${SITE_PASSWORD_HASH}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
