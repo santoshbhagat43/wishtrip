@@ -102,3 +102,8 @@ async def test_role_is_read_from_the_database_not_the_token(client, traveler):
     forged_role = create_token(traveler.id, "admin", "access")
     r = await client.get("/admin/users", headers={"Authorization": f"Bearer {forged_role}"})
     assert r.status_code == 403
+
+
+async def test_api_root_redirects_to_docs(client):
+    r = await client.get("/", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/docs"

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
@@ -52,6 +53,12 @@ for router in (
 
 Path(settings.media_root).mkdir(parents=True, exist_ok=True)
 app.mount(settings.media_url_prefix, StaticFiles(directory=settings.media_root), name="media")
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    """The API has no home page; send visitors to the interactive docs."""
+    return RedirectResponse("/docs")
 
 
 @app.get("/health", tags=["system"])
