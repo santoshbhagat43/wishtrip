@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, ChevronDown, Globe, Info, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpenCheck, ChevronDown, Globe, Info, Lightbulb, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -40,12 +40,39 @@ function SuggestionCard({ s }: { s: Suggestion }) {
         )}
       </div>
       {s.why && <p className="mt-2 text-sm text-muted">{s.why}</p>}
+      {s.tip && (
+        <p className="mt-2 flex gap-1.5 rounded-lg bg-value-soft px-2.5 py-1.5 text-xs">
+          <Lightbulb className="mt-px size-3.5 shrink-0" /> {s.tip}
+        </p>
+      )}
       <p className="mt-2 text-xs">
         <span className="text-muted">Price: </span>
         {s.price ? <span className="font-medium">{s.price}</span> : <span className="italic text-muted">not available yet</span>}
       </p>
     </li>
   );
+}
+
+// The model cites knowledge-base records as [K3]; make each one a link to that record.
+function linkCitations(message: ChatMessage) {
+  const ids = new Map(message.sources.map((s) => [s.ref, s.location_id]));
+  return message.content.replace(/\[(K\d+)\](?!\()/g, (match, ref: string) =>
+    ids.has(ref) ? `[${ref}](/locations/${ids.get(ref)} "${ref}")` : match,
+  );
+}
+
+function Citation({ href, title, children }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  if (href?.startsWith("/locations/") && title && /^K\d+$/.test(title)) {
+    return (
+      <Link
+        href={href}
+        className="mx-0.5 inline-flex items-center rounded-md bg-brand-soft px-1.5 align-[1px] font-mono text-[10px] font-semibold text-brand no-underline hover:bg-brand hover:text-on-brand"
+      >
+        {children}
+      </Link>
+    );
+  }
+  return <a href={href} className="text-brand underline" target="_blank" rel="noreferrer">{children}</a>;
 }
 
 function Disclosure({ title, icon: Icon, children }: { title: string; icon: typeof Info; children: React.ReactNode }) {
@@ -76,7 +103,7 @@ export function AssistantMessage({ message, onFollowUp }: { message: ChatMessage
         </span>
       </div>
       <div className="prose-chat text-sm leading-relaxed">
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+        <ReactMarkdown components={{ a: Citation }}>{linkCitations(message)}</ReactMarkdown>
       </div>
       {message.feasibility && message.itinerary.length > 0 ? (
         <ItineraryView days={message.itinerary} feasibility={message.feasibility} />

@@ -11,6 +11,7 @@ from app.modules.audit.service import record
 from app.modules.knowledge import service
 from app.modules.knowledge.models import LocationStatus, LocationType
 from app.modules.knowledge.schemas import (
+    DestinationRow,
     KnowledgeStats,
     LocationCreate,
     LocationListItem,
@@ -18,6 +19,9 @@ from app.modules.knowledge.schemas import (
     LocationUpdate,
     RelationCreate,
     RelationRead,
+    ReviewQueue,
+    ReviewReason,
+    SystemStatus,
     TagCreate,
     TagRead,
 )
@@ -31,6 +35,34 @@ async def knowledge_stats(
     session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
 ):
     return await service.stats(session)
+
+
+@router.get("/review-queue", response_model=ReviewQueue)
+async def review_queue(
+    reason: ReviewReason | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_staff),
+):
+    """Everything waiting for a person: drafts, unverified imports, gaps, stale indexes."""
+    return await service.review_queue(session, reason=reason, page=page, page_size=page_size)
+
+
+@router.get("/destinations", response_model=list[DestinationRow])
+async def destinations(
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
+):
+    """Every city with what the engine holds for it, and how often travelers ask for it."""
+    return await service.destinations(session)
+
+
+@router.get("/system", response_model=SystemStatus)
+async def system_status(
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
+):
+    """Live provider, model, index and volume figures for the System health screen."""
+    return await service.system_status(session)
 
 
 @router.get("/locations", response_model=Page[LocationListItem])

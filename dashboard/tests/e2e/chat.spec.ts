@@ -25,7 +25,8 @@ test.describe("Trip chat (works without an OpenRouter key)", () => {
 
     // Transparency panels
     await page.getByText(/Knowledge base sources/).click();
-    await expect(page.getByText("K1", { exact: true })).toBeVisible();
+    // (The reply's own [K1] citations are links too; the sources list is the first plain one.)
+    await expect(page.locator("details").getByText("K1", { exact: true }).first()).toBeVisible();
     await page.getByText("What the AI was given").click();
     await expect(page.getByText(/KNOWLEDGE BASE:/)).toBeVisible();
 
@@ -36,10 +37,8 @@ test.describe("Trip chat (works without an OpenRouter key)", () => {
 
     // Clean up the conversation
     // The newest conversation is first in the list.
-    const conversation = page.getByRole("button", { name: /Plan 4 relaxed days/ }).first();
     page.once("dialog", (d) => d.accept());
-    await conversation.hover();
-    await conversation.locator("svg").last().click();
+    await page.getByRole("button", { name: /^Delete conversation: Plan 4 relaxed days/ }).first().click();
     console.expectNone();
   });
 

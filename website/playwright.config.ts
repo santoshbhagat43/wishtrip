@@ -1,4 +1,11 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
+
+// Staff credentials (ADMIN_EMAIL / ADMIN_PASSWORD) for tests that also drive the dashboard.
+const envFile = resolve(__dirname, "../.env");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const headless = process.env.HEADLESS === "1";
 

@@ -5,7 +5,7 @@ AI trip planning grounded in a curated travel knowledge base.
 | Folder | What |
 |---|---|
 | [backend/](backend/) | Python + FastAPI: knowledge base, traveler profiles, recommendations, Grok chat |
-| [dashboard/](dashboard/) | Next.js knowledge studio for staff: locations, hierarchy, tags, chat, travelers |
+| [dashboard/](dashboard/) | Next.js knowledge studio for staff: destinations, locations, hierarchy, tags, review queue, menus, chat, travelers, support inbox, roles, system health |
 | [website/](website/) | Next.js traveler MVP: explore, profile, saved places, trip planner chat |
 | [client_work/](client_work/) | The client's earlier knowledge base (770 locations), normalized, plus lessons and brand tokens |
 | [PLAN.md](PLAN.md) | Build plan and phases |
@@ -18,6 +18,7 @@ cp .env.example .env                       # then fill in secrets and OPENROUTER
 docker compose up -d --build
 docker compose exec backend python -m app.scripts.seed              # admin, demo traveler, sample data
 docker compose exec backend python -m app.scripts.import_client_kb  # client knowledge base
+docker compose exec backend python -m app.scripts.seed_support_menus  # support tickets + site menus
 ```
 
 - Traveler website: http://localhost:3002 (sign up as a traveler)
@@ -58,10 +59,13 @@ None of these need an OpenRouter key. Start the stack first (`docker compose up 
 
 ```bash
 cd backend && uv run pytest                 # backend unit/integration tests (test database)
-cd dashboard && pnpm test:api               # all 39 API endpoints against the live backend, each call logged
+LIVE_LLM=1 uv run pytest tests/test_live_llm.py   # (in backend/) intent against the real LLM, opt-in
+cd dashboard && pnpm test:api               # every API endpoint against the live backend, each call logged
 cd dashboard && pnpm test:e2e               # dashboard end-to-end in a visible (headed) Chromium
 cd dashboard && pnpm test:all               # API + dashboard together
 cd dashboard && pnpm test:report            # HTML report: per-test API calls, traces, screenshots
+cd website && pnpm test:knowledge           # staff add a place in the dashboard → it shows up, with
+                                            # its tip, in a traveler's plan on the website (real LLM)
 cd website && pnpm test:e2e                 # traveler website journey (headed); also asserts the
                                             # browser never calls the backend directly
 ```

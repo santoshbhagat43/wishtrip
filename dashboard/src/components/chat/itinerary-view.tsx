@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Footprints, Info, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Footprints, Info, Lightbulb, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -91,6 +91,12 @@ export function ItineraryView({ days, feasibility }: { days: Day[]; feasibility:
                         {item.price ? item.price : <span className="italic">not available yet</span>}
                       </p>
                       {item.why && <p className="mt-0.5 text-xs text-muted">{item.why}</p>}
+                      {item.tip && (
+                        <p className="mt-1.5 flex gap-1.5 rounded-lg bg-value-soft px-2.5 py-1.5 text-xs">
+                          <Lightbulb className="mt-px size-3.5 shrink-0" />
+                          <span><span className="font-semibold">Tip from WishTrip: </span>{item.tip}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </li>

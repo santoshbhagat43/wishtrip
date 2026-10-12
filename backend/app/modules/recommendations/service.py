@@ -46,16 +46,19 @@ async def candidate_search(
     ai: AIOrchestrator,
     prefs: Preferences,
     *,
-    city_id: uuid.UUID | None,
+    city_id: uuid.UUID | None = None,
+    city_ids: list[uuid.UUID] | None = None,
     types: list[LocationType] | None,
 ) -> list[tuple[Location, float | None]]:
-    """Published places that could plausibly fit, with semantic similarity when available."""
+    """Published places that could plausibly fit, with semantic similarity when available.
+    `city_ids` searches several cities at once (a region or a country)."""
     stmt = select(Location).where(
         Location.status == LocationStatus.PUBLISHED,
         Location.type.in_(types or PLACE_TYPES),
     )
-    if city_id:
-        stmt = stmt.where(Location.parent_id == city_id)
+    cities = [*(city_ids or []), *([city_id] if city_id else [])]
+    if cities:
+        stmt = stmt.where(Location.parent_id.in_(cities))
 
     if prefs.query_text:
         vector = await ai.embed_query(prefs.query_text)
@@ -78,10 +81,16 @@ async def recommend(
     user_id: uuid.UUID,
     *,
     city_id: uuid.UUID | None = None,
+    city_ids: list[uuid.UUID] | None = None,
     types: list[LocationType] | None = None,
     limit: int = 10,
     overrides: PreferenceOverrides | None = None,
+    prefs: Preferences | None = None,
 ) -> tuple[Preferences, list[ScoredLocation]]:
-    prefs = await load_preferences(session, user_id, overrides)
-    candidates = await candidate_search(session, ai, prefs, city_id=city_id, types=types)
+    """Rank places for a traveler; pass ``prefs`` when the caller already loaded them."""
+    if prefs is None:
+        prefs = await load_preferences(session, user_id, overrides)
+    candidates = await candidate_search(
+        session, ai, prefs, city_id=city_id, city_ids=city_ids, types=types
+    )
     return prefs, rank(candidates, prefs, limit)

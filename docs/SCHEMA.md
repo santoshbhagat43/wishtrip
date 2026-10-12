@@ -234,7 +234,64 @@ They shift both that place's score and the weight of its tags.
 Each suggestion: `name, type, location_id, from_knowledge_base, is_placeholder, day,
 time_of_day, duration_minutes, price (null unless verified), why`.
 
-### 3.9 `audit_log`
+### 3.9 `support_tickets` and `support_messages`
+
+A traveler asks for help; staff answer. `number` is the short reference agents quote (`#1042`),
+issued by a Postgres identity sequence from 1000.
+
+| Column | Type | Notes |
+|---|---|---|
+| number | bigint | Unique, human-facing (`#1042`) |
+| user_id | uuid → users | Who needs help |
+| session_id | uuid → chat_sessions | The trip it's about, when raised from a conversation |
+| assignee_id | uuid → users | Staff holding it; set automatically on first reply |
+| status | varchar | `open`, `waiting_customer`, `resolved` |
+| priority | varchar | `low`, `normal`, `high`, `urgent` |
+| channel | varchar | `in_app`, `email`, `whatsapp`, `phone` |
+| in_destination | boolean | Traveler is already travelling — sorts to the top of the queue |
+| first_response_at | timestamptz | Set by the first reply, never by an internal note |
+| resolved_at | timestamptz | |
+
+`support_messages` holds the thread: `author` is `customer`, `agent` or `note` (staff-only, never
+shown to the traveler), with `author_id` for staff.
+
+### 3.10 `support_routing`, `support_agent_routing` and `support_assignments`
+
+How a new ticket finds an agent.
+
+| Table | Column | Notes |
+|---|---|---|
+| support_routing | method | `round_robin`, `least_busy`, `manual` (one row for the team) |
+| | reassign_after_minutes | Move a ticket on if nobody has replied in time; `null` = off |
+| support_agent_routing | user_id | One row per active staff account, created on first use |
+| | in_rotation, availability | `online` / `away` / `off_shift`; only online agents are eligible |
+| | capacity | Open tickets this agent will hold; at the limit they are skipped |
+| | position | Rotation order, renumbered 1..n so "next" is never ambiguous |
+| | handles | Destinations, channels or topics this agent takes first |
+| support_assignments | ticket_id, agent_id, reason | Every decision with the sentence explaining it |
+
+Eligibility is `in_rotation AND online AND open < capacity`. A `handles` match (destination,
+channel, urgency) wins before the method is applied. The reassign rule is evaluated whenever an
+agent loads the inbox, so it needs no scheduler; an internal note never counts as a reply.
+
+### 3.11 `menu_groups` and `menu_items`
+
+The traveler website's navigation, editable without a deploy.
+
+| Column | Type | Notes |
+|---|---|---|
+| menu_groups.placement | varchar | `header`, `footer`, `mobile` |
+| menu_groups.position | int | Order within a placement |
+| menu_groups.is_active | boolean | Inactive menus are absent from the public endpoint |
+| menu_items.url | varchar | A path on the site, when not linked to a place |
+| menu_items.location_id | uuid → locations | Link to a place; the URL is resolved at read time |
+| menu_items.position | int | Order within the menu |
+| menu_items.is_active | boolean | |
+
+A link to a place that is later unpublished is dropped from the public response rather than
+left to 404.
+
+### 3.12 `audit_log`
 
 `user_id` (`ON DELETE SET NULL`), `user_email`, `action` (create/update/delete), `entity_type`
 (location/relation/tag/media/user), `entity_id`, `changes` (jsonb), `created_at`.
@@ -274,6 +331,9 @@ cookies across ports/subdomains of one host.
 | Method | Path | Does | Tables |
 |---|---|---|---|
 | GET | /admin/stats | Counts by type/status, incomplete, pending embeddings | locations, tags, relations |
+| GET | /admin/review-queue | What waits on a person: unverified imports, drafts, records missing planning facts, stale indexes. Counts cover the queue, items are one page of one reason, oldest first | locations |
+| GET | /admin/destinations | Every city with published/draft/indexed counts, plus trips that named the city and trips that named its region | locations, chat_sessions |
+| GET | /admin/system | Live provider, models, embedder, index backlog and row counts for the System health screen | locations, users, chat_*, audit_log |
 | GET | /admin/locations | List; filters `type[]`, `parent_id`, `status`, `q`, `tag_id`, `source`, `region`, `needs_verification`, paging | locations |
 | POST | /admin/locations | Create (hierarchy rules, slug, audit, embed if published) | locations, location_tags, audit_log |
 | GET | /admin/locations/{id} | Detail + ancestors, completeness, children count, reference | locations |
@@ -316,6 +376,28 @@ cookies across ports/subdomains of one host.
 | DELETE | /chat/sessions/{id} | Delete conversation | chat_sessions (+messages) |
 | POST | /chat/sessions/{id}/messages | Send a message → runs the pipeline → assistant reply | all of the above |
 
+### Support
+| Method | Path | Does | Tables |
+|---|---|---|---|
+| GET | /admin/support/inbox | Counts for every view, then one view's tickets: in-destination first, then urgency, then longest waiting. Also the median first-reply time | support_tickets, support_messages |
+| GET | /admin/support/agents | Staff who can take tickets, with how many each holds | users, support_tickets |
+| GET | /admin/support/tickets/{id} | Thread plus the traveler's real context: profile, saved places, trips, and the last checked itinerary | support_*, traveler_profiles, chat_* |
+| PATCH | /admin/support/tickets/{id} | Status, priority, assignee | support_tickets |
+| POST | /admin/support/tickets/{id}/reply | A reply to the traveler, or an internal note. A reply starts the first-response clock and claims the ticket; a note does neither | support_messages, support_tickets |
+| GET / POST | /support/tickets | A traveler's own tickets / open one, optionally about a trip. A new ticket is routed immediately and the decision logged | support_tickets, support_assignments |
+| GET / PUT | /admin/support/routing | Method, reassign rule, agents with load, who is next and why, recent assignments | support_routing, support_agent_routing, support_assignments |
+| PATCH | /admin/support/routing/agents/{id} | Availability, limit, rotation order, what they handle | support_agent_routing |
+| GET | /admin/support/routing/preview | Dry run: who would take a ticket like this. Writes nothing | support_* |
+
+### Menus
+| Method | Path | Does | Tables |
+|---|---|---|---|
+| GET / POST | /admin/menus | Every menu with its links / create one | menu_groups |
+| PATCH / DELETE | /admin/menus/{id} | Rename, re-place, show or hide / delete with its links | menu_groups, audit_log |
+| POST | /admin/menus/{id}/items | Add a link to a path or to a published place | menu_items, audit_log |
+| PATCH / DELETE | /admin/menu-items/{id} | Re-order, re-label, show or hide / remove | menu_items, audit_log |
+| GET | /explore/menus | Public navigation: active menus and links, published places only | menu_groups, menu_items |
+
 ### Users & audit (admin)
 | Method | Path | Does | Tables |
 |---|---|---|---|
@@ -333,15 +415,34 @@ cookies across ports/subdomains of one host.
    days, start date, companions, budget, energy, times, interests, place types, search query. Thinking is
    switched off for this step (structured and latency-sensitive). With no LLM, a keyword
    fallback does the same (benchmark: gemma4 11/12 messages, fallback 3/12).
-2. **Trip state** — merged into `chat_sessions.state`, so later turns keep context.
+   **Reconcile** — the model and the keyword parser check each other (`intent.corrections`
+   records every change, visible in the dashboard's "Understood intent" panel):
+   - a destination the traveler never mentioned (now or earlier) is dropped; typos map to
+     known destinations ("Kerela" → Kerala; same first letter required, so Kyoto ≠ Tokyo);
+   - a trip length with no length cue in what they wrote is dropped (models like to default);
+   - clear keyword signals fill fields the model missed (companions, budget, energy, length,
+     dates, times); past dates roll to next year, dates over 2 years out are dropped;
+   - one retry if the reply isn't valid JSON; a 20 s timeout (`INTENT_TIMEOUT_SECONDS`), then
+     keyword understanding — a hung model never stalls the chat; messages capped at 2,000 chars.
+2. **Trip state** — merged into `chat_sessions.state`, so later turns keep context. Travelers
+   can take details back ("dates are flexible now", "no budget limit" → `cleared_fields`),
+   which removes them from the state.
 3. **Resolve destination** — city name, alias ("Dharamshala" → McLeod Ganj, "Krabi" →
    Krabi (Ao Nang)), region ("Kerala" → 5 cities) or country. A named place we don't hold
    ⇒ **no retrieval**, answer labelled `general`. Plan/plan-change requests search all place
    types; targeted questions ("restaurants near Munnar") narrow by type.
-4. **Retrieve** — per city: the recommendation engine (profile + session preferences) **plus**
-   semantic search for what was literally asked. Top 12 become `[K1]…[K12]` with their facts
+4. **Retrieve** — one search across **every** city of the destination (a region like Kerala
+   or a country like Japan isn't capped): the recommendation engine (profile + session
+   preferences) **plus** semantic search for what was literally asked. Up to 6 slots go to
+   direct matches for the question first, then profile-ranked picks; each city is capped so
+   one city can't fill a multi-city region. Top 12 become `[K1]…[K12]` with their facts
    (duration, hours, price or "NOT AVAILABLE", suitability, pros/cons, relations).
-5. **Compose** — the LLM's `planner` model writes the reply and structured suggestions, citing `[Kn]`.
+   Small talk skips retrieval. The query is embedded once per message.
+5. **Reply mode** — `plan_trip` / `modify_plan` get a day-by-day plan (planner prompt, then the
+   feasibility check below). Questions, recommendations and small talk get a **direct answer**
+   (answer prompt, smaller reply budget): any `day` the model adds is removed, so there is no
+   plan check or rewrite — a question answers in ~20 s on local gemma4 instead of ~60–90 s.
+6. **Compose** — the LLM's `planner` model writes the reply and structured suggestions, citing `[Kn]`.
 
    | `LLM_PROVIDER` | intent model | planner model | endpoint |
    |---|---|---|---|
@@ -356,6 +457,8 @@ cookies across ports/subdomains of one host.
    currency amounts not in the KB are stripped from the text; hotels/flights not in the KB
    become marked placeholders; unknown refs are dropped. Every correction is recorded in
    `validation_notes`.
+   Each knowledge-base stop also carries the place's staff `tips` as `tip`, shown on the
+   itinerary ("Good to know") whether or not the model mentioned it in the prose.
 7. **Feasibility re-check** (deterministic, `app/modules/itinerary/feasibility.py`) — runs
    whenever the plan has days:
    - *Schedules* each day from 09:00 (09:30 for relaxed pace): slots (morning 08–12,

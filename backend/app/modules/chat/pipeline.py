@@ -32,19 +32,74 @@ from app.modules.knowledge.models import (
 )
 from app.modules.profiles import service as profiles
 from app.modules.profiles.models import Companions
-from app.modules.recommendations.engine import PreferenceOverrides
-from app.modules.recommendations.service import recommend
+from app.modules.recommendations.engine import (
+    PreferenceOverrides,
+    Preferences,
+    passes_hard_constraints,
+)
+from app.modules.recommendations.service import load_preferences, recommend
 from app.modules.search.service import semantic_search
 
 logger = logging.getLogger(__name__)
 
 MAX_CONTEXT_ITEMS = 12
+QUERY_SLOTS = 6  # context slots reserved for direct matches to what was asked
+RANK_POOL = 40  # candidates ranked before spreading across a destination's cities
+TIME_SLOTS = 3  # context slots kept for places best at the traveler's preferred times of day
 # Types we hold no real inventory for yet; never present model-invented ones as real.
 PLACEHOLDER_TYPES = {"hotel", "flight"}
 COST_LABELS = ["free", "budget", "moderate", "expensive", "luxury"]
+_CURRENCY_SYMBOL = r"[£$€₹¥฿₩]|\b(?:USD|EUR|GBP|INR|JPY|THB|Rs\.?)"
+_CURRENCY_WORD = r"(?:rupees?|rs\.?|yen|baht|dollars?|euros?|pounds?|usd|eur|gbp|inr|jpy|thb)\b"
+_AMOUNT = r"\d[\d,.]*(?:\s?(?:k|lakh|lakhs))?"
+# Prices in every currency our destinations use, symbol-first ("¥2,000") or word-after
+# ("500 baht"), with ranges ("$15 to $20").
 PRICE_PATTERN = re.compile(
-    r"(?:[£$€₹]|USD|EUR|GBP|INR)\s?\d[\d,.]*(?:\s?(?:-|–|to)\s?[£$€₹]?\d[\d,.]*)?"
+    rf"(?:(?:{_CURRENCY_SYMBOL})\s?{_AMOUNT}(?:\s?(?:-|–|to)\s?(?:{_CURRENCY_SYMBOL})?\s?{_AMOUNT})?"
+    rf"|\b{_AMOUNT}(?:\s?(?:-|–|to)\s?{_AMOUNT})?\s?{_CURRENCY_WORD})",
+    re.IGNORECASE,
 )
+TIME_OF_DAY = {
+    "morning": "morning",
+    "breakfast": "morning",
+    "sunrise": "morning",
+    "early": "morning",
+    "afternoon": "afternoon",
+    "lunch": "afternoon",
+    "midday": "afternoon",
+    "noon": "afternoon",
+    "evening": "evening",
+    "dinner": "evening",
+    "sunset": "evening",
+    "dusk": "evening",
+    "night": "night",
+    "late": "night",
+    "nightlife": "night",
+}
+TYPE_SYNONYMS = {
+    "hotel": (
+        "hotel",
+        "resort",
+        "stay",
+        "accommodation",
+        "homestay",
+        "hostel",
+        "guesthouse",
+        "guest house",
+        "villa",
+        "lodge",
+        "ryokan",
+        "houseboat stay",
+        "bnb",
+        "b&b",
+    ),
+    "flight": ("flight", "airline", "plane", "air"),
+    "restaurant": ("restaurant", "cafe", "café", "food", "dining", "bar", "eatery"),
+    "activity": ("activity",),
+    "attraction": ("attraction", "sight", "landmark", "museum"),
+    "experience": ("experience", "tour", "cruise"),
+    "route": ("route", "drive", "walk", "hike"),
+}
 STATE_FIELDS = (
     "destination",
     "duration_days",
@@ -65,6 +120,8 @@ class ContextItem:
     score: float | None = None
     similarity: float | None = None
     reasons: list[str] = field(default_factory=list)
+    # Similarity to what the traveler literally asked (semantic search on the message).
+    query_similarity: float | None = None
 
 
 @dataclass
@@ -88,6 +145,8 @@ class ChatResult:
 def merge_state(state: dict, intent: Intent) -> dict:
     """Carry trip details across turns; newer explicit values replace older ones."""
     merged = dict(state)
+    for key in intent.cleared_fields:  # "dates are flexible now" → forget the old dates
+        merged.pop(key, None)
     for key in STATE_FIELDS:
         value = getattr(intent, key)
         if value not in (None, [], ""):
@@ -104,7 +163,10 @@ async def resolve_destination(
     """Match a destination to a city, a region ("Kerala") or a country; return its city ids."""
     if not name:
         return None, []
-    key = name.lower().strip()
+    # Models sometimes return "London." or "'Goa'": compare without surrounding punctuation.
+    key = re.sub(r"^[\W_]+|[\W_]+$", "", name.lower())
+    if not key:
+        return None, []
     published = Location.status == LocationStatus.PUBLISHED
     containers = Location.type.in_([LocationType.CITY, LocationType.COUNTRY])
     alias_match = func.lower(func.array_to_string(Location.aliases, "|")).op("~")(
@@ -118,11 +180,14 @@ async def resolve_destination(
         )
     )
     matches = list(rows.unique())
-    if not matches:
+    if not matches and len(key) >= 3:
         # "Krabi" → "Krabi (Ao Nang)": a city whose name starts with the destination.
+        pattern = re.sub(r"([%_\\])", r"\\\1", key) + "%"
         rows = await session.scalars(
             select(Location).where(
-                Location.type == LocationType.CITY, published, Location.name.ilike(f"{key}%")
+                Location.type == LocationType.CITY,
+                published,
+                Location.name.ilike(pattern, escape="\\"),
             )
         )
         matches = list(rows.unique())
@@ -154,15 +219,27 @@ async def resolve_destination(
     return None, []
 
 
+def _words(text: str) -> set[str]:
+    return {w.rstrip("s") for w in re.findall(r"[a-z]+", text.lower()) if len(w) > 2}
+
+
+def tag_matches(tag: str, interest: str) -> bool:
+    """Whole-word match either way: "street food" ↔ "Street food", "tea gardens" ↔ "Tea",
+    but never "art" ↔ "Apartment"."""
+    tag_words, interest_words = _words(tag), _words(interest)
+    return (
+        bool(tag_words)
+        and bool(interest_words)
+        and (tag_words <= interest_words or interest_words <= tag_words)
+    )
+
+
 async def _overrides(session: AsyncSession, state: dict) -> PreferenceOverrides:
     interests = state.get("interests") or []
     tag_ids: list[uuid.UUID] = []
     if interests:
-        tag_ids = list(
-            await session.scalars(
-                select(Tag.id).where(or_(*[Tag.name.ilike(f"%{i}%") for i in interests]))
-            )
-        )
+        tags = (await session.execute(select(Tag.id, Tag.name))).all()
+        tag_ids = [tag_id for tag_id, name in tags if any(tag_matches(name, i) for i in interests)]
     companions = state.get("companions")
     return PreferenceOverrides(
         energy_level=state.get("energy_level"),
@@ -187,24 +264,126 @@ async def retrieve(
         # The traveler named a place we hold nothing about. Answering with look-alike places
         # from elsewhere would present unrelated knowledge as if it were about their trip.
         return None, []
-    city_ids: list[uuid.UUID | None] = list(resolved_ids) or [None]
+    if destination is not None and not resolved_ids:
+        # e.g. a country with no published cities yet: nothing of ours to offer there.
+        return destination, []
+    city_ids = list(resolved_ids)  # empty = no destination named: search everywhere
 
     # Planning or changing a whole trip needs every kind of place; only narrow for a
     # targeted question ("restaurants near Munnar").
     whole_trip = intent.intent in ("plan_trip", "modify_plan")
     types = None if whole_trip else [LocationType(t) for t in intent.location_types] or None
-    items = await _gather(session, ai, user_id, message, intent, state, city_ids, types)
+    # Profile + this conversation: the same hard constraints (accessibility, families, budget)
+    # apply to every way a place can enter the context, not only the profile-ranked half.
+    prefs = await load_preferences(session, user_id, await _overrides(session, state))
+    items = await _gather(session, ai, user_id, message, intent, prefs, city_ids, types)
     if not items and types:
-        items = await _gather(session, ai, user_id, message, intent, state, city_ids, None)
+        items = await _gather(session, ai, user_id, message, intent, prefs, city_ids, None)
 
-    ordered = sorted(
-        items.values(), key=lambda i: (i.score or 0) + (i.similarity or 0), reverse=True
-    )[:MAX_CONTEXT_ITEMS]
+    # What the traveler literally asked for comes first (best query matches), then the
+    # profile-ranked picks; otherwise "is Kyoto good for temples?" could lose its temples.
+    asked = sorted(
+        (i for i in items.values() if i.query_similarity is not None),
+        key=lambda i: i.query_similarity or 0,
+        reverse=True,
+    )[:QUERY_SLOTS]
+    rest = sorted(
+        (i for i in items.values() if i not in asked),
+        key=lambda i: (i.score or 0, i.query_similarity or 0),
+        reverse=True,
+    )
+    ordered = [*asked, *rest][:MAX_CONTEXT_ITEMS]
+    if whole_trip and city_ids and (times := state.get("preferred_times")):
+        ordered = await _with_preferred_times(session, ordered, items, city_ids, times, prefs)
     for index, item in enumerate(ordered, start=1):
         item.ref = f"K{index}"
         parent = item.location.parent
         item.city = parent.name if parent is not None else None
     return destination, ordered
+
+
+def _fits_times(location: Location, times: list[str]) -> bool:
+    return bool(set(location.best_times or []) & set(times))
+
+
+async def _with_preferred_times(
+    session: AsyncSession,
+    ordered: list[ContextItem],
+    gathered: dict[uuid.UUID, ContextItem],
+    city_ids: list[uuid.UUID],
+    times: list[str],
+    prefs: Preferences,
+) -> list[ContextItem]:
+    """ "We'd rather be out in the evenings" needs evening places to plan with. Profile ranking
+    gives time of day little weight, so keep a few places that are best then in the context,
+    replacing the lowest-ranked picks."""
+    have = sum(1 for i in ordered if _fits_times(i.location, times))
+    if have >= TIME_SLOTS:
+        return ordered
+    taken = {i.location.id for i in ordered}
+    # Already-ranked candidates first (they passed the profile's hard constraints)...
+    extra = [
+        i
+        for i in gathered.values()
+        if i.location.id not in taken and _fits_times(i.location, times)
+    ]
+    if len(extra) < TIME_SLOTS - have:
+        # ...then any published place in the destination that's best at those times.
+        rows = await session.scalars(
+            select(Location)
+            .where(
+                Location.parent_id.in_(city_ids),
+                Location.status == LocationStatus.PUBLISHED,
+                Location.type.not_in([LocationType.CITY, LocationType.COUNTRY, LocationType.HOTEL]),
+                Location.best_times.overlap(times),
+                Location.id.not_in(taken | {i.location.id for i in extra}),
+            )
+            .order_by(Location.highlight.desc(), Location.name)
+            .limit(TIME_SLOTS)
+        )
+        extra += [
+            ContextItem(
+                ref="",
+                location=loc,
+                city=None,
+                reasons=[f"best in the {', '.join(sorted(set(loc.best_times) & set(times)))}"],
+            )
+            for loc in rows.unique()
+            if passes_hard_constraints(loc, prefs)
+        ]
+    extra = extra[: TIME_SLOTS - have]
+    if not extra:
+        return ordered
+    # Drop the lowest-ranked picks that don't fit the times, never a direct match to the question.
+    keep = list(ordered)
+    for _ in extra:
+        if len(keep) < MAX_CONTEXT_ITEMS:
+            continue
+        victim = next(
+            (
+                i
+                for i in reversed(keep)
+                if i.query_similarity is None and not _fits_times(i.location, times)
+            ),
+            None,
+        )
+        if victim is None:
+            break
+        keep.remove(victim)
+    room = MAX_CONTEXT_ITEMS - len(keep)
+    return keep + extra[:room]
+
+
+def _spread(scored: list, key, per_city: int) -> list:
+    """Keep ranking order but cap each city, so one city can't fill a multi-city region."""
+    taken: dict[Any, int] = {}
+    kept = []
+    for entry in scored:
+        city = key(entry)
+        if taken.get(city, 0) < per_city:
+            taken[city] = taken.get(city, 0) + 1
+            kept.append(entry)
+    return kept
 
 
 async def _gather(
@@ -213,54 +392,60 @@ async def _gather(
     user_id: uuid.UUID,
     message: str,
     intent: Intent,
-    state: dict,
-    city_ids: list[uuid.UUID | None],
+    prefs: Preferences,
+    city_ids: list[uuid.UUID],
     types: list[LocationType] | None,
 ) -> dict[uuid.UUID, ContextItem]:
-    threshold = ai.embedder.min_similarity
+    """One search across every city of the destination (all of them — a region or country
+    isn't capped), not one search per city."""
     items: dict[uuid.UUID, ContextItem] = {}
+    per_city = max(2, MAX_CONTEXT_ITEMS // max(1, len(city_ids)) + 1)
 
-    for city_id in city_ids[:6]:
-        # Ranked by the recommendation engine (profile + this conversation's preferences)...
-        if city_id is not None:
-            _, ranked = await recommend(
-                session,
-                ai,
-                user_id,
-                city_id=city_id,
-                types=types,
-                limit=8,
-                overrides=await _overrides(session, state),
-            )
-            for scored in ranked:
-                items.setdefault(
-                    scored.location.id,
-                    ContextItem(
-                        ref="",
-                        location=scored.location,
-                        city=None,
-                        score=scored.score,
-                        similarity=scored.similarity,
-                        reasons=scored.reasons,
-                    ),
-                )
-        # ...plus direct semantic matches for what was literally asked.
-        hits = await semantic_search(
+    # Ranked by the recommendation engine (profile + this conversation's preferences)...
+    if city_ids:
+        _, ranked = await recommend(
             session,
             ai,
-            intent.search_query or message,
+            user_id,
+            city_ids=city_ids,
             types=types,
-            city_id=city_id,
-            limit=6,
-            min_similarity=threshold,
+            limit=RANK_POOL,
+            prefs=prefs,
         )
-        for hit in hits:
-            if hit.location.type in (LocationType.COUNTRY, LocationType.CITY):
-                continue
+        for scored in _spread(ranked, lambda s: s.location.parent_id, per_city):
             items.setdefault(
-                hit.location.id,
-                ContextItem(ref="", location=hit.location, city=None, similarity=hit.similarity),
+                scored.location.id,
+                ContextItem(
+                    ref="",
+                    location=scored.location,
+                    city=None,
+                    score=scored.score,
+                    similarity=scored.similarity,
+                    reasons=scored.reasons,
+                ),
             )
+    # ...plus direct semantic matches for what was literally asked.
+    hits = await semantic_search(
+        session,
+        ai,
+        intent.search_query or message,
+        types=types,
+        city_ids=city_ids or None,
+        limit=RANK_POOL,
+        min_similarity=ai.embedder.min_similarity,
+    )
+    hits = [
+        h
+        for h in hits
+        if h.location.type not in (LocationType.COUNTRY, LocationType.CITY)
+        and passes_hard_constraints(h.location, prefs)
+    ]
+    for hit in _spread(hits, lambda h: h.location.parent_id, per_city)[:QUERY_SLOTS]:
+        item = items.setdefault(
+            hit.location.id,
+            ContextItem(ref="", location=hit.location, city=None, similarity=hit.similarity),
+        )
+        item.query_similarity = max(item.query_similarity or 0, hit.similarity)
     return items
 
 
@@ -365,6 +550,11 @@ CONVERSATION
 - First understand intent. If the destination or trip length is missing for a trip plan,
   ask at most two short questions, and still offer a few useful ideas if you can.
 - Be warm and concise. Use short markdown sections; group itineraries by day.
+- If TRIP SO FAR has preferred_times, the traveler wants to be out then: give each day at
+  least one stop at each of those times, using places whose "Best time of day" matches, and
+  set its "time_of_day". Keep the rest of the day lighter rather than dropping those stops.
+- When a place you include has Tips, work the useful ones into the plan (what to bring,
+  when to book, when it closes) — they are WishTrip's own local knowledge.
 
 Return ONLY a JSON object:
 {
@@ -376,6 +566,32 @@ Return ONLY a JSON object:
   ],
   "follow_up_questions": ["up to 3 short questions"]
 }"""
+
+
+ANSWER_PROMPT = """You are WishTrip's travel assistant. The traveler asked a question or wants
+suggestions — do NOT write a day-by-day itinerary. Answer directly and briefly.
+
+- Use the KNOWLEDGE BASE below as the source of truth and cite places like [K2].
+- If the knowledge base doesn't cover it, you may use general knowledge but say so clearly.
+- NEVER state prices, fares or costs unless the knowledge base gives a Price for that place;
+  otherwise say pricing isn't available yet. Don't invent hours, durations or ratings.
+- If the conversation already has a plan, answer about that plan.
+- For greetings or off-topic messages, reply briefly and steer back to trip planning.
+
+Return ONLY a JSON object:
+{
+  "reply": "markdown answer",
+  "suggestions": [{"kb_ref": "K1" or null, "name": "...", "type": one of %(types)s,
+                   "why": "one sentence"}],
+  "follow_up_questions": ["up to 3 short questions"]
+}"""
+
+# Intents that get a day plan; everything else gets a direct answer.
+PLAN_INTENTS = ("plan_trip", "modify_plan")
+
+
+def wants_plan(intent: Intent) -> bool:
+    return intent.intent in PLAN_INTENTS
 
 
 def build_context(
@@ -402,9 +618,15 @@ def build_context(
 
 
 async def generate(
-    ai: AIOrchestrator, history: list[dict[str, str]], message: str, context: str
+    ai: AIOrchestrator,
+    history: list[dict[str, str]],
+    message: str,
+    context: str,
+    *,
+    plan: bool = True,
 ) -> dict[str, Any]:
-    system = PLANNER_PROMPT % {"types": json.dumps([*[t.value for t in LocationType], "flight"])}
+    types = json.dumps([*[t.value for t in LocationType], "flight"])
+    system = (PLANNER_PROMPT if plan else ANSWER_PROMPT) % {"types": types}
     raw = await ai.complete(
         "planner",
         [
@@ -415,7 +637,7 @@ async def generate(
         ],
         json_mode=True,
         temperature=0.5,
-        max_tokens=2500,
+        max_tokens=2500 if plan else 900,
     )
     return parse_json_object(raw)
 
@@ -438,7 +660,7 @@ def fallback_answer(
     else:
         lines.append("I couldn't find anything matching that in WishTrip's knowledge base yet.")
     lines.append(
-        "\n_AI planner is offline (no OpenRouter key), so this is a knowledge-base listing only._"
+        "\n_The AI planner is unavailable right now, so this is a knowledge-base listing only._"
     )
 
     follow_ups = []
@@ -469,6 +691,32 @@ def fallback_answer(
 # Validation -------------------------------------------------------------------------------
 
 
+def normalize_type(value: Any) -> str:
+    """Map whatever the model wrote ("Hotel", "resort", "Airline") onto our types, so the
+    placeholder rule for hotels and flights can't be dodged by spelling."""
+    text = str(value or "").strip().lower()
+    for canonical, words in TYPE_SYNONYMS.items():
+        if text in words or any(
+            re.search(rf"\b{re.escape(w)}\b", text) for w in words if len(w) > 3
+        ):
+            return canonical
+    return text[:32]
+
+
+def normalize_day(value: Any) -> int | None:
+    """Day numbers are positive integers (bools and day 0 are not days)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value)
+    return value if isinstance(value, int) and 1 <= value <= 60 else None
+
+
+# Staff tips travel with each planned stop, so what the team knows reaches the traveler even
+# when the model leaves it out of the prose.
+TIP_CHARS = 400
+
+
 def validate(
     answer: dict[str, Any], items: list[ContextItem]
 ) -> tuple[str, list[dict[str, Any]], list[str]]:
@@ -487,15 +735,16 @@ def validate(
             notes.append(f"Dropped unknown knowledge-base reference {ref}.")
         suggestion: dict[str, Any] = {
             "name": str(raw["name"])[:200],
-            "type": str(raw.get("type") or "")[:32],
+            "type": normalize_type(raw.get("type")),
             "location_id": None,
             "from_knowledge_base": False,
             "is_placeholder": False,
-            "day": raw.get("day") if isinstance(raw.get("day"), int) else None,
-            "time_of_day": raw.get("time_of_day"),
+            "day": normalize_day(raw.get("day")),
+            "time_of_day": TIME_OF_DAY.get(str(raw.get("time_of_day") or "").strip().lower()),
             "duration_minutes": None,
             "price": None,
             "why": str(raw.get("why") or "")[:400],
+            "tip": None,
         }
         if item:
             loc = item.location
@@ -516,6 +765,7 @@ def validate(
                 from_knowledge_base=True,
                 duration_minutes=loc.duration_minutes,
                 price=loc.price_note or None,
+                tip=(loc.tips or "").strip()[:TIP_CHARS] or None,
             )
         elif suggestion["type"] in PLACEHOLDER_TYPES:
             suggestion.update(
@@ -594,6 +844,7 @@ async def check_feasibility(
         companions=state.get("companions") or (profile.companions if profile else None),
         accessibility_needs=bool(profile and profile.accessibility_needs),
         start_date=date.fromisoformat(start) if start else None,
+        preferred_times=list(state.get("preferred_times") or []),
     )
     locations = {str(i.location.id): i.location for i in items}
     used = {s.get("location_id") for s in suggestions}
@@ -683,9 +934,13 @@ async def run(
     destinations += [d for d in {*regions, *aliases} if d not in destinations]
     tags = list(await session.scalars(select(Tag.name)))
 
-    intent = await understand(ai, message, history, destinations, tags)
+    intent = await understand(ai, message, history, destinations, tags, chat.state or {})
     state = merge_state(chat.state or {}, intent)
-    destination, items = await retrieve(session, ai, user_id, message, intent, state)
+    plan = wants_plan(intent)
+    if intent.intent == "smalltalk":
+        destination, items = None, []  # a greeting needs no places
+    else:
+        destination, items = await retrieve(session, ai, user_id, message, intent, state)
     relations = await _relations_text(session, items)
     destination_name = state.get("destination")
     context = build_context(
@@ -696,7 +951,7 @@ async def run(
     answer: dict[str, Any] | None = None
     if ai.enabled:
         try:
-            answer = await generate(ai, history, message, context)
+            answer = await generate(ai, history, message, context, plan=plan)
             model = ai.model_for("planner")
         except (AIUnavailableError, ValueError) as exc:
             logger.warning("Planner model failed, falling back: %s", exc)
@@ -706,6 +961,11 @@ async def run(
         )
 
     reply, suggestions, notes = validate(answer, items)
+    if not plan:
+        # Questions and suggestions are answers, not itineraries: no days, so no plan check
+        # and no rewrite — whatever the model returned.
+        for suggestion in suggestions:
+            suggestion["day"] = None
     result = await check_feasibility(session, user_id, suggestions, items, state)
     if result.status != "not_applicable":
         suggestions = result.suggestions

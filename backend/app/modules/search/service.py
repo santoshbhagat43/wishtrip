@@ -21,6 +21,7 @@ async def semantic_search(
     *,
     types: list[LocationType] | None = None,
     city_id: uuid.UUID | None = None,
+    city_ids: list[uuid.UUID] | None = None,
     limit: int = 10,
     min_similarity: float = 0.0,
 ) -> list[SearchHit]:
@@ -34,8 +35,9 @@ async def semantic_search(
     )
     if types:
         stmt = stmt.where(Location.type.in_(types))
-    if city_id:
-        stmt = stmt.where((Location.parent_id == city_id) | (Location.id == city_id))
+    cities = [*(city_ids or []), *([city_id] if city_id else [])]
+    if cities:
+        stmt = stmt.where(Location.parent_id.in_(cities) | Location.id.in_(cities))
     rows = (await session.execute(stmt)).unique().all()
     hits = [SearchHit(location=loc, similarity=round(1 - float(dist), 4)) for loc, dist in rows]
     # Iterative HNSW scans return rows in relaxed order; restore exact similarity order.

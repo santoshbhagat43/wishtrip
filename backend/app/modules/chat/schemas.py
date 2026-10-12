@@ -21,6 +21,8 @@ class Suggestion(BaseModel):
     # Always null unless the knowledge base holds a price; the UI shows "not available yet".
     price: str | None
     why: str
+    # The place's tips from the knowledge base, passed on as written by staff.
+    tip: str | None = None
 
 
 class ScheduledItem(Suggestion):

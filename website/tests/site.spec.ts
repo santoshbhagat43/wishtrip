@@ -31,6 +31,20 @@ test.describe("Public site", () => {
   });
 });
 
+test.describe("Navigation", () => {
+  test("the header renders the menu staff configured, not a hard-coded list", async ({ page, request }) => {
+    const menus = await (await request.get("/api/wt/explore/menus?placement=header")).json();
+    const labels: string[] = menus.flatMap((m: { items: { label: string }[] }) => m.items.map((i) => i.label));
+    expect(labels.length, "a header menu is configured (run seed_support_menus)").toBeGreaterThan(0);
+
+    // The header falls back to built-in links until the menus land, so wait for the call.
+    const loaded = page.waitForResponse((r) => r.url().includes("/explore/menus"));
+    await page.goto("/explore");
+    expect((await loaded).status()).toBe(200);
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Explore" })).toBeVisible();
+  });
+});
+
 test.describe("Session isolation", () => {
   test("a staff dashboard session never signs you in to the website", async ({ page, context, baseURL }) => {
     // Browsers share cookies across ports of one host: plant dashboard-style cookies here.

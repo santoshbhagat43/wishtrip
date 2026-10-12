@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 
@@ -211,3 +212,83 @@ class KnowledgeStats(BaseModel):
     embeddings_pending: int
     relations: int
     tags: int
+
+
+class ReviewCheck(BaseModel):
+    """One automatic check on a record, as the review queue shows it."""
+
+    ok: bool
+    label: str
+
+
+class ReviewReason(enum.StrEnum):
+    """Why a record is waiting for a person. One record can only queue under its first reason."""
+
+    DRAFT = "draft"
+    UNVERIFIED = "unverified"
+    INCOMPLETE = "incomplete"
+    STALE_INDEX = "stale_index"
+
+
+class ReviewItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    type: LocationType
+    status: LocationStatus
+    name: str
+    summary: str
+    parent: LocationRef | None
+    region: str
+    source: str
+    updated_at: datetime
+    embedded_at: datetime | None
+
+    reason: ReviewReason
+    completeness: float
+    missing_fields: list[str]
+    checks: list[ReviewCheck]
+    # Staff-only reference data this record carries (indicative rates and the like), by key.
+    reference_keys: list[str]
+
+
+class ReviewQueue(BaseModel):
+    """Counts are for the whole queue; items are the requested page of one reason."""
+
+    counts: dict[str, int]
+    # For the incomplete backlog: how many records are missing each planning field.
+    missing_by_field: dict[str, int]
+    total: int
+    oldest_updated_at: datetime | None
+    items: list[ReviewItem]
+
+
+class DestinationRow(BaseModel):
+    id: uuid.UUID
+    name: str
+    region: str
+    country: str
+    published: int
+    draft: int
+    incomplete: int
+    embedded: int
+    # Chat sessions whose trip state named this city.
+    trips: int
+    # Chat sessions that named this city's region instead (shared across the region's cities).
+    region_trips: int
+    updated_at: datetime
+
+
+class SystemStatus(BaseModel):
+    """What the stack is actually running, for the System health screen."""
+
+    ai_enabled: bool
+    llm_provider: str
+    chat_model: str
+    intent_model: str
+    embedder: str
+    embedding_dimensions: int
+    embeddings_pending: int
+    oldest_stale_embed: datetime | None
+    counts: dict[str, int]
+    last_audit_at: datetime | None

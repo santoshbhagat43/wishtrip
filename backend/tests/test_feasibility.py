@@ -95,6 +95,17 @@ def test_wrong_time_of_day_is_moved_to_the_best_time():
     assert "best then" in result.changes[0]
 
 
+def test_best_time_move_is_undone_when_that_slot_is_already_full():
+    # Two 2-hour morning stops can't both fit the morning; the second one moved there from the
+    # afternoon would run past it, so it stays in the afternoon instead of a contradiction.
+    first = place("Tea museum", minutes=150, best_times=["morning"])
+    second = place("Spice garden", minutes=120, best_times=["morning"])
+    result = run([(first, 1, "morning"), (second, 1, "afternoon")])
+    assert result.status == "feasible" and result.changes == []
+    assert not [i for i in result.issues if i.code == "runs_late"]
+    assert result.days[0]["items"][1]["time_of_day"] == "afternoon"
+
+
 def test_overloaded_day_moves_the_least_important_stop():
     must = place("Grand Palace", minutes=180, highlight=True)
     extra1, extra2 = place("Museum", minutes=180), place("Market", minutes=180)
@@ -229,3 +240,68 @@ def test_meals_take_time_but_not_sightseeing_capacity():
     assert names(result, 1) == ["Tea museum", "Tea-estate cafe"]
     day = result.days[0]
     assert day["meal_minutes"] == 75 and day["activity_minutes"] == 280
+
+
+# Preferred times of day ---------------------------------------------------------------------
+
+EVENINGS = Constraints(energy_level=1, preferred_times=["evening"])  # 300 min a day
+
+
+def test_overload_drops_a_daytime_stop_before_the_evening_the_traveler_wants():
+    day1 = place("Boat cruise", minutes=180)
+    lunch_walk = place("Garden walk", minutes=60)
+    show = place("Kathakali show", minutes=90, best_times=["evening"])
+    result = run(
+        [(day1, 1, "morning"), (lunch_walk, 1, "afternoon"), (show, 1, "evening")], c=EVENINGS
+    )
+    assert "Kathakali show" in names(result, 1)
+    assert "Garden walk" not in names(result, 1)
+
+
+def test_missing_evening_is_filled_from_other_retrieved_places():
+    morning = place("Tea museum", minutes=90)
+    sunset = place("Sunset point", minutes=60, best_times=["evening"])
+    result = run([(morning, 1, "morning")], c=EVENINGS, pool=[sunset])
+    assert names(result, 1) == ["Tea museum", "Sunset point"]
+    evening = result.days[0]["items"][1]
+    assert evening["time_of_day"] == "evening" and evening["start"] >= "17:00"
+    assert any("evening, as you asked" in ch for ch in result.changes)
+
+
+def test_full_day_swaps_a_daytime_stop_for_an_evening_one():
+    long_a, long_b = place("Dam visit", minutes=150), place("Viewpoint", minutes=120)
+    sunset = place("Sunset walk", minutes=90, best_times=["evening"])
+    result = run([(long_a, 1, "morning"), (long_b, 1, "afternoon")], c=EVENINGS, pool=[sunset])
+    assert names(result, 1) == ["Dam visit", "Sunset walk"]
+    assert any(ch.startswith("Swapped Viewpoint for Sunset walk") for ch in result.changes)
+    assert result.status != "needs_attention"
+
+
+def test_no_evening_place_is_said_not_invented():
+    result = run([(place("Tea museum"), 1, "morning")], c=EVENINGS, pool=[place("Museum 2")])
+    assert names(result, 1) == ["Tea museum"]
+    assert any(i.code == "preferred_time_unfilled" for i in result.issues)
+
+
+def test_unknown_wheelchair_access_is_flagged_not_assumed():
+    known, unknown = place("Basilica", accessible=True), place("Island cycle ride")
+    result = run(
+        [(known, 1, "morning"), (unknown, 1, "afternoon")], c=Constraints(accessibility_needs=True)
+    )
+    flagged = [i for i in result.issues if i.code == "accessibility_unverified"]
+    assert len(flagged) == 1 and "Island cycle ride" in flagged[0].message
+    assert "Basilica" not in flagged[0].message
+    # Travelers without that need aren't told.
+    assert not [i for i in run([(unknown, 1, None)]).issues if i.code == "accessibility_unverified"]
+
+
+def test_a_stop_added_to_an_empty_day_is_labelled_by_when_it_starts_not_flagged():
+    # Both refills are best in the morning; the second can only start after noon, so it's an
+    # afternoon stop — not "runs past the morning" about a time the plan check picked itself.
+    kept = place("Tea museum", minutes=90)
+    a = place("Top Station", minutes=150, best_times=["morning"])
+    b = place("Tea factory", minutes=120, best_times=["morning"])
+    result = run([(kept, 1, "morning")], c=Constraints(duration_days=2), pool=[a, b])
+    assert names(result, 2) == ["Top Station", "Tea factory"]
+    assert result.days[1]["items"][1]["time_of_day"] == "afternoon"
+    assert not [i for i in result.issues if i.code == "runs_late"]

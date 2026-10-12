@@ -27,3 +27,34 @@ export function relativeTime(iso: string) {
   if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
+
+const ENERGY = ["", "very relaxed", "relaxed", "moderate", "active", "very active"];
+const TRIP_FIELDS: Record<string, string> = {
+  destination: "Destination",
+  duration_days: "Trip length",
+  start_date: "Starts",
+  companions: "Travelling with",
+  interests: "Interests",
+  energy_level: "Pace",
+  budget_level: "Budget",
+  preferred_times: "Best times of day",
+};
+
+/** The chat's trip state as readable rows, in a sensible order, empty values left out. */
+export function tripStateRows(state: Record<string, unknown>): { label: string; value: string }[] {
+  const order = Object.keys(TRIP_FIELDS);
+  return Object.entries(state)
+    .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
+    .sort(([a], [b]) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99))
+    .map(([key, v]) => {
+      let value: string;
+      if (Array.isArray(v)) value = v.map((x) => titleCase(String(x))).join(", ");
+      else if (key === "energy_level" && typeof v === "number") value = `${titleCase(ENERGY[v] ?? "")} (${v}/5)`;
+      else if (key === "budget_level" && typeof v === "number") value = COST_LABELS[v] ?? String(v);
+      else if (key === "duration_days" && typeof v === "number") value = `${v} day${v === 1 ? "" : "s"}`;
+      else if (key === "start_date" && typeof v === "string")
+        value = new Date(`${v}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+      else value = titleCase(String(v));
+      return { label: TRIP_FIELDS[key] ?? titleCase(key), value };
+    });
+}

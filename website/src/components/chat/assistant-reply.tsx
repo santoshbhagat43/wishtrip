@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, Globe, Info, Ticket } from "lucide-react";
+import { BookOpenCheck, Globe, Info, Lightbulb, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -35,6 +35,11 @@ export function AssistantReply({ message, onFollowUp }: { message: ChatMessage; 
                 {s.location_id ? <Link href={`/places/${s.location_id}`} className="font-medium hover:text-brand">{s.name}</Link> : <span className="font-medium">{s.name}</span>}
                 <p className="text-xs text-muted">{titleCase(s.type)}{s.duration_minutes != null ? ` · ${minutes(s.duration_minutes)}` : ""} · Price: {s.price ?? <span className="italic">not available yet</span>}</p>
                 {s.why && <p className="mt-1 text-sm text-muted">{s.why}</p>}
+                {s.tip && (
+                  <p className="mt-2 flex gap-2 rounded-xl bg-value-soft px-3 py-2 text-sm">
+                    <Lightbulb className="mt-0.5 size-4 shrink-0" /> {s.tip}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

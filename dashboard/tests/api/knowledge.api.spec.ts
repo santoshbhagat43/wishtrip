@@ -108,3 +108,42 @@ test.describe("Media API", () => {
     await admin.delete(`/admin/locations/${loc.id}`);
   });
 });
+
+test.describe("Staff screens API", () => {
+  test("GET /admin/review-queue groups what is waiting for a person", async ({ admin }) => {
+    const { body } = await admin.get("/admin/review-queue", { params: { page_size: 5 } });
+    expect(Object.keys(body.counts).sort()).toEqual(["draft", "incomplete", "stale_index", "unverified"]);
+    expect(body.items.length).toBeLessThanOrEqual(5);
+    // Oldest first, so the longest-waiting record is the one a reviewer sees next.
+    const updated = body.items.map((i: any) => i.updated_at);
+    expect([...updated].sort()).toEqual(updated);
+
+    const unverified = await admin.get("/admin/review-queue", { params: { reason: "unverified", page_size: 3 } });
+    expect(unverified.body.items.every((i: any) => i.reason === "unverified")).toBe(true);
+    // Every item carries the checks and the gaps the review screen renders.
+    const [first] = unverified.body.items;
+    expect(first.checks.length).toBeGreaterThan(0);
+    expect(first).toHaveProperty("completeness");
+  });
+
+  test("GET /admin/destinations counts city and region demand separately", async ({ admin }) => {
+    const { body } = await admin.get("/admin/destinations");
+    expect(body.length).toBeGreaterThan(0);
+    const kerala = body.filter((d: any) => d.region === "Kerala");
+    expect(kerala).toHaveLength(5);
+    // Region demand is shared by the region's cities, never summed into each of them.
+    expect(new Set(kerala.map((d: any) => d.region_trips)).size).toBe(1);
+    expect(kerala[0].published).toBeGreaterThan(0);
+  });
+
+  test("GET /admin/system reports the live provider, index and volumes", async ({ admin }) => {
+    const { body } = await admin.get("/admin/system");
+    expect(body.embedding_dimensions).toBe(768);
+    expect(body.counts.published).toBeGreaterThan(0);
+    expect(typeof body.embedder).toBe("string");
+    // What /health says and what this screen says must agree.
+    const { body: health } = await admin.get("/health");
+    expect(body.llm_provider).toBe(health.llm_provider);
+    expect(body.embedder).toBe(health.embedder);
+  });
+});

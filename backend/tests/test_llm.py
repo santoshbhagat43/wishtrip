@@ -108,3 +108,10 @@ async def test_errors_and_disabled_client():
     )
     with pytest.raises(AIUnavailableError, match="500"):
         await broken.chat("intent", [])
+
+
+def test_explicit_none_disables_the_llm_even_when_settings_enable_one(monkeypatch):
+    """Regression: LLMClient(None) once fell back to settings and silently called the model."""
+    monkeypatch.setattr(settings, "llm_provider", "ollama")
+    assert LLMClient().enabled is True
+    assert LLMClient(None).enabled is False

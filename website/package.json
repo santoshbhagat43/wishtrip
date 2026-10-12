@@ -9,9 +9,14 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "gen:api": "cd ../backend && uv run python -m app.scripts.export_openapi ../website/src/lib/api/openapi.json && cd ../website && openapi-typescript src/lib/api/openapi.json -o src/lib/api/schema.d.ts",
-    "test:e2e": "playwright test",
-    "test:e2e:headless": "HEADLESS=1 playwright test",
-    "test:report": "playwright show-report"
+    "test:e2e": "playwright test --grep-invert \"@conversations|@demo\"",
+    "test:e2e:headless": "HEADLESS=1 playwright test --grep-invert \"@conversations|@demo\"",
+    "test:report": "playwright show-report",
+    "test:conversations": "playwright test --grep @conversations",
+    "test:demo": "playwright test --grep @demo",
+    "test:demo:headless": "HEADLESS=1 playwright test --grep @demo",
+    "test:knowledge": "playwright test --grep @knowledge",
+    "test:knowledge:headless": "HEADLESS=1 playwright test --grep @knowledge"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.1",

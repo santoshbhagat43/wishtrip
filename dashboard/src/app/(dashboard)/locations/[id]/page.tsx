@@ -26,6 +26,11 @@ export default function LocationPage() {
   const location = useQuery({
     queryKey: ["location", id],
     queryFn: async () => unwrap(await api.GET("/admin/locations/{location_id}", { params: { path: { location_id: id } } })),
+    // The worker embeds a published record within seconds; check back until it has, so the
+    // badge turns to "Indexed for AI" by itself. (Embedding doesn't change updated_at, so this
+    // never remounts the editor or drops unsaved edits.)
+    refetchInterval: (query) =>
+      query.state.data?.status === "published" && query.state.data.embedding_stale ? 2000 : false,
   });
   if (location.isLoading) return <Spinner />;
   if (location.error) return <ErrorNote error={location.error} />;

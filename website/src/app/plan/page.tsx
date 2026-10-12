@@ -13,7 +13,7 @@ import { ErrorNote, Spinner } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/field";
 import { Tabs } from "@/components/ui/tabs";
 import { api, unwrap, type ChatMessage } from "@/lib/api/client";
-import { COST_LABELS, titleCase } from "@/lib/format";
+import { COST_LABELS, tripStateRows } from "@/lib/format";
 
 type InputMode = "chat" | "link" | "screenshot" | "saved";
 
@@ -208,8 +208,8 @@ function Planner() {
             <p className="mt-2 text-sm text-muted">We&apos;ll fill this in as we understand your trip.</p>
           ) : (
             <dl className="mt-3 space-y-2 text-sm">
-              {Object.entries(state).map(([k, v]) => (
-                <div key={k}><dt className="text-xs text-muted">{titleCase(k)}</dt><dd className="capitalize">{Array.isArray(v) ? v.join(", ") : String(v)}</dd></div>
+              {tripStateRows(state as Record<string, unknown>).map(({ label, value }) => (
+                <div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="break-words">{value}</dd></div>
               ))}
             </dl>
           )}

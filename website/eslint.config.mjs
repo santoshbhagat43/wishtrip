@@ -17,7 +17,8 @@ const eslintConfig = defineConfig([
   ]),
   {
     files: ["tests/**/*.ts"],
-    rules: { "react-hooks/rules-of-hooks": "off" },
+    // Playwright fixtures call use() (not React); API JSON in tests is loosely typed.
+    rules: { "react-hooks/rules-of-hooks": "off", "@typescript-eslint/no-explicit-any": "off" },
   },
 ]);
 

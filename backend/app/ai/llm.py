@@ -70,13 +70,17 @@ def reasoning_params(provider: str, effort: str | None) -> dict[str, Any]:
     return {"reasoning": {"effort": effort, "exclude": True}}
 
 
+_FROM_SETTINGS: Any = object()
+
+
 class LLMClient:
     def __init__(
         self,
-        config: ProviderConfig | None = None,
+        config: ProviderConfig | None = _FROM_SETTINGS,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.config = config if config is not None else provider_config()
+        # No argument → resolve LLM_PROVIDER from settings; an explicit None → no LLM at all.
+        self.config = provider_config() if config is _FROM_SETTINGS else config
         self._transport = transport
 
     @property
@@ -108,6 +112,7 @@ class LLMClient:
         temperature: float = 0.4,
         json_mode: bool = False,
         max_tokens: int = 1500,
+        timeout: float = 120,
     ) -> str:
         if not self.config:
             raise AIUnavailableError("No LLM provider configured")
@@ -120,13 +125,13 @@ class LLMClient:
         }
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
-        response = await self._post(payload)
+        response = await self._post(payload, timeout)
         if response.status_code == 400 and "reason" in response.text.lower():
             # Some models refuse to change reasoning; retry with the provider default.
             logger.info("Retrying %s without reasoning settings", payload["model"])
             payload.pop("reasoning", None)
             payload.pop("reasoning_effort", None)
-            response = await self._post(payload)
+            response = await self._post(payload, timeout)
         if response.status_code >= 400:
             raise AIUnavailableError(
                 f"{self.provider} {response.status_code}: {response.text[:300]}"
@@ -137,9 +142,9 @@ class LLMClient:
         except (KeyError, IndexError) as exc:
             raise AIUnavailableError(f"Unexpected {self.provider} response: {data}") from exc
 
-    async def _post(self, payload: dict[str, Any]) -> httpx.Response:
+    async def _post(self, payload: dict[str, Any], timeout: float = 120) -> httpx.Response:
         try:
-            async with httpx.AsyncClient(timeout=120, transport=self._transport) as client:
+            async with httpx.AsyncClient(timeout=timeout, transport=self._transport) as client:
                 return await client.post(
                     f"{self.config.base_url}/chat/completions",
                     json=payload,

@@ -9,7 +9,7 @@ import { Sidebar } from "@/components/sidebar";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[232px_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="sticky top-0 hidden h-dvh border-r border-border bg-surface lg:block">
         <Sidebar />
       </aside>
@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </aside>
         </div>
       )}
-      <main className="min-w-0 px-4 py-6 sm:px-8 lg:py-8">{children}</main>
+      <main className="min-w-0 px-4 py-6 sm:px-8 lg:py-7">{children}</main>
     </div>
   );
 }

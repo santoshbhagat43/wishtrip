@@ -55,6 +55,8 @@ class Constraints:
     companions: str | None = None
     accessibility_needs: bool = False
     start_date: date | None = None
+    # Times of day the traveler wants to be out ("we'd rather be out in the evenings").
+    preferred_times: list[str] = field(default_factory=list)
 
     @property
     def capacity(self) -> int:
@@ -234,6 +236,18 @@ def _ordered(items: list[PlanItem]) -> list[PlanItem]:
     return sorted(items, key=lambda i: SLOT_ORDER.get(i.suggestion.get("time_of_day"), 1))
 
 
+def slot_at(minutes: int) -> str:
+    """The time of day a clock time falls in (before 08:00 counts as morning)."""
+    for name in ("morning", "afternoon", "evening"):
+        if minutes < SLOTS[name][1]:
+            return name
+    return "night"
+
+
+def in_preferred_slot(item: PlanItem, c: Constraints) -> bool:
+    return item.suggestion.get("time_of_day") in c.preferred_times
+
+
 def is_meal(item: PlanItem) -> bool:
     return item.suggestion.get("type") == "restaurant"
 
@@ -365,13 +379,18 @@ def check_and_repair(
     """Schedule, check and repair a day-by-day plan. Undated suggestions pass through."""
     if not any(isinstance(s.get("day"), int) for s in suggestions):
         return Result("not_applicable", suggestions)
+    if not any(s.get("from_knowledge_base") for s in suggestions if isinstance(s.get("day"), int)):
+        # Nothing in the plan is a place we know, so there is nothing we can verify — don't
+        # stamp "checked, it works" on general-knowledge suggestions.
+        return Result("not_applicable", suggestions)
 
     undated = [s for s in suggestions if not isinstance(s.get("day"), int)]
     items = [
         PlanItem(s, locations.get(s["location_id"]) if s.get("location_id") else None)
         for s in suggestions
-        if isinstance(s.get("day"), int)
+        if isinstance(s.get("day"), int) and s["day"] >= 1
     ]
+    undated += [s for s in suggestions if isinstance(s.get("day"), int) and s["day"] < 1]
     changes: list[str] = []
     trip_days = c.duration_days or max(i.day for i in items)
     days: dict[int, list[PlanItem]] = {d: [] for d in range(1, trip_days + 1)}
@@ -396,6 +415,10 @@ def check_and_repair(
         return True
 
     seen: set[str] = set()
+    # Items re-timed to their best slot: item → (slot the plan gave it, change message).
+    retimed: dict[int, tuple[str, str]] = {}
+    # Stops the plan check itself added to empty days (their time of day is our guess).
+    filled: set[int] = set()
     for item in items:
         key = item.suggestion.get("location_id") or item.name.lower()
         if key in seen:
@@ -409,9 +432,9 @@ def check_and_repair(
         slot = item.suggestion.get("time_of_day")
         if best and slot and slot not in best:
             item.suggestion = {**item.suggestion, "time_of_day": best[0]}
-            changes.append(
-                f"Moved {item.name} to the {best[0]} — it's best then, not in the {slot}."
-            )
+            message = f"Moved {item.name} to the {best[0]} — it's best then, not in the {slot}."
+            changes.append(message)
+            retimed[id(item)] = (slot, message)
         if item.day > trip_days:
             if not relocate(item, f"the trip is {trip_days} days"):
                 changes.append(f"Removed {item.name} — there's no room in a {trip_days}-day trip.")
@@ -424,12 +447,18 @@ def check_and_repair(
             continue
         days[item.day].append(item)
 
-    # Overloaded days: move the least important stops (non-highlights, added last) elsewhere.
+    # Overloaded days: move the least important stops elsewhere — not at a time the traveler
+    # wants to be out, not a highlight, added last. (Added-last alone would always drop the
+    # evening, which is exactly when some travelers want to be out.)
     for d in list(days):
         while real_load(days[d], relations) > c.capacity and len(days[d]) > 1:
             victim = min(
                 reversed(days[d]),
-                key=lambda i: (bool(i.location and i.location.highlight), -days[d].index(i)),
+                key=lambda i: (
+                    in_preferred_slot(i, c),
+                    bool(i.location and i.location.highlight),
+                    -days[d].index(i),
+                ),
             )
             days[d].remove(victim)
             if not relocate(victim, f"day {d} was too full", exclude=d):
@@ -437,45 +466,173 @@ def check_and_repair(
                     f"Removed {victim.name} — day {d} was too full and no other day had room."
                 )
 
-    # Re-retrieve and repair: refill days left empty with other candidates that pass the checks.
+    def candidate_item(candidate: Location, d: int, slot: str | None, why: str) -> PlanItem:
+        return PlanItem(
+            {
+                "name": candidate.name,
+                "type": candidate.type.value,
+                "location_id": str(candidate.id),
+                "from_knowledge_base": True,
+                "is_placeholder": False,
+                "day": d,
+                "time_of_day": slot,
+                "duration_minutes": candidate.duration_minutes,
+                "price": candidate.price_note or None,
+                "why": why,
+                "tip": (candidate.tips or "").strip()[:400] or None,
+            },
+            candidate,
+        )
+
+    def usable(candidate: Location, d: int) -> bool:
+        weekday, _ = _weekday(c, d)
+        return (
+            candidate.id not in used
+            and hard_constraint_violation(candidate, c) is None
+            and opening(candidate, weekday)[0] is not False
+        )
+
+    def best_slot(candidate: Location) -> str | None:
+        best = candidate.best_times or []
+        return next((t for t in best if t in c.preferred_times), best[0] if best else None)
+
+    # Re-retrieve and repair: refill days left empty with other candidates that pass the checks
+    # (places best at the traveler's preferred times first).
     used = {i.location.id for day_items in days.values() for i in day_items if i.location}
+    preferred_first = sorted(
+        pool, key=lambda p: not set(p.best_times or []) & set(c.preferred_times)
+    )
     for d, day_items in days.items():
         if day_items:
             continue
-        weekday, _ = _weekday(c, d)
-        for candidate in pool:
+        for candidate in preferred_first:
             if len(days[d]) >= FILL_PER_EMPTY_DAY:
                 break
-            if candidate.id in used or hard_constraint_violation(candidate, c):
+            if not usable(candidate, d):
                 continue
-            if opening(candidate, weekday)[0] is False:
-                continue
-            filler = PlanItem(
-                {
-                    "name": candidate.name,
-                    "type": candidate.type.value,
-                    "location_id": str(candidate.id),
-                    "from_knowledge_base": True,
-                    "is_placeholder": False,
-                    "day": d,
-                    "time_of_day": (candidate.best_times or [None])[0],
-                    "duration_minutes": candidate.duration_minutes,
-                    "price": candidate.price_note or None,
-                    "why": "Added by the plan check so this day isn't empty.",
-                },
+            filler = candidate_item(
                 candidate,
+                d,
+                best_slot(candidate),
+                "Added by the plan check so this day isn't empty.",
             )
             if real_load([*days[d], filler], relations) > c.capacity:
                 continue
             days[d].append(filler)
+            filled.add(id(filler))
             used.add(candidate.id)
             changes.append(f"Added {candidate.name} to day {d}, which was empty.")
+
+    # Preferred times: each day gets a stop at each time the traveler wants to be out — added if
+    # it fits, else swapped for the day's least important stop at another time.
+    unfilled: dict[str, list[int]] = {}
+    for slot in c.preferred_times:
+        if slot not in SLOTS:
+            continue
+        for d, day_items in days.items():
+            if not day_items or any(i.suggestion.get("time_of_day") == slot for i in day_items):
+                continue
+            placed = False
+            for candidate in pool:
+                if slot not in (candidate.best_times or []) or not usable(candidate, d):
+                    continue
+                item = candidate_item(
+                    candidate, d, slot, f"Added for the {slot} — when you'd like to be out."
+                )
+                if real_load([*day_items, item], relations) <= c.capacity:
+                    day_items.append(item)
+                    changes.append(f"Added {candidate.name} to day {d}'s {slot}, as you asked.")
+                    placed = True
+                else:
+                    swappable = [
+                        i
+                        for i in day_items
+                        if not in_preferred_slot(i, c)
+                        and not (i.location and i.location.highlight)
+                        and real_load([*(x for x in day_items if x is not i), item], relations)
+                        <= c.capacity
+                    ]
+                    if swappable:
+                        out = swappable[-1]
+                        day_items.remove(out)
+                        day_items.append(item)
+                        changes.append(
+                            f"Swapped {out.name} for {candidate.name} on day {d} so you're "
+                            f"out in the {slot}."
+                        )
+                        placed = True
+                if placed:
+                    used.add(candidate.id)
+                    break
+            if not placed:
+                unfilled.setdefault(slot, []).append(d)
 
     scheduled, issues = [], []
     for d, day_items in days.items():
         plan, day_issues = schedule_day(d, day_items, c, relations)
+        # A stop moved to its best slot that then can't fit in that slot (the slot is already
+        # full) goes back to the time the plan gave it — "moved to the morning" followed by
+        # "runs past the morning" helps no one.
+        late = {i.name for i in day_issues if i.code == "runs_late"}
+        undo = [item for item in day_items if id(item) in retimed and item.name in late]
+        for item in undo:
+            slot, message = retimed.pop(id(item))
+            item.suggestion = {**item.suggestion, "time_of_day": slot}
+            changes.remove(message)
+        # Likewise a stop we added to an empty day: give it the time of day it actually runs
+        # into rather than warn about our own guess.
+        ends = {row["name"]: row["end"] for row in plan["items"]}
+        relabel = [item for item in day_items if id(item) in filled and item.name in late]
+        for item in relabel:
+            end = parse_clock(ends[item.name]) or c.day_start
+            item.suggestion = {**item.suggestion, "time_of_day": slot_at(end - 1)}
+        if undo or relabel:
+            plan, day_issues = schedule_day(d, day_items, c, relations)
         scheduled.append(plan)
         issues += day_issues
+    unverified = [
+        i.name
+        for day_items in days.values()
+        for i in day_items
+        if not i.suggestion.get("from_knowledge_base") and not i.placeholder
+    ]
+    if unverified:
+        issues.append(
+            Issue(
+                "info",
+                "unverified_places",
+                f"Not in WishTrip's checked places, so not verified: {', '.join(unverified[:5])}.",
+            )
+        )
+    if c.accessibility_needs:
+        # Unknown isn't "accessible": most places haven't been checked yet, and a traveler who
+        # needs step-free access must hear that rather than assume it.
+        unchecked = [
+            i.name
+            for day_items in days.values()
+            for i in day_items
+            if i.location is not None and i.location.accessible is None
+        ]
+        if unchecked:
+            more = "…" if len(unchecked) > 5 else ""
+            issues.append(
+                Issue(
+                    "warning",
+                    "accessibility_unverified",
+                    "Wheelchair access isn't verified yet for: "
+                    f"{', '.join(unchecked[:5])}{more}. Please check before you go.",
+                )
+            )
+    for slot, missing in unfilled.items():
+        which = ", ".join(str(d) for d in missing)
+        issues.append(
+            Issue(
+                "info",
+                "preferred_time_unfilled",
+                f"No {slot} option from WishTrip's checked places fits "
+                f"day{'s' if len(missing) > 1 else ''} {which} yet.",
+            )
+        )
     estimated = [
         i.name
         for day_items in days.values()

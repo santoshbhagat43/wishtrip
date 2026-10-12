@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import get_embedder
 from app.ai.indexing import stale_embedding_clause
+from app.ai.llm import LLMClient
+from app.core.config import settings
 from app.core.errors import bad_request, conflict, not_found
+from app.modules.audit.models import AuditLog
+from app.modules.chat.models import ChatMessage, ChatSession
 from app.modules.knowledge.models import (
     CONTAINER_TYPES,
     Location,
@@ -21,6 +25,7 @@ from app.modules.knowledge.models import (
 from app.modules.knowledge.schemas import (
     COMPLETENESS_FIELDS,
     CONTAINER_COMPLETENESS,
+    DestinationRow,
     KnowledgeStats,
     LocationCreate,
     LocationListItem,
@@ -28,8 +33,15 @@ from app.modules.knowledge.schemas import (
     LocationRef,
     LocationUpdate,
     RelationCreate,
+    ReviewCheck,
+    ReviewItem,
+    ReviewQueue,
+    ReviewReason,
+    SystemStatus,
     TagCreate,
 )
+from app.modules.media.models import Media
+from app.modules.users.models import Role, User
 
 # Edits to these fields change what the AI should "know", so they trigger re-embedding.
 EMBEDDED_FIELDS = {
@@ -358,4 +370,205 @@ async def stats(session: AsyncSession) -> KnowledgeStats:
         embeddings_pending=pending or 0,
         relations=await session.scalar(select(func.count()).select_from(LocationRelation)) or 0,
         tags=await session.scalar(select(func.count()).select_from(Tag)) or 0,
+    )
+
+
+def _review_checks(location: Location, missing: list[str], stale: bool) -> list[ReviewCheck]:
+    """The automatic checks a reviewer sees before deciding. All derived from stored data."""
+    has_coords = location.latitude is not None and location.longitude is not None
+    return [
+        ReviewCheck(ok=bool(location.summary), label="Has a summary"),
+        ReviewCheck(ok=has_coords, label="Coordinates set"),
+        ReviewCheck(
+            ok=not location.provenance.get("needs_verification"),
+            label="Verified by a person",
+        ),
+        ReviewCheck(
+            ok=bool(location.price_note) or location.cost_level is not None,
+            label="Price is verified or deliberately absent",
+        ),
+        ReviewCheck(ok=not missing, label="Has every field the AI plans from"),
+        ReviewCheck(ok=not stale, label="Indexed for search and chat"),
+    ]
+
+
+def _review_reason(location: Location, missing: list[str], stale: bool) -> ReviewReason | None:
+    """First reason that applies, so a record appears in exactly one queue.
+
+    Verification comes before draft on purpose: an unverified import is waiting on a person to
+    check it, and publishing it is the step after that, not a separate piece of work.
+    """
+    if location.status == LocationStatus.ARCHIVED:
+        return None
+    if location.provenance.get("needs_verification"):
+        return ReviewReason.UNVERIFIED
+    if location.status == LocationStatus.DRAFT:
+        return ReviewReason.DRAFT
+    if missing:
+        return ReviewReason.INCOMPLETE
+    if stale:
+        return ReviewReason.STALE_INDEX
+    return None
+
+
+async def review_queue(
+    session: AsyncSession,
+    *,
+    reason: ReviewReason | None = None,
+    page: int = 1,
+    page_size: int = 25,
+) -> ReviewQueue:
+    """Everything waiting for a human decision, grouped by why it's waiting.
+
+    Counts cover the whole queue so the sidebar badge and the filters agree; `items` is the
+    requested page of one reason (or of the whole queue when no reason is given).
+    """
+    stale_ids = set(
+        await session.scalars(
+            select(Location.id).where(
+                Location.status == LocationStatus.PUBLISHED,
+                stale_embedding_clause(get_embedder().name),
+            )
+        )
+    )
+    counts: dict[str, int] = {r.value: 0 for r in ReviewReason}
+    by_field: dict[str, int] = {}
+    queued: list[tuple[Location, ReviewReason, float, list[str]]] = []
+    for location in await session.scalars(select(Location)):
+        score, missing = completeness(location)
+        why = _review_reason(location, missing, location.id in stale_ids)
+        if why is None:
+            continue
+        counts[why.value] += 1
+        if why == ReviewReason.INCOMPLETE:
+            for field in missing:
+                by_field[field] = by_field.get(field, 0) + 1
+        queued.append((location, why, score, missing))
+
+    selected = [row for row in queued if reason is None or row[1] == reason]
+    # Oldest first: the longest-waiting record is the one a reviewer should see next.
+    selected.sort(key=lambda row: row[0].updated_at)
+    start = (page - 1) * page_size
+    items = [
+        ReviewItem(
+            id=loc.id,
+            type=loc.type,
+            status=loc.status,
+            name=loc.name,
+            summary=loc.summary,
+            parent=LocationRef.model_validate(loc.parent) if loc.parent else None,
+            region=loc.region,
+            source=loc.source,
+            updated_at=loc.updated_at,
+            embedded_at=loc.embedded_at,
+            reason=why,
+            completeness=score,
+            missing_fields=missing,
+            checks=_review_checks(loc, missing, loc.id in stale_ids),
+            reference_keys=sorted(loc.reference.keys()),
+        )
+        for loc, why, score, missing in selected[start : start + page_size]
+    ]
+    return ReviewQueue(
+        counts=counts,
+        missing_by_field=dict(sorted(by_field.items(), key=lambda kv: -kv[1])),
+        total=len(selected),
+        oldest_updated_at=selected[0][0].updated_at if selected else None,
+        items=items,
+    )
+
+
+async def destinations(session: AsyncSession) -> list[DestinationRow]:
+    """Cities with what the engine actually holds for them, busiest first."""
+    cities = list(
+        await session.scalars(
+            select(Location).where(Location.type == LocationType.CITY).order_by(Location.name)
+        )
+    )
+    children = list(
+        await session.scalars(
+            select(Location).where(Location.parent_id.in_([c.id for c in cities] or [None]))
+        )
+    )
+    embedder = get_embedder().name
+    # One trip count per destination name, matched against the chat session's resolved state.
+    destination = func.lower(ChatSession.state["destination"].as_string())
+    trips_by_name: dict[str, int] = dict(
+        (
+            await session.execute(
+                select(destination, func.count())
+                .where(destination.isnot(None))
+                .group_by(destination)
+            )
+        ).all()
+    )
+
+    rows = []
+    for city in cities:
+        kids = [k for k in children if k.parent_id == city.id]
+        published = [k for k in kids if k.status == LocationStatus.PUBLISHED]
+        rows.append(
+            DestinationRow(
+                id=city.id,
+                name=city.name,
+                region=city.region,
+                country=city.parent.name if city.parent else "",
+                published=len(published),
+                draft=sum(1 for k in kids if k.status == LocationStatus.DRAFT),
+                incomplete=sum(1 for k in published if completeness(k)[1]),
+                embedded=sum(
+                    1 for k in published if k.embedded_at and k.embedding_model == embedder
+                ),
+                # Travelers name a city ("Munnar tea hills") or a region ("Kerala"). Region
+                # demand belongs to the region, not to each of its cities, so keep them apart.
+                trips=trips_by_name.get(city.name.lower(), 0),
+                region_trips=trips_by_name.get(city.region.lower(), 0) if city.region else 0,
+                updated_at=city.updated_at,
+            )
+        )
+    rows.sort(key=lambda r: (-(r.trips + r.region_trips), -r.published, r.name))
+    return rows
+
+
+async def system_status(session: AsyncSession) -> SystemStatus:
+    """What the stack is running right now — no estimates, all read from the live system."""
+    embedder = get_embedder()
+    stale = stale_embedding_clause(embedder.name)
+    counts = {
+        "locations": await session.scalar(select(func.count()).select_from(Location)) or 0,
+        "published": await session.scalar(
+            select(func.count()).where(Location.status == LocationStatus.PUBLISHED)
+        )
+        or 0,
+        "relations": await session.scalar(select(func.count()).select_from(LocationRelation)) or 0,
+        "tags": await session.scalar(select(func.count()).select_from(Tag)) or 0,
+        "media": await session.scalar(select(func.count()).select_from(Media)) or 0,
+        "travelers": await session.scalar(
+            select(func.count()).where(User.role == Role.TRAVELER)
+        )
+        or 0,
+        "staff": await session.scalar(select(func.count()).where(User.role != Role.TRAVELER))
+        or 0,
+        "chat_sessions": await session.scalar(select(func.count()).select_from(ChatSession)) or 0,
+        "chat_messages": await session.scalar(select(func.count()).select_from(ChatMessage)) or 0,
+    }
+    llm = LLMClient()
+    return SystemStatus(
+        ai_enabled=llm.enabled,
+        llm_provider=llm.provider,
+        chat_model=llm.model_for("planner") if llm.enabled else "",
+        intent_model=llm.model_for("intent") if llm.enabled else "",
+        embedder=embedder.name,
+        embedding_dimensions=settings.embedding_dimensions,
+        embeddings_pending=await session.scalar(
+            select(func.count()).where(Location.status == LocationStatus.PUBLISHED, stale)
+        )
+        or 0,
+        oldest_stale_embed=await session.scalar(
+            select(func.min(Location.updated_at)).where(
+                Location.status == LocationStatus.PUBLISHED, stale
+            )
+        ),
+        counts=counts,
+        last_audit_at=await session.scalar(select(func.max(AuditLog.created_at))),
     )

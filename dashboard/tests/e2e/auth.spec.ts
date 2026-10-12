@@ -7,7 +7,9 @@ test.describe("Authentication", () => {
   test("signed-out visitors are sent to the login page", async ({ page }) => {
     await page.goto("/locations");
     await expect(page).toHaveURL(/\/login\?next=%2Flocations/);
-    await expect(page.getByRole("heading", { name: "Knowledge studio" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    // Staff accounts are created by an admin; the page must not offer a public sign-up.
+    await expect(page.getByText(/no public sign-up/)).toBeVisible();
   });
 
   test("a wrong password shows an error and stays on login", async ({ page, apiLog: _ }) => {

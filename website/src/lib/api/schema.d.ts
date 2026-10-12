@@ -144,6 +144,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/review-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review Queue
+         * @description Everything waiting for a person: drafts, unverified imports, gaps, stale indexes.
+         */
+        get: operations["review_queue_admin_review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Destinations
+         * @description Every city with what the engine holds for it, and how often travelers ask for it.
+         */
+        get: operations["destinations_admin_destinations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * System Status
+         * @description Live provider, model, index and volume figures for the System health screen.
+         */
+        get: operations["system_status_admin_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/locations": {
         parameters: {
             query?: never;
@@ -599,6 +659,260 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/menus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Menus
+         * @description Every menu on the traveler site, with its links in display order.
+         */
+        get: operations["list_menus_admin_menus_get"];
+        put?: never;
+        /** Create Menu */
+        post: operations["create_menu_admin_menus_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/menus/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Menu */
+        delete: operations["remove_menu_admin_menus__group_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Menu */
+        patch: operations["change_menu_admin_menus__group_id__patch"];
+        trace?: never;
+    };
+    "/admin/menus/{group_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Link */
+        post: operations["add_link_admin_menus__group_id__items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/menu-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Link */
+        delete: operations["remove_link_admin_menu_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Link */
+        patch: operations["change_link_admin_menu_items__item_id__patch"];
+        trace?: never;
+    };
+    "/explore/menus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Menus
+         * @description Navigation for the traveler website: active menus, active links, published places only.
+         */
+        get: operations["public_menus_explore_menus_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Support Inbox
+         * @description The queue an agent works from: counts for every view, then one view's tickets.
+         */
+        get: operations["support_inbox_admin_support_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Support Agents */
+        get: operations["support_agents_admin_support_agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support/tickets/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Ticket
+         * @description The conversation plus everything we hold about the traveler and their trip.
+         */
+        get: operations["read_ticket_admin_support_tickets__ticket_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Ticket */
+        patch: operations["change_ticket_admin_support_tickets__ticket_id__patch"];
+        trace?: never;
+    };
+    "/admin/support/tickets/{ticket_id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reply To Ticket
+         * @description A reply the traveler reads, or an internal note that stays with staff.
+         */
+        post: operations["reply_to_ticket_admin_support_tickets__ticket_id__reply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Tickets */
+        get: operations["my_tickets_support_tickets_get"];
+        put?: never;
+        /**
+         * Open Ticket
+         * @description A traveler asks for help, optionally about a trip they are planning.
+         */
+        post: operations["open_ticket_support_tickets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Routing
+         * @description How tickets are assigned, who is next, and the recent assignment log.
+         */
+        get: operations["read_routing_admin_support_routing_get"];
+        /** Save Routing */
+        put: operations["save_routing_admin_support_routing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/support/routing/agents/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Save Agent Routing
+         * @description Availability, limit, rotation order and what an agent handles.
+         */
+        patch: operations["save_agent_routing_admin_support_routing_agents__user_id__patch"];
+        trace?: never;
+    };
+    "/admin/support/routing/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Routing
+         * @description A dry run: who would take a ticket like this, and why. Writes nothing.
+         */
+        get: operations["preview_routing_admin_support_routing_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -620,6 +934,53 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentLoad
+         * @description Who can take work, and how much they are holding. Used by the inbox assignee picker.
+         */
+        AgentLoad: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /** Open Tickets */
+            open_tickets: number;
+        };
+        /** AgentRoutingUpdate */
+        AgentRoutingUpdate: {
+            /** In Rotation */
+            in_rotation?: boolean | null;
+            availability?: components["schemas"]["Availability"] | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Position */
+            position?: number | null;
+            /** Handles */
+            handles?: string[] | null;
+        };
+        /** AssignmentLog */
+        AssignmentLog: {
+            /** Ticket Number */
+            ticket_number: number;
+            /** Ticket Subject */
+            ticket_subject: string;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** AuditLogRead */
         AuditLogRead: {
             /**
@@ -645,6 +1006,11 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * Availability
+         * @enum {string}
+         */
+        Availability: "online" | "away" | "off_shift";
         /** Body_add_media_admin_locations__location_id__media_post */
         Body_add_media_admin_locations__location_id__media_post: {
             kind: components["schemas"]["MediaKind"];
@@ -705,6 +1071,37 @@ export interface components {
             destination: components["schemas"]["Destination"];
             /** Places */
             places: components["schemas"]["PublicLocation"][];
+        };
+        /** DestinationRow */
+        DestinationRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Region */
+            region: string;
+            /** Country */
+            country: string;
+            /** Published */
+            published: number;
+            /** Draft */
+            draft: number;
+            /** Incomplete */
+            incomplete: number;
+            /** Embedded */
+            embedded: number;
+            /** Trips */
+            trips: number;
+            /** Region Trips */
+            region_trips: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** EventCreate */
         EventCreate: {
@@ -770,6 +1167,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Inbox */
+        Inbox: {
+            counts: components["schemas"]["InboxCounts"];
+            /** Total */
+            total: number;
+            /** Median First Reply Minutes */
+            median_first_reply_minutes: number | null;
+            /** Items */
+            items: components["schemas"]["TicketListItem"][];
+        };
+        /** InboxCounts */
+        InboxCounts: {
+            /** Open */
+            open: number;
+            /** Unassigned */
+            unassigned: number;
+            /** Mine */
+            mine: number;
+            /** Urgent */
+            urgent: number;
+            /** In Destination */
+            in_destination: number;
+            /** Waiting Customer */
+            waiting_customer: number;
+            /** Resolved */
+            resolved: number;
         };
         /** ItineraryDay */
         ItineraryDay: {
@@ -1243,6 +1667,126 @@ export interface components {
             /** Url */
             readonly url: string;
         };
+        /** MenuGroupCreate */
+        MenuGroupCreate: {
+            /** Name */
+            name: string;
+            /** @default header */
+            placement: components["schemas"]["MenuPlacement"];
+            /** Position */
+            position?: number | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** MenuGroupRead */
+        MenuGroupRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            placement: components["schemas"]["MenuPlacement"];
+            /** Position */
+            position: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Items */
+            items: components["schemas"]["MenuItemRead"][];
+        };
+        /** MenuGroupUpdate */
+        MenuGroupUpdate: {
+            /** Name */
+            name?: string | null;
+            placement?: components["schemas"]["MenuPlacement"] | null;
+            /** Position */
+            position?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** MenuItemCreate */
+        MenuItemCreate: {
+            /** Label */
+            label: string;
+            /**
+             * Url
+             * @default
+             */
+            url: string;
+            /** Location Id */
+            location_id?: string | null;
+            /** Position */
+            position?: number | null;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Opens In New Tab
+             * @default false
+             */
+            opens_in_new_tab: boolean;
+        };
+        /** MenuItemRead */
+        MenuItemRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /** Location Id */
+            location_id: string | null;
+            /** Position */
+            position: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Opens In New Tab */
+            opens_in_new_tab: boolean;
+            /**
+             * Resolved Url
+             * @default
+             */
+            resolved_url: string;
+            /** Location Name */
+            location_name?: string | null;
+        };
+        /** MenuItemUpdate */
+        MenuItemUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Location Id */
+            location_id?: string | null;
+            /** Position */
+            position?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Opens In New Tab */
+            opens_in_new_tab?: boolean | null;
+        };
+        /**
+         * MenuPlacement
+         * @description Where on the traveler website a group of links appears.
+         * @enum {string}
+         */
+        MenuPlacement: "header" | "footer" | "mobile";
+        /**
+         * MessageAuthor
+         * @enum {string}
+         */
+        MessageAuthor: "customer" | "agent" | "note";
         /** MessageCreate */
         MessageCreate: {
             /** Content */
@@ -1382,6 +1926,18 @@ export interface components {
             page: number;
             /** Page Size */
             page_size: number;
+        };
+        /** PersonRef */
+        PersonRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
         };
         /** PlaceDetail */
         PlaceDetail: {
@@ -1614,6 +2170,28 @@ export interface components {
             /** Author */
             author: string;
         };
+        /** PublicMenu */
+        PublicMenu: {
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            placement: components["schemas"]["MenuPlacement"];
+            /** Items */
+            items: components["schemas"]["PublicMenuItem"][];
+        };
+        /**
+         * PublicMenuItem
+         * @description What the traveler website renders: a label and a URL, nothing internal.
+         */
+        PublicMenuItem: {
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /** Opens In New Tab */
+            opens_in_new_tab: boolean;
+        };
         /** RecentEvent */
         RecentEvent: {
             event: components["schemas"]["EventRead"];
@@ -1706,11 +2284,163 @@ export interface components {
          * @enum {string}
          */
         RelationType: "near" | "route_to" | "pairs_with" | "similar_to" | "alternative_to";
+        /** ReplyCreate */
+        ReplyCreate: {
+            /** Body */
+            body: string;
+            /**
+             * Internal
+             * @default false
+             */
+            internal: boolean;
+            /**
+             * Resolve
+             * @default false
+             */
+            resolve: boolean;
+        };
+        /**
+         * ReviewCheck
+         * @description One automatic check on a record, as the review queue shows it.
+         */
+        ReviewCheck: {
+            /** Ok */
+            ok: boolean;
+            /** Label */
+            label: string;
+        };
+        /** ReviewItem */
+        ReviewItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            type: components["schemas"]["LocationType"];
+            status: components["schemas"]["LocationStatus"];
+            /** Name */
+            name: string;
+            /** Summary */
+            summary: string;
+            parent: components["schemas"]["LocationRef"] | null;
+            /** Region */
+            region: string;
+            /** Source */
+            source: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Embedded At */
+            embedded_at: string | null;
+            reason: components["schemas"]["ReviewReason"];
+            /** Completeness */
+            completeness: number;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Checks */
+            checks: components["schemas"]["ReviewCheck"][];
+            /** Reference Keys */
+            reference_keys: string[];
+        };
+        /**
+         * ReviewQueue
+         * @description Counts are for the whole queue; items are the requested page of one reason.
+         */
+        ReviewQueue: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Missing By Field */
+            missing_by_field: {
+                [key: string]: number;
+            };
+            /** Total */
+            total: number;
+            /** Oldest Updated At */
+            oldest_updated_at: string | null;
+            /** Items */
+            items: components["schemas"]["ReviewItem"][];
+        };
+        /**
+         * ReviewReason
+         * @description Why a record is waiting for a person. One record can only queue under its first reason.
+         * @enum {string}
+         */
+        ReviewReason: "draft" | "unverified" | "incomplete" | "stale_index";
         /**
          * Role
          * @enum {string}
          */
         Role: "admin" | "editor" | "traveler";
+        /**
+         * RoutingAgent
+         * @description An agent as the routing screen shows them.
+         */
+        RoutingAgent: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /** Position */
+            position: number;
+            /** In Rotation */
+            in_rotation: boolean;
+            availability: components["schemas"]["Availability"];
+            /** Capacity */
+            capacity: number;
+            /** Handles */
+            handles: string[];
+            /** Open Tickets */
+            open_tickets: number;
+            /** Is Next */
+            is_next: boolean;
+        };
+        /**
+         * RoutingMethod
+         * @description How a new ticket finds an agent.
+         * @enum {string}
+         */
+        RoutingMethod: "round_robin" | "least_busy" | "manual";
+        /**
+         * RoutingPreview
+         * @description A dry run: who would take a ticket like this, and why. Writes nothing.
+         */
+        RoutingPreview: {
+            /** Agent Name */
+            agent_name: string | null;
+            /** Reason */
+            reason: string;
+        };
+        /** RoutingRead */
+        RoutingRead: {
+            method: components["schemas"]["RoutingMethod"];
+            /** Reassign After Minutes */
+            reassign_after_minutes: number | null;
+            /** Agents */
+            agents: components["schemas"]["RoutingAgent"][];
+            /** Next Agent */
+            next_agent: string | null;
+            /** Next Reason */
+            next_reason: string;
+            /** Recent */
+            recent: components["schemas"]["AssignmentLog"][];
+        };
+        /** RoutingUpdate */
+        RoutingUpdate: {
+            method?: components["schemas"]["RoutingMethod"] | null;
+            /** Reassign After Minutes */
+            reassign_after_minutes?: number | null;
+        };
         /** SavedPlace */
         SavedPlace: {
             place: components["schemas"]["PublicLocation"];
@@ -1742,6 +2472,8 @@ export interface components {
             price: string | null;
             /** Why */
             why: string;
+            /** Tip */
+            tip?: string | null;
             /** Start */
             start: string;
             /** End */
@@ -1865,6 +2597,54 @@ export interface components {
             price: string | null;
             /** Why */
             why: string;
+            /** Tip */
+            tip?: string | null;
+        };
+        /** SupportMessageRead */
+        SupportMessageRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            author: components["schemas"]["MessageAuthor"];
+            /** Author Name */
+            author_name: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * SystemStatus
+         * @description What the stack is actually running, for the System health screen.
+         */
+        SystemStatus: {
+            /** Ai Enabled */
+            ai_enabled: boolean;
+            /** Llm Provider */
+            llm_provider: string;
+            /** Chat Model */
+            chat_model: string;
+            /** Intent Model */
+            intent_model: string;
+            /** Embedder */
+            embedder: string;
+            /** Embedding Dimensions */
+            embedding_dimensions: number;
+            /** Embeddings Pending */
+            embeddings_pending: number;
+            /** Oldest Stale Embed */
+            oldest_stale_embed: string | null;
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Last Audit At */
+            last_audit_at: string | null;
         };
         /**
          * TagCategory
@@ -1890,6 +2670,123 @@ export interface components {
             /** Slug */
             slug: string;
             category: components["schemas"]["TagCategory"];
+        };
+        /**
+         * TicketChannel
+         * @enum {string}
+         */
+        TicketChannel: "in_app" | "email" | "whatsapp" | "phone";
+        /** TicketCreate */
+        TicketCreate: {
+            /** Subject */
+            subject: string;
+            /** Body */
+            body: string;
+            /** Session Id */
+            session_id?: string | null;
+            /** @default in_app */
+            channel: components["schemas"]["TicketChannel"];
+            /**
+             * In Destination
+             * @default false
+             */
+            in_destination: boolean;
+        };
+        /** TicketListItem */
+        TicketListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
+            /** Subject */
+            subject: string;
+            status: components["schemas"]["TicketStatus"];
+            priority: components["schemas"]["TicketPriority"];
+            channel: components["schemas"]["TicketChannel"];
+            /** In Destination */
+            in_destination: boolean;
+            user: components["schemas"]["PersonRef"];
+            assignee: components["schemas"]["PersonRef"] | null;
+            /** Trip Title */
+            trip_title: string | null;
+            /** Age Minutes */
+            age_minutes: number;
+            /** Waiting Minutes */
+            waiting_minutes: number;
+            /** First Response At */
+            first_response_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * TicketPriority
+         * @enum {string}
+         */
+        TicketPriority: "low" | "normal" | "high" | "urgent";
+        /** TicketRead */
+        TicketRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
+            /** Subject */
+            subject: string;
+            status: components["schemas"]["TicketStatus"];
+            priority: components["schemas"]["TicketPriority"];
+            channel: components["schemas"]["TicketChannel"];
+            /** In Destination */
+            in_destination: boolean;
+            user: components["schemas"]["PersonRef"];
+            assignee: components["schemas"]["PersonRef"] | null;
+            /** Trip Title */
+            trip_title: string | null;
+            /** Age Minutes */
+            age_minutes: number;
+            /** Waiting Minutes */
+            waiting_minutes: number;
+            /** First Response At */
+            first_response_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Messages */
+            messages: components["schemas"]["SupportMessageRead"][];
+            context: components["schemas"]["TripContext"];
+        };
+        /**
+         * TicketStatus
+         * @enum {string}
+         */
+        TicketStatus: "open" | "waiting_customer" | "resolved";
+        /** TicketUpdate */
+        TicketUpdate: {
+            status?: components["schemas"]["TicketStatus"] | null;
+            priority?: components["schemas"]["TicketPriority"] | null;
+            /** Assignee Id */
+            assignee_id?: string | null;
+            /** In Destination */
+            in_destination?: boolean | null;
         };
         /**
          * TimeOfDay
@@ -1939,6 +2836,38 @@ export interface components {
             profile: components["schemas"]["ProfileRead"] | null;
             /** Event Count */
             event_count: number;
+        };
+        /**
+         * TripContext
+         * @description What we actually hold about this traveler, for the agent's side panel.
+         */
+        TripContext: {
+            /** Companions */
+            companions: string | null;
+            /** Budget Level */
+            budget_level: number | null;
+            /** Energy Level */
+            energy_level: number | null;
+            /** Accessibility Needs */
+            accessibility_needs: boolean;
+            /** Interests */
+            interests: string[];
+            /** Saved Places */
+            saved_places: number;
+            /** Trips Planned */
+            trips_planned: number;
+            /** Destination */
+            destination: string | null;
+            /** Duration Days */
+            duration_days: number | null;
+            /** Start Date */
+            start_date: string | null;
+            /** Itinerary */
+            itinerary: {
+                [key: string]: unknown;
+            }[];
+            /** Past Tickets */
+            past_tickets: number;
         };
         /** UserCreate */
         UserCreate: {
@@ -2279,6 +3208,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KnowledgeStats"];
+                };
+            };
+        };
+    };
+    review_queue_admin_review_queue_get: {
+        parameters: {
+            query?: {
+                reason?: components["schemas"]["ReviewReason"] | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    destinations_admin_destinations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationRow"][];
+                };
+            };
+        };
+    };
+    system_status_admin_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatus"];
                 };
             };
         };
@@ -3274,6 +4276,581 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_menus_admin_menus_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuGroupRead"][];
+                };
+            };
+        };
+    };
+    create_menu_admin_menus_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuGroupCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_menu_admin_menus__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_menu_admin_menus__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuGroupUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_link_admin_menus__group_id__items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_link_admin_menu_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_link_admin_menu_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MenuItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MenuGroupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_menus_explore_menus_get: {
+        parameters: {
+            query?: {
+                placement?: components["schemas"]["MenuPlacement"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicMenu"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_inbox_admin_support_inbox_get: {
+        parameters: {
+            query?: {
+                view?: string | null;
+                q?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Inbox"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_agents_admin_support_agents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLoad"][];
+                };
+            };
+        };
+    };
+    read_ticket_admin_support_tickets__ticket_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_ticket_admin_support_tickets__ticket_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reply_to_ticket_admin_support_tickets__ticket_id__reply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_tickets_support_tickets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListItem"][];
+                };
+            };
+        };
+    };
+    open_ticket_support_tickets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_routing_admin_support_routing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingRead"];
+                };
+            };
+        };
+    };
+    save_routing_admin_support_routing_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoutingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_agent_routing_admin_support_routing_agents__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRoutingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_routing_admin_support_routing_preview_get: {
+        parameters: {
+            query?: {
+                destination?: string | null;
+                channel?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingPreview"];
                 };
             };
             /** @description Validation Error */

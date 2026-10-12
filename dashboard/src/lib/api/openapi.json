@@ -454,6 +454,142 @@
     ]
    }
   },
+  "/admin/review-queue": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Review Queue",
+    "description": "Everything waiting for a person: drafts, unverified imports, gaps, stale indexes.",
+    "operationId": "review_queue_admin_review_queue_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "reason",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReviewReason"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Reason"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 25,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReviewQueue"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/destinations": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "Destinations",
+    "description": "Every city with what the engine holds for it, and how often travelers ask for it.",
+    "operationId": "destinations_admin_destinations_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DestinationRow"
+         },
+         "type": "array",
+         "title": "Response Destinations Admin Destinations Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/system": {
+   "get": {
+    "tags": [
+     "knowledge"
+    ],
+    "summary": "System Status",
+    "description": "Live provider, model, index and volume figures for the System health screen.",
+    "operationId": "system_status_admin_system_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SystemStatus"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/admin/locations": {
    "get": {
     "tags": [
@@ -1501,6 +1637,37 @@
     ]
    }
   },
+  "/profiles/me/saved": {
+   "get": {
+    "tags": [
+     "profiles"
+    ],
+    "summary": "My Saved Places",
+    "description": "Places whose latest signal is a save (added/selected/booked) \u2014 not later removed/skipped.",
+    "operationId": "my_saved_places_profiles_me_saved_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SavedPlace"
+         },
+         "type": "array",
+         "title": "Response My Saved Places Profiles Me Saved Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/profiles/me/events": {
    "post": {
     "tags": [
@@ -1840,6 +2007,163 @@
     }
    }
   },
+  "/explore/destinations": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Destinations",
+    "description": "Published cities that have at least one published place.",
+    "operationId": "destinations_explore_destinations_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Destination"
+         },
+         "type": "array",
+         "title": "Response Destinations Explore Destinations Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/destinations/{city_id}": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Destination",
+    "operationId": "destination_explore_destinations__city_id__get",
+    "parameters": [
+     {
+      "name": "city_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "City Id"
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LocationType"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DestinationDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/places/{place_id}": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Place",
+    "operationId": "place_explore_places__place_id__get",
+    "parameters": [
+     {
+      "name": "place_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Place Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PlaceDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/tags": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Tags",
+    "description": "Interest/style/cuisine tags travelers can pick as preferences.",
+    "operationId": "tags_explore_tags_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TagRead"
+         },
+         "type": "array",
+         "title": "Response Tags Explore Tags Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/chat/sessions": {
    "get": {
     "tags": [
@@ -2039,6 +2363,946 @@
     }
    }
   },
+  "/admin/menus": {
+   "get": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "List Menus",
+    "description": "Every menu on the traveler site, with its links in display order.",
+    "operationId": "list_menus_admin_menus_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/MenuGroupRead"
+         },
+         "type": "array",
+         "title": "Response List Menus Admin Menus Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Create Menu",
+    "operationId": "create_menu_admin_menus_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MenuGroupCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MenuGroupRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/menus/{group_id}": {
+   "patch": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Change Menu",
+    "operationId": "change_menu_admin_menus__group_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "group_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Group Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MenuGroupUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MenuGroupRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Remove Menu",
+    "operationId": "remove_menu_admin_menus__group_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "group_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Group Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/menus/{group_id}/items": {
+   "post": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Add Link",
+    "operationId": "add_link_admin_menus__group_id__items_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "group_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Group Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MenuItemCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MenuGroupRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/menu-items/{item_id}": {
+   "patch": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Change Link",
+    "operationId": "change_link_admin_menu_items__item_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Item Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MenuItemUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MenuGroupRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Remove Link",
+    "operationId": "remove_link_admin_menu_items__item_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Item Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/menus": {
+   "get": {
+    "tags": [
+     "menus"
+    ],
+    "summary": "Public Menus",
+    "description": "Navigation for the traveler website: active menus, active links, published places only.",
+    "operationId": "public_menus_explore_menus_get",
+    "parameters": [
+     {
+      "name": "placement",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/MenuPlacement"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Placement"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PublicMenu"
+         },
+         "title": "Response Public Menus Explore Menus Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/support/inbox": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Support Inbox",
+    "description": "The queue an agent works from: counts for every view, then one view's tickets.",
+    "operationId": "support_inbox_admin_support_inbox_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "view",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(open|unassigned|mine|urgent|in_destination|resolved)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "View"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Inbox"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/support/agents": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Support Agents",
+    "operationId": "support_agents_admin_support_agents_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AgentLoad"
+         },
+         "type": "array",
+         "title": "Response Support Agents Admin Support Agents Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/support/tickets/{ticket_id}": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Read Ticket",
+    "description": "The conversation plus everything we hold about the traveler and their trip.",
+    "operationId": "read_ticket_admin_support_tickets__ticket_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Change Ticket",
+    "operationId": "change_ticket_admin_support_tickets__ticket_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TicketUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/support/tickets/{ticket_id}/reply": {
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Reply To Ticket",
+    "description": "A reply the traveler reads, or an internal note that stays with staff.",
+    "operationId": "reply_to_ticket_admin_support_tickets__ticket_id__reply_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReplyCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/support/tickets": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "My Tickets",
+    "operationId": "my_tickets_support_tickets_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TicketListItem"
+         },
+         "type": "array",
+         "title": "Response My Tickets Support Tickets Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Open Ticket",
+    "description": "A traveler asks for help, optionally about a trip they are planning.",
+    "operationId": "open_ticket_support_tickets_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TicketCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TicketListItem"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/support/routing": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Read Routing",
+    "description": "How tickets are assigned, who is next, and the recent assignment log.",
+    "operationId": "read_routing_admin_support_routing_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RoutingRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "put": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Save Routing",
+    "operationId": "save_routing_admin_support_routing_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoutingUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RoutingRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/admin/support/routing/agents/{user_id}": {
+   "patch": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Save Agent Routing",
+    "description": "Availability, limit, rotation order and what an agent handles.",
+    "operationId": "save_agent_routing_admin_support_routing_agents__user_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgentRoutingUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RoutingRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/support/routing/preview": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Preview Routing",
+    "description": "A dry run: who would take a ticket like this, and why. Writes nothing.",
+    "operationId": "preview_routing_admin_support_routing_preview_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "destination",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Destination"
+      }
+     },
+     {
+      "name": "channel",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "default": "in_app",
+       "title": "Channel"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RoutingPreview"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/health": {
    "get": {
     "tags": [
@@ -2065,6 +3329,149 @@
  },
  "components": {
   "schemas": {
+   "AgentLoad": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "open_tickets": {
+      "type": "integer",
+      "title": "Open Tickets"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "role",
+     "open_tickets"
+    ],
+    "title": "AgentLoad",
+    "description": "Who can take work, and how much they are holding. Used by the inbox assignee picker."
+   },
+   "AgentRoutingUpdate": {
+    "properties": {
+     "in_rotation": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "In Rotation"
+     },
+     "availability": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Availability"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "capacity": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Capacity"
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 999.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position"
+     },
+     "handles": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handles"
+     }
+    },
+    "type": "object",
+    "title": "AgentRoutingUpdate"
+   },
+   "AssignmentLog": {
+    "properties": {
+     "ticket_number": {
+      "type": "integer",
+      "title": "Ticket Number"
+     },
+     "ticket_subject": {
+      "type": "string",
+      "title": "Ticket Subject"
+     },
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ticket_number",
+     "ticket_subject",
+     "agent_name",
+     "reason",
+     "created_at"
+    ],
+    "title": "AssignmentLog"
+   },
    "AuditLogRead": {
     "properties": {
      "id": {
@@ -2118,6 +3525,15 @@
      "created_at"
     ],
     "title": "AuditLogRead"
+   },
+   "Availability": {
+    "type": "string",
+    "enum": [
+     "online",
+     "away",
+     "off_shift"
+    ],
+    "title": "Availability"
    },
    "Body_add_media_admin_locations__location_id__media_post": {
     "properties": {
@@ -2190,9 +3606,178 @@
      "solo",
      "couple",
      "family",
-     "friends"
+     "friends",
+     "seniors"
     ],
     "title": "Companions"
+   },
+   "Destination": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "place_count": {
+      "type": "integer",
+      "title": "Place Count"
+     },
+     "highlights": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Highlights"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "slug",
+     "region",
+     "country",
+     "summary",
+     "latitude",
+     "longitude",
+     "place_count",
+     "highlights"
+    ],
+    "title": "Destination"
+   },
+   "DestinationDetail": {
+    "properties": {
+     "destination": {
+      "$ref": "#/components/schemas/Destination"
+     },
+     "places": {
+      "items": {
+       "$ref": "#/components/schemas/PublicLocation"
+      },
+      "type": "array",
+      "title": "Places"
+     }
+    },
+    "type": "object",
+    "required": [
+     "destination",
+     "places"
+    ],
+    "title": "DestinationDetail"
+   },
+   "DestinationRow": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "country": {
+      "type": "string",
+      "title": "Country"
+     },
+     "published": {
+      "type": "integer",
+      "title": "Published"
+     },
+     "draft": {
+      "type": "integer",
+      "title": "Draft"
+     },
+     "incomplete": {
+      "type": "integer",
+      "title": "Incomplete"
+     },
+     "embedded": {
+      "type": "integer",
+      "title": "Embedded"
+     },
+     "trips": {
+      "type": "integer",
+      "title": "Trips"
+     },
+     "region_trips": {
+      "type": "integer",
+      "title": "Region Trips"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "region",
+     "country",
+     "published",
+     "draft",
+     "incomplete",
+     "embedded",
+     "trips",
+     "region_trips",
+     "updated_at"
+    ],
+    "title": "DestinationRow"
    },
    "EventCreate": {
     "properties": {
@@ -2352,6 +3937,86 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "Inbox": {
+    "properties": {
+     "counts": {
+      "$ref": "#/components/schemas/InboxCounts"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "median_first_reply_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Median First Reply Minutes"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TicketListItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "counts",
+     "total",
+     "median_first_reply_minutes",
+     "items"
+    ],
+    "title": "Inbox"
+   },
+   "InboxCounts": {
+    "properties": {
+     "open": {
+      "type": "integer",
+      "title": "Open"
+     },
+     "unassigned": {
+      "type": "integer",
+      "title": "Unassigned"
+     },
+     "mine": {
+      "type": "integer",
+      "title": "Mine"
+     },
+     "urgent": {
+      "type": "integer",
+      "title": "Urgent"
+     },
+     "in_destination": {
+      "type": "integer",
+      "title": "In Destination"
+     },
+     "waiting_customer": {
+      "type": "integer",
+      "title": "Waiting Customer"
+     },
+     "resolved": {
+      "type": "integer",
+      "title": "Resolved"
+     }
+    },
+    "type": "object",
+    "required": [
+     "open",
+     "unassigned",
+     "mine",
+     "urgent",
+     "in_destination",
+     "waiting_customer",
+     "resolved"
+    ],
+    "title": "InboxCounts"
+   },
    "ItineraryDay": {
     "properties": {
      "day": {
@@ -2387,6 +4052,11 @@
      "activity_minutes": {
       "type": "integer",
       "title": "Activity Minutes"
+     },
+     "meal_minutes": {
+      "type": "integer",
+      "title": "Meal Minutes",
+      "default": 0
      },
      "travel_minutes": {
       "type": "integer",
@@ -3679,6 +5349,355 @@
     ],
     "title": "MediaRead"
    },
+   "MenuGroupCreate": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "placement": {
+      "$ref": "#/components/schemas/MenuPlacement",
+      "default": "header"
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "MenuGroupCreate"
+   },
+   "MenuGroupRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "placement": {
+      "$ref": "#/components/schemas/MenuPlacement"
+     },
+     "position": {
+      "type": "integer",
+      "title": "Position"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/MenuItemRead"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "slug",
+     "placement",
+     "position",
+     "is_active",
+     "items"
+    ],
+    "title": "MenuGroupRead"
+   },
+   "MenuGroupUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "placement": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/MenuPlacement"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     }
+    },
+    "type": "object",
+    "title": "MenuGroupUpdate"
+   },
+   "MenuItemCreate": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Label"
+     },
+     "url": {
+      "type": "string",
+      "maxLength": 500,
+      "title": "Url",
+      "default": ""
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active",
+      "default": true
+     },
+     "opens_in_new_tab": {
+      "type": "boolean",
+      "title": "Opens In New Tab",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "label"
+    ],
+    "title": "MenuItemCreate"
+   },
+   "MenuItemRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "position": {
+      "type": "integer",
+      "title": "Position"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "opens_in_new_tab": {
+      "type": "boolean",
+      "title": "Opens In New Tab"
+     },
+     "resolved_url": {
+      "type": "string",
+      "title": "Resolved Url",
+      "default": ""
+     },
+     "location_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "label",
+     "url",
+     "location_id",
+     "position",
+     "is_active",
+     "opens_in_new_tab"
+    ],
+    "title": "MenuItemRead"
+   },
+   "MenuItemUpdate": {
+    "properties": {
+     "label": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "position": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     },
+     "opens_in_new_tab": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Opens In New Tab"
+     }
+    },
+    "type": "object",
+    "title": "MenuItemUpdate"
+   },
+   "MenuPlacement": {
+    "type": "string",
+    "enum": [
+     "header",
+     "footer",
+     "mobile"
+    ],
+    "title": "MenuPlacement",
+    "description": "Where on the traveler website a group of links appears."
+   },
+   "MessageAuthor": {
+    "type": "string",
+    "enum": [
+     "customer",
+     "agent",
+     "note"
+    ],
+    "title": "MessageAuthor"
+   },
    "MessageCreate": {
     "properties": {
      "content": {
@@ -3924,6 +5943,35 @@
     ],
     "title": "MessageRole"
    },
+   "Nearby": {
+    "properties": {
+     "place": {
+      "$ref": "#/components/schemas/LocationRef"
+     },
+     "relation": {
+      "type": "string",
+      "title": "Relation"
+     },
+     "travel_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Travel Minutes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "place",
+     "relation",
+     "travel_minutes"
+    ],
+    "title": "Nearby"
+   },
    "Page_AuditLogRead_": {
     "properties": {
      "items": {
@@ -4047,6 +6095,269 @@
      "page_size"
     ],
     "title": "Page[UserRead]"
+   },
+   "PersonRef": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "full_name",
+     "email"
+    ],
+    "title": "PersonRef"
+   },
+   "PlaceDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "highlight": {
+      "type": "boolean",
+      "title": "Highlight"
+     },
+     "parent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "tags": {
+      "items": {
+       "$ref": "#/components/schemas/TagRead"
+      },
+      "type": "array",
+      "title": "Tags"
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Best Times"
+     },
+     "cost_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Level"
+     },
+     "price_note": {
+      "type": "string",
+      "title": "Price Note"
+     },
+     "family_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Family Friendly"
+     },
+     "couple_friendly": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Couple Friendly"
+     },
+     "accessible": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accessible"
+     },
+     "description": {
+      "type": "string",
+      "title": "Description"
+     },
+     "pros": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Pros"
+     },
+     "cons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Cons"
+     },
+     "tips": {
+      "type": "string",
+      "title": "Tips"
+     },
+     "seasons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Seasons"
+     },
+     "opening_hours": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Opening Hours"
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "difficulty": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Difficulty"
+     },
+     "media": {
+      "items": {
+       "$ref": "#/components/schemas/PublicMedia"
+      },
+      "type": "array",
+      "title": "Media",
+      "default": []
+     },
+     "nearby": {
+      "items": {
+       "$ref": "#/components/schemas/Nearby"
+      },
+      "type": "array",
+      "title": "Nearby",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "name",
+     "slug",
+     "summary",
+     "region",
+     "highlight",
+     "parent",
+     "tags",
+     "latitude",
+     "longitude",
+     "duration_minutes",
+     "best_times",
+     "cost_level",
+     "price_note",
+     "family_friendly",
+     "couple_friendly",
+     "accessible",
+     "description",
+     "pros",
+     "cons",
+     "tips",
+     "seasons",
+     "opening_hours",
+     "energy_level",
+     "difficulty"
+    ],
+    "title": "PlaceDetail"
    },
    "PreferenceSummary": {
     "properties": {
@@ -4477,6 +6788,87 @@
     "title": "PublicLocation",
     "description": "What travelers may see: no provenance, source, reference data, status or index state."
    },
+   "PublicMedia": {
+    "properties": {
+     "kind": {
+      "$ref": "#/components/schemas/MediaKind"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption"
+     },
+     "author": {
+      "type": "string",
+      "title": "Author"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "url",
+     "caption",
+     "author"
+    ],
+    "title": "PublicMedia"
+   },
+   "PublicMenu": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "placement": {
+      "$ref": "#/components/schemas/MenuPlacement"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/PublicMenuItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "slug",
+     "placement",
+     "items"
+    ],
+    "title": "PublicMenu"
+   },
+   "PublicMenuItem": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "opens_in_new_tab": {
+      "type": "boolean",
+      "title": "Opens In New Tab"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "url",
+     "opens_in_new_tab"
+    ],
+    "title": "PublicMenuItem",
+    "description": "What the traveler website renders: a label and a URL, nothing internal."
+   },
    "RecentEvent": {
     "properties": {
      "event": {
@@ -4733,6 +7125,217 @@
     ],
     "title": "RelationType"
    },
+   "ReplyCreate": {
+    "properties": {
+     "body": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Body"
+     },
+     "internal": {
+      "type": "boolean",
+      "title": "Internal",
+      "default": false
+     },
+     "resolve": {
+      "type": "boolean",
+      "title": "Resolve",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "body"
+    ],
+    "title": "ReplyCreate"
+   },
+   "ReviewCheck": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ok",
+     "label"
+    ],
+    "title": "ReviewCheck",
+    "description": "One automatic check on a record, as the review queue shows it."
+   },
+   "ReviewItem": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "type": {
+      "$ref": "#/components/schemas/LocationType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/LocationStatus"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "parent": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LocationRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "region": {
+      "type": "string",
+      "title": "Region"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "embedded_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Embedded At"
+     },
+     "reason": {
+      "$ref": "#/components/schemas/ReviewReason"
+     },
+     "completeness": {
+      "type": "number",
+      "title": "Completeness"
+     },
+     "missing_fields": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Missing Fields"
+     },
+     "checks": {
+      "items": {
+       "$ref": "#/components/schemas/ReviewCheck"
+      },
+      "type": "array",
+      "title": "Checks"
+     },
+     "reference_keys": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Reference Keys"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "status",
+     "name",
+     "summary",
+     "parent",
+     "region",
+     "source",
+     "updated_at",
+     "embedded_at",
+     "reason",
+     "completeness",
+     "missing_fields",
+     "checks",
+     "reference_keys"
+    ],
+    "title": "ReviewItem"
+   },
+   "ReviewQueue": {
+    "properties": {
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     },
+     "missing_by_field": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Missing By Field"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "oldest_updated_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Oldest Updated At"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ReviewItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "counts",
+     "missing_by_field",
+     "total",
+     "oldest_updated_at",
+     "items"
+    ],
+    "title": "ReviewQueue",
+    "description": "Counts are for the whole queue; items are the requested page of one reason."
+   },
+   "ReviewReason": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "unverified",
+     "incomplete",
+     "stale_index"
+    ],
+    "title": "ReviewReason",
+    "description": "Why a record is waiting for a person. One record can only queue under its first reason."
+   },
    "Role": {
     "type": "string",
     "enum": [
@@ -4741,6 +7344,213 @@
      "traveler"
     ],
     "title": "Role"
+   },
+   "RoutingAgent": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "full_name": {
+      "type": "string",
+      "title": "Full Name"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "role": {
+      "type": "string",
+      "title": "Role"
+     },
+     "position": {
+      "type": "integer",
+      "title": "Position"
+     },
+     "in_rotation": {
+      "type": "boolean",
+      "title": "In Rotation"
+     },
+     "availability": {
+      "$ref": "#/components/schemas/Availability"
+     },
+     "capacity": {
+      "type": "integer",
+      "title": "Capacity"
+     },
+     "handles": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Handles"
+     },
+     "open_tickets": {
+      "type": "integer",
+      "title": "Open Tickets"
+     },
+     "is_next": {
+      "type": "boolean",
+      "title": "Is Next"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "full_name",
+     "email",
+     "role",
+     "position",
+     "in_rotation",
+     "availability",
+     "capacity",
+     "handles",
+     "open_tickets",
+     "is_next"
+    ],
+    "title": "RoutingAgent",
+    "description": "An agent as the routing screen shows them."
+   },
+   "RoutingMethod": {
+    "type": "string",
+    "enum": [
+     "round_robin",
+     "least_busy",
+     "manual"
+    ],
+    "title": "RoutingMethod",
+    "description": "How a new ticket finds an agent."
+   },
+   "RoutingPreview": {
+    "properties": {
+     "agent_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agent Name"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "agent_name",
+     "reason"
+    ],
+    "title": "RoutingPreview",
+    "description": "A dry run: who would take a ticket like this, and why. Writes nothing."
+   },
+   "RoutingRead": {
+    "properties": {
+     "method": {
+      "$ref": "#/components/schemas/RoutingMethod"
+     },
+     "reassign_after_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reassign After Minutes"
+     },
+     "agents": {
+      "items": {
+       "$ref": "#/components/schemas/RoutingAgent"
+      },
+      "type": "array",
+      "title": "Agents"
+     },
+     "next_agent": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Agent"
+     },
+     "next_reason": {
+      "type": "string",
+      "title": "Next Reason"
+     },
+     "recent": {
+      "items": {
+       "$ref": "#/components/schemas/AssignmentLog"
+      },
+      "type": "array",
+      "title": "Recent"
+     }
+    },
+    "type": "object",
+    "required": [
+     "method",
+     "reassign_after_minutes",
+     "agents",
+     "next_agent",
+     "next_reason",
+     "recent"
+    ],
+    "title": "RoutingRead"
+   },
+   "RoutingUpdate": {
+    "properties": {
+     "method": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RoutingMethod"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reassign_after_minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 1440.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reassign After Minutes"
+     }
+    },
+    "type": "object",
+    "title": "RoutingUpdate"
+   },
+   "SavedPlace": {
+    "properties": {
+     "place": {
+      "$ref": "#/components/schemas/PublicLocation"
+     },
+     "saved_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Saved At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "place",
+     "saved_at"
+    ],
+    "title": "SavedPlace"
    },
    "ScheduledItem": {
     "properties": {
@@ -4819,6 +7629,17 @@
      "why": {
       "type": "string",
       "title": "Why"
+     },
+     "tip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tip"
      },
      "start": {
       "type": "string",
@@ -5138,6 +7959,17 @@
      "why": {
       "type": "string",
       "title": "Why"
+     },
+     "tip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tip"
      }
     },
     "type": "object",
@@ -5154,6 +7986,118 @@
      "why"
     ],
     "title": "Suggestion"
+   },
+   "SupportMessageRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "author": {
+      "$ref": "#/components/schemas/MessageAuthor"
+     },
+     "author_name": {
+      "type": "string",
+      "title": "Author Name"
+     },
+     "body": {
+      "type": "string",
+      "title": "Body"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "author",
+     "author_name",
+     "body",
+     "created_at"
+    ],
+    "title": "SupportMessageRead"
+   },
+   "SystemStatus": {
+    "properties": {
+     "ai_enabled": {
+      "type": "boolean",
+      "title": "Ai Enabled"
+     },
+     "llm_provider": {
+      "type": "string",
+      "title": "Llm Provider"
+     },
+     "chat_model": {
+      "type": "string",
+      "title": "Chat Model"
+     },
+     "intent_model": {
+      "type": "string",
+      "title": "Intent Model"
+     },
+     "embedder": {
+      "type": "string",
+      "title": "Embedder"
+     },
+     "embedding_dimensions": {
+      "type": "integer",
+      "title": "Embedding Dimensions"
+     },
+     "embeddings_pending": {
+      "type": "integer",
+      "title": "Embeddings Pending"
+     },
+     "oldest_stale_embed": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Oldest Stale Embed"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     },
+     "last_audit_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Audit At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ai_enabled",
+     "llm_provider",
+     "chat_model",
+     "intent_model",
+     "embedder",
+     "embedding_dimensions",
+     "embeddings_pending",
+     "oldest_stale_embed",
+     "counts",
+     "last_audit_at"
+    ],
+    "title": "SystemStatus",
+    "description": "What the stack is actually running, for the System health screen."
    },
    "TagCategory": {
     "type": "string",
@@ -5211,6 +8155,345 @@
      "category"
     ],
     "title": "TagRead"
+   },
+   "TicketChannel": {
+    "type": "string",
+    "enum": [
+     "in_app",
+     "email",
+     "whatsapp",
+     "phone"
+    ],
+    "title": "TicketChannel"
+   },
+   "TicketCreate": {
+    "properties": {
+     "subject": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 3,
+      "title": "Subject"
+     },
+     "body": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Body"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Session Id"
+     },
+     "channel": {
+      "$ref": "#/components/schemas/TicketChannel",
+      "default": "in_app"
+     },
+     "in_destination": {
+      "type": "boolean",
+      "title": "In Destination",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "subject",
+     "body"
+    ],
+    "title": "TicketCreate"
+   },
+   "TicketListItem": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "number": {
+      "type": "integer",
+      "title": "Number"
+     },
+     "subject": {
+      "type": "string",
+      "title": "Subject"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TicketStatus"
+     },
+     "priority": {
+      "$ref": "#/components/schemas/TicketPriority"
+     },
+     "channel": {
+      "$ref": "#/components/schemas/TicketChannel"
+     },
+     "in_destination": {
+      "type": "boolean",
+      "title": "In Destination"
+     },
+     "user": {
+      "$ref": "#/components/schemas/PersonRef"
+     },
+     "assignee": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PersonRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "trip_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trip Title"
+     },
+     "age_minutes": {
+      "type": "integer",
+      "title": "Age Minutes"
+     },
+     "waiting_minutes": {
+      "type": "integer",
+      "title": "Waiting Minutes"
+     },
+     "first_response_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Response At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "number",
+     "subject",
+     "status",
+     "priority",
+     "channel",
+     "in_destination",
+     "user",
+     "assignee",
+     "trip_title",
+     "age_minutes",
+     "waiting_minutes",
+     "first_response_at",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "TicketListItem"
+   },
+   "TicketPriority": {
+    "type": "string",
+    "enum": [
+     "low",
+     "normal",
+     "high",
+     "urgent"
+    ],
+    "title": "TicketPriority"
+   },
+   "TicketRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "number": {
+      "type": "integer",
+      "title": "Number"
+     },
+     "subject": {
+      "type": "string",
+      "title": "Subject"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TicketStatus"
+     },
+     "priority": {
+      "$ref": "#/components/schemas/TicketPriority"
+     },
+     "channel": {
+      "$ref": "#/components/schemas/TicketChannel"
+     },
+     "in_destination": {
+      "type": "boolean",
+      "title": "In Destination"
+     },
+     "user": {
+      "$ref": "#/components/schemas/PersonRef"
+     },
+     "assignee": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PersonRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "trip_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trip Title"
+     },
+     "age_minutes": {
+      "type": "integer",
+      "title": "Age Minutes"
+     },
+     "waiting_minutes": {
+      "type": "integer",
+      "title": "Waiting Minutes"
+     },
+     "first_response_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Response At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "messages": {
+      "items": {
+       "$ref": "#/components/schemas/SupportMessageRead"
+      },
+      "type": "array",
+      "title": "Messages"
+     },
+     "context": {
+      "$ref": "#/components/schemas/TripContext"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "number",
+     "subject",
+     "status",
+     "priority",
+     "channel",
+     "in_destination",
+     "user",
+     "assignee",
+     "trip_title",
+     "age_minutes",
+     "waiting_minutes",
+     "first_response_at",
+     "created_at",
+     "updated_at",
+     "messages",
+     "context"
+    ],
+    "title": "TicketRead"
+   },
+   "TicketStatus": {
+    "type": "string",
+    "enum": [
+     "open",
+     "waiting_customer",
+     "resolved"
+    ],
+    "title": "TicketStatus"
+   },
+   "TicketUpdate": {
+    "properties": {
+     "status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TicketStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TicketPriority"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "assignee_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assignee Id"
+     },
+     "in_destination": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "In Destination"
+     }
+    },
+    "type": "object",
+    "title": "TicketUpdate"
    },
    "TimeOfDay": {
     "type": "string",
@@ -5332,6 +8615,124 @@
      "event_count"
     ],
     "title": "TravelerSummary"
+   },
+   "TripContext": {
+    "properties": {
+     "companions": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Companions"
+     },
+     "budget_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Level"
+     },
+     "energy_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Level"
+     },
+     "accessibility_needs": {
+      "type": "boolean",
+      "title": "Accessibility Needs"
+     },
+     "interests": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Interests"
+     },
+     "saved_places": {
+      "type": "integer",
+      "title": "Saved Places"
+     },
+     "trips_planned": {
+      "type": "integer",
+      "title": "Trips Planned"
+     },
+     "destination": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination"
+     },
+     "duration_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Days"
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "itinerary": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Itinerary"
+     },
+     "past_tickets": {
+      "type": "integer",
+      "title": "Past Tickets"
+     }
+    },
+    "type": "object",
+    "required": [
+     "companions",
+     "budget_level",
+     "energy_level",
+     "accessibility_needs",
+     "interests",
+     "saved_places",
+     "trips_planned",
+     "destination",
+     "duration_days",
+     "start_date",
+     "itinerary",
+     "past_tickets"
+    ],
+    "title": "TripContext",
+    "description": "What we actually hold about this traveler, for the agent's side panel."
    },
    "UserCreate": {
     "properties": {

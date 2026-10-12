@@ -1,11 +1,10 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
 import { errorMessage } from "@/lib/api/client";
 
 function LoginForm() {
@@ -35,37 +34,86 @@ function LoginForm() {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field label="Email">
-        <Input name="email" type="email" autoComplete="username" required autoFocus />
-      </Field>
-      <Field label="Password">
-        <Input name="password" type="password" autoComplete="current-password" required />
-      </Field>
-      {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-      <Button type="submit" disabled={busy} className="mt-1 w-full">
+      <div className="flex flex-col gap-2">
+        <label htmlFor="email" className="text-sm font-semibold">
+          Work email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="username"
+          required
+          autoFocus
+          placeholder="you@wishtrip.co"
+          className="h-[52px] rounded-2xl border-[1.5px] border-border bg-surface px-[18px] text-[15px] outline-none focus:border-brand"
+        />
+      </div>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="password" className="text-sm font-semibold">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          className="h-[52px] rounded-2xl border-[1.5px] border-border bg-surface px-[18px] text-[15px] outline-none focus:border-brand"
+        />
+      </div>
+
+      {error && <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={busy}
+        className="flex h-[52px] items-center justify-center gap-2.5 rounded-full bg-brand text-[15px] font-bold text-on-brand shadow-raised transition-colors hover:bg-brand-strong disabled:opacity-60"
+      >
         {busy ? "Signing in…" : "Sign in"}
-      </Button>
+        {!busy && <ArrowRight className="size-4" />}
+      </button>
     </form>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Image src="/logo.png" alt="WishTrip — Travel your way" width={909} height={351} priority className="h-14 w-auto dark:brightness-0 dark:invert" />
-          <div>
-            <h1 className="text-[27px] leading-tight">Knowledge studio</h1>
-            <p className="mt-1 text-sm text-muted">Manage what WishTrip knows.</p>
+    <div className="flex min-h-dvh flex-wrap gap-5 bg-bg p-5">
+      <section
+        aria-label="WishTrip — Travel your way"
+        className="flex min-h-[300px] flex-[1_1_560px] flex-col items-center justify-center rounded-[28px] border border-border bg-surface p-12 shadow-card"
+      >
+        <Image
+          src="/logo.png"
+          alt="WishTrip — Travel your way"
+          width={909}
+          height={351}
+          priority
+          className="w-[min(300px,70%)] dark:brightness-0 dark:invert"
+        />
+      </section>
+
+      <main className="flex flex-[1_1_440px] items-center justify-center px-4 py-8">
+        <div className="flex w-full max-w-[420px] flex-col gap-7">
+          <div className="flex flex-col gap-2.5">
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted">Admin &amp; CMS</p>
+            <h1 className="text-[40px] leading-[1.08]">Sign in</h1>
+            <p className="text-[15px] leading-normal text-muted">
+              For the WishTrip team. Your account is created by an admin — there is no public sign-up here.
+            </p>
           </div>
-        </div>
-        <div className="rounded-[22px] border border-border bg-surface p-6 shadow-raised">
-          <Suspense>
+
+          <Suspense fallback={<div className="h-[52px] animate-pulse rounded-2xl bg-surface-2" />}>
             <LoginForm />
           </Suspense>
+
+          <p className="text-[12.5px] leading-normal text-muted">
+            Access is role-based, and every sign-in and change is audit-logged. Google sign-in and one-time email links
+            are designed but not built yet.
+          </p>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

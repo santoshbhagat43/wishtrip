@@ -51,3 +51,54 @@ async def test_login_accepts_local_test_domain(client):
         "/auth/login", json={"email": "admin@wishtrip.test", "password": "password123"}
     )
     assert r.status_code == 200
+
+
+async def test_expired_tampered_and_wrong_type_tokens_are_rejected(client, traveler):
+    from datetime import UTC, datetime, timedelta
+
+    import jwt
+
+    from app.core.config import settings
+    from app.core.security import create_token
+
+    expired = jwt.encode(
+        {
+            "sub": str(traveler.id),
+            "role": "traveler",
+            "type": "access",
+            "exp": datetime.now(UTC) - timedelta(minutes=1),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+    good = create_token(traveler.id, "traveler", "access")
+    tampered = good[:-4] + ("AAAA" if not good.endswith("AAAA") else "BBBB")
+    refresh_as_access = create_token(traveler.id, "traveler", "refresh")
+    for token in (expired, tampered, refresh_as_access, "not-a-jwt"):
+        r = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 401, token
+    assert (
+        await client.get("/auth/me", headers={"Authorization": f"Bearer {good}"})
+    ).status_code == 200
+
+
+async def test_disabled_accounts_lose_access_immediately(client, admin, traveler):
+    from tests.conftest import auth
+
+    await client.patch(
+        f"/admin/users/{traveler.id}", json={"is_active": False}, headers=auth(admin)
+    )
+    assert (await client.get("/auth/me", headers=auth(traveler))).status_code == 401
+    login = await client.post(
+        "/auth/login", json={"email": traveler.email, "password": "password123"}
+    )
+    assert login.status_code == 401
+
+
+async def test_role_is_read_from_the_database_not_the_token(client, traveler):
+    """A token claiming 'admin' for a traveler account must not grant admin access."""
+    from app.core.security import create_token
+
+    forged_role = create_token(traveler.id, "admin", "access")
+    r = await client.get("/admin/users", headers={"Authorization": f"Bearer {forged_role}"})
+    assert r.status_code == 403

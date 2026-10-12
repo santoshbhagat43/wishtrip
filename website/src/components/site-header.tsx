@@ -7,9 +7,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { useQuery } from "@tanstack/react-query";
+
+import { api, unwrap } from "@/lib/api/client";
 import { useMe, useSignOut } from "@/lib/session";
 
-const LINKS = [
+/** Used until staff have configured a header menu, and if the menus call ever fails. */
+const FALLBACK = [
   { href: "/explore", label: "Explore" },
   { href: "/plan", label: "Plan a trip" },
   { href: "/saved", label: "Saved" },
@@ -21,7 +25,17 @@ export function SiteHeader() {
   const { data: me } = useMe();
   const signOut = useSignOut();
   const [open, setOpen] = useState(false);
-  const links = me ? LINKS : LINKS.slice(0, 1);
+  const menus = useQuery({
+    queryKey: ["menus", "header"],
+    queryFn: async () => unwrap(await api.GET("/explore/menus", { params: { query: { placement: "header" } } })),
+    staleTime: 5 * 60_000,
+  });
+  const configured = (menus.data ?? []).flatMap((menu) =>
+    menu.items.map((item) => ({ href: item.url, label: item.label })),
+  );
+  const all = configured.length > 0 ? configured : FALLBACK;
+  // Signed out, only the pages that work without an account.
+  const links = me ? all : all.filter((l) => l.href === "/explore" || l.href === "/");
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
@@ -31,7 +45,7 @@ export function SiteHeader() {
         <nav className={clsx("items-center gap-1", open ? "absolute inset-x-0 top-16 flex flex-col border-b border-border bg-surface p-3 md:static md:flex-row md:border-0 md:p-0" : "hidden md:flex")}>
           {links.map((l) => (
             <Link
-              key={l.href}
+              key={`${l.href}-${l.label}`}
               href={l.href}
               onClick={() => setOpen(false)}
               className={clsx(

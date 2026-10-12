@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     ollama_intent_model: str = "gemma4"
     # Intent extraction is structured and latency-sensitive: no thinking needed.
     intent_reasoning: str | None = "none"
+    # A hung intent call must not stall the chat: give up and use keyword understanding.
+    intent_timeout_seconds: float = 20
     planner_reasoning: str | None = None
     # After the feasibility engine changes a plan, ask the planner to rewrite its reply to match
     # (one extra LLM call). Off = append a short "plan check" note instead.

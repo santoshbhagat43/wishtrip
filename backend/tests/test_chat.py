@@ -60,6 +60,7 @@ def test_validation_enforces_knowledge_base():
         type=LocationType.ROUTE,
         duration_minutes=240,
         price_note="",
+        tips="Start before 8 am to beat the traffic.",
         tags=[],
     )
     items = [ContextItem(ref="K1", location=loc, city="London")]
@@ -75,6 +76,9 @@ def test_validation_enforces_knowledge_base():
     assert "£45" not in reply and "$200" not in reply
     assert reply.count("(price not available yet)") == 2
     assert suggestions[0]["duration_minutes"] == 240 and suggestions[0]["price"] is None
+    # Staff tips travel with the stop whatever the model wrote; general places have none.
+    assert suggestions[0]["tip"] == "Start before 8 am to beat the traffic."
+    assert suggestions[1]["tip"] is None
     assert suggestions[1]["is_placeholder"] and suggestions[1]["name"] == "Sample hotel option"
     assert not suggestions[2]["from_knowledge_base"]
     assert any("duration corrected" in n for n in notes)
@@ -202,7 +206,12 @@ class OverloadingPlanner(FakeClient):
         )
 
 
-async def test_plan_check_repairs_and_rewrites_the_reply(client, traveler, london):
+async def test_plan_check_repairs_and_rewrites_the_reply(client, traveler, london, monkeypatch):
+    from app.core.config import settings
+
+    # Pin the flag: this test is about the rewrite path, and a developer's .env must not
+    # decide whether it runs. Its sibling below covers the note path with the flag off.
+    monkeypatch.setattr(settings, "feasibility_rewrite", True)
     planner = OverloadingPlanner()
     app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=planner)
     try:
@@ -232,3 +241,15 @@ async def test_plan_check_appends_a_note_when_rewrite_is_off(client, traveler, l
     finally:
         app.dependency_overrides.clear()
     assert "**Plan check — adjusted so the trip works:**" in turn["assistant_message"]["content"]
+
+
+async def test_profile_hard_constraints_apply_to_what_was_asked_too(client, traveler, london):
+    # Search by meaning ranks the kayak first for this question; a family profile must still
+    # keep a not-family-friendly place out of what the planner is given, not only out of the plan.
+    h = auth(traveler)
+    r = await client.put("/profiles/me", json={"companions": "family"}, headers=h)
+    assert r.status_code == 200, r.text
+    _, turn = await _chat(client, h, "Kayaking on the Thames in London")
+    names = [s["name"] for s in turn["assistant_message"]["sources"]]
+    assert names, "London places should still be offered"
+    assert "Thames Kayaking" not in names

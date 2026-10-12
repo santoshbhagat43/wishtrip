@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Footprints, Info, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Footprints, Info, Lightbulb, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { SaveButtons } from "@/components/trip/place-card";
@@ -75,6 +75,12 @@ export function Itinerary({ days, feasibility }: { days: Day[]; feasibility: Fea
                           {item.price ? item.price : <span className="italic">not available yet</span>}
                         </p>
                         {item.why && <p className="mt-0.5 text-sm text-muted">{item.why}</p>}
+                        {item.tip && (
+                          <p className="mt-2 flex gap-2 rounded-xl bg-value-soft px-3 py-2 text-sm">
+                            <Lightbulb className="mt-0.5 size-4 shrink-0" />
+                            <span><span className="font-semibold">Good to know: </span>{item.tip}</span>
+                          </p>
+                        )}
                         {item.location_id && <div className="mt-1.5"><SaveButtons placeId={item.location_id} /></div>}
                       </div>
                     </div>

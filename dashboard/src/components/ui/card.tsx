@@ -2,7 +2,7 @@ import { cn as clsx } from "@/lib/cn";
 import type { ReactNode } from "react";
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={clsx("rounded-2xl border border-border bg-surface shadow-card", className)}>{children}</section>;
+  return <section className={clsx("rounded-[22px] border border-border bg-surface shadow-card", className)}>{children}</section>;
 }
 
 export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
@@ -17,14 +17,45 @@ export function CardHeader({ title, description, action }: { title: ReactNode; d
   );
 }
 
-export function PageHeader({ title, description, action }: { title: string; description?: ReactNode; action?: ReactNode }) {
+export function PageHeader({
+  title,
+  description,
+  breadcrumb,
+  action,
+}: {
+  title: string;
+  description?: ReactNode;
+  /** Section this screen sits under, shown before the title: "Content / Review queue". */
+  breadcrumb?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-[27px] leading-tight text-text">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-muted">{description}</p>}
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+      <div className="flex max-w-[680px] flex-col gap-2">
+        {breadcrumb && (
+          <nav aria-label="Breadcrumb" className="flex gap-1.5 text-[13px] text-muted">
+            <span>{breadcrumb}</span>
+            <span aria-hidden>/</span>
+            <span className="font-semibold text-text">{title}</span>
+          </nav>
+        )}
+        <h1 className="text-[34px] leading-[1.08] text-text">{title}</h1>
+        {description && <p className="text-[15px] leading-normal text-muted">{description}</p>}
       </div>
       {action}
+    </div>
+  );
+}
+
+/** The header's right-hand figures: "23 waiting · Oldest Oct 4". */
+export function HeaderStats({ items }: { items: { label: ReactNode; value: ReactNode; tone?: string }[] }) {
+  return (
+    <div className="flex flex-wrap gap-[18px] text-[13px] tabular-nums text-muted">
+      {items.map((item, i) => (
+        <span key={i}>
+          <strong className={clsx("font-semibold", item.tone ?? "text-text")}>{item.value}</strong> {item.label}
+        </span>
+      ))}
     </div>
   );
 }

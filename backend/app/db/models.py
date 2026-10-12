@@ -5,10 +5,19 @@ from app.modules.audit.models import AuditLog
 from app.modules.chat.models import ChatMessage, ChatSession
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
 from app.modules.media.models import Media
+from app.modules.menus.models import MenuGroup, MenuItem
 from app.modules.profiles.models import ProfileEvent, TravelerProfile
+from app.modules.support.models import (
+    AgentRouting,
+    SupportMessage,
+    SupportRouting,
+    SupportTicket,
+    TicketAssignment,
+)
 from app.modules.users.models import User
 
 __all__ = [
+    "AgentRouting",
     "AuditLog",
     "Base",
     "ChatMessage",
@@ -16,7 +25,13 @@ __all__ = [
     "Location",
     "LocationRelation",
     "Media",
+    "MenuGroup",
+    "MenuItem",
     "ProfileEvent",
+    "SupportMessage",
+    "SupportRouting",
+    "SupportTicket",
+    "TicketAssignment",
     "Tag",
     "TravelerProfile",
     "User",
