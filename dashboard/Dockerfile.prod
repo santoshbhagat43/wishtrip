@@ -10,10 +10,13 @@ ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=$BACKEND_URL NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production
 RUN pnpm build
 
+# next.config.ts sets output: "standalone": ship only the traced server, its static files and
+# public/, and run it with plain node (no pnpm, nothing downloaded at start-up).
 FROM node:24-alpine
 WORKDIR /app
-RUN corepack enable
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
-COPY --from=build /app ./
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
 EXPOSE 3000
-CMD ["pnpm", "start", "--hostname", "0.0.0.0", "--port", "3000"]
+CMD ["node", "server.js"]
