@@ -12,12 +12,9 @@ export async function POST(request: NextRequest) {
   const ok =
     sameText(user, process.env.SITE_USER ?? "") && sameText(password, process.env.SITE_PASSWORD ?? "");
   if (!ok) {
-    const back = new URL("/gate", request.url);
-    back.searchParams.set("error", "1");
-    back.searchParams.set("next", next);
-    return NextResponse.redirect(back, 303);
+    return seeOther(`/gate?error=1&next=${encodeURIComponent(next)}`);
   }
-  const response = NextResponse.redirect(new URL(next, request.url), 303);
+  const response = seeOther(next);
   response.cookies.set(GATE_COOKIE, await gateToken(), {
     httpOnly: true,
     sameSite: "lax",
@@ -26,4 +23,13 @@ export async function POST(request: NextRequest) {
     maxAge: 60 * 60 * 24 * GATE_DAYS,
   });
   return response;
+}
+
+/**
+ * Redirect with a relative Location. Behind the proxy, request.url is the container's own
+ * address (http://0.0.0.0:3000), so an absolute URL built from it sends people there; the
+ * browser resolves a relative one against the address it actually used.
+ */
+function seeOther(path: string) {
+  return new NextResponse(null, { status: 303, headers: { Location: path } });
 }
