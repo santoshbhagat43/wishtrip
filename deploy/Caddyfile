@@ -1,13 +1,10 @@
 # HTTPS for all three sites; Caddy obtains and renews Let's Encrypt certificates itself.
 # (No account e-mail needed; to get expiry notices, add a global block: { email you@example.com })
 
-# The traveler website is private for now: a browser login (SITE_USER / SITE_PASSWORD in
-# .env.production; Caddy only sees the bcrypt hash).
+# The traveler website is private for now: the app's own /gate page checks SITE_USER /
+# SITE_PASSWORD (not HTTP basic auth, which browsers drop whenever the app answers 401).
 {$WEBSITE_DOMAIN} {
 	encode zstd gzip
-	basic_auth {
-		{$SITE_USER} {$SITE_PASSWORD_HASH}
-	}
 	reverse_proxy website:3000
 }
 

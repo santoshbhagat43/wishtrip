@@ -10,10 +10,11 @@ deploy key (`/root/.ssh/github_wishtrip`, read-only on GitHub).
 | Staff dashboard | https://wishtrip-dashboard.listnr.co | `dashboard` (Next.js, `next start`) |
 | API + docs | https://wishtrip-api.listnr.co (`/docs`) | `backend` (FastAPI) |
 
-The traveler website is behind a browser login (basic auth) while it's private: the user is
-`SITE_USER` and the password `SITE_PASSWORD` in `.env.production`. To change it, set a new
-`SITE_PASSWORD`, empty `SITE_PASSWORD_HASH=`, and run `./deploy/deploy.sh`. To make the site
-public, remove the `basic_auth` block from `deploy/Caddyfile`.
+The traveler website is private while in preview: `/gate` asks for `SITE_USER` /
+`SITE_PASSWORD` from `.env.production` and remembers the browser for 30 days. To change the
+password, edit `SITE_PASSWORD` and run `./deploy/deploy.sh` (everyone signs in again). It's an
+app page rather than HTTP basic auth on purpose: browsers forget basic-auth credentials whenever
+the app answers 401, which made them ask on every refresh.
 
 Caddy (`deploy/Caddyfile`) terminates HTTPS with automatic Let's Encrypt certificates; nothing
 else is published. Postgres, Redis and the Celery worker are internal only. On the server the

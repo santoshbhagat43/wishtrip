@@ -35,13 +35,10 @@ if [ -z "${WISHTRIP_UPDATED:-}" ]; then
   WISHTRIP_UPDATED=1 exec "$0" "$@"
 fi
 
-# Website login: generate a password and its bcrypt hash once (Caddy only stores the hash).
-grep -q "^SITE_USER=" .env.production || printf '\nSITE_USER=wishtrip\nSITE_PASSWORD=\nSITE_PASSWORD_HASH=\n' >> .env.production
-if grep -q "^SITE_PASSWORD_HASH=$" .env.production; then
-  password="$(grep '^SITE_PASSWORD=' .env.production | cut -d= -f2-)"
-  [ -n "$password" ] || { password="$(secret 16)"; sed -i "s|^SITE_PASSWORD=.*|SITE_PASSWORD=$password|" .env.production; }
-  hash="$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "$password")"
-  sed -i "s|^SITE_PASSWORD_HASH=.*|SITE_PASSWORD_HASH='$hash'|" .env.production
+# Website preview login (/gate): generate a password once.
+grep -q "^SITE_USER=" .env.production || printf '\nSITE_USER=wishtrip\nSITE_PASSWORD=\n' >> .env.production
+if grep -q "^SITE_PASSWORD=$" .env.production; then
+  sed -i "s|^SITE_PASSWORD=$|SITE_PASSWORD=$(secret 16)|" .env.production
   echo "Website login: user $(grep '^SITE_USER=' .env.production | cut -d= -f2-), password in .env.production (SITE_PASSWORD)."
 fi
 "${COMPOSE[@]}" up -d --build --remove-orphans
