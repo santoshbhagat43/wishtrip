@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
-# Deploy or update WishTrip on the server:  ./deploy/deploy.sh
+# Deploy or update WishTrip on the server:  ./deploy/deploy.sh   (--force rebuilds and restarts
+# even when nothing changed)
 # First run: creates .env.production from the example with fresh secrets, then stops so you
 # can add OPENROUTER_API_KEY. Every run after: pulls main, rebuilds, restarts.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 COMPOSE=(docker compose --env-file .env.production -f docker-compose.prod.yml)
+FORCE=""
+[ "${1:-}" = "--force" ] && FORCE=1
+# Builds without provenance metadata are identical when nothing changed, so Compose only
+# restarts the services whose code actually changed (with it, every image looked new).
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+STATE=.deploy-state
 
 secret() { openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c "${1:-32}"; }
 fill() { # fill KEY with VALUE if it's empty in .env.production
@@ -35,6 +42,16 @@ if [ -z "${WISHTRIP_UPDATED:-}" ]; then
   WISHTRIP_UPDATED=1 exec "$0" "$@"
 fi
 
+# Nothing new since the last successful deploy (same code, same settings, everything up)?
+# Then there's nothing to do — and no reason to restart anything.
+fingerprint="$(git rev-parse HEAD) $(sha256sum .env.production | cut -c1-16)"
+running="$("${COMPOSE[@]}" ps --status running --services 2>/dev/null | wc -l)"
+expected="$("${COMPOSE[@]}" config --services | wc -l)"
+if [ -z "$FORCE" ] && [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$fingerprint" ] && [ "$running" -eq "$expected" ]; then
+  echo "Nothing changed since the last deploy ($(git rev-parse --short HEAD)); all $running services running. Use --force to rebuild anyway."
+  exit 0
+fi
+
 # Website preview login (/gate): generate a password once.
 grep -q "^SITE_USER=" .env.production || printf '\nSITE_USER=wishtrip\nSITE_PASSWORD=\n' >> .env.production
 if grep -q "^SITE_PASSWORD=$" .env.production; then
@@ -43,4 +60,5 @@ if grep -q "^SITE_PASSWORD=$" .env.production; then
 fi
 "${COMPOSE[@]}" up -d --build --remove-orphans
 "${COMPOSE[@]}" ps
+echo "$fingerprint" > "$STATE"
 echo "Deployed $(git rev-parse --short HEAD)."

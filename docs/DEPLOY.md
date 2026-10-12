@@ -48,6 +48,10 @@ Published places are embedded by the worker; check progress on the dashboard ove
 ssh root@147.93.29.128 'cd /opt/wishtrip && ./deploy/deploy.sh'
 ```
 
+It pulls `main`, then rebuilds and restarts only the services whose code changed. If neither
+the code nor `.env.production` changed since the last deploy, it says so and restarts nothing;
+`./deploy/deploy.sh --force` rebuilds and restarts anyway.
+
 ## Useful commands (in /opt/wishtrip)
 
 ```bash
