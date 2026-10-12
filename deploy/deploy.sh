@@ -27,7 +27,13 @@ if grep -qE "^(OPENROUTER_API_KEY|ADMIN_EMAIL)=$" .env.production; then
   exit 1
 fi
 
-git pull --ff-only
+# Update to GitHub's main. Fetch and fast-forward explicitly (a bare `git pull` can trip over
+# FETCH_HEAD), then re-run this script so the new version of it is the one that deploys.
+if [ -z "${WISHTRIP_UPDATED:-}" ]; then
+  git fetch --quiet origin main
+  git merge --ff-only --quiet origin/main
+  WISHTRIP_UPDATED=1 exec "$0" "$@"
+fi
 
 # Website login: generate a password and its bcrypt hash once (Caddy only stores the hash).
 grep -q "^SITE_USER=" .env.production || printf '\nSITE_USER=wishtrip\nSITE_PASSWORD=\nSITE_PASSWORD_HASH=\n' >> .env.production
