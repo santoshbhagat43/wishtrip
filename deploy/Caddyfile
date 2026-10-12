@@ -1,0 +1,19 @@
+# HTTPS for all three sites; Caddy obtains and renews Let's Encrypt certificates itself.
+{
+	email {$ACME_EMAIL}
+}
+
+{$WEBSITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy website:3000
+}
+
+{$DASHBOARD_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy dashboard:3000
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy backend:8000
+}

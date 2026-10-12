@@ -19,4 +19,4 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
-old_client_work/*
+old_client_work/*.env.production

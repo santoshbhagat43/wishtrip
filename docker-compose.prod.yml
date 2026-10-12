@@ -1,0 +1,110 @@
+# Production stack. Run on the server with:
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+# Only Caddy is reachable from outside (80/443); every other service is on the internal network.
+name: wishtrip
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://wishtrip:${POSTGRES_PASSWORD}@postgres:5432/wishtrip
+  REDIS_URL: redis://redis:6379/0
+  MEDIA_ROOT: /data/media
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wishtrip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: wishtrip
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wishtrip -d wishtrip"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment: *backend-env
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+             --proxy-headers --forwarded-allow-ips='*'"
+    volumes:
+      - ./client_work/knowledge_base:/client_work/knowledge_base:ro
+      - media:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment: *backend-env
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - media:/data/media
+    depends_on:
+      backend:
+        condition: service_started
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  website:
+    build:
+      context: ./website
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      WEBSITE_DOMAIN: ${WEBSITE_DOMAIN}
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - website
+      - dashboard
+      - backend
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:
