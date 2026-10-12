@@ -20,7 +20,7 @@ LLM and embeddings both go through OpenRouter (no Ollama).
 ssh root@147.93.29.128
 git clone git@github.com:santoshbhagat43/wishtrip.git /opt/wishtrip && cd /opt/wishtrip
 ./deploy/deploy.sh            # creates .env.production with generated secrets, then stops
-nano .env.production          # add OPENROUTER_API_KEY, ACME_EMAIL, ADMIN_EMAIL, DEMO_TRAVELER_EMAIL
+nano .env.production          # add OPENROUTER_API_KEY and ADMIN_EMAIL (DEMO_TRAVELER_EMAIL optional)
 ./deploy/deploy.sh            # builds and starts everything
 ```
 

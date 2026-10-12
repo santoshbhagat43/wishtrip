@@ -19,11 +19,11 @@ if [ ! -f .env.production ]; then
   fill ADMIN_PASSWORD "$(secret 20)"
   fill DEMO_TRAVELER_PASSWORD "$(secret 20)"
   echo "Created .env.production with generated secrets."
-  echo "Add OPENROUTER_API_KEY, ACME_EMAIL, ADMIN_EMAIL and DEMO_TRAVELER_EMAIL, then run this again."
+  echo "Add OPENROUTER_API_KEY and ADMIN_EMAIL (DEMO_TRAVELER_EMAIL optional), then run this again."
   exit 0
 fi
-if grep -qE "^(OPENROUTER_API_KEY|ACME_EMAIL|ADMIN_EMAIL)=$" .env.production; then
-  echo "Fill in OPENROUTER_API_KEY, ACME_EMAIL and ADMIN_EMAIL in .env.production first." >&2
+if grep -qE "^(OPENROUTER_API_KEY|ADMIN_EMAIL)=$" .env.production; then
+  echo "Fill in OPENROUTER_API_KEY and ADMIN_EMAIL in .env.production first." >&2
   exit 1
 fi
 

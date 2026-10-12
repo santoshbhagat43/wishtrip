@@ -1,7 +1,5 @@
 # HTTPS for all three sites; Caddy obtains and renews Let's Encrypt certificates itself.
-{
-	email {$ACME_EMAIL}
-}
+# (No account e-mail needed; to get expiry notices, add a global block: { email you@example.com })
 
 {$WEBSITE_DOMAIN} {
 	encode zstd gzip
