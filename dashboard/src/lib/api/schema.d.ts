@@ -2387,7 +2387,7 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "admin" | "editor" | "traveler";
+        Role: "admin" | "editor" | "support" | "traveler";
         /**
          * RoutingAgent
          * @description An agent as the routing screen shows them.

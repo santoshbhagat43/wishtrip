@@ -17,6 +17,7 @@ const FALLBACK = [
   { href: "/explore", label: "Explore" },
   { href: "/plan", label: "Plan a trip" },
   { href: "/saved", label: "Saved" },
+  { href: "/help", label: "Help" },
   { href: "/profile", label: "My profile" },
 ];
 

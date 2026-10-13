@@ -27,39 +27,47 @@ import { usePathname, useRouter } from "next/navigation";
 import { api, unwrap } from "@/lib/api/client";
 import { useMe } from "@/lib/hooks/use-me";
 
+type StaffRole = "admin" | "editor" | "support";
+
 type Item = {
   href: string;
   label: string;
   icon: typeof MapPin;
-  adminOnly?: boolean;
+  /** If set, only these roles see the link. */
+  roles?: StaffRole[];
   badge?: "review" | "support";
 };
 
 const NAV: { section: string; items: Item[] }[] = [
   { section: "Knowledge", items: [
-    { href: "/", label: "Overview", icon: LayoutDashboard },
-    { href: "/destinations", label: "Destinations", icon: Globe2 },
-    { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/hierarchy", label: "Hierarchy", icon: FolderTree },
-    { href: "/tags", label: "Tags", icon: Tags },
-    { href: "/review", label: "Review queue", icon: ListChecks, badge: "review" },
-    { href: "/menus", label: "Menus", icon: Link2 },
+    { href: "/", label: "Overview", icon: LayoutDashboard, roles: ["admin", "editor"] },
+    { href: "/destinations", label: "Destinations", icon: Globe2, roles: ["admin", "editor"] },
+    { href: "/locations", label: "Locations", icon: MapPin, roles: ["admin", "editor"] },
+    { href: "/hierarchy", label: "Hierarchy", icon: FolderTree, roles: ["admin", "editor"] },
+    { href: "/tags", label: "Tags", icon: Tags, roles: ["admin", "editor"] },
+    { href: "/review", label: "Review queue", icon: ListChecks, badge: "review", roles: ["admin", "editor"] },
+    { href: "/menus", label: "Menus", icon: Link2, roles: ["admin", "editor"] },
   ]},
   { section: "Intelligence", items: [
-    { href: "/chat", label: "Trip chat", icon: MessageSquare },
-    { href: "/search", label: "Semantic search", icon: Search },
-    { href: "/travelers", label: "Travelers", icon: Users },
-    { href: "/support", label: "Support inbox", icon: LifeBuoy, badge: "support" },
+    { href: "/chat", label: "Trip chat", icon: MessageSquare, roles: ["admin", "editor"] },
+    { href: "/search", label: "Semantic search", icon: Search, roles: ["admin", "editor", "support"] },
+    { href: "/travelers", label: "Travelers", icon: Users, roles: ["admin", "editor", "support"] },
+    { href: "/support", label: "Support inbox", icon: LifeBuoy, badge: "support", roles: ["admin", "editor", "support"] },
   ]},
   { section: "Admin", items: [
-    { href: "/users", label: "Staff users", icon: UserCog, adminOnly: true },
-    { href: "/roles", label: "Roles & permissions", icon: ShieldCheck },
-    { href: "/system", label: "System health", icon: Activity },
-    { href: "/audit-log", label: "Audit log", icon: ScrollText },
+    { href: "/users", label: "Staff users", icon: UserCog, roles: ["admin"] },
+    { href: "/roles", label: "Roles & permissions", icon: ShieldCheck, roles: ["admin", "editor"] },
+    { href: "/system", label: "System health", icon: Activity, roles: ["admin", "editor"] },
+    { href: "/audit-log", label: "Audit log", icon: ScrollText, roles: ["admin"] },
   ]},
 ];
 
-const ROLE_LABEL: Record<string, string> = { admin: "Super admin", editor: "Content editor", traveler: "Traveller" };
+const ROLE_LABEL: Record<string, string> = {
+  admin: "Super admin",
+  editor: "Content editor",
+  support: "Support agent",
+  traveler: "Traveller",
+};
 
 function initials(name?: string) {
   if (!name) return "··";
@@ -67,22 +75,28 @@ function initials(name?: string) {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || name.slice(0, 2).toUpperCase();
 }
 
+function canSee(item: Item, role: string | undefined) {
+  if (!item.roles) return true;
+  return !!role && item.roles.includes(role as StaffRole);
+}
+
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: me } = useMe();
+  const isEditorish = me?.role === "admin" || me?.role === "editor";
 
-  // One cheap call keeps the review badge honest across every screen.
   const review = useQuery({
     queryKey: ["review-queue", "badge"],
+    enabled: isEditorish,
     queryFn: async () => unwrap(await api.GET("/admin/review-queue", { params: { query: { page_size: 1 } } })),
     staleTime: 60_000,
   });
   const waiting = review.data ? review.data.counts.unverified + review.data.counts.draft : 0;
 
-  // Urgent tickets are the only badge worth interrupting someone for.
   const support = useQuery({
     queryKey: ["support-inbox", "badge"],
+    enabled: !!me && me.role !== "traveler",
     queryFn: async () => unwrap(await api.GET("/admin/support/inbox", { params: { query: { page_size: 1 } } })),
     staleTime: 60_000,
   });
@@ -95,8 +109,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="flex h-full flex-col gap-[22px] overflow-y-auto px-4 py-6">
-      <Link href="/" className="flex px-2" onClick={onNavigate}>
-        {/* self-start, or the flex container stretches the image and distorts the logo. */}
+      <Link href={me?.role === "support" ? "/support" : "/"} className="flex px-2" onClick={onNavigate}>
         <Image
           src="/logo.png"
           alt="WishTrip"
@@ -107,12 +120,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         />
       </Link>
       <div className="flex flex-col gap-[18px]">
-        {NAV.map((group) => (
-          <div key={group.section} className="flex flex-col gap-0.5">
-            <p className="px-3.5 pb-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted/80">{group.section}</p>
-            {group.items
-              .filter((item) => !item.adminOnly || me?.role === "admin")
-              .map((item) => {
+        {NAV.map((group) => {
+          const items = group.items.filter((item) => canSee(item, me?.role));
+          if (items.length === 0) return null;
+          return (
+            <div key={group.section} className="flex flex-col gap-0.5">
+              <p className="px-3.5 pb-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted/80">{group.section}</p>
+              {items.map((item) => {
                 const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 const count = item.badge === "review" ? waiting : item.badge === "support" ? urgent : 0;
                 return (
@@ -139,8 +153,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   </Link>
                 );
               })}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
       <div className="mt-auto flex flex-col gap-2">
         <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">

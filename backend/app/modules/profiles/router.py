@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, require_staff
+from app.core.deps import get_current_user, require_reader
 from app.core.pagination import Page
 from app.db.session import get_session
 from app.modules.knowledge.models import Location, LocationStatus
@@ -97,7 +97,7 @@ async def list_travelers(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     rows, total = await users.list_users(session, Role.TRAVELER, page, page_size)
     ids = [u.id for u in rows]
@@ -125,7 +125,7 @@ async def list_travelers(
 async def traveler_detail(
     user_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     user = await users.get(session, user_id)
     profile = await service.get_profile(session, user_id)

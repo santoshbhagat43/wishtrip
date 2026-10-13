@@ -290,7 +290,10 @@ async def agents(session: AsyncSession) -> list[AgentLoad]:
     """Staff who can hold tickets, with what they are already carrying."""
     staff = list(
         await session.scalars(
-            select(User).where(User.role != Role.TRAVELER, User.is_active.is_(True))
+            select(User).where(
+                User.role.in_((Role.SUPPORT, Role.ADMIN, Role.EDITOR)),
+                User.is_active.is_(True),
+            )
         )
     )
     open_counts = dict(
