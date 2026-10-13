@@ -852,6 +852,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/support/tickets/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read My Ticket
+         * @description The traveler's own thread: public messages only, never internal notes.
+         */
+        get: operations["read_my_ticket_support_tickets__ticket_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support/tickets/{ticket_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Follow Up My Ticket
+         * @description Traveler follow-up; reopens the ticket for the inbox when needed.
+         */
+        post: operations["follow_up_my_ticket_support_tickets__ticket_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/support/routing": {
         parameters: {
             query?: never;
@@ -2835,6 +2875,11 @@ export interface components {
             /** Recent Events */
             recent_events: components["schemas"]["RecentEvent"][];
         };
+        /** TravelerMessageCreate */
+        TravelerMessageCreate: {
+            /** Body */
+            body: string;
+        };
         /** TravelerSummary */
         TravelerSummary: {
             /**
@@ -2849,6 +2894,34 @@ export interface components {
             profile: components["schemas"]["ProfileRead"] | null;
             /** Event Count */
             event_count: number;
+        };
+        /**
+         * TravelerTicketRead
+         * @description Ticket thread for the traveler who owns it — no staff context or internal notes.
+         */
+        TravelerTicketRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
+            /** Subject */
+            subject: string;
+            status: components["schemas"]["TicketStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Messages */
+            messages: components["schemas"]["SupportMessageRead"][];
         };
         /**
          * TripContext
@@ -4744,6 +4817,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TicketListItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_my_ticket_support_tickets__ticket_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelerTicketRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    follow_up_my_ticket_support_tickets__ticket_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TravelerMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelerTicketRead"];
                 };
             };
             /** @description Validation Error */

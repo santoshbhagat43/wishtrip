@@ -9,6 +9,7 @@ import { SupportTabs } from "@/components/support-tabs";
 import { Card, ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { relativeTime, titleCase } from "@/lib/format";
+import { useMe } from "@/lib/hooks/use-me";
 
 type View = "open" | "unassigned" | "mine" | "urgent" | "in_destination" | "resolved";
 type Ticket = Schemas["TicketListItem"];
@@ -48,11 +49,13 @@ function initials(name: string) {
 
 export default function SupportInboxPage() {
   const queryClient = useQueryClient();
+  const { data: me } = useMe();
   const [view, setView] = useState<View>("open");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [internal, setInternal] = useState(false);
   const [resolveAfter, setResolveAfter] = useState(false);
+  const canAssignAnyone = me?.role === "admin" || me?.role === "editor";
 
   const inbox = useQuery({
     queryKey: ["support-inbox", view],
@@ -159,13 +162,18 @@ export default function SupportInboxPage() {
           <ul className="flex max-h-[70vh] list-none flex-col gap-2 overflow-y-auto p-0">
             {data.items.map((t: Ticket) => {
               const picked = current?.id === t.id;
+              const mine = Boolean(me?.id && t.assignee?.id === me.id);
               return (
                 <li key={t.id}>
                   <button
                     aria-pressed={picked}
                     onClick={() => setSelectedId(t.id)}
                     className={`flex w-full cursor-pointer flex-col gap-1.5 rounded-[18px] border px-4 py-3.5 text-left shadow-card transition-colors ${
-                      picked ? "border-brand bg-brand-soft/50" : "border-border bg-surface hover:border-brand/40"
+                      picked
+                        ? "border-brand bg-brand-soft/50"
+                        : mine
+                          ? "border-accent/50 bg-accent/5 hover:border-accent/70"
+                          : "border-border bg-surface hover:border-brand/40"
                     }`}
                   >
                     <span className="flex w-full items-center gap-2">
@@ -177,11 +185,20 @@ export default function SupportInboxPage() {
                           <MapPin className="size-3" /> In destination
                         </span>
                       )}
+                      {mine && (
+                        <span className="rounded-full bg-accent/15 px-2 py-px text-[10.5px] font-extrabold text-accent">
+                          Assigned to you
+                        </span>
+                      )}
                       <span className="ml-auto text-xs tabular-nums text-muted/80">#{t.number}</span>
                     </span>
                     <span className="text-[15px] font-bold leading-tight">{t.subject}</span>
                     <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
                       <span>{t.user.full_name || t.user.email}</span>
+                      <span aria-hidden>·</span>
+                      <span className={mine ? "font-semibold text-accent" : undefined}>
+                        {t.assignee ? t.assignee.full_name || t.assignee.email : "Unassigned"}
+                      </span>
                       {t.trip_title && (
                         <>
                           <span aria-hidden>·</span>
@@ -204,19 +221,19 @@ export default function SupportInboxPage() {
 
         {current && (
           <Card className="flex min-w-0 flex-[999_1_460px] flex-col gap-5 p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
                   #{current.number} · {titleCase(current.channel)}
                   {current.in_destination ? " · In destination" : ""}
                 </span>
-                <h2 className="font-display text-[26px] leading-[1.15]">{current.subject}</h2>
+                <h2 className="font-display break-words text-[26px] leading-[1.15]">{current.subject}</h2>
                 <span className="text-[13px] text-muted">
                   {current.user.full_name || current.user.email} · opened {relativeTime(current.created_at)}
                   {current.first_response_at ? ` · first reply ${relativeTime(current.first_response_at)}` : " · no reply yet"}
                 </span>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
                 <select
                   aria-label="Status"
                   value={current.status}
@@ -229,19 +246,41 @@ export default function SupportInboxPage() {
                     </option>
                   ))}
                 </select>
-                <select
-                  aria-label="Assignee"
-                  value={current.assignee?.id ?? ""}
-                  onChange={(e) => change.mutate({ assignee_id: e.target.value || null })}
-                  className="h-9 rounded-full border border-border bg-surface px-3 text-[13px]"
-                >
-                  <option value="">Unassigned</option>
-                  {(agents.data ?? []).map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.full_name} ({a.open_tickets})
-                    </option>
-                  ))}
-                </select>
+                {canAssignAnyone ? (
+                  <select
+                    aria-label="Assignee"
+                    value={current.assignee?.id ?? ""}
+                    onChange={(e) => change.mutate({ assignee_id: e.target.value || null })}
+                    className="h-9 rounded-full border border-border bg-surface px-3 text-[13px]"
+                  >
+                    <option value="">Unassigned</option>
+                    {(agents.data ?? []).map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.full_name} ({a.open_tickets})
+                      </option>
+                    ))}
+                  </select>
+                ) : current.assignee?.id === me?.id ? (
+                  <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-[13px] font-semibold text-accent">
+                    Assigned to you
+                  </span>
+                ) : current.assignee ? (
+                  <span className="rounded-full border border-border bg-surface-2 px-3 py-1.5 text-[13px] text-muted">
+                    Assigned to {current.assignee.full_name || current.assignee.email}
+                  </span>
+                ) : (
+                  <select
+                    aria-label="Assignee"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value && me?.id) change.mutate({ assignee_id: me.id });
+                    }}
+                    className="h-9 rounded-full border border-border bg-surface px-3 text-[13px]"
+                  >
+                    <option value="">Unassigned</option>
+                    {me && <option value={me.id}>{me.full_name || me.email} (claim)</option>}
+                  </select>
+                )}
               </div>
             </div>
 

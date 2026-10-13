@@ -18,6 +18,8 @@ from app.modules.support.schemas import (
     TicketListItem,
     TicketRead,
     TicketUpdate,
+    TravelerMessageCreate,
+    TravelerTicketRead,
 )
 from app.modules.users.models import User
 
@@ -63,9 +65,9 @@ async def change_ticket(
     ticket_id: uuid.UUID,
     data: TicketUpdate,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_support),
+    staff: User = Depends(require_support),
 ):
-    return await service.update_ticket(session, ticket_id, data)
+    return await service.update_ticket(session, ticket_id, data, staff)
 
 
 @router.post("/admin/support/tickets/{ticket_id}/reply", response_model=TicketRead, status_code=201)
@@ -84,6 +86,31 @@ async def my_tickets(
     session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
 ):
     return await service.my_tickets(session, user)
+
+
+@router.get("/support/tickets/{ticket_id}", response_model=TravelerTicketRead)
+async def read_my_ticket(
+    ticket_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """The traveler's own thread: public messages only, never internal notes."""
+    return await service.get_traveler_ticket(session, ticket_id, user)
+
+
+@router.post(
+    "/support/tickets/{ticket_id}/messages",
+    response_model=TravelerTicketRead,
+    status_code=201,
+)
+async def follow_up_my_ticket(
+    ticket_id: uuid.UUID,
+    data: TravelerMessageCreate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Traveler follow-up; reopens the ticket for the inbox when needed."""
+    return await service.traveler_follow_up(session, ticket_id, user, data)
 
 
 @router.post("/support/tickets", response_model=TicketListItem, status_code=201)
