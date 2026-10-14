@@ -82,8 +82,16 @@ TICKETS = [
 # A support team, so the routing screen has a real rotation. Created without a usable
 # password: an admin sets one from Staff users if these people need to sign in.
 AGENTS = [
-    {"full_name": "Arjun Menon", "email": "arjun.menon@wishtrip.test", "handles": ["Kerala", "whatsapp"]},
-    {"full_name": "Leela Fernandes", "email": "leela.fernandes@wishtrip.test", "handles": ["Goa", "urgent"]},
+    {
+        "full_name": "Arjun Menon",
+        "email": "arjun.menon@wishtrip.test",
+        "handles": ["Kerala", "whatsapp"],
+    },
+    {
+        "full_name": "Leela Fernandes",
+        "email": "leela.fernandes@wishtrip.test",
+        "handles": ["Goa", "urgent"],
+    },
     {"full_name": "Vikram Rao", "email": "vikram.rao@wishtrip.test", "handles": ["Japan", "email"]},
 ]
 
@@ -233,7 +241,9 @@ async def main() -> None:
                 await session.flush()
                 for i, item in enumerate(spec.get("items", []), start=1):
                     session.add(
-                        MenuItem(group_id=group.id, label=item["label"], url=item["url"], position=i)
+                        MenuItem(
+                            group_id=group.id, label=item["label"], url=item["url"], position=i
+                        )
                     )
                 for i, city_name in enumerate(spec.get("cities", []), start=1):
                     city = await session.scalar(

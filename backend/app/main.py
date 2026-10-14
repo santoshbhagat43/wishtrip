@@ -14,12 +14,14 @@ from app.db.session import engine
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.chat.router import router as chat_router
+from app.modules.creators.router import router as creators_router
 from app.modules.explore.router import router as explore_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.media.router import router as media_router
 from app.modules.menus.router import router as menus_router
 from app.modules.profiles.router import router as profiles_router
 from app.modules.recommendations.router import router as recommendations_router
+from app.modules.reels.router import router as reels_router
 from app.modules.search.router import router as search_router
 from app.modules.support.router import router as support_router
 from app.modules.users.router import router as users_router
@@ -46,6 +48,8 @@ for router in (
     recommendations_router,
     explore_router,
     chat_router,
+    reels_router,
+    creators_router,
     menus_router,
     support_router,
 ):

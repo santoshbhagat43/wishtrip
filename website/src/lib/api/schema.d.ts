@@ -659,6 +659,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Import */
+        post: operations["start_import_reels_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reels/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_reels_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reels/content/{shortcode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content */
+        get: operations["get_content_reels_content__shortcode__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Creators */
+        get: operations["list_creators_creators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/{creator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Creator */
+        get: operations["get_creator_creators__creator_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Creator */
+        patch: operations["update_creator_creators__creator_id__patch"];
+        trace?: never;
+    };
+    "/creators/{creator_id}/commissions/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Commission */
+        patch: operations["update_commission_creators__creator_id__commissions__entry_id__patch"];
+        trace?: never;
+    };
+    "/referrals/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Referral */
+        get: operations["read_referral_referrals__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/referrals/{code}/visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Referral Visit */
+        post: operations["referral_visit_referrals__code__visit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/menus": {
         parameters: {
             query?: never;
@@ -981,6 +1118,33 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * AttributionEvent
+         * @enum {string}
+         */
+        AttributionEvent: "visit" | "signup" | "reel_import" | "trip_planned" | "booking";
+        /** AttributionRead */
+        AttributionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            event: components["schemas"]["AttributionEvent"];
+            source: components["schemas"]["AttributionSource"];
+            /** User Email */
+            user_email?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * AttributionSource
+         * @enum {string}
+         */
+        AttributionSource: "referral_link" | "reel";
         /** AuditLogRead */
         AuditLogRead: {
             /**
@@ -1035,11 +1199,202 @@ export interface components {
             user_message: components["schemas"]["MessageRead"];
             assistant_message: components["schemas"]["MessageDebugRead"];
         };
+        /** CommissionRead */
+        CommissionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** User Email */
+            user_email?: string | null;
+            event: components["schemas"]["AttributionEvent"];
+            /** Amount Paise */
+            amount_paise: number;
+            status: components["schemas"]["CommissionStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * CommissionStatus
+         * @enum {string}
+         */
+        CommissionStatus: "pending" | "approved" | "paid" | "void";
+        /** CommissionUpdate */
+        CommissionUpdate: {
+            status: components["schemas"]["CommissionStatus"];
+        };
         /**
          * Companions
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /** CreatorDetail */
+        CreatorDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Platform */
+            platform: string;
+            /** Handle */
+            handle: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Url */
+            profile_url: string;
+            status: components["schemas"]["CreatorStatus"];
+            /** Referral Code */
+            referral_code: string;
+            /** Commission Per User Paise */
+            commission_per_user_paise: number;
+            /** Notes */
+            notes: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * @default {
+             *       "reels": 0,
+             *       "reel_imports": 0,
+             *       "link_visits": 0,
+             *       "credited_travellers": 0,
+             *       "trips_planned": 0,
+             *       "earned_paise": 0,
+             *       "paid_paise": 0
+             *     }
+             */
+            stats: components["schemas"]["CreatorStats"];
+            /** Reels */
+            reels: components["schemas"]["CreatorReel"][];
+            /** Activity */
+            activity: components["schemas"]["AttributionRead"][];
+            /** Commissions */
+            commissions: components["schemas"]["CommissionRead"][];
+        };
+        /** CreatorRead */
+        CreatorRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Platform */
+            platform: string;
+            /** Handle */
+            handle: string;
+            /** Display Name */
+            display_name: string;
+            /** Profile Url */
+            profile_url: string;
+            status: components["schemas"]["CreatorStatus"];
+            /** Referral Code */
+            referral_code: string;
+            /** Commission Per User Paise */
+            commission_per_user_paise: number;
+            /** Notes */
+            notes: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * @default {
+             *       "reels": 0,
+             *       "reel_imports": 0,
+             *       "link_visits": 0,
+             *       "credited_travellers": 0,
+             *       "trips_planned": 0,
+             *       "earned_paise": 0,
+             *       "paid_paise": 0
+             *     }
+             */
+            stats: components["schemas"]["CreatorStats"];
+        };
+        /** CreatorReel */
+        CreatorReel: {
+            /** Shortcode */
+            shortcode: string;
+            /** Url */
+            url: string;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Places */
+            places: number;
+            /** Verified Places */
+            verified_places: number;
+            /** Imports */
+            imports: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CreatorStats */
+        CreatorStats: {
+            /**
+             * Reels
+             * @default 0
+             */
+            reels: number;
+            /**
+             * Reel Imports
+             * @default 0
+             */
+            reel_imports: number;
+            /**
+             * Link Visits
+             * @default 0
+             */
+            link_visits: number;
+            /**
+             * Credited Travellers
+             * @default 0
+             */
+            credited_travellers: number;
+            /**
+             * Trips Planned
+             * @default 0
+             */
+            trips_planned: number;
+            /**
+             * Earned Paise
+             * @default 0
+             */
+            earned_paise: number;
+            /**
+             * Paid Paise
+             * @default 0
+             */
+            paid_paise: number;
+        };
+        /**
+         * CreatorStatus
+         * @enum {string}
+         */
+        CreatorStatus: "unclaimed" | "invited" | "active" | "paused";
+        /** CreatorUpdate */
+        CreatorUpdate: {
+            /** Display Name */
+            display_name?: string | null;
+            status?: components["schemas"]["CreatorStatus"] | null;
+            /** Commission Per User Paise */
+            commission_per_user_paise?: number | null;
+            /** Notes */
+            notes?: string | null;
+        };
         /** Destination */
         Destination: {
             /**
@@ -1081,10 +1436,38 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            status: components["schemas"]["LocationStatus"];
             /** Region */
             region: string;
             /** Country */
             country: string;
+            /** Country Id */
+            country_id?: string | null;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * History Words
+             * @default 0
+             */
+            history_words: number;
+            /**
+             * Hotels
+             * @default 0
+             */
+            hotels: number;
+            /**
+             * Experiences
+             * @default 0
+             */
+            experiences: number;
+            /**
+             * Food
+             * @default 0
+             */
+            food: number;
             /** Published */
             published: number;
             /** Draft */
@@ -1181,6 +1564,16 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * ImportStatus
+         * @enum {string}
+         */
+        ImportStatus: "queued" | "running" | "done" | "failed";
+        /**
+         * ImportStep
+         * @enum {string}
+         */
+        ImportStep: "queued" | "downloading" | "reading_screen" | "listening" | "finding_places" | "done";
         /** Inbox */
         Inbox: {
             counts: components["schemas"]["InboxCounts"];
@@ -1340,6 +1733,11 @@ export interface components {
              * @default
              */
             tips: string;
+            /**
+             * History
+             * @default
+             */
+            history: string;
             type: components["schemas"]["LocationType"];
             /** Parent Id */
             parent_id?: string | null;
@@ -1525,6 +1923,11 @@ export interface components {
              * @default
              */
             tips: string;
+            /**
+             * History
+             * @default
+             */
+            history: string;
             /** Parent Id */
             parent_id: string | null;
             /** External Id */
@@ -1636,6 +2039,8 @@ export interface components {
             cons?: string[] | null;
             /** Tips */
             tips?: string | null;
+            /** History */
+            history?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2237,6 +2642,159 @@ export interface components {
             /** Items */
             items: components["schemas"]["RecommendationItem"][];
         };
+        /**
+         * ReelContentDetail
+         * @description Staff view: everything we read off the reel.
+         */
+        ReelContentDetail: {
+            /** Shortcode */
+            shortcode: string;
+            /** Url */
+            url: string;
+            /** Creator Handle */
+            creator_handle: string;
+            /** Creator Name */
+            creator_name: string;
+            /** Caption */
+            caption: string;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Days Hint */
+            days_hint: number | null;
+            /** Places */
+            places: components["schemas"]["ReelPlace"][];
+            /** Tips */
+            tips: string[];
+            /** Has Voice */
+            has_voice: boolean;
+            /** Screen Lines */
+            screen_lines: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ocr Lines */
+            ocr_lines: {
+                [key: string]: unknown;
+            }[];
+            /** Transcript */
+            transcript: string;
+            /** Transcript Language */
+            transcript_language: string;
+            /** Transcript En */
+            transcript_en: string;
+        };
+        /** ReelContentRead */
+        ReelContentRead: {
+            /** Shortcode */
+            shortcode: string;
+            /** Url */
+            url: string;
+            /** Creator Handle */
+            creator_handle: string;
+            /** Creator Name */
+            creator_name: string;
+            /** Caption */
+            caption: string;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Days Hint */
+            days_hint: number | null;
+            /** Places */
+            places: components["schemas"]["ReelPlace"][];
+            /** Tips */
+            tips: string[];
+            /** Has Voice */
+            has_voice: boolean;
+            /** Screen Lines */
+            screen_lines: number;
+        };
+        /** ReelImportCreate */
+        ReelImportCreate: {
+            /** Url */
+            url: string;
+        };
+        /** ReelImportRead */
+        ReelImportRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            status: components["schemas"]["ImportStatus"];
+            step: components["schemas"]["ImportStep"];
+            /** Error */
+            error: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Chat Session Id */
+            chat_session_id: string | null;
+            /** Seed Message */
+            seed_message?: string | null;
+            content?: components["schemas"]["ReelContentRead"] | null;
+        };
+        /** ReelPlace */
+        ReelPlace: {
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Evidence */
+            evidence: string;
+            /** Source */
+            source: string;
+            /** T */
+            t?: number | null;
+            /** Verified */
+            verified: boolean;
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Name */
+            location_name?: string | null;
+            /** Location Type */
+            location_type?: string | null;
+        };
+        /**
+         * ReferralRead
+         * @description Public: what the website shows on a creator's link.
+         */
+        ReferralRead: {
+            /** Handle */
+            handle: string;
+            /** Display Name */
+            display_name: string;
+            /** Referral Code */
+            referral_code: string;
+        };
+        /** ReferralVisit */
+        ReferralVisit: {
+            /**
+             * Visitor Id
+             * @default
+             */
+            visitor_id: string;
+        };
         /** RefreshRequest */
         RefreshRequest: {
             /** Refresh Token */
@@ -2256,6 +2814,13 @@ export interface components {
              * @default
              */
             full_name: string;
+            /** Referral Code */
+            referral_code?: string | null;
+            /**
+             * Visitor Id
+             * @default
+             */
+            visitor_id: string;
         };
         /** RelationCreate */
         RelationCreate: {
@@ -4289,6 +4854,289 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatTurn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_import_reels_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReelImportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_reels_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_content_reels_content__shortcode__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shortcode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_creators_creators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorRead"][];
+                };
+            };
+        };
+    };
+    get_creator_creators__creator_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_creator_creators__creator_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_commission_creators__creator_id__commissions__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommissionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_referral_referrals__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    referral_visit_referrals__code__visit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferralVisit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralRead"];
                 };
             };
             /** @description Validation Error */

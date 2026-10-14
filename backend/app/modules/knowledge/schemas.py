@@ -61,6 +61,7 @@ class LocationFields(BaseModel):
     pros: list[str] = []
     cons: list[str] = []
     tips: str = ""
+    history: str = ""
 
 
 class LocationCreate(LocationFields):
@@ -100,6 +101,7 @@ class LocationUpdate(BaseModel):
     pros: list[str] | None = None
     cons: list[str] | None = None
     tips: str | None = None
+    history: str | None = None
 
 
 # Fields the AI and ranking rely on; missing ones make a place harder to recommend well.
@@ -266,8 +268,17 @@ class ReviewQueue(BaseModel):
 class DestinationRow(BaseModel):
     id: uuid.UUID
     name: str
+    status: LocationStatus
     region: str
     country: str
+    country_id: uuid.UUID | None = None
+    summary: str = ""
+    # Words in the city's written history (0 = not written yet).
+    history_words: int = 0
+    # Places in each section of the city page (any status).
+    hotels: int = 0
+    experiences: int = 0
+    food: int = 0
     published: int
     draft: int
     incomplete: int

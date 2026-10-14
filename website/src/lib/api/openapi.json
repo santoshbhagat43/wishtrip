@@ -2363,6 +2363,443 @@
     }
    }
   },
+  "/reels/imports": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Start Import",
+    "operationId": "start_import_reels_imports_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReelImportCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/reels/imports/{import_id}": {
+   "get": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Get Import",
+    "operationId": "get_import_reels_imports__import_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/reels/content/{shortcode}": {
+   "get": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Get Content",
+    "operationId": "get_content_reels_content__shortcode__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "shortcode",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Shortcode"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelContentDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creators": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "List Creators",
+    "operationId": "list_creators_creators_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreatorRead"
+         },
+         "type": "array",
+         "title": "Response List Creators Creators Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creators/{creator_id}": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Get Creator",
+    "operationId": "get_creator_creators__creator_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Update Creator",
+    "operationId": "update_creator_creators__creator_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creators/{creator_id}/commissions/{entry_id}": {
+   "patch": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Update Commission",
+    "operationId": "update_commission_creators__creator_id__commissions__entry_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     },
+     {
+      "name": "entry_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Entry Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CommissionUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/referrals/{code}": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Read Referral",
+    "operationId": "read_referral_referrals__code__get",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReferralRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/referrals/{code}/visit": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Referral Visit",
+    "operationId": "referral_visit_referrals__code__visit_post",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReferralVisit"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReferralRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/admin/menus": {
    "get": {
     "tags": [
@@ -3472,6 +3909,64 @@
     ],
     "title": "AssignmentLog"
    },
+   "AttributionEvent": {
+    "type": "string",
+    "enum": [
+     "visit",
+     "signup",
+     "reel_import",
+     "trip_planned",
+     "booking"
+    ],
+    "title": "AttributionEvent"
+   },
+   "AttributionRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "event": {
+      "$ref": "#/components/schemas/AttributionEvent"
+     },
+     "source": {
+      "$ref": "#/components/schemas/AttributionSource"
+     },
+     "user_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Email"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "event",
+     "source",
+     "created_at"
+    ],
+    "title": "AttributionRead"
+   },
+   "AttributionSource": {
+    "type": "string",
+    "enum": [
+     "referral_link",
+     "reel"
+    ],
+    "title": "AttributionSource"
+   },
    "AuditLogRead": {
     "properties": {
      "id": {
@@ -3600,6 +4095,72 @@
     ],
     "title": "ChatTurn"
    },
+   "CommissionRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "user_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Email"
+     },
+     "event": {
+      "$ref": "#/components/schemas/AttributionEvent"
+     },
+     "amount_paise": {
+      "type": "integer",
+      "title": "Amount Paise"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionStatus"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "event",
+     "amount_paise",
+     "status",
+     "created_at"
+    ],
+    "title": "CommissionRead"
+   },
+   "CommissionStatus": {
+    "type": "string",
+    "enum": [
+     "pending",
+     "approved",
+     "paid",
+     "void"
+    ],
+    "title": "CommissionStatus"
+   },
+   "CommissionUpdate": {
+    "properties": {
+     "status": {
+      "$ref": "#/components/schemas/CommissionStatus"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "CommissionUpdate"
+   },
    "Companions": {
     "type": "string",
     "enum": [
@@ -3610,6 +4171,336 @@
      "seniors"
     ],
     "title": "Companions"
+   },
+   "CreatorDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "platform": {
+      "type": "string",
+      "title": "Platform"
+     },
+     "handle": {
+      "type": "string",
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CreatorStatus"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "commission_per_user_paise": {
+      "type": "integer",
+      "title": "Commission Per User Paise"
+     },
+     "notes": {
+      "type": "string",
+      "title": "Notes"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/CreatorStats",
+      "default": {
+       "reels": 0,
+       "reel_imports": 0,
+       "link_visits": 0,
+       "credited_travellers": 0,
+       "trips_planned": 0,
+       "earned_paise": 0,
+       "paid_paise": 0
+      }
+     },
+     "reels": {
+      "items": {
+       "$ref": "#/components/schemas/CreatorReel"
+      },
+      "type": "array",
+      "title": "Reels"
+     },
+     "activity": {
+      "items": {
+       "$ref": "#/components/schemas/AttributionRead"
+      },
+      "type": "array",
+      "title": "Activity"
+     },
+     "commissions": {
+      "items": {
+       "$ref": "#/components/schemas/CommissionRead"
+      },
+      "type": "array",
+      "title": "Commissions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "platform",
+     "handle",
+     "display_name",
+     "profile_url",
+     "status",
+     "referral_code",
+     "commission_per_user_paise",
+     "notes",
+     "created_at",
+     "reels",
+     "activity",
+     "commissions"
+    ],
+    "title": "CreatorDetail"
+   },
+   "CreatorRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "platform": {
+      "type": "string",
+      "title": "Platform"
+     },
+     "handle": {
+      "type": "string",
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CreatorStatus"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "commission_per_user_paise": {
+      "type": "integer",
+      "title": "Commission Per User Paise"
+     },
+     "notes": {
+      "type": "string",
+      "title": "Notes"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/CreatorStats",
+      "default": {
+       "reels": 0,
+       "reel_imports": 0,
+       "link_visits": 0,
+       "credited_travellers": 0,
+       "trips_planned": 0,
+       "earned_paise": 0,
+       "paid_paise": 0
+      }
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "platform",
+     "handle",
+     "display_name",
+     "profile_url",
+     "status",
+     "referral_code",
+     "commission_per_user_paise",
+     "notes",
+     "created_at"
+    ],
+    "title": "CreatorRead"
+   },
+   "CreatorReel": {
+    "properties": {
+     "shortcode": {
+      "type": "string",
+      "title": "Shortcode"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "thumbnail_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Url"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "places": {
+      "type": "integer",
+      "title": "Places"
+     },
+     "verified_places": {
+      "type": "integer",
+      "title": "Verified Places"
+     },
+     "imports": {
+      "type": "integer",
+      "title": "Imports"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "shortcode",
+     "url",
+     "thumbnail_url",
+     "destination_name",
+     "summary",
+     "places",
+     "verified_places",
+     "imports",
+     "created_at"
+    ],
+    "title": "CreatorReel"
+   },
+   "CreatorStats": {
+    "properties": {
+     "reels": {
+      "type": "integer",
+      "title": "Reels",
+      "default": 0
+     },
+     "reel_imports": {
+      "type": "integer",
+      "title": "Reel Imports",
+      "default": 0
+     },
+     "link_visits": {
+      "type": "integer",
+      "title": "Link Visits",
+      "default": 0
+     },
+     "credited_travellers": {
+      "type": "integer",
+      "title": "Credited Travellers",
+      "default": 0
+     },
+     "trips_planned": {
+      "type": "integer",
+      "title": "Trips Planned",
+      "default": 0
+     },
+     "earned_paise": {
+      "type": "integer",
+      "title": "Earned Paise",
+      "default": 0
+     },
+     "paid_paise": {
+      "type": "integer",
+      "title": "Paid Paise",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "CreatorStats"
+   },
+   "CreatorStatus": {
+    "type": "string",
+    "enum": [
+     "unclaimed",
+     "invited",
+     "active",
+     "paused"
+    ],
+    "title": "CreatorStatus"
+   },
+   "CreatorUpdate": {
+    "properties": {
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CreatorStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "commission_per_user_paise": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 10000000.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Per User Paise"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     }
+    },
+    "type": "object",
+    "title": "CreatorUpdate"
    },
    "Destination": {
     "properties": {
@@ -3725,6 +4616,9 @@
       "type": "string",
       "title": "Name"
      },
+     "status": {
+      "$ref": "#/components/schemas/LocationStatus"
+     },
      "region": {
       "type": "string",
       "title": "Region"
@@ -3732,6 +4626,43 @@
      "country": {
       "type": "string",
       "title": "Country"
+     },
+     "country_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country Id"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary",
+      "default": ""
+     },
+     "history_words": {
+      "type": "integer",
+      "title": "History Words",
+      "default": 0
+     },
+     "hotels": {
+      "type": "integer",
+      "title": "Hotels",
+      "default": 0
+     },
+     "experiences": {
+      "type": "integer",
+      "title": "Experiences",
+      "default": 0
+     },
+     "food": {
+      "type": "integer",
+      "title": "Food",
+      "default": 0
      },
      "published": {
       "type": "integer",
@@ -3767,6 +4698,7 @@
     "required": [
      "id",
      "name",
+     "status",
      "region",
      "country",
      "published",
@@ -3958,6 +4890,28 @@
     },
     "type": "object",
     "title": "HTTPValidationError"
+   },
+   "ImportStatus": {
+    "type": "string",
+    "enum": [
+     "queued",
+     "running",
+     "done",
+     "failed"
+    ],
+    "title": "ImportStatus"
+   },
+   "ImportStep": {
+    "type": "string",
+    "enum": [
+     "queued",
+     "downloading",
+     "reading_screen",
+     "listening",
+     "finding_places",
+     "done"
+    ],
+    "title": "ImportStep"
    },
    "Inbox": {
     "properties": {
@@ -4355,6 +5309,11 @@
      "tips": {
       "type": "string",
       "title": "Tips",
+      "default": ""
+     },
+     "history": {
+      "type": "string",
+      "title": "History",
       "default": ""
      },
      "type": {
@@ -4798,6 +5757,11 @@
      "tips": {
       "type": "string",
       "title": "Tips",
+      "default": ""
+     },
+     "history": {
+      "type": "string",
+      "title": "History",
       "default": ""
      },
      "parent_id": {
@@ -5262,6 +6226,17 @@
        }
       ],
       "title": "Tips"
+     },
+     "history": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "History"
      }
     },
     "type": "object",
@@ -6996,6 +7971,443 @@
     ],
     "title": "RecommendationResponse"
    },
+   "ReelContentDetail": {
+    "properties": {
+     "shortcode": {
+      "type": "string",
+      "title": "Shortcode"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "creator_handle": {
+      "type": "string",
+      "title": "Creator Handle"
+     },
+     "creator_name": {
+      "type": "string",
+      "title": "Creator Name"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption"
+     },
+     "thumbnail_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Url"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "days_hint": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Days Hint"
+     },
+     "places": {
+      "items": {
+       "$ref": "#/components/schemas/ReelPlace"
+      },
+      "type": "array",
+      "title": "Places"
+     },
+     "tips": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tips"
+     },
+     "has_voice": {
+      "type": "boolean",
+      "title": "Has Voice"
+     },
+     "screen_lines": {
+      "type": "integer",
+      "title": "Screen Lines"
+     },
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "ocr_lines": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Ocr Lines"
+     },
+     "transcript": {
+      "type": "string",
+      "title": "Transcript"
+     },
+     "transcript_language": {
+      "type": "string",
+      "title": "Transcript Language"
+     },
+     "transcript_en": {
+      "type": "string",
+      "title": "Transcript En"
+     }
+    },
+    "type": "object",
+    "required": [
+     "shortcode",
+     "url",
+     "creator_handle",
+     "creator_name",
+     "caption",
+     "thumbnail_url",
+     "destination_name",
+     "summary",
+     "days_hint",
+     "places",
+     "tips",
+     "has_voice",
+     "screen_lines",
+     "id",
+     "created_at",
+     "ocr_lines",
+     "transcript",
+     "transcript_language",
+     "transcript_en"
+    ],
+    "title": "ReelContentDetail",
+    "description": "Staff view: everything we read off the reel."
+   },
+   "ReelContentRead": {
+    "properties": {
+     "shortcode": {
+      "type": "string",
+      "title": "Shortcode"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "creator_handle": {
+      "type": "string",
+      "title": "Creator Handle"
+     },
+     "creator_name": {
+      "type": "string",
+      "title": "Creator Name"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption"
+     },
+     "thumbnail_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Url"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "days_hint": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Days Hint"
+     },
+     "places": {
+      "items": {
+       "$ref": "#/components/schemas/ReelPlace"
+      },
+      "type": "array",
+      "title": "Places"
+     },
+     "tips": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tips"
+     },
+     "has_voice": {
+      "type": "boolean",
+      "title": "Has Voice"
+     },
+     "screen_lines": {
+      "type": "integer",
+      "title": "Screen Lines"
+     }
+    },
+    "type": "object",
+    "required": [
+     "shortcode",
+     "url",
+     "creator_handle",
+     "creator_name",
+     "caption",
+     "thumbnail_url",
+     "destination_name",
+     "summary",
+     "days_hint",
+     "places",
+     "tips",
+     "has_voice",
+     "screen_lines"
+    ],
+    "title": "ReelContentRead"
+   },
+   "ReelImportCreate": {
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 10,
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "url"
+    ],
+    "title": "ReelImportCreate"
+   },
+   "ReelImportRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ImportStatus"
+     },
+     "step": {
+      "$ref": "#/components/schemas/ImportStep"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "chat_session_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chat Session Id"
+     },
+     "seed_message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seed Message"
+     },
+     "content": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReelContentRead"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "url",
+     "status",
+     "step",
+     "error",
+     "created_at",
+     "finished_at",
+     "chat_session_id"
+    ],
+    "title": "ReelImportRead"
+   },
+   "ReelPlace": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "evidence": {
+      "type": "string",
+      "title": "Evidence"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "t": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "T"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "location_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Name"
+     },
+     "location_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Type"
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "kind",
+     "evidence",
+     "source",
+     "verified"
+    ],
+    "title": "ReelPlace"
+   },
+   "ReferralRead": {
+    "properties": {
+     "handle": {
+      "type": "string",
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "handle",
+     "display_name",
+     "referral_code"
+    ],
+    "title": "ReferralRead",
+    "description": "Public: what the website shows on a creator's link."
+   },
+   "ReferralVisit": {
+    "properties": {
+     "visitor_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Visitor Id",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "ReferralVisit"
+   },
    "RefreshRequest": {
     "properties": {
      "refresh_token": {
@@ -7024,6 +8436,24 @@
      "full_name": {
       "type": "string",
       "title": "Full Name",
+      "default": ""
+     },
+     "referral_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Referral Code"
+     },
+     "visitor_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Visitor Id",
       "default": ""
      }
     },

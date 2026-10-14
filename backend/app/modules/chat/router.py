@@ -13,6 +13,7 @@ from app.db.session import get_session
 from app.modules.chat import pipeline
 from app.modules.chat.models import ChatMessage, ChatSession, MessageRole
 from app.modules.chat.schemas import ChatTurn, MessageCreate, SessionDetail, SessionRead
+from app.modules.creators import service as creators
 from app.modules.users.models import Role, User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -114,6 +115,9 @@ async def send_message(
         debug=result.debug,
     )
     session.add(assistant)
+    if result.suggestions and pipeline.wants_plan(result.intent):
+        # A credited traveller's first plan earns their creator a commission.
+        await creators.record_trip_planned(session, user)
     await session.commit()
     for obj in (chat, user_message, assistant):
         await session.refresh(obj)

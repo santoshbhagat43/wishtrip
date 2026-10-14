@@ -1,18 +1,28 @@
 /**
  * Site gate: while the traveler site is private, every request needs a cookie that proves the
- * visitor entered SITE_USER / SITE_PASSWORD on /gate. Off when SITE_PASSWORD isn't set (local
- * development, tests).
+ * visitor entered SITE_USER / SITE_PASSWORD on /gate.
+ *
+ * Production fails closed: the gate is always on, whatever SITE_PASSWORD says, until launch day
+ * sets SITE_PUBLIC=true. A missing or weak password then locks everyone out instead of opening
+ * the site. Locally (next dev, tests) it is on only when SITE_PASSWORD is set.
  *
  * This replaces HTTP basic auth, which browsers forget whenever the app itself answers 401
  * (as /api/wt/auth/me does for anyone not signed in as a traveler) — so it asked again on
- * every refresh. SITE_PASSWORD=off turns it off.
+ * every refresh.
  */
 export const GATE_COOKIE = "wt_gate";
 export const GATE_DAYS = 30;
 
 export function gateEnabled() {
+  if (process.env.NODE_ENV === "production") return process.env.SITE_PUBLIC !== "true";
   const password = process.env.SITE_PASSWORD;
-  return !!password && password !== "off"; // "off" makes the site public
+  return !!password && password !== "off";
+}
+
+/** A password the gate accepts at all: never blank, never the old "off" switch. */
+export function usablePassword() {
+  const password = process.env.SITE_PASSWORD ?? "";
+  return password.length >= 8 && password !== "off" ? password : null;
 }
 
 /** The cookie value: an HMAC of the credentials, so the password itself is never stored. */

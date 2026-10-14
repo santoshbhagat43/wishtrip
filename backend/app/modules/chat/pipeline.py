@@ -569,6 +569,9 @@ CONVERSATION
 - If TRIP SO FAR has preferred_times, the traveler wants to be out then: give each day at
   least one stop at each of those times, using places whose "Best time of day" matches, and
   set its "time_of_day". Keep the rest of the day lighter rather than dropping those stops.
+- DESTINATION HISTORY is WishTrip's own background on a city. When it is given, open the
+  reply with one short sentence drawn from it (what makes the place special), and use it to
+  explain why a stop matters. It is context, not a list of stops.
 - When a place you include has Tips, work the useful ones into the plan (what to bring,
   when to book, when it closes) — they are WishTrip's own local knowledge.
 
@@ -616,6 +619,47 @@ def wants_plan(intent: Intent) -> bool:
     return intent.intent in PLAN_INTENTS
 
 
+HISTORY_CHARS = 900  # per city; enough for background without crowding out the places
+HISTORY_CITIES = 4
+
+
+def destination_backgrounds(destination: Location | None, items: list[ContextItem]) -> list[str]:
+    """The written history of the cities this answer is about: the destination itself when it's
+    a city, and the cities the retrieved places are in (a region spans several)."""
+    cities: dict[uuid.UUID, Location] = {}
+    if destination is not None and destination.type == LocationType.CITY:
+        cities[destination.id] = destination
+    for item in items:
+        parent = item.location.parent
+        if parent is not None and parent.type == LocationType.CITY:
+            cities.setdefault(parent.id, parent)
+    return [
+        f"{city.name}: {city.history.strip()[:HISTORY_CHARS]}"
+        for city in list(cities.values())[:HISTORY_CITIES]
+        if (city.history or "").strip()
+    ]
+
+
+def reel_context(reel: dict[str, Any]) -> str:
+    """The reel this trip started from: its places (KB-verified or not) and the creator's tips."""
+    lines = [
+        f"THIS TRIP STARTS FROM @{reel.get('handle', '')}'S REEL. {reel.get('summary', '')}",
+        "Build the plan around these places. A place marked VERIFIED is in the knowledge base: "
+        "use its knowledge-base entry. A place marked NOT VERIFIED is only what the reel says: "
+        "you may include it, but say it is from the reel and do not invent its hours, prices "
+        "or details.",
+    ]
+    for p in reel.get("places") or []:
+        mark = f"VERIFIED as {p.get('location_name')}" if p.get("verified") else "NOT VERIFIED"
+        lines.append(
+            f"- {p.get('name')} ({p.get('kind')}) — {mark}. Reel says: {p.get('evidence')}"
+        )
+    tips = reel.get("tips") or []
+    if tips:
+        lines.append("Creator's tips: " + " | ".join(tips))
+    return "\n".join(lines)
+
+
 def build_context(
     destination_name: str | None,
     destination_found: bool,
@@ -623,6 +667,7 @@ def build_context(
     relations: list[str],
     state: dict,
     intent: Intent,
+    backgrounds: list[str] | None = None,
 ) -> str:
     parts = [
         f"TRAVELER INTENT: {json.dumps(intent.to_dict())}",
@@ -630,6 +675,8 @@ def build_context(
     ]
     if destination_name and not destination_found:
         parts.append(f"NOTE: '{destination_name}' is not in WishTrip's knowledge base yet.")
+    if backgrounds:
+        parts.append("DESTINATION HISTORY (WishTrip's own notes):\n" + "\n\n".join(backgrounds))
     if items:
         parts.append("KNOWLEDGE BASE:\n" + "\n\n".join(location_facts(i) for i in items))
         if relations:
@@ -997,8 +1044,16 @@ async def run(
     relations = await _relations_text(session, items)
     destination_name = state.get("destination")
     context = build_context(
-        destination_name, destination is not None, items, relations, state, intent
+        destination_name,
+        destination is not None,
+        items,
+        relations,
+        state,
+        intent,
+        destination_backgrounds(destination, items),
     )
+    if reel := state.get("reel"):
+        context += "\n\n" + reel_context(reel)
 
     model = "knowledge-base-fallback"
     answer: dict[str, Any] | None = None

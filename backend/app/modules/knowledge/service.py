@@ -1,6 +1,7 @@
 import re
 import unicodedata
 import uuid
+from collections import Counter
 
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy import update as sa_update
@@ -478,6 +479,11 @@ async def review_queue(
     )
 
 
+# The sections of a city in the dashboard: everything that isn't a hotel or a place to eat is
+# an experience (attractions, experiences, activities, routes).
+SECTION_OF = {LocationType.HOTEL: "hotels", LocationType.RESTAURANT: "food"}
+
+
 async def destinations(session: AsyncSession) -> list[DestinationRow]:
     """Cities with what the engine actually holds for them, busiest first."""
     cities = list(
@@ -507,12 +513,20 @@ async def destinations(session: AsyncSession) -> list[DestinationRow]:
     for city in cities:
         kids = [k for k in children if k.parent_id == city.id]
         published = [k for k in kids if k.status == LocationStatus.PUBLISHED]
+        kinds = Counter(SECTION_OF.get(k.type, "experiences") for k in kids)
         rows.append(
             DestinationRow(
                 id=city.id,
                 name=city.name,
+                status=city.status,
                 region=city.region,
                 country=city.parent.name if city.parent else "",
+                country_id=city.parent_id,
+                summary=city.summary,
+                history_words=len((city.history or "").split()),
+                hotels=kinds["hotels"],
+                experiences=kinds["experiences"],
+                food=kinds["food"],
                 published=len(published),
                 draft=sum(1 for k in kids if k.status == LocationStatus.DRAFT),
                 incomplete=sum(1 for k in published if completeness(k)[1]),
@@ -543,12 +557,9 @@ async def system_status(session: AsyncSession) -> SystemStatus:
         "relations": await session.scalar(select(func.count()).select_from(LocationRelation)) or 0,
         "tags": await session.scalar(select(func.count()).select_from(Tag)) or 0,
         "media": await session.scalar(select(func.count()).select_from(Media)) or 0,
-        "travelers": await session.scalar(
-            select(func.count()).where(User.role == Role.TRAVELER)
-        )
+        "travelers": await session.scalar(select(func.count()).where(User.role == Role.TRAVELER))
         or 0,
-        "staff": await session.scalar(select(func.count()).where(User.role != Role.TRAVELER))
-        or 0,
+        "staff": await session.scalar(select(func.count()).where(User.role != Role.TRAVELER)) or 0,
         "chat_sessions": await session.scalar(select(func.count()).select_from(ChatSession)) or 0,
         "chat_messages": await session.scalar(select(func.count()).select_from(ChatMessage)) or 0,
     }

@@ -62,6 +62,21 @@ services:
       backend:
         condition: service_started
 
+  # Reel imports: Instagram download, ffmpeg and OCR. One at a time, on their own queue.
+  media-worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment: *backend-env
+    command: celery -A app.workers.celery_app worker -Q media --loglevel=info --concurrency=1 -n media@%h
+    volumes:
+      - media:/data/media
+      # The Instagram login session: private, never under the public media folder.
+      - instaloader:/data/instaloader
+    depends_on:
+      backend:
+        condition: service_started
+
   dashboard:
     build:
       context: ./dashboard
@@ -79,9 +94,10 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8000
-      # Private preview: /gate asks for these; leave SITE_PASSWORD empty to make the site public.
+      # Private preview: /gate asks for these. The gate stays on until SITE_PUBLIC=true (launch).
       SITE_USER: ${SITE_USER}
       SITE_PASSWORD: ${SITE_PASSWORD}
+      SITE_PUBLIC: ${SITE_PUBLIC:-false}
     depends_on:
       - backend
 
@@ -108,5 +124,6 @@ services:
 volumes:
   pgdata:
   media:
+  instaloader:
   caddy_data:
   caddy_config:

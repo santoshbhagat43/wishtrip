@@ -3,9 +3,11 @@ import { expect, signUp, test } from "./fixtures";
 test.describe("Public site", () => {
   test("landing and explore work signed out, private pages ask to sign in", async ({ page, request }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Make it yours");
-    await expect(page.getByText("Where we can take you")).toBeVisible();
-    await page.getByRole("link", { name: "Explore destinations" }).first().click();
+    // The B4 home: scroll story, then the sections (desktop stage at this viewport).
+    await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true })).toContainText("scattered");
+    await expect(page.getByRole("heading", { name: "One chat. Your whole trip." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Start with a destination" })).toBeVisible();
+    await page.getByRole("link", { name: "All destinations →" }).click();
     await expect(page.getByRole("heading", { name: "Explore destinations" })).toBeVisible();
     await page.getByRole("link", { name: /Munnar tea hills/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Munnar tea hills" })).toBeVisible();

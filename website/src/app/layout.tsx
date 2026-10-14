@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans, Spectral } from "next/font/google";
 
 import { Providers } from "@/components/providers";
-import { SiteHeader } from "@/components/site-header";
 
 import "./globals.css";
 
@@ -15,17 +14,12 @@ export const metadata: Metadata = {
   description: "See it. Make it yours. Plan trips built around you, from knowledge we've checked.",
 };
 
+/** Shell only: each route group brings its own chrome — (site) the app pages, (b4) the B4 design. */
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${display.variable} ${ui.variable} ${mono.variable} font-sans antialiased`}>
-        <Providers>
-          <SiteHeader />
-          <main className="min-h-[calc(100dvh-8rem)]">{children}</main>
-          <footer className="border-t border-border px-4 py-6 text-center text-sm text-muted">
-            WishTrip · Experiences, made for you. <span className="mx-1">·</span> MVP preview — prices and booking aren&apos;t live yet.
-          </footer>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

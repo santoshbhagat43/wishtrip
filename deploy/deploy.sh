@@ -54,8 +54,9 @@ fi
 
 # Website preview login (/gate): generate a password once.
 grep -q "^SITE_USER=" .env.production || printf '\nSITE_USER=wishtrip\nSITE_PASSWORD=\n' >> .env.production
-if grep -q "^SITE_PASSWORD=$" .env.production; then
-  sed -i "s|^SITE_PASSWORD=$|SITE_PASSWORD=$(secret 16)|" .env.production
+# The gate fails closed: a blank or "off" password locks everyone out, so replace it.
+if grep -qE "^SITE_PASSWORD=(off)?$" .env.production; then
+  sed -i -E "s|^SITE_PASSWORD=(off)?$|SITE_PASSWORD=$(secret 16)|" .env.production
   echo "Website login: user $(grep '^SITE_USER=' .env.production | cut -d= -f2-), password in .env.production (SITE_PASSWORD)."
 fi
 "${COMPOSE[@]}" up -d --build --remove-orphans

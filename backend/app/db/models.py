@@ -3,10 +3,12 @@
 from app.db.base import Base
 from app.modules.audit.models import AuditLog
 from app.modules.chat.models import ChatMessage, ChatSession
+from app.modules.creators.models import CommissionEntry, Creator, CreatorAttribution
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
 from app.modules.media.models import Media
 from app.modules.menus.models import MenuGroup, MenuItem
 from app.modules.profiles.models import ProfileEvent, TravelerProfile
+from app.modules.reels.models import CreatorContent, ReelImport
 from app.modules.support.models import (
     AgentRouting,
     SupportMessage,
@@ -22,12 +24,17 @@ __all__ = [
     "Base",
     "ChatMessage",
     "ChatSession",
+    "CommissionEntry",
+    "Creator",
+    "CreatorAttribution",
+    "CreatorContent",
     "Location",
     "LocationRelation",
     "Media",
     "MenuGroup",
     "MenuItem",
     "ProfileEvent",
+    "ReelImport",
     "SupportMessage",
     "SupportRouting",
     "SupportTicket",
