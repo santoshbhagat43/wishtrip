@@ -30,6 +30,9 @@ class AIOrchestrator:
     def model_for(self, task: str) -> str:
         return self.client.model_for(task)
 
+    def supports(self, task: str) -> bool:
+        return self.client.supports(task)
+
     async def embed(self, texts: list[str], kind: EmbedKind = "document") -> list[list[float]]:
         return await self.embedder.embed(texts, kind)
 
@@ -38,7 +41,7 @@ class AIOrchestrator:
             self._query_cache[text] = (await self.embed([text], "query"))[0]
         return self._query_cache[text]
 
-    async def complete(self, task: str, messages: list[dict[str, str]], **kwargs: Any) -> str:
+    async def complete(self, task: str, messages: list[dict[str, Any]], **kwargs: Any) -> str:
         return await self.client.chat(task, messages, **kwargs)
 
     async def complete_json(

@@ -85,12 +85,10 @@ test.describe("Demo @demo", () => {
     await expect(page.getByText(/Chat model/)).toBeVisible();
 
     // country → city → place, the shape the schema enforces.
-    await page.goto("/hierarchy");
-    const india = page.getByRole("link", { name: "India", exact: true });
-    await india.locator("xpath=..").getByRole("button", { name: "Expand" }).click();
-    const munnar = page.getByRole("link", { name: "Munnar tea hills" });
-    await expect(munnar).toBeVisible();
-    await munnar.locator("xpath=..").getByRole("button", { name: "Expand" }).click();
+    await page.goto("/destinations");
+    await page.getByRole("link", { name: /^India/ }).click();
+    await page.getByRole("link", { name: /^Munnar tea hills/ }).click();
+    await page.getByRole("tab", { name: /Experiences/ }).click();
     await expect(page.getByRole("link", { name: /tea gardens/i })).toBeVisible();
 
     expect(apiLog.filter((c) => c.status >= 500), "no server errors").toEqual([]);
@@ -104,10 +102,11 @@ test.describe("Demo @demo", () => {
     await expect(page.getByText("Automatic checks")).toBeVisible();
     await expect(page.getByText("The editorial backlog")).toBeVisible();
 
-    // Destinations: real cities with real demand.
+    // Destinations: countries first, then their cities with what each holds.
     await page.goto("/destinations");
     await expect(page.getByRole("heading", { level: 1, name: "Destinations" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Goa" })).toBeVisible();
+    await page.getByRole("link", { name: /^India/ }).click();
+    await expect(page.getByRole("link", { name: /^Goa/ })).toBeVisible();
 
     // Menus: the traveller site's navigation, editable here.
     await page.goto("/menus");

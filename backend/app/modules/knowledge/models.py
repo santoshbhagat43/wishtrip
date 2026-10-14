@@ -152,6 +152,9 @@ class Location(UUIDPrimaryKey, Timestamps, Base):
     pros: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     cons: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     tips: Mapped[str] = mapped_column(Text, default="")
+    # Countries and cities: a written history (background, culture, what it's known for).
+    # Given to the planner as background for trips there.
+    history: Mapped[str] = mapped_column(Text, default="", server_default="")
 
     # Where a record came from. Imports upsert on (source, external_id).
     source: Mapped[str] = mapped_column(String(64), default="manual")

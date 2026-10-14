@@ -11,6 +11,9 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     full_name: str = ""
+    # A creator's referral code (from their /c/<code> link) and the visitor id that opened it.
+    referral_code: str | None = Field(default=None, max_length=64)
+    visitor_id: str = Field(default="", max_length=64)
 
 
 class RefreshRequest(BaseModel):

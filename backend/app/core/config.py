@@ -58,6 +58,27 @@ class Settings(BaseSettings):
     # Run embedding jobs in-process instead of through Celery (tests, simple local runs).
     embeddings_inline: bool = False
 
+    # Reel imports: download (instaloader) → frames + OCR → transcript (Gemini) → places.
+    # Run them in-process instead of on the Celery "media" queue (tests, simple local runs).
+    reels_inline: bool = False
+    # Audio transcription goes through OpenRouter; Gemini accepts mp3 input.
+    reel_transcribe_model: str = "google/gemini-2.5-flash"
+    reel_max_seconds: int = 180
+    reel_max_frames: int = 60
+    reel_download_timeout_seconds: int = 120
+    reel_imports_per_hour: int = 10
+    # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
+    # outside MEDIA_ROOT: everything there is served publicly.
+    instagram_username: str | None = None
+    instagram_session_file: str | None = None
+
+    # Creator affiliates: a traveller is credited to the first creator who brought them in,
+    # through a referral link at sign-up or a creator's reel within this many days of joining.
+    referral_window_days: int = 30
+    # What a creator earns per credited traveller who plans a trip. Staff set it per creator;
+    # 0 = nothing agreed yet.
+    creator_commission_per_user_paise: int = 0
+
     @property
     def ai_enabled(self) -> bool:
         """An OpenRouter key is configured (online embeddings/LLM available)."""

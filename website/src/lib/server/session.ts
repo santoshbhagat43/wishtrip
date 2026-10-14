@@ -49,6 +49,8 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["GET", /^chat\/sessions\/[0-9a-f-]{36}$/],
   ["DELETE", /^chat\/sessions\/[0-9a-f-]{36}$/],
   ["POST", /^chat\/sessions\/[0-9a-f-]{36}\/messages$/],
+  ["POST", /^reels\/imports$/],
+  ["GET", /^reels\/imports\/[0-9a-f-]{36}$/],
   ["GET", /^explore\/(destinations|tags|menus)$/],
   ["GET", /^explore\/(destinations|places)\/[0-9a-f-]{36}$/],
 ];

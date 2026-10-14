@@ -16,7 +16,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-Task = str  # "intent" | "planner"
+Task = str  # "intent" | "planner" | "transcribe" (audio in, OpenRouter only)
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,11 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
             "openrouter",
             settings.openrouter_base_url.rstrip("/"),
             settings.openrouter_api_key,
-            {"intent": settings.intent_model, "planner": settings.chat_model},
+            {
+                "intent": settings.intent_model,
+                "planner": settings.chat_model,
+                "transcribe": settings.reel_transcribe_model,
+            },
             reasoning,
         )
     if provider == "ollama":
@@ -94,7 +98,12 @@ class LLMClient:
     def model_for(self, task: Task) -> str:
         if not self.config:
             raise AIUnavailableError("No LLM provider configured")
+        if task not in self.config.models:
+            raise AIUnavailableError(f"{self.provider} has no model for {task!r}")
         return self.config.models[task]
+
+    def supports(self, task: Task) -> bool:
+        return self.config is not None and task in self.config.models
 
     def _headers(self) -> dict[str, str]:
         headers = {"content-type": "application/json"}
@@ -107,7 +116,7 @@ class LLMClient:
     async def chat(
         self,
         task: Task,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         *,
         temperature: float = 0.4,
         json_mode: bool = False,

@@ -1,112 +1,86 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight, Globe2, Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
-import { Table, Td, Th } from "@/components/ui/table";
+import { Badge, STATUS_TONE } from "@/components/ui/badge";
+import { ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
 import { api, unwrap } from "@/lib/api/client";
-import { relativeTime } from "@/lib/format";
 
-/** A thin bar for "how much of this city is ready", drawn from counts we actually hold. */
-function Readiness({ ready, total }: { ready: number; total: number }) {
-  const pct = total === 0 ? 0 : Math.round((ready / total) * 100);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="tabular-nums text-xs text-muted">{pct}%</span>
-    </div>
-  );
-}
-
+/** Step 1 of the knowledge base: pick a country. */
 export default function DestinationsPage() {
-  const destinations = useQuery({
-    queryKey: ["destinations"],
-    queryFn: async () => unwrap(await api.GET("/admin/destinations")),
+  const countries = useQuery({
+    queryKey: ["countries"],
+    queryFn: async () => unwrap(await api.GET("/admin/locations", { params: { query: { type: ["country"], page_size: 200 } } })),
   });
+  const cities = useQuery({ queryKey: ["destinations"], queryFn: async () => unwrap(await api.GET("/admin/destinations")) });
 
-  if (destinations.isLoading) return <Spinner />;
-  if (destinations.error) return <ErrorNote error={destinations.error} />;
+  if (countries.isLoading || cities.isLoading) return <Spinner />;
+  if (countries.error || cities.error) return <ErrorNote error={countries.error ?? cities.error} />;
 
-  const rows = destinations.data!;
-  const totals = rows.reduce(
-    (acc, r) => ({ published: acc.published + r.published, draft: acc.draft + r.draft, trips: acc.trips + r.trips }),
-    { published: 0, draft: 0, trips: 0 },
-  );
-  const byCountry = [...new Set(rows.map((r) => r.country).filter(Boolean))];
-  // Region demand is shared by a region's cities, so add each region once.
-  const regionTrips = [...new Map(rows.map((r) => [r.region, r.region_trips])).values()].reduce((a, b) => a + b, 0);
+  const rows = cities.data!;
+  const list = [...countries.data!.items].sort((a, b) => a.name.localeCompare(b.name));
+  const places = rows.reduce((n, r) => n + r.hotels + r.experiences + r.food, 0);
 
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        breadcrumb="Content"
+        breadcrumb="Knowledge base"
         title="Destinations"
-        description="Every city the engine can plan from, what it holds, and how often travellers ask for it."
+        description="Start with a country, then a city. Each city holds its history, hotels, experiences and places to eat."
         action={
-          <HeaderStats
-            items={[
-              { value: rows.length, label: "cities" },
-              { value: byCountry.length, label: "countries" },
-              { value: totals.published, label: "published places" },
-              { value: totals.trips + regionTrips, label: "trips planned" },
-            ]}
-          />
+          <div className="flex flex-wrap items-center gap-4">
+            <HeaderStats
+              items={[
+                { value: list.length, label: "countries" },
+                { value: rows.length, label: "cities" },
+                { value: places, label: "places" },
+              ]}
+            />
+            <Link
+              href="/locations/new?type=country"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-sm font-semibold hover:bg-surface-2"
+            >
+              <Plus className="size-4" /> Add country
+            </Link>
+          </div>
         }
       />
 
-      <Card>
-        <CardHeader
-          title="By demand"
-          description="Trips counted from real chat sessions. A region like Kerala is counted once for the region, not against each of its cities."
-        />
-        <Table>
-          <thead>
-            <tr>
-              <Th>Destination</Th>
-              <Th className="text-right">Published</Th>
-              <Th className="text-right">Drafts</Th>
-              <Th>Indexed</Th>
-              <Th className="text-right">Trips</Th>
-              <Th className="text-right">Updated</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-surface-2">
-                <Td>
-                  <Link href={`/locations?parent_id=${row.id}`} className="font-medium text-text hover:text-brand">
-                    {row.name}
-                  </Link>
-                  <p className="text-xs text-muted">
-                    {[...new Set([row.region, row.country])].filter((part) => part && part !== row.name).join(" · ") ||
-                      "No region set"}
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {list.map((country) => {
+          const own = rows.filter((r) => r.country_id === country.id);
+          const placeCount = own.reduce((n, r) => n + r.hotels + r.experiences + r.food, 0);
+          const trips = own.reduce((n, r) => n + r.trips, 0);
+          const withHistory = own.filter((r) => r.history_words > 0).length;
+          return (
+            <li key={country.id}>
+              <Link
+                href={`/destinations/${country.id}`}
+                className="group flex h-full flex-col gap-3 rounded-[22px] border border-border bg-surface p-5 shadow-card transition-colors hover:border-brand"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-brand-soft text-brand">
+                    <Globe2 className="size-5" />
+                  </span>
+                  {country.status !== "published" && <Badge tone={STATUS_TONE[country.status]}>{country.status}</Badge>}
+                </div>
+                <div>
+                  <p className="font-display text-xl">{country.name}</p>
+                  <p className="mt-0.5 text-sm text-muted">
+                    {own.length} {own.length === 1 ? "city" : "cities"} · {placeCount} places{trips ? ` · ${trips} trips planned` : ""}
                   </p>
-                </Td>
-                <Td className="text-right tabular-nums">{row.published}</Td>
-                <Td className="text-right tabular-nums">
-                  {row.draft > 0 ? <span className="text-warn">{row.draft}</span> : <span className="text-muted">—</span>}
-                </Td>
-                <Td>
-                  <Readiness ready={row.embedded} total={row.published} />
-                </Td>
-                <Td className="text-right">
-                  <span className="tabular-nums">{row.trips}</span>
-                  {row.region_trips > 0 && (
-                    <Badge tone="brand" className="ml-2">
-                      +{row.region_trips} via {row.region}
-                    </Badge>
-                  )}
-                </Td>
-                <Td className="text-right text-xs text-muted">{relativeTime(row.updated_at)}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
+                </div>
+                <p className="mt-auto flex items-center justify-between text-xs text-muted">
+                  <span>{own.length ? `History written for ${withHistory} of ${own.length}` : "No cities yet"}</span>
+                  <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                </p>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

@@ -22,7 +22,7 @@ export function emptyLocation(type: LocationType = "attraction"): LocationFormVa
     latitude: null, longitude: null, address: "", region: "", aliases: [], highlight: false,
     duration_minutes: null, best_times: [], seasons: [], opening_hours: {}, cost_level: null,
     price_note: "", energy_level: null, difficulty: null, family_friendly: null,
-    couple_friendly: null, accessible: null, pros: [], cons: [], tips: "",
+    couple_friendly: null, accessible: null, pros: [], cons: [], tips: "", history: "",
   };
 }
 
@@ -38,6 +38,7 @@ export function fromLocation(loc: Location): LocationFormValue {
     energy_level: loc.energy_level ?? null, difficulty: loc.difficulty ?? null,
     family_friendly: loc.family_friendly ?? null, couple_friendly: loc.couple_friendly ?? null,
     accessible: loc.accessible ?? null, pros: loc.pros ?? [], cons: loc.cons ?? [], tips: loc.tips ?? "",
+    history: loc.history ?? "",
   };
 }
 

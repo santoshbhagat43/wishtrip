@@ -305,3 +305,25 @@ def test_follow_ups_carry_ready_answers_and_accept_bare_questions():
         .question
         == "Old question?"
     )
+
+
+async def test_city_history_reaches_the_planner_and_destinations_count_sections(
+    client, editor, traveler, london
+):
+    h = auth(editor)
+    city = london["city"]
+    history = "Founded by the Romans as Londinium; the Thames shaped its trade for 2,000 years."
+    r = await client.patch(f"/admin/locations/{city['id']}", json={"history": history}, headers=h)
+    assert r.status_code == 200 and r.json()["history"] == history
+
+    # The planner is given the city's written history as background.
+    _, turn = await _chat(client, auth(traveler), "Plan 2 days in London")
+    context = turn["assistant_message"]["debug"]["context"]
+    assert "DESTINATION HISTORY" in context and "Londinium" in context
+
+    # The dashboard's city cards count each section and know the history is written.
+    rows = (await client.get("/admin/destinations", headers=h)).json()
+    row = next(r for r in rows if r["id"] == city["id"])
+    assert row["history_words"] == len(history.split())
+    assert (row["hotels"], row["experiences"], row["food"]) == (0, 3, 0)
+    assert row["country_id"] == london["uk"]["id"]

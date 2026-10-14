@@ -40,8 +40,10 @@ function useWide() {
 
 function Planner() {
   const queryClient = useQueryClient();
-  const prompt = useSearchParams().get("prompt");
-  const [selected, setSelected] = useState<string | null | undefined>(prompt ? null : undefined);
+  const search = useSearchParams();
+  const prompt = search.get("prompt");
+  // ?session= opens a chat that was started elsewhere (a pasted reel); ?prompt= fills the box.
+  const [selected, setSelected] = useState<string | null | undefined>(search.get("session") ?? (prompt ? null : undefined));
   const [draft, setDraft] = useState(prompt ?? "");
   // The question the traveler is typing an answer to ("Type my own…"), sent along with it.
   const [replyTo, setReplyTo] = useState<string | null>(null);

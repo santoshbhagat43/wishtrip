@@ -40,5 +40,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|svg|ico|woff2?)$).*)"],
+  // Skipped: Next's build files, the image optimizer (it fetches files without the visitor's
+  // cookie) and the site's own design images in public/. /media — place photos and reel covers
+  // from the backend — always goes through the gate.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|(?!media/)[^?]*\\.(?:png|jpg|webp|mp4|svg|ico|woff2?)$).*)"],
 };

@@ -84,11 +84,11 @@ function LocationEditor({ loc }: { loc: Location }) {
   return (
     <div className="mx-auto max-w-5xl">
       <nav className="mb-3 flex flex-wrap items-center gap-1 text-sm text-muted">
-        <Link href="/locations" className="hover:text-text">Locations</Link>
+        <Link href="/destinations" className="hover:text-text">Destinations</Link>
         {loc.ancestors.map((a) => (
           <span key={a.id} className="flex items-center gap-1">
             <ChevronRight className="size-3.5" />
-            <Link href={`/locations/${a.id}`} className="hover:text-text">{a.name}</Link>
+            <Link href={`/destinations/${a.id}`} className="hover:text-text">{a.name}</Link>
           </span>
         ))}
       </nav>
@@ -140,7 +140,9 @@ function LocationEditor({ loc }: { loc: Location }) {
                 : `No locations inside ${loc.name} yet.`}
             </span>
             {loc.children_count > 0 && (
-              <Link className="font-medium text-brand" href={`/locations?parent_id=${loc.id}`}>View them</Link>
+              <Link className="font-medium text-brand" href={`/destinations/${loc.id}`}>
+              {loc.type === "city" ? "Open the city page" : "View its cities"}
+            </Link>
             )}
             <Link className="flex items-center gap-1 font-medium text-brand" href={`/locations/new?parent_id=${loc.id}&type=${loc.type === "country" ? "city" : "attraction"}`}>
               <Plus className="size-3.5" /> Add one

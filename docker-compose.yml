@@ -68,6 +68,23 @@ services:
       backend:
         condition: service_started
 
+  # Reel imports: Instagram download, ffmpeg and OCR. One at a time, on their own queue.
+  media-worker:
+    build: ./backend
+    env_file: .env
+    environment: *backend-env
+    command: celery -A app.workers.celery_app worker -Q media --loglevel=info --concurrency=1 -n media@%h
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend/app:/app/app
+      - media:/data/media
+      # The Instagram login session: private, never under the public media folder.
+      - instaloader:/data/instaloader
+    depends_on:
+      backend:
+        condition: service_started
+
   dashboard:
     build: ./dashboard
     environment:
@@ -99,3 +116,4 @@ services:
 volumes:
   pgdata:
   media:
+  instaloader:

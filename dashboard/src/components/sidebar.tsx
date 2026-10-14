@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   Activity,
-  FolderTree,
   LifeBuoy,
+  Clapperboard,
   Link2,
   Globe2,
   LayoutDashboard,
@@ -39,8 +39,7 @@ const NAV: { section: string; items: Item[] }[] = [
   { section: "Knowledge", items: [
     { href: "/", label: "Overview", icon: LayoutDashboard },
     { href: "/destinations", label: "Destinations", icon: Globe2 },
-    { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/hierarchy", label: "Hierarchy", icon: FolderTree },
+    { href: "/locations", label: "All locations", icon: MapPin },
     { href: "/tags", label: "Tags", icon: Tags },
     { href: "/review", label: "Review queue", icon: ListChecks, badge: "review" },
     { href: "/menus", label: "Menus", icon: Link2 },
@@ -49,6 +48,7 @@ const NAV: { section: string; items: Item[] }[] = [
     { href: "/chat", label: "Trip chat", icon: MessageSquare },
     { href: "/search", label: "Semantic search", icon: Search },
     { href: "/travelers", label: "Travelers", icon: Users },
+    { href: "/creators", label: "Creators", icon: Clapperboard },
     { href: "/support", label: "Support inbox", icon: LifeBuoy, badge: "support" },
   ]},
   { section: "Admin", items: [

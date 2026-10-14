@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { GATE_COOKIE, GATE_DAYS, gateToken, safeNext, sameText } from "@/lib/server/gate";
+import { GATE_COOKIE, GATE_DAYS, gateToken, safeNext, sameText, usablePassword } from "@/lib/server/gate";
 
 /** The /gate form posts here; a correct username and password set the gate cookie. */
 export async function POST(request: NextRequest) {
@@ -9,8 +9,8 @@ export async function POST(request: NextRequest) {
   const password = String(form.get("password") ?? "");
   const next = safeNext(String(form.get("next") ?? "/"));
 
-  const ok =
-    sameText(user, process.env.SITE_USER ?? "") && sameText(password, process.env.SITE_PASSWORD ?? "");
+  const expected = usablePassword(); // no usable password configured → nobody gets in
+  const ok = expected !== null && sameText(user, process.env.SITE_USER ?? "") && sameText(password, expected);
   if (!ok) {
     return seeOther(`/gate?error=1&next=${encodeURIComponent(next)}`);
   }
