@@ -44,7 +44,7 @@ const NAV: { section: string; items: Item[] }[] = [
     { href: "/", label: "Overview", icon: LayoutDashboard, roles: ["admin", "editor"] },
     { href: "/destinations", label: "Destinations", icon: Globe2, roles: ["admin", "editor"] },
     { href: "/locations", label: "Locations", icon: MapPin, roles: ["admin", "editor"] },
-    { href: "/hierarchy", label: "Hierarchy", icon: FolderTree, roles: ["admin", "editor"] },
+    // { href: "/hierarchy", label: "Hierarchy", icon: FolderTree, roles: ["admin", "editor"] },
     { href: "/tags", label: "Tags", icon: Tags, roles: ["admin", "editor"] },
     { href: "/review", label: "Review queue", icon: ListChecks, badge: "review", roles: ["admin", "editor"] },
     { href: "/menus", label: "Menus", icon: Link2, roles: ["admin", "editor"] },
