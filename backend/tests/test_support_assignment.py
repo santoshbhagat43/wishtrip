@@ -126,28 +126,56 @@ async def test_support_cannot_assign_to_other_or_take_over(client, admin, suppor
         json={"assignee_id": yash_id},
     )
 
-    # Cannot take over Yash's ticket.
+    # Cannot take over Yash's ticket — it is not in this agent's inbox.
     denied_takeover = await client.patch(
         f"/admin/support/tickets/{ticket_id}",
         headers=auth(support),
         json={"assignee_id": str(support.id)},
     )
-    assert denied_takeover.status_code == 403
+    assert denied_takeover.status_code == 404
     still = await client.get(f"/admin/support/tickets/{ticket_id}", headers=ah)
     assert still.json()["assignee"]["id"] == yash_id
 
 
-async def test_support_inbox_shows_all_assignees(client, admin, support, traveler):
-    ticket_id = await _open_unassigned(client, admin, traveler, "Visible to all agents")
+async def test_support_inbox_hides_other_agents_tickets(client, admin, support, traveler):
+    theirs = await _open_unassigned(client, admin, traveler, "Assigned to admin")
     await client.patch(
-        f"/admin/support/tickets/{ticket_id}",
+        f"/admin/support/tickets/{theirs}",
         headers=auth(admin),
         json={"assignee_id": str(admin.id)},
     )
-    inbox = await client.get(
+    mine = await _open_unassigned(client, admin, traveler, "Assigned to me")
+    await client.patch(
+        f"/admin/support/tickets/{mine}",
+        headers=auth(admin),
+        json={"assignee_id": str(support.id)},
+    )
+    free = await _open_unassigned(client, admin, traveler, "Unassigned for anyone")
+
+    support_inbox = await client.get(
         "/admin/support/inbox",
         headers=auth(support),
         params={"view": "open"},
     )
-    assert inbox.status_code == 200
-    assert any(t["id"] == ticket_id for t in inbox.json()["items"])
+    assert support_inbox.status_code == 200
+    ids = {t["id"] for t in support_inbox.json()["items"]}
+    assert theirs not in ids
+    assert mine in ids
+    assert free in ids
+    assert support_inbox.json()["counts"]["open"] >= 2
+
+    admin_inbox = await client.get(
+        "/admin/support/inbox",
+        headers=auth(admin),
+        params={"view": "open"},
+    )
+    admin_ids = {t["id"] for t in admin_inbox.json()["items"]}
+    assert theirs in admin_ids
+    assert mine in admin_ids
+    assert free in admin_ids
+
+    hidden = await client.get(
+        f"/admin/support/tickets/{theirs}",
+        headers=auth(support),
+    )
+    assert hidden.status_code == 404

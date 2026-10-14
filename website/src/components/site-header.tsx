@@ -35,8 +35,15 @@ export function SiteHeader() {
     menu.items.map((item) => ({ href: item.url, label: item.label })),
   );
   const all = configured.length > 0 ? configured : FALLBACK;
+  const help = { href: "/help", label: "Help" };
+  const savedAt = all.findIndex((l) => l.href === "/saved");
+  const withHelp = all.some((l) => l.href === "/help")
+    ? all
+    : savedAt === -1
+      ? [...all, help]
+      : [...all.slice(0, savedAt + 1), help, ...all.slice(savedAt + 1)];
   // Signed out, only the pages that work without an account.
-  const links = me ? all : all.filter((l) => l.href === "/explore" || l.href === "/");
+  const links = me ? withHelp : withHelp.filter((l) => l.href === "/explore" || l.href === "/");
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">

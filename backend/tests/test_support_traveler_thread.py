@@ -88,3 +88,33 @@ async def test_traveler_follow_up_reopens_ticket(client, support, traveler):
     assert follow.json()["status"] == "open"
     bodies = [m["body"] for m in follow.json()["messages"]]
     assert "Thanks — can you also move the hotel?" in bodies
+
+
+async def test_traveler_ticket_links_own_trip(client, traveler):
+    th = auth(traveler)
+    chat = (await client.post("/chat/sessions", headers=th)).json()
+    opened = await client.post(
+        "/support/tickets",
+        headers=th,
+        json={
+            "subject": "Question about this trip",
+            "body": "Can we start temples earlier?",
+            "session_id": chat["id"],
+        },
+    )
+    assert opened.status_code == 201, opened.text
+    assert opened.json()["trip_title"] == chat["title"]
+
+
+async def test_traveler_cannot_link_someone_elses_trip(client, traveler, admin):
+    other_chat = (await client.post("/chat/sessions", headers=auth(admin))).json()
+    denied = await client.post(
+        "/support/tickets",
+        headers=auth(traveler),
+        json={
+            "subject": "Steal this trip",
+            "body": "Should not attach",
+            "session_id": other_chat["id"],
+        },
+    )
+    assert denied.status_code == 400

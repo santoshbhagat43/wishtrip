@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { SupportTabs } from "@/components/support-tabs";
+import { Button } from "@/components/ui/button";
 import { Card, ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { relativeTime, titleCase } from "@/lib/format";
@@ -269,17 +270,14 @@ export default function SupportInboxPage() {
                     Assigned to {current.assignee.full_name || current.assignee.email}
                   </span>
                 ) : (
-                  <select
-                    aria-label="Assignee"
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value && me?.id) change.mutate({ assignee_id: me.id });
-                    }}
-                    className="h-9 rounded-full border border-border bg-surface px-3 text-[13px]"
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!me?.id || change.isPending}
+                    onClick={() => me?.id && change.mutate({ assignee_id: me.id })}
                   >
-                    <option value="">Unassigned</option>
-                    {me && <option value={me.id}>{me.full_name || me.email} (claim)</option>}
-                  </select>
+                    Take ticket
+                  </Button>
                 )}
               </div>
             </div>

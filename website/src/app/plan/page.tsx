@@ -12,11 +12,11 @@ import { UserBubble, withQuestion } from "@/components/chat/follow-ups";
 import { hasCheckedPlan, hasGeneralPlan, TripBoard } from "@/components/chat/trip-board";
 import { Button } from "@/components/ui/button";
 import { ErrorNote, Spinner } from "@/components/ui/card";
-import { Input, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import { Tabs } from "@/components/ui/tabs";
 import { api, unwrap, type ChatMessage } from "@/lib/api/client";
 
-type InputMode = "chat" | "link" | "screenshot" | "saved";
+type InputMode = "chat" | "link" | "screenshot" | "saved" | "help";
 
 const STARTERS = [
   "5 relaxed days in Kerala with my parents",
@@ -47,6 +47,9 @@ function Planner() {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<InputMode>("chat");
+  const [helpSubject, setHelpSubject] = useState("");
+  const [helpBody, setHelpBody] = useState("");
+  const [helpNotice, setHelpNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const shownChat = useRef<string | null>(null);
@@ -100,6 +103,26 @@ function Planner() {
       queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
   });
+  const askHelp = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/support/tickets", {
+          body: {
+            subject: helpSubject.trim(),
+            body: helpBody.trim(),
+            session_id: activeId,
+            channel: "in_app",
+            in_destination: false,
+          },
+        }),
+      ),
+    onSuccess: (ticket) => {
+      setHelpBody("");
+      setHelpNotice(`Request #${ticket.number} sent — we'll get back to you.`);
+      queryClient.invalidateQueries({ queryKey: ["support-tickets"] });
+    },
+  });
+
   const remove = useMutation({
     mutationFn: async (id: string) => unwrap(await api.DELETE("/chat/sessions/{chat_id}", { params: { path: { chat_id: id } } })),
     onSuccess: () => {
@@ -201,12 +224,20 @@ function Planner() {
         <div className="border-t border-border px-3 pt-1">
           <Tabs
             value={mode}
-            onChange={setMode}
+            onChange={(id) => {
+              setMode(id);
+              if (id !== "help") return;
+              setHelpNotice(null);
+              if (helpSubject.trim()) return;
+              const title = sessions.data?.find((s) => s.id === activeId)?.title;
+              if (title) setHelpSubject(`Question about ${title}`.slice(0, 255));
+            }}
             tabs={[
               { id: "chat", label: "Describe it" },
               { id: "link", label: "Paste a link" },
               { id: "screenshot", label: "Screenshot" },
               { id: "saved", label: "Saved places", count: saved.data?.length },
+              { id: "help", label: "Get help" },
             ]}
           />
         </div>
@@ -265,6 +296,62 @@ function Planner() {
               </>
             ) : (
               <p className="text-muted">No saved places yet — <Link href="/explore" className="font-semibold text-brand">explore</Link> and tap Save.</p>
+            )}
+          </div>
+        )}
+        {mode === "help" && (
+          <div className="p-3 text-sm">
+            {!activeId ? (
+              <p className="text-muted">Open or start a trip first so we can attach this request to it.</p>
+            ) : (
+              <form
+                className="flex flex-col gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setHelpNotice(null);
+                  if (helpSubject.trim().length >= 3 && helpBody.trim()) askHelp.mutate();
+                }}
+              >
+                <p className="text-muted">A support agent will see this trip when they pick up your request.</p>
+                <Field label="Subject">
+                  <Input
+                    value={helpSubject}
+                    onChange={(e) => setHelpSubject(e.target.value)}
+                    required
+                    minLength={3}
+                    placeholder="e.g. Temples are too early on day 1"
+                  />
+                </Field>
+                <Field label="Message">
+                  <Textarea
+                    rows={3}
+                    className="min-h-16"
+                    value={helpBody}
+                    onChange={(e) => setHelpBody(e.target.value)}
+                    required
+                    placeholder="What should we look at on this plan?"
+                  />
+                </Field>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="submit"
+                    variant="accent"
+                    size="sm"
+                    disabled={askHelp.isPending || helpSubject.trim().length < 3 || !helpBody.trim()}
+                  >
+                    {askHelp.isPending ? "Sending…" : "Send to support"}
+                  </Button>
+                  {helpNotice && (
+                    <span className="text-sm text-ok">
+                      {helpNotice}{" "}
+                      <Link href="/help" className="font-semibold text-brand">
+                        Open Help
+                      </Link>
+                    </span>
+                  )}
+                </div>
+                <ErrorNote error={askHelp.error} />
+              </form>
             )}
           </div>
         )}

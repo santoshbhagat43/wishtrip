@@ -54,10 +54,10 @@ async def support_agents(
 async def read_ticket(
     ticket_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_support),
+    staff: User = Depends(require_support),
 ):
     """The conversation plus everything we hold about the traveler and their trip."""
-    return await service.get_ticket(session, ticket_id)
+    return await service.get_ticket(session, ticket_id, staff)
 
 
 @router.patch("/admin/support/tickets/{ticket_id}", response_model=TicketRead)
