@@ -4394,6 +4394,15 @@
     ],
     "title": "CommissionStatus"
    },
+   "CommissionType": {
+    "type": "string",
+    "enum": [
+     "none",
+     "percent",
+     "flat"
+    ],
+    "title": "CommissionType"
+   },
    "CommissionUpdate": {
     "properties": {
      "status": {
@@ -4469,6 +4478,13 @@
       "type": "integer",
       "title": "Commission Per User Paise"
      },
+     "commission_type": {
+      "$ref": "#/components/schemas/CommissionType"
+     },
+     "commission_value": {
+      "type": "integer",
+      "title": "Commission Value"
+     },
      "notes": {
       "type": "string",
       "title": "Notes"
@@ -4521,6 +4537,8 @@
      "status",
      "referral_code",
      "commission_per_user_paise",
+     "commission_type",
+     "commission_value",
      "notes",
      "created_at",
      "reels",
@@ -4568,6 +4586,13 @@
      "referral_code": {
       "type": "string",
       "title": "Referral Code"
+     },
+     "commission_type": {
+      "$ref": "#/components/schemas/CommissionType"
+     },
+     "commission_value": {
+      "type": "integer",
+      "title": "Commission Value"
      }
     },
     "type": "object",
@@ -4575,7 +4600,9 @@
      "id",
      "display_name",
      "status",
-     "referral_code"
+     "referral_code",
+     "commission_type",
+     "commission_value"
     ],
     "title": "CreatorMe",
     "description": "What a signed-in creator sees about their own account."
@@ -4667,6 +4694,13 @@
       "type": "integer",
       "title": "Commission Per User Paise"
      },
+     "commission_type": {
+      "$ref": "#/components/schemas/CommissionType"
+     },
+     "commission_value": {
+      "type": "integer",
+      "title": "Commission Value"
+     },
      "notes": {
       "type": "string",
       "title": "Notes"
@@ -4698,6 +4732,8 @@
      "status",
      "referral_code",
      "commission_per_user_paise",
+     "commission_type",
+     "commission_value",
      "notes",
      "created_at"
     ],
@@ -4864,6 +4900,29 @@
        }
       ],
       "title": "Commission Per User Paise"
+     },
+     "commission_type": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CommissionType"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "commission_value": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100000000.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Value"
      },
      "notes": {
       "anyOf": [

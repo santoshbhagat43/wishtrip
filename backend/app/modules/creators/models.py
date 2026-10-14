@@ -19,6 +19,13 @@ class CreatorStatus(enum.StrEnum):
     PAUSED = "paused"
 
 
+class CommissionType(enum.StrEnum):
+    # How a creator earns on a booking made through their affiliate link.
+    NONE = "none"  # nothing agreed yet
+    PERCENT = "percent"  # a share of each booking (commission_value is basis points: 1000 = 10%)
+    FLAT = "flat"  # a fixed amount per booking (commission_value is paise)
+
+
 class Creator(UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "creators"
     __table_args__ = (UniqueConstraint("platform", "handle"),)
@@ -40,6 +47,11 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     # Their link: wishtrip…/c/<referral_code>.
     referral_code: Mapped[str] = mapped_column(String(64), unique=True)
     commission_per_user_paise: Mapped[int] = mapped_column(Integer, default=0)
+    # Booking commission, set by staff at approval. value = basis points (percent) or paise (flat).
+    commission_type: Mapped[CommissionType] = mapped_column(
+        str_enum(CommissionType), default=CommissionType.NONE
+    )
+    commission_value: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str] = mapped_column(Text, default="")
 
 

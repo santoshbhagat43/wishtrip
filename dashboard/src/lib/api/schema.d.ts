@@ -1323,6 +1323,11 @@ export interface components {
          * @enum {string}
          */
         CommissionStatus: "pending" | "approved" | "paid" | "void";
+        /**
+         * CommissionType
+         * @enum {string}
+         */
+        CommissionType: "none" | "percent" | "flat";
         /** CommissionUpdate */
         CommissionUpdate: {
             status: components["schemas"]["CommissionStatus"];
@@ -1354,6 +1359,9 @@ export interface components {
             referral_code: string;
             /** Commission Per User Paise */
             commission_per_user_paise: number;
+            commission_type: components["schemas"]["CommissionType"];
+            /** Commission Value */
+            commission_value: number;
             /** Notes */
             notes: string;
             /**
@@ -1399,6 +1407,9 @@ export interface components {
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
+            commission_type: components["schemas"]["CommissionType"];
+            /** Commission Value */
+            commission_value: number;
         };
         /** CreatorOtpRequest */
         CreatorOtpRequest: {
@@ -1440,6 +1451,9 @@ export interface components {
             referral_code: string;
             /** Commission Per User Paise */
             commission_per_user_paise: number;
+            commission_type: components["schemas"]["CommissionType"];
+            /** Commission Value */
+            commission_value: number;
             /** Notes */
             notes: string;
             /**
@@ -1536,6 +1550,9 @@ export interface components {
             status?: components["schemas"]["CreatorStatus"] | null;
             /** Commission Per User Paise */
             commission_per_user_paise?: number | null;
+            commission_type?: components["schemas"]["CommissionType"] | null;
+            /** Commission Value */
+            commission_value?: number | null;
             /** Notes */
             notes?: string | null;
         };

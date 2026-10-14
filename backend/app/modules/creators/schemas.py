@@ -7,6 +7,7 @@ from app.modules.creators.models import (
     AttributionEvent,
     AttributionSource,
     CommissionStatus,
+    CommissionType,
     CreatorStatus,
 )
 
@@ -33,6 +34,8 @@ class CreatorRead(BaseModel):
     status: CreatorStatus
     referral_code: str
     commission_per_user_paise: int
+    commission_type: CommissionType
+    commission_value: int
     notes: str
     created_at: datetime
     stats: CreatorStats = CreatorStats()
@@ -43,6 +46,9 @@ class CreatorUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=255)
     status: CreatorStatus | None = None
     commission_per_user_paise: int | None = Field(default=None, ge=0, le=10_000_000)
+    commission_type: CommissionType | None = None
+    # Basis points when type is percent (max 10000 = 100%), paise when flat.
+    commission_value: int | None = Field(default=None, ge=0, le=100_000_000)
     notes: str | None = None
 
 
@@ -57,6 +63,8 @@ class CreatorMe(BaseModel):
     display_name: str
     status: CreatorStatus
     referral_code: str
+    commission_type: CommissionType
+    commission_value: int
 
 
 class CreatorReel(BaseModel):

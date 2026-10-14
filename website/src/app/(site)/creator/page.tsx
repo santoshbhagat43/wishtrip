@@ -56,6 +56,15 @@ export default function CreatorPage() {
         <>
           <h1 className="mt-4 text-[32px] leading-tight">You’re in{creator.data?.display_name ? `, ${creator.data.display_name}` : ""} 🎉</h1>
           <p className="mt-2 text-muted">Your creator account is approved. Posting your reels and tracking what you earn is coming here next.</p>
+          {creator.data && creator.data.commission_type !== "none" && (
+            <p className="mt-4 inline-block rounded-xl bg-ok-soft px-3 py-2 text-sm font-medium text-ok">
+              Your deal:{" "}
+              {creator.data.commission_type === "percent"
+                ? `${creator.data.commission_value / 100}% of every booking`
+                : `₹${(creator.data.commission_value / 100).toLocaleString("en-IN")} per booking`}{" "}
+              through your link.
+            </p>
+          )}
         </>
       ) : status === "paused" ? (
         <>

@@ -64,14 +64,16 @@ async def test_staff_approve_a_pending_creator(client, admin):
 
     approved = await client.patch(
         f"/creators/{rows[0]['id']}",
-        json={"status": "active", "handle": "mayatravels"},
+        json={"status": "active", "handle": "mayatravels", "commission_type": "percent", "commission_value": 1000},
         headers=auth(admin),
     )
     assert approved.status_code == 200 and approved.json()["status"] == "active"
 
-    mine = await client.get("/creators/me", headers=headers)
-    assert mine.json()["status"] == "active"
-    assert mine.json()["handle"] == "mayatravels"
+    mine = (await client.get("/creators/me", headers=headers)).json()
+    assert mine["status"] == "active"
+    assert mine["handle"] == "mayatravels"
+    assert mine["commission_type"] == "percent"
+    assert mine["commission_value"] == 1000
 
 
 async def test_creator_cannot_use_staff_endpoints(client):

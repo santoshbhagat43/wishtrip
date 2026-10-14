@@ -141,7 +141,12 @@ export default function CreatorPage() {
 function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
   const [status, setStatus] = useState<Status>(creator.status);
   const [handle, setHandle] = useState(creator.handle ?? "");
-  const [rate, setRate] = useState(String(creator.commission_per_user_paise / 100));
+  const [commissionType, setCommissionType] = useState(creator.commission_type);
+  const [commissionValue, setCommissionValue] = useState(
+    creator.commission_type === "percent"
+      ? String(creator.commission_value / 100)
+      : String(creator.commission_value / 100),
+  );
   const [notes, setNotes] = useState(creator.notes);
   const [copied, setCopied] = useState(false);
   const save = useMutation({
@@ -149,7 +154,14 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
       unwrap(
         await api.PATCH("/creators/{creator_id}", {
           params: { path: { creator_id: creator.id } },
-          body: { status, notes, handle: handle.trim() || null, commission_per_user_paise: Math.round(Number(rate || 0) * 100) },
+          body: {
+            status,
+            notes,
+            handle: handle.trim() || null,
+            commission_type: commissionType,
+            commission_value:
+              commissionType === "none" ? 0 : Math.round(Number(commissionValue || 0) * 100),
+          },
         }),
       ),
     onSuccess: onChange,
@@ -194,9 +206,26 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
             ))}
           </Select>
         </Field>
-        <Field label="Commission per traveller (₹)" hint="Earned once per traveller they bring in, on that traveller's first trip plan.">
-          <Input type="number" min={0} step="1" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
+        <Field label="Commission on bookings" hint="What this creator earns when a traveller books through their affiliate link. Takes effect once bookings are live.">
+          <Select value={commissionType} onChange={(e) => setCommissionType(e.target.value as typeof commissionType)}>
+            <option value="none">None yet</option>
+            <option value="percent">Percentage of each booking</option>
+            <option value="flat">Flat amount per booking</option>
+          </Select>
         </Field>
+        {commissionType !== "none" && (
+          <Field label={commissionType === "percent" ? "Percentage (%)" : "Amount per booking (₹)"}>
+            <Input
+              type="number"
+              min={0}
+              step={commissionType === "percent" ? "0.5" : "1"}
+              max={commissionType === "percent" ? 100 : undefined}
+              inputMode="decimal"
+              value={commissionValue}
+              onChange={(e) => setCommissionValue(e.target.value)}
+            />
+          </Field>
+        )}
         <Field label="Notes">
           <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
