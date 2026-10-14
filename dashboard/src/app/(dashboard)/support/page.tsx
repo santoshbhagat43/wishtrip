@@ -61,7 +61,7 @@ export default function SupportInboxPage() {
   const inbox = useQuery({
     queryKey: ["support-inbox", view],
     queryFn: async () => unwrap(await api.GET("/admin/support/inbox", { params: { query: { view } } })),
-    refetchInterval: 60_000,
+    refetchInterval: 10_000,
   });
   const agents = useQuery({
     queryKey: ["support-agents"],
@@ -74,6 +74,7 @@ export default function SupportInboxPage() {
     enabled: Boolean(currentId),
     queryFn: async () =>
       unwrap(await api.GET("/admin/support/tickets/{ticket_id}", { params: { path: { ticket_id: currentId! } } })),
+    refetchInterval: 3_000,
   });
 
   const refresh = () => {

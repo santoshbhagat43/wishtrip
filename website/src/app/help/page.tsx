@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ export default function HelpPage() {
   const tickets = useQuery({
     queryKey: ["support-tickets"],
     queryFn: async () => unwrap(await api.GET("/support/tickets")),
+    refetchInterval: 10_000,
   });
   const thread = useQuery({
     queryKey: ["support-ticket", selectedId],
@@ -59,7 +60,14 @@ export default function HelpPage() {
           params: { path: { ticket_id: selectedId! } },
         }),
       ),
+    refetchInterval: 3_000,
   });
+  const messageCount = thread.data?.messages.length ?? 0;
+  const threadScroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = threadScroller.current;
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+  }, [selectedId, messageCount]);
 
   const selectedTicket = tickets.data?.find((t) => t.id === selectedId);
 
@@ -135,7 +143,7 @@ export default function HelpPage() {
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+      <div ref={threadScroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
         {thread.isLoading && <Spinner />}
         <ErrorNote error={thread.error} />
         {thread.data && (
