@@ -1064,11 +1064,6 @@
     "ast_hash": "84ab9413297d3d9c39c1d39086d83962",
     "semantic_hash": ""
   },
-  "website/src/components/auth-form.tsx": {
-    "mtime": 1791994710.9619267,
-    "ast_hash": "23fdb4712bfcb041c5e6781a35d815b7",
-    "semantic_hash": ""
-  },
   "website/src/components/chat/assistant-reply.tsx": {
     "mtime": 1791791775.2346485,
     "ast_hash": "e27e4ad764f6cd26ac6c9e79c2a6b438",
@@ -1165,7 +1160,7 @@
     "semantic_hash": ""
   },
   "website/test-results/.last-run.json": {
-    "mtime": 1791998948.3446906,
+    "mtime": 1792000401.7753446,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
@@ -1330,7 +1325,7 @@
     "semantic_hash": ""
   },
   "website/playwright-report/index.html": {
-    "mtime": 1791998973.6971548,
+    "mtime": 1792000419.3846748,
     "ast_hash": "8f3b2c7cee5f8f2174094c3c66d32d83",
     "semantic_hash": ""
   },
@@ -1519,11 +1514,6 @@
     "ast_hash": "79ba5770e827153aa1b68fe8702a431b",
     "semantic_hash": ""
   },
-  "website/src/app/(site)/login/page.tsx": {
-    "mtime": 1791994735.9361491,
-    "ast_hash": "cd637515b5786b40a29e2308411afe26",
-    "semantic_hash": ""
-  },
   "website/src/app/(site)/places/[id]/page.tsx": {
     "mtime": 1791608176.5816796,
     "ast_hash": "d4f1e0ced7825ed5cb02deda408bd351",
@@ -1542,11 +1532,6 @@
   "website/src/app/(site)/saved/page.tsx": {
     "mtime": 1791608176.585739,
     "ast_hash": "024cdef07ec2ba05dbdef3f780c73173",
-    "semantic_hash": ""
-  },
-  "website/src/app/(site)/signup/page.tsx": {
-    "mtime": 1791994735.938509,
-    "ast_hash": "1b729f37d131bdfc583a586b5c892a4d",
     "semantic_hash": ""
   },
   "website/src/components/b4/arya.tsx": {
@@ -2024,16 +2009,6 @@
     "ast_hash": "6ab48a7cdedc570a8b1ef1d216a37d51",
     "semantic_hash": ""
   },
-  "website/src/components/auth-panel.tsx": {
-    "mtime": 1791994710.9707658,
-    "ast_hash": "ca1baf89081ff0ec986d2d4712e31136",
-    "semantic_hash": ""
-  },
-  "website/src/components/creator-auth.tsx": {
-    "mtime": 1791994710.9680715,
-    "ast_hash": "215a22dbf0b493c432aebab8c1c210c6",
-    "semantic_hash": ""
-  },
   "backend/alembic/versions/20261014_887cecdc664b_creator_booking_commission_type_and_.py": {
     "mtime": 1791997520.998524,
     "ast_hash": "91e7de3c38f12d2b3a693128419f6931",
@@ -2107,6 +2082,21 @@
   "website/src/components/b4/screens/trip.tsx": {
     "mtime": 1791999832.0164282,
     "ast_hash": "35311efb588eafb15927851f893f4221",
+    "semantic_hash": ""
+  },
+  "website/src/app/(b4)/login/page.tsx": {
+    "mtime": 1792000282.2548802,
+    "ast_hash": "a1810aed3e46d78c6c6cbc640ff9e19b",
+    "semantic_hash": ""
+  },
+  "website/src/app/(b4)/signup/page.tsx": {
+    "mtime": 1792000282.2595162,
+    "ast_hash": "efbaee264d87a7ad3f2b7bc82260d2fc",
+    "semantic_hash": ""
+  },
+  "website/src/components/b4/screens/auth.tsx": {
+    "mtime": 1792000269.6472805,
+    "ast_hash": "08fec3b41794599795c48f153e2b5570",
     "semantic_hash": ""
   }
 }

@@ -1,16 +1,16 @@
 # Graph Report - wish-trip  (2026-10-14)
 
 ## Corpus Check
-- 357 files · ~444,472 words
+- 361 files · ~446,694 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2484 nodes · 4890 edges · 215 communities (187 shown, 28 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 659 edges (avg confidence: 0.65)
+- 2473 nodes · 4870 edges · 208 communities (180 shown, 28 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 659 edges (avg confidence: 0.65)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `82323de9`
+- Built from commit: `3b32e5fd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -134,12 +134,10 @@
 - [[_COMMUNITY_Community 166|Community 166]]
 - [[_COMMUNITY_Community 167|Community 167]]
 - [[_COMMUNITY_Community 168|Community 168]]
-- [[_COMMUNITY_Community 170|Community 170]]
 - [[_COMMUNITY_Community 171|Community 171]]
 - [[_COMMUNITY_Community 173|Community 173]]
 - [[_COMMUNITY_Community 174|Community 174]]
 - [[_COMMUNITY_Community 175|Community 175]]
-- [[_COMMUNITY_Community 176|Community 176]]
 - [[_COMMUNITY_Community 177|Community 177]]
 - [[_COMMUNITY_Community 178|Community 178]]
 - [[_COMMUNITY_Community 179|Community 179]]
@@ -153,23 +151,18 @@
 - [[_COMMUNITY_Community 187|Community 187]]
 - [[_COMMUNITY_Community 192|Community 192]]
 - [[_COMMUNITY_Community 193|Community 193]]
-- [[_COMMUNITY_Community 194|Community 194]]
 - [[_COMMUNITY_Community 195|Community 195]]
 - [[_COMMUNITY_Community 196|Community 196]]
 - [[_COMMUNITY_Community 198|Community 198]]
 - [[_COMMUNITY_Community 199|Community 199]]
 - [[_COMMUNITY_Community 200|Community 200]]
 - [[_COMMUNITY_Community 201|Community 201]]
-- [[_COMMUNITY_Community 202|Community 202]]
 - [[_COMMUNITY_Community 203|Community 203]]
 - [[_COMMUNITY_Community 204|Community 204]]
-- [[_COMMUNITY_Community 205|Community 205]]
 - [[_COMMUNITY_Community 206|Community 206]]
 - [[_COMMUNITY_Community 208|Community 208]]
 - [[_COMMUNITY_Community 209|Community 209]]
-- [[_COMMUNITY_Community 210|Community 210]]
 - [[_COMMUNITY_Community 211|Community 211]]
-- [[_COMMUNITY_Community 212|Community 212]]
 - [[_COMMUNITY_Community 213|Community 213]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -204,43 +197,43 @@
 - **AI Grounded in Source of Truth with Rule Validation** — dev_travel_location_knowledge_base, dev_traveler_profile, dev_ai_llm_layer, story_rule_validation, story_ai_not_source_of_truth [EXTRACTED 1.00]
 - **Provider Independence via Gateways/Adapters** — dev_integration_abstraction_layer, dev_provider_adapters, dev_openrouter, dev_ai_orchestrator, dev_engineering_principles [INFERRED 0.85]
 
-## Communities (215 total, 28 thin omitted)
+## Communities (208 total, 28 thin omitted)
 
 ### Community 0 - "Backend & AI Services"
 Cohesion: 0.10
 Nodes (38): Admin Panel (Knowledge Management System), AI / LLM Layer, AI Service / AI Orchestrator, Booking Engine, Booking Layer, Candidate Search, Celery Background Jobs, Core Platform Layer (+30 more)
 
 ### Community 1 - "Integration & Booking"
-Cohesion: 0.10
-Nodes (21): normalize_day(), normalize_type(), Map whatever the model wrote ("Hotel", "resort", "Airline") onto our types, so t, Day numbers are positive integers (bools and day 0 are not days)., Enforce the knowledge base over the model: facts we hold win, prices are never i, validate(), Regression tests for issues found in the logic review (each was reproduced befor, test_a_query_is_embedded_once_per_message() (+13 more)
+Cohesion: 0.11
+Nodes (19): normalize_day(), normalize_type(), Map whatever the model wrote ("Hotel", "resort", "Airline") onto our types, so t, Day numbers are positive integers (bools and day 0 are not days)., Enforce the knowledge base over the model: facts we hold win, prices are never i, validate(), test_validation_enforces_knowledge_base(), Regression tests for issues found in the logic review (each was reproduced befor (+11 more)
 
 ### Community 2 - "Recommendation Pipeline"
-Cohesion: 0.16
-Nodes (13): Place, Day, Feasibility, STATUS, PlacePage(), PlaceCard(), SaveButtons(), Signal (+5 more)
+Cohesion: 0.20
+Nodes (10): Place, PlacePage(), PlaceCard(), SaveButtons(), Signal, useSignal(), gradientFor(), PALETTES (+2 more)
 
 ### Community 3 - "Product Surfaces & Itinerary"
 Cohesion: 0.18
-Nodes (29): ChatMessage, ChatSession, Grounding, MessageRole, Base, Timestamps, UUIDPrimaryKey, DeclarativeBase (+21 more)
+Nodes (28): ChatMessage, ChatSession, Grounding, MessageRole, Base, Timestamps, UUIDPrimaryKey, DeclarativeBase (+20 more)
 
 ### Community 4 - "Location Knowledge & Storage"
-Cohesion: 0.09
-Nodes (55): check_and_repair(), clock(), Constraints, hard_constraint_violation(), haversine_km(), in_preferred_slot(), is_meal(), Issue (+47 more)
+Cohesion: 0.08
+Nodes (58): check_and_repair(), clock(), Constraints, hard_constraint_violation(), haversine_km(), in_preferred_slot(), is_meal(), Issue (+50 more)
 
 ### Community 5 - "Location Model & Validation"
-Cohesion: 0.22
+Cohesion: 0.24
 Nodes (7): main(), PentestAutomator, Main class for pentest automator functionality, Execute the main functionality, Validate the target path exists and is accessible, Perform the main analysis or operation, Generate and display the report
 
 ### Community 6 - "Community 6"
 Cohesion: 0.09
-Nodes (22): AIOrchestrator, get_orchestrator(), parse_json_object(), Single entry point for every AI call in WishTrip.  Application code asks for a *, Models sometimes wrap JSON in prose or fences; pull out the first object., understand(), search(), SearchResponse (+14 more)
+Nodes (22): AIOrchestrator, get_orchestrator(), Single entry point for every AI call in WishTrip.  Application code asks for a *, understand(), search(), SearchResponse, SearchResult, SearchHit (+14 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.05
 Nodes (40): 1. Accessibility (CRITICAL), 2. Touch & Interaction (CRITICAL), 3. Performance (HIGH), 4. Layout & Responsive (HIGH), 5. Typography & Color (MEDIUM), 6. Animation (MEDIUM), 7. Style Selection (MEDIUM), 8. Charts & Data (LOW) (+32 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.08
-Nodes (57): AsyncSession, record(), BackgroundTasks, add_relation(), children_counts(), create_location(), create_tag(), delete_location() (+49 more)
+Cohesion: 0.07
+Nodes (63): AsyncSession, record(), BackgroundTasks, add_relation(), children_counts(), create_location(), create_tag(), delete_location() (+55 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.05
@@ -248,11 +241,11 @@ Nodes (39): dependencies, clsx, lucide-react, next, openapi-fetch, react, react-
 
 ### Community 10 - "Community 10"
 Cohesion: 0.13
-Nodes (33): _affinity(), _budget(), build_preferences(), _companions(), _energy(), _interest(), passes_hard_constraints(), PreferenceOverrides (+25 more)
+Nodes (33): _affinity(), _budget(), build_preferences(), _companions(), _energy(), _interest(), passes_hard_constraints(), Preferences (+25 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.10
-Nodes (34): canonical_destination(), _clean(), close_match(), _duration_days(), _future_date(), _has_duration_cue(), _has_time_cue(), heuristic_intent() (+26 more)
+Nodes (33): canonical_destination(), _clean(), close_match(), _duration_days(), _future_date(), _has_duration_cue(), _has_time_cue(), heuristic_intent() (+25 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.05
@@ -264,11 +257,11 @@ Nodes (22): A(), BOARD_FIXED, BoardDay, boardDays(), BoardItem, CHECKOUT_IMG, ch
 
 ### Community 14 - "Community 14"
 Cohesion: 0.13
-Nodes (19): AuditLogRead, list_audit_log(), Page, list_travelers(), my_profile(), my_saved_places(), Places whose latest signal is a save (added/selected/booked) — not later removed, Behavioral signal: the traveler selected, skipped, removed... a location. (+11 more)
+Nodes (18): AuditLogRead, list_audit_log(), Page, list_travelers(), my_profile(), my_saved_places(), Places whose latest signal is a save (added/selected/booked) — not later removed, Behavioral signal: the traveler selected, skipped, removed... a location. (+10 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.08
-Nodes (32): embed_locations(), location_document(), Turns knowledge-base locations into embeddings for semantic search and chat retr, The text the embedding represents: what a traveler might search for., Embed the given locations, or every published location whose embedding is stale., Queue (or, in inline mode, run) embedding for locations. None means all stale on, schedule_embedding(), list_for_creator() (+24 more)
+Cohesion: 0.09
+Nodes (29): embed_locations(), location_document(), Turns knowledge-base locations into embeddings for semantic search and chat retr, The text the embedding represents: what a traveler might search for., Embed the given locations, or every published location whose embedding is stale., Queue (or, in inline mode, run) embedding for locations. None means all stale on, schedule_embedding(), Stored travel minutes between any of these locations, in both directions. (+21 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.07
@@ -315,8 +308,8 @@ Cohesion: 0.17
 Nodes (8): Location, Completeness(), LABELS, SourceBadge(), View, fromLocation(), MediaPanel(), SourcePanel()
 
 ### Community 27 - "Community 27"
-Cohesion: 0.18
-Nodes (10): provider_config(), ProviderConfig, OpenAI-compatible chat client for every LLM provider WishTrip uses.  Ollama (loc, Resolve LLM_PROVIDER; None means no LLM (knowledge-base-only answers)., Each provider spells 'how much should the model think' differently., reasoning_params(), AsyncBaseTransport, ai() (+2 more)
+Cohesion: 0.08
+Nodes (28): LLMClient, provider_config(), ProviderConfig, OpenAI-compatible chat client for every LLM provider WishTrip uses.  Ollama (loc, Resolve LLM_PROVIDER; None means no LLM (knowledge-base-only answers)., Each provider spells 'how much should the model think' differently., reasoning_params(), AsyncBaseTransport (+20 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.14
@@ -331,12 +324,12 @@ Cohesion: 0.16
 Nodes (16): _chat(), FakeClient, OverloadingPlanner, Plans three long stops into day 1 of a 2-day trip, then rewrites when asked., Stands in for the LLM provider: returns canned intent and planner JSON., test_city_history_reaches_the_planner_and_destinations_count_sections(), test_conversation_reads_question_then_answer(), test_destination_aliases_resolve() (+8 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.23
-Nodes (11): get_current_user(), require_roles(), HTTPAuthorizationCredentials, HTTPException, ReelImport, content_read(), enqueue(), get_content() (+3 more)
+Cohesion: 0.40
+Nodes (5): FollowUp, FollowUps(), splitQuestion(), UserBubble(), withQuestion()
 
 ### Community 33 - "Community 33"
 Cohesion: 0.16
-Nodes (20): AgentRouting, Per-agent routing settings. A row appears the first time routing is opened., Every assignment, and why it happened. Read on the routing screen., TicketAssignment, agent_rows(), assign(), choose(), config() (+12 more)
+Nodes (21): AgentRouting, Per-agent routing settings. A row appears the first time routing is opened., Every assignment, and why it happened. Read on the routing screen., TicketAssignment, agent_rows(), assign(), choose(), config() (+13 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.14
@@ -359,8 +352,8 @@ Cohesion: 0.15
 Nodes (10): create_token(), decode_token(), verify_password(), A token claiming 'admin' for a traveler account must not grant admin access., test_disabled_accounts_lose_access_immediately(), test_expired_tampered_and_wrong_type_tokens_are_rejected(), test_login_accepts_local_test_domain(), test_role_is_read_from_the_database_not_the_token() (+2 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.15
-Nodes (22): AIOrchestrator, Exception, cached(), canonical_url(), download(), finish(), _first(), listen() (+14 more)
+Cohesion: 0.14
+Nodes (25): AIOrchestrator, Exception, CreatorContent, A processed reel. Cached by shortcode: the same reel is downloaded and read once, cached(), canonical_url(), download(), finish() (+17 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.23
@@ -371,20 +364,20 @@ Cohesion: 0.14
 Nodes (13): Agent → Script Mapping, AI Coding Style, Anti-Patterns (DON'T), 🔴 Before Editing ANY File (THINK FIRST!), Clean Code - Pragmatic AI Coding Standards, Code Structure, Core Principles, Function Rules (+5 more)
 
 ### Community 42 - "Community 42"
-Cohesion: 0.24
-Nodes (6): BlankSlot(), needsStay(), GeneralItinerary(), SLOT_LABEL, SLOT_ORDER, Suggestion
+Cohesion: 0.17
+Nodes (10): BlankSlot(), needsStay(), GeneralItinerary(), SLOT_LABEL, SLOT_ORDER, Suggestion, Day, Feasibility (+2 more)
 
 ### Community 43 - "Community 43"
 Cohesion: 0.10
-Nodes (34): AgentLoad, AgentRoutingUpdate, AssignmentLog, Inbox, InboxCounts, PersonRef, Who can take work, and how much they are holding. Used by the inbox assignee pic, An agent as the routing screen shows them. (+26 more)
+Nodes (34): AgentRoutingUpdate, AssignmentLog, Inbox, InboxCounts, PersonRef, An agent as the routing screen shows them., A dry run: who would take a ticket like this, and why. Writes nothing., What we actually hold about this traveler, for the agent's side panel. (+26 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.17
 Nodes (11): ChatSession, LocationListItem, Relation, Tag, User, api, ApiError, ChatMessage (+3 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.14
-Nodes (24): AssistantReply(), CHECK, GROUNDING, PlanCard(), FollowUp, FollowUps(), splitQuestion(), UserBubble() (+16 more)
+Cohesion: 0.19
+Nodes (18): AssistantReply(), CHECK, GROUNDING, PlanCard(), dateRange(), hasCheckedPlan(), hasGeneralPlan(), Kind (+10 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.20
@@ -403,20 +396,20 @@ Cohesion: 0.15
 Nodes (13): API surface (v1), backend/ — Python + FastAPI, dashboard/ — Next.js Admin Panel, Key screens, Knowledge base data model (MVP), Open questions, Phases, Repository layout (+5 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.15
-Nodes (15): HashingEmbedder, Deterministic bag-of-words embedding used when no embedding model is available., chat_once(), planner_calls(), Questions get direct answers (no day plan); destinations search every one of the, Used to stop at 6 cities: a 7-city region (like Japan) lost its 7th city entirel, Fake LLM: fixed intent, and a planner that always returns a 2-day plan., ScriptedPlanner (+7 more)
+Cohesion: 0.29
+Nodes (8): chat_once(), planner_calls(), Questions get direct answers (no day plan); destinations search every one of the, Fake LLM: fixed intent, and a planner that always returns a 2-day plan., ScriptedPlanner, test_plans_still_get_a_checked_itinerary(), test_questions_get_a_direct_answer_not_a_day_plan(), test_small_talk_skips_retrieval()
 
 ### Community 52 - "Community 52"
 Cohesion: 0.18
 Nodes (7): COST_LABELS, LOCATION_TYPES, PLACE_TYPES, RELATIONS, SEASONS, STATUSES, TIMES
 
 ### Community 53 - "Community 53"
-Cohesion: 0.21
-Nodes (16): Creator, by_code(), _code_base(), credit_reel(), credit_signup(), for_user(), login_with_otp(), Creators and who they bring in.  Credit rule (first touch wins): a traveller is (+8 more)
+Cohesion: 0.13
+Nodes (27): Creator, _detail(), _get(), get_creator(), list_creators(), _read(), _stats(), update_commission() (+19 more)
 
 ### Community 54 - "Community 54"
-Cohesion: 0.13
-Nodes (12): AuditLog, datetime, Store enums as plain varchar (by value) so adding members needs no type migratio, str_enum(), Enum, Media, MediaKind, ImportKind (+4 more)
+Cohesion: 0.15
+Nodes (11): AuditLog, datetime, Store enums as plain varchar (by value) so adding members needs no type migratio, str_enum(), Enum, Media, MediaKind, ImportKind (+3 more)
 
 ### Community 55 - "Community 55"
 Cohesion: 0.15
@@ -435,8 +428,8 @@ Cohesion: 0.15
 Nodes (9): ENERGY, TRIP_FIELDS, COST_LABELS, LOCATION_TYPES, PLACE_TYPES, RELATIONS, SEASONS, STATUSES (+1 more)
 
 ### Community 59 - "Community 59"
-Cohesion: 0.19
-Nodes (17): not_found(), _detail(), _get(), get_creator(), list_creators(), my_creator(), The signed-in creator's own account, so the website can show their approval stat, _read() (+9 more)
+Cohesion: 0.50
+Nodes (4): AgentLoad, Who can take work, and how much they are holding. Used by the inbox assignee pic, agents(), Staff who can hold tickets, with what they are already carrying.
 
 ### Community 61 - "Community 61"
 Cohesion: 0.18
@@ -467,8 +460,8 @@ Cohesion: 0.43
 Nodes (6): city_aliases(), load(), main(), Normalize the old GoExperience/WishTrip catalogue into Wishtrip's knowledge-base, Names travellers use: the destination ("Dharamshala") for single-base destinatio, slug()
 
 ### Community 71 - "Community 71"
-Cohesion: 0.34
-Nodes (14): fix(), model_says(), Robustness of intent understanding: the model and the keyword parser check each, test_destination_from_earlier_turns_is_kept(), test_invented_destination_is_dropped(), test_invented_trip_length_is_dropped(), test_model_and_keywords_disagreeing_on_companions_keeps_the_model(), test_model_cleared_fields_are_validated_and_merged() (+6 more)
+Cohesion: 0.31
+Nodes (15): fix(), model_says(), Robustness of intent understanding: the model and the keyword parser check each, test_destination_from_earlier_turns_is_kept(), test_invented_destination_is_dropped(), test_invented_trip_length_is_dropped(), test_mentioned_handles_partial_names_and_typos(), test_model_and_keywords_disagreeing_on_companions_keeps_the_model() (+7 more)
 
 ### Community 72 - "Community 72"
 Cohesion: 0.40
@@ -499,7 +492,7 @@ Cohesion: 0.29
 Nodes (5): Data honesty rules, Development, Run everything (Docker), Tests, WishTrip
 
 ### Community 80 - "Community 80"
-Cohesion: 0.22
+Cohesion: 0.24
 Nodes (7): main(), Main class for security auditor functionality, Execute the main functionality, Validate the target path exists and is accessible, Perform the main analysis or operation, Generate and display the report, SecurityAuditor
 
 ### Community 81 - "Community 81"
@@ -507,7 +500,7 @@ Cohesion: 0.40
 Nodes (3): STATUS_TONE, Tone, tones
 
 ### Community 82 - "Community 82"
-Cohesion: 0.20
+Cohesion: 0.18
 Nodes (6): FALLBACK, SiteHeader(), STEP_LABEL, TripTools(), useMe(), useSignOut()
 
 ### Community 85 - "Community 85"
@@ -523,20 +516,20 @@ Cohesion: 0.50
 Nodes (3): Deploy on Vercel, Getting Started, Learn More
 
 ### Community 115 - "Community 115"
-Cohesion: 0.23
-Nodes (15): Base, CommissionEntry, Creator, CreatorAttribution, One earned commission: today one per credited traveller who planned a trip., Every touch between a traveller and a creator; the commission trail., First trip plan for a credited traveller: log it and book the creator's commissi, record_trip_planned() (+7 more)
+Cohesion: 0.16
+Nodes (16): Base, hash_password(), CommissionEntry, Creator, CreatorAttribution, One earned commission: today one per credited traveller who planned a trip., Every touch between a traveller and a creator; the commission trail., LocationRelation (+8 more)
 
 ### Community 149 - "Community 149"
 Cohesion: 0.12
-Nodes (12): fake_instagram(), make_reel(), instaloader stand-in: 'downloads' a locally made reel into the work dir., A real little reel: one slide per text line, with a tone as its soundtrack., Stands in for OpenRouter: Gemini 'hears' the voice-over, the planner reads place, ReelAI, test_creators_are_staff_only(), test_failed_download_is_explained() (+4 more)
+Nodes (11): fake_instagram(), make_reel(), instaloader stand-in: 'downloads' a locally made reel into the work dir., A real little reel: one slide per text line, with a tone as its soundtrack., Stands in for OpenRouter: Gemini 'hears' the voice-over, the planner reads place, ReelAI, test_creators_are_staff_only(), test_failed_download_is_explained() (+3 more)
 
 ### Community 150 - "Community 150"
 Cohesion: 0.40
 Nodes (4): Deploying WishTrip, First deploy, Updating, Useful commands (in /opt/wishtrip)
 
 ### Community 151 - "Community 151"
-Cohesion: 0.22
-Nodes (8): fit_dimensions(), normalize(), OllamaEmbedder, Truncate Matryoshka-style embeddings (Gemini, EmbeddingGemma, OpenAI v3) to the, Local embeddings through Ollama's /api/embed (development without an API key)., EmbedKind, test_fit_dimensions_rejects_short_vectors(), test_fit_dimensions_truncates_and_renormalizes()
+Cohesion: 0.09
+Nodes (19): Embedder, fit_dimensions(), HashingEmbedder, normalize(), OpenRouterEmbedder, Truncate Matryoshka-style embeddings (Gemini, EmbeddingGemma, OpenAI v3) to the, Deterministic bag-of-words embedding used when no embedding model is available., AIUnavailableError (+11 more)
 
 ### Community 157 - "Community 157"
 Cohesion: 0.22
@@ -551,32 +544,32 @@ Cohesion: 0.22
 Nodes (9): 4. API, Auth & system, Chat, Explore (public, read-only — published data only, no internal fields), Intelligence, Knowledge base (staff), Menus, Support (+1 more)
 
 ### Community 160 - "Community 160"
-Cohesion: 0.18
-Nodes (15): norm(), ollama_transport(), RenamedEmbedder, test_deleting_a_tag_reembeds_the_places_that_had_it(), test_drafts_are_not_embedded_and_publishing_embeds(), test_embeddinggemma_2_uses_plain_text_per_benchmark(), test_hashing_embedder_is_deterministic_unit_length_and_sized(), test_index_freshness_tracks_edits_and_model_changes() (+7 more)
+Cohesion: 0.19
+Nodes (16): OllamaEmbedder, Local embeddings through Ollama's /api/embed (development without an API key)., norm(), ollama_transport(), test_deleting_a_tag_reembeds_the_places_that_had_it(), test_drafts_are_not_embedded_and_publishing_embeds(), test_embeddinggemma_2_uses_plain_text_per_benchmark(), test_fit_dimensions_truncates_and_renormalizes() (+8 more)
 
 ### Community 161 - "Community 161"
 Cohesion: 0.22
 Nodes (6): 1. Pre-flight (3:15 pm — do not skip), 3. The four things they first asked about, mapped, 4. If something breaks, 5. Numbers you can quote (verified today), 6. Known rough edges (so they don't surprise you), Client demo — today, 4:00 pm
 
 ### Community 162 - "Community 162"
-Cohesion: 0.26
-Nodes (11): clean_reading(), grounded(), material(), _norm(), Turn what a reel says (voice) and shows (caption + text on screen) into places., The place must really be in the material: its evidence or a word of its name., Gemini (through OpenRouter) listens to the audio. Empty when there is no speech., read_places() (+3 more)
+Cohesion: 0.20
+Nodes (14): parse_json_object(), Models sometimes wrap JSON in prose or fences; pull out the first object., clean_reading(), grounded(), material(), _norm(), Turn what a reel says (voice) and shows (caption + text on screen) into places., The place must really be in the material: its evidence or a word of its name. (+6 more)
 
 ### Community 163 - "Community 163"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (3): LocalStorage, Media storage. Local disk (a Docker volume) for now; an S3 backend can implement, Path
 
 ### Community 164 - "Community 164"
 Cohesion: 0.08
-Nodes (54): get_embedder(), Published rows with no embedding, an outdated one, or one from a different model, stale_embedding_clause(), Match a destination to a city, a region ("Kerala") or a country; return its city, resolve_destination(), bad_request(), conflict(), Location (+46 more)
+Nodes (53): get_embedder(), Published rows with no embedding, an outdated one, or one from a different model, stale_embedding_clause(), Match a destination to a city, a region ("Kerala") or a country; return its city, resolve_destination(), bad_request(), conflict(), Location (+45 more)
 
 ### Community 165 - "Community 165"
 Cohesion: 0.60
 Nodes (3): LocationPicker(), PickedLocation, RelationsPanel()
 
 ### Community 166 - "Community 166"
-Cohesion: 0.09
-Nodes (33): BaseModel, ChatTurn, Feasibility, FeasibilityIssue, FollowUp, ItineraryDay, MessageCreate, MessageDebugRead (+25 more)
+Cohesion: 0.08
+Nodes (36): BaseModel, ChatTurn, Feasibility, FeasibilityIssue, FollowUp, ItineraryDay, MessageCreate, MessageDebugRead (+28 more)
 
 ### Community 167 - "Community 167"
 Cohesion: 0.18
@@ -586,13 +579,9 @@ Nodes (17): auth(), test_destination_resolution(), test_cannot_delete_parent_wit
 Cohesion: 0.13
 Nodes (11): Kind, KIND_COLORS, metadata, KIND, ReelContent, ReelImport, ReelPlace, ReelResult() (+3 more)
 
-### Community 170 - "Community 170"
-Cohesion: 0.29
-Nodes (5): AuthForm(), AuthPanel(), Who, CreatorAuth(), postJson()
-
 ### Community 173 - "Community 173"
-Cohesion: 0.18
-Nodes (17): CompletedProcess, audio(), clean_line(), Frame, frames(), _key(), _languages(), MediaError (+9 more)
+Cohesion: 0.19
+Nodes (16): CompletedProcess, audio(), clean_line(), Frame, frames(), _key(), _languages(), MediaError (+8 more)
 
 ### Community 174 - "Community 174"
 Cohesion: 0.33
@@ -602,17 +591,13 @@ Nodes (6): Staff view: everything we read off the reel., ReelContentDetail, Reel
 Cohesion: 0.15
 Nodes (11): BUDGETS, GROUPS, PACES, PEOPLE, PER_PERSON, STARTING_POINT, AryaMark(), Path() (+3 more)
 
-### Community 176 - "Community 176"
-Cohesion: 0.24
-Nodes (7): main(), matches(), Intent-extraction benchmark: does the model understand what the traveler wants?, run(), Live checks against a real LLM (local Ollama by default). Skipped unless LIVE_LL, test_live_intent(), test_live_intent_robustness()
-
 ### Community 177 - "Community 177"
 Cohesion: 0.30
 Nodes (28): public_trip(), The shareable affiliate link. Public, so a creator can put it in their video., AttributionEvent, AttributionSource, CommissionStatus, CommissionType, CreatorStatus, TripStatus (+20 more)
 
 ### Community 178 - "Community 178"
-Cohesion: 0.15
-Nodes (17): creator_request_otp(), creator_verify(), login(), me(), Public sign-up always creates a traveler; staff accounts are created by admins., Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logge, Verify the code and sign the creator in, creating a pending account on first sig, refresh() (+9 more)
+Cohesion: 0.20
+Nodes (9): creator_request_otp(), creator_verify(), Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logge, Verify the code and sign the creator in, creating a pending account on first sig, CreatorOtpRequest, CreatorOtpVerify, LoginRequest, RefreshRequest (+1 more)
 
 ### Community 179 - "Community 179"
 Cohesion: 0.22
@@ -627,8 +612,8 @@ Cohesion: 0.15
 Nodes (15): CreatorsPage(), FILTERS, Status, Commissions(), Creator, CreatorPage(), EVENT_LABEL, Item (+7 more)
 
 ### Community 182 - "Community 182"
-Cohesion: 0.15
-Nodes (12): hash_password(), MenuGroup, MenuItem, A named set of links the business team controls without a deploy., What a traveler has told us explicitly. Behavior lives in ProfileEvent., TravelerProfile, Seed a starter knowledge base, an admin and a demo traveler. Safe to run repeate, seed() (+4 more)
+Cohesion: 0.22
+Nodes (8): MenuGroup, MenuItem, A named set of links the business team controls without a deploy., main(), Seed the support inbox and the traveler site's menus. Safe to run repeatedly.  T, SupportTicket, ticket_hints(), create_ticket()
 
 ### Community 183 - "Community 183"
 Cohesion: 0.18
@@ -643,20 +628,16 @@ Cohesion: 0.50
 Nodes (4): main(), Download one Instagram reel with instaloader. Runs as its own process:      pyth, Extra fields cost another request and are often refused without a login: never f, _safe()
 
 ### Community 186 - "Community 186"
-Cohesion: 0.19
-Nodes (11): Role, create_user(), list_users(), update_user(), UserCreate, UserUpdate, create(), get() (+3 more)
+Cohesion: 0.11
+Nodes (20): login(), me(), Public sign-up always creates a traveler; staff accounts are created by admins., refresh(), register(), _tokens(), RegisterRequest, get_current_user() (+12 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.24
+Cohesion: 0.22
 Nodes (7): main(), Main class for threat modeler functionality, Execute the main functionality, Validate the target path exists and is accessible, Perform the main analysis or operation, Generate and display the report, ThreatModeler
 
 ### Community 193 - "Community 193"
-Cohesion: 0.19
-Nodes (13): Destination, DestinationDetail, _destinations(), Nearby, place(), PlaceDetail, PublicMedia, Read-only traveler view of the knowledge base: published data only, no internal (+5 more)
-
-### Community 194 - "Community 194"
-Cohesion: 0.33
-Nodes (4): OpenRouterEmbedder, AIUnavailableError, OpenRouterClient, OpenRouter embeddings endpoint (chat goes through app.ai.llm.LLMClient).
+Cohesion: 0.15
+Nodes (16): not_found(), read_referral(), referral_visit(), Destination, DestinationDetail, _destinations(), Nearby, place() (+8 more)
 
 ### Community 195 - "Community 195"
 Cohesion: 0.12
@@ -678,21 +659,13 @@ Nodes (10): _approved_creator(), fake_reel(), _make_trip(), Creator builds an it
 Cohesion: 0.33
 Nodes (5): _creator_login(), test_creator_cannot_use_staff_endpoints(), test_creator_signup_creates_pending_account(), test_second_login_reuses_the_account(), test_staff_approve_a_pending_creator()
 
-### Community 202 - "Community 202"
-Cohesion: 0.31
-Nodes (3): LLMClient, Response, Task
-
 ### Community 203 - "Community 203"
 Cohesion: 0.29
 Nodes (9): _active_creator(), get_trip(), import_reel(), import_status(), list_trips(), Creator-facing endpoints: a signed-in creator builds trips from their own reels,, Build a trip from one of the creator's own reels (same pipeline as a traveller p, trip_read() (+1 more)
 
 ### Community 204 - "Community 204"
-Cohesion: 0.33
-Nodes (8): create_session(), delete_chat(), get_chat(), list_sessions(), _own_session(), send_message(), ChatSession, MessageCreate
-
-### Community 205 - "Community 205"
-Cohesion: 0.44
-Nodes (8): config(), Regression: LLMClient(None) once fell back to settings and silently called the m, test_errors_and_disabled_client(), test_explicit_none_disables_the_llm_even_when_settings_enable_one(), test_ollama_request_shape(), test_openrouter_request_shape(), test_retries_without_reasoning_when_model_requires_it(), transport()
+Cohesion: 0.19
+Nodes (18): create_session(), delete_chat(), get_chat(), list_sessions(), _own_session(), send_message(), ChatSession, my_creator() (+10 more)
 
 ### Community 206 - "Community 206"
 Cohesion: 0.32
@@ -706,37 +679,29 @@ Nodes (5): components, $defs, operations, paths, webhooks
 Cohesion: 0.33
 Nodes (4): Day, Feasibility, ItineraryView(), STATUS
 
-### Community 210 - "Community 210"
-Cohesion: 0.40
-Nodes (3): Embedder, Embedder, Protocol
-
 ### Community 211 - "Community 211"
 Cohesion: 0.60
 Nodes (4): cosine(), evaluate(), main(), Retrieval-quality benchmark for the embedding provider.      uv run python -m ap
 
-### Community 212 - "Community 212"
-Cohesion: 0.50
-Nodes (4): A dry run: who would take a ticket like this, and why. Writes nothing., RoutingPreview, preview_routing(), Try it: who would take a ticket like this? Nothing is written.
-
 ## Knowledge Gaps
-- **521 isolated node(s):** `ImportKind`, `Trip`, `Item`, `KINDS`, `KIND_LABEL` (+516 more)
+- **520 isolated node(s):** `ImportKind`, `Trip`, `Item`, `KINDS`, `KIND_LABEL` (+515 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `AIOrchestrator` connect `Community 6` to `Integration & Booking`, `Community 10`, `Community 11`, `Community 15`, `Community 149`, `Community 27`, `Community 29`, `Community 30`, `Community 31`, `Community 160`, `Community 162`, `Community 39`, `Community 176`, `Community 51`, `Community 182`, `Community 202`, `Community 204`, `Community 76`, `Community 206`, `Community 210`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
-- **Why does `create_token()` connect `Community 38` to `Community 167`, `Community 178`, `Community 15`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `ThreatModeler` connect `Community 192` to `Community 163`?**
-  _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **Why does `AIOrchestrator` connect `Community 6` to `Integration & Booking`, `Community 162`, `Community 39`, `Community 10`, `Community 11`, `Community 204`, `Community 76`, `Community 206`, `Community 15`, `Community 115`, `Community 51`, `Community 149`, `Community 151`, `Community 27`, `Community 29`, `Community 30`?**
+  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+- **Why does `auth()` connect `Community 167` to `Community 160`, `Community 38`, `Community 51`, `Community 149`, `Community 151`, `Community 57`, `Community 30`?**
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+- **Why does `get_session()` connect `Community 85` to `Community 8`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **Are the 45 inferred relationships involving `AIOrchestrator` (e.g. with `Embedder` and `LLMClient`) actually correct?**
   _`AIOrchestrator` has 45 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Import every model so Alembic and metadata.create_all see the full schema.`, `The API has no home page; send visitors to the interactive docs.`, `Creator-facing endpoints: a signed-in creator builds trips from their own reels,` to the rest of the system?**
-  _749 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _748 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Backend & AI Services` be split into smaller, more focused modules?**
   _Cohesion score 0.10099573257467995 - nodes in this community are weakly interconnected._
 - **Should `Integration & Booking` be split into smaller, more focused modules?**
-  _Cohesion score 0.10153846153846154 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10869565217391304 - nodes in this community are weakly interconnected._
