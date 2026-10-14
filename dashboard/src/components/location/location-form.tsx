@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { ChipToggle, Field, Input, Select, Textarea, TriState } from "@/components/ui/field";
@@ -10,6 +10,7 @@ import { api, unwrap, type Location, type LocationType, type Schemas } from "@/l
 import { COST_LABELS, LOCATION_TYPES, SEASONS, STATUSES, TIMES, titleCase } from "@/lib/format";
 
 import { KeyValueEditor, ListEditor } from "./list-editor";
+import { LocationPicker } from "./location-picker";
 
 export type LocationFormValue = Omit<Schemas["LocationCreate"], "opening_hours"> & {
   opening_hours: Record<string, string>;
@@ -44,25 +45,48 @@ type Section = "details" | "travel" | "characteristics" | "knowledge";
 
 const num = (v: string) => (v === "" ? null : Number(v));
 
+export type LocationFormErrors = { name?: string; parent_id?: string };
+
+/** Runs even when Details tab inputs are unmounted (HTML required cannot). */
+export function validateLocationForm(value: LocationFormValue): LocationFormErrors {
+  const errors: LocationFormErrors = {};
+  if (!value.name.trim()) errors.name = "Enter a name.";
+  if (value.type !== "country" && !value.parent_id) {
+    errors.parent_id =
+      value.type === "city" ? "Choose a country this city belongs to." : "Choose a city this place belongs to.";
+  }
+  return errors;
+}
+
 export function LocationForm({
   value,
   onChange,
   isNew,
+  focusDetailsKey = 0,
+  fieldErrors,
+  onClearFieldError,
 }: {
   value: LocationFormValue;
   onChange: (value: LocationFormValue) => void;
   isNew: boolean;
+  /** Increment after failed create validation to show the Details tab. */
+  focusDetailsKey?: number;
+  fieldErrors?: LocationFormErrors;
+  onClearFieldError?: (field: keyof LocationFormErrors) => void;
 }) {
   const [section, setSection] = useState<Section>("details");
+  useEffect(() => {
+    if (focusDetailsKey > 0) setSection("details");
+  }, [focusDetailsKey]);
   const set = <K extends keyof LocationFormValue>(key: K, v: LocationFormValue[K]) => onChange({ ...value, [key]: v });
   const isContainer = value.type === "country" || value.type === "city";
   const parentType: LocationType | null = value.type === "country" ? null : value.type === "city" ? "country" : "city";
 
-  const parents = useQuery({
-    queryKey: ["parents", parentType],
-    enabled: parentType !== null,
+  const parent = useQuery({
+    queryKey: ["location", value.parent_id],
+    enabled: !!value.parent_id,
     queryFn: async () =>
-      unwrap(await api.GET("/admin/locations", { params: { query: { type: [parentType!], page_size: 200 } } })),
+      unwrap(await api.GET("/admin/locations/{location_id}", { params: { path: { location_id: value.parent_id! } } })),
   });
   const tags = useQuery({ queryKey: ["tags"], queryFn: async () => unwrap(await api.GET("/admin/tags")) });
   const [tagFilter, setTagFilter] = useState("");
@@ -92,8 +116,17 @@ export function LocationForm({
       <div className="grid gap-5 p-5 sm:grid-cols-2">
         {section === "details" && (
           <>
-            <Field label="Name" className="sm:col-span-2">
-              <Input value={value.name} onChange={(e) => set("name", e.target.value)} required />
+            <Field label="Name" className="sm:col-span-2" error={fieldErrors?.name}>
+              <Input
+                value={value.name}
+                onChange={(e) => {
+                  onClearFieldError?.("name");
+                  set("name", e.target.value);
+                }}
+                required
+                aria-invalid={!!fieldErrors?.name}
+                className={fieldErrors?.name ? "border-danger" : undefined}
+              />
             </Field>
             <Field label="Type">
               <Select value={value.type} disabled={!isNew} onChange={(e) => onChange({ ...value, type: e.target.value as LocationType, parent_id: null })}>
@@ -106,15 +139,29 @@ export function LocationForm({
               </Select>
             </Field>
             {parentType && (
-              <Field label={`Belongs to (${parentType})`}>
-                <Select value={value.parent_id ?? ""} onChange={(e) => set("parent_id", e.target.value || null)} required>
-                  <option value="">Choose a {parentType}…</option>
-                  {parents.data?.items.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}{p.parent ? ` — ${p.parent.name}` : ""}
-                    </option>
-                  ))}
-                </Select>
+              <Field label={`Belongs to (${parentType})`} error={fieldErrors?.parent_id}>
+                {value.parent_id ? (
+                  <div className="flex h-10 items-center justify-between rounded-xl border-[1.5px] border-border px-3 text-sm">
+                    <span className={parent.data ? "" : "text-muted"}>
+                      {parent.data
+                        ? `${parent.data.name}${parent.data.parent ? ` — ${parent.data.parent.name}` : ""}`
+                        : "Loading…"}
+                    </span>
+                    <button type="button" className="text-xs text-muted hover:text-text" onClick={() => set("parent_id", null)}>
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <LocationPicker
+                    types={[parentType]}
+                    placeholder={`Search ${parentType}…`}
+                    invalid={!!fieldErrors?.parent_id}
+                    onPick={(loc) => {
+                      onClearFieldError?.("parent_id");
+                      set("parent_id", loc.id);
+                    }}
+                  />
+                )}
               </Field>
             )}
             {value.type === "city" && (
