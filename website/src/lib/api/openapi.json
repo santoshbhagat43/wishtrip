@@ -3545,6 +3545,114 @@
     ]
    }
   },
+  "/support/tickets/{ticket_id}": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Read My Ticket",
+    "description": "The traveler's own thread: public messages only, never internal notes.",
+    "operationId": "read_my_ticket_support_tickets__ticket_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TravelerTicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/support/tickets/{ticket_id}/messages": {
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Follow Up My Ticket",
+    "description": "Traveler follow-up; reopens the ticket for the inbox when needed.",
+    "operationId": "follow_up_my_ticket_support_tickets__ticket_id__messages_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TravelerMessageCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TravelerTicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/admin/support/routing": {
    "get": {
     "tags": [
@@ -8793,6 +8901,7 @@
     "enum": [
      "admin",
      "editor",
+     "support",
      "traveler"
     ],
     "title": "Role"
@@ -10028,6 +10137,21 @@
     ],
     "title": "TravelerDetail"
    },
+   "TravelerMessageCreate": {
+    "properties": {
+     "body": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Body"
+     }
+    },
+    "type": "object",
+    "required": [
+     "body"
+    ],
+    "title": "TravelerMessageCreate"
+   },
    "TravelerSummary": {
     "properties": {
      "user_id": {
@@ -10067,6 +10191,55 @@
      "event_count"
     ],
     "title": "TravelerSummary"
+   },
+   "TravelerTicketRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "number": {
+      "type": "integer",
+      "title": "Number"
+     },
+     "subject": {
+      "type": "string",
+      "title": "Subject"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TicketStatus"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "messages": {
+      "items": {
+       "$ref": "#/components/schemas/SupportMessageRead"
+      },
+      "type": "array",
+      "title": "Messages"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "number",
+     "subject",
+     "status",
+     "created_at",
+     "updated_at",
+     "messages"
+    ],
+    "title": "TravelerTicketRead",
+    "description": "Ticket thread for the traveler who owns it \u2014 no staff context or internal notes."
    },
    "TripContext": {
     "properties": {

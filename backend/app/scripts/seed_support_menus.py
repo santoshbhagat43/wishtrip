@@ -103,6 +103,7 @@ MENUS = [
             {"label": "Explore", "url": "/explore"},
             {"label": "Plan a trip", "url": "/plan"},
             {"label": "Saved", "url": "/saved"},
+            {"label": "Help", "url": "/help"},
         ],
     },
     {

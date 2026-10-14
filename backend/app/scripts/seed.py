@@ -8,7 +8,9 @@ purpose: WishTrip never shows a price it has not verified.
 
 import asyncio
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import select
 
 from app.ai.indexing import embed_locations
@@ -27,6 +29,13 @@ from app.modules.knowledge.models import (
 from app.modules.knowledge.service import slugify
 from app.modules.profiles.models import Companions, TravelerProfile
 from app.modules.users.models import Role, User
+
+
+def _load_env() -> None:
+    """Repo-root .env first, then backend/.env (same order as Settings)."""
+    root = Path(__file__).resolve().parents[3]
+    load_dotenv(root / ".env")
+    load_dotenv(root / "backend" / ".env", override=True)
 
 TAGS = {
     TagCategory.INTEREST: [
@@ -273,6 +282,7 @@ RELATIONS = [
 
 
 async def seed() -> None:
+    _load_env()
     async with SessionLocal() as session:
         admin_email = os.environ.get("ADMIN_EMAIL")
         admin_password = os.environ.get("ADMIN_PASSWORD")

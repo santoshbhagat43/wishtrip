@@ -24,7 +24,10 @@ function LoginForm() {
       body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
     });
     if (res.ok) {
-      router.replace(next.startsWith("/") ? next : "/");
+      const me = (await res.json()) as { role?: string };
+      const fallback = me.role === "support" ? "/support" : "/";
+      const dest = next.startsWith("/") && next !== "/" ? next : fallback;
+      router.replace(dest);
       router.refresh();
     } else {
       setError(errorMessage(await res.json().catch(() => ({}))));

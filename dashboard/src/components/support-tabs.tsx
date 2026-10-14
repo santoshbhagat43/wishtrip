@@ -3,12 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useMe } from "@/lib/hooks/use-me";
+
 /** Inbox and Routing are two views of the same job, so they share a sub-nav. */
 export function SupportTabs() {
   const pathname = usePathname();
+  const { data: me } = useMe();
   const tabs = [
     { href: "/support", label: "Inbox" },
-    { href: "/support/routing", label: "Routing" },
+    ...(me?.role === "admin" || me?.role === "editor"
+      ? [{ href: "/support/routing", label: "Routing" }]
+      : []),
   ];
   return (
     <div className="flex gap-1 self-start rounded-full bg-surface-2 p-1">

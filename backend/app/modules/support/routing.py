@@ -37,11 +37,15 @@ async def config(session: AsyncSession) -> SupportRouting:
     return created
 
 
+# Support agents first; admin/editor can still be in the rotation when needed.
+_AGENT_ROLES = (Role.SUPPORT, Role.ADMIN, Role.EDITOR)
+
+
 async def agent_rows(session: AsyncSession) -> list[AgentRouting]:
     """One routing row per staff account, in rotation order."""
     staff = list(
         await session.scalars(
-            select(User).where(User.role != Role.TRAVELER, User.is_active.is_(True))
+            select(User).where(User.role.in_(_AGENT_ROLES), User.is_active.is_(True))
         )
     )
     rows = {r.user_id: r for r in await session.scalars(select(AgentRouting))}
@@ -108,6 +112,10 @@ async def choose(
     rows = [r for r in await agent_rows(session) if r.user_id != exclude]
     counts = await open_counts(session)
     available = _eligible(rows, counts)
+    # Prefer the support role when any support agent is free.
+    support_only = [r for r in available if r.user.role == Role.SUPPORT]
+    if support_only:
+        available = support_only
 
     if settings.method == RoutingMethod.MANUAL:
         return None, "Manual assignment is on, so new tickets wait in Unassigned."

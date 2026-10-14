@@ -53,6 +53,10 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["GET", /^reels\/imports\/[0-9a-f-]{36}$/],
   ["GET", /^explore\/(destinations|tags|menus)$/],
   ["GET", /^explore\/(destinations|places)\/[0-9a-f-]{36}$/],
+  ["GET", /^support\/tickets$/],
+  ["POST", /^support\/tickets$/],
+  ["GET", /^support\/tickets\/[0-9a-f-]{36}$/],
+  ["POST", /^support\/tickets\/[0-9a-f-]{36}\/messages$/],
 ];
 
 export function isAllowed(method: string, path: string) {
