@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey, str_enum
@@ -110,3 +111,29 @@ class CommissionEntry(UUIDPrimaryKey, Timestamps, Base):
     status: Mapped[CommissionStatus] = mapped_column(
         str_enum(CommissionStatus), default=CommissionStatus.PENDING
     )
+
+
+class TripStatus(enum.StrEnum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+
+
+class CreatorTrip(UUIDPrimaryKey, Timestamps, Base):
+    """An itinerary a creator builds from their own reel, edits, and publishes as a shareable,
+    affiliate-tagged link."""
+
+    __tablename__ = "creator_trips"
+
+    creator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("creators.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), default="")
+    destination_name: Mapped[str] = mapped_column(String(255), default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    cover_image_key: Mapped[str | None] = mapped_column(String(500))
+    source_shortcode: Mapped[str | None] = mapped_column(String(64))
+    # [{id, kind, name, note, day, location_id, verified}] — the editable stops.
+    items: Mapped[list] = mapped_column(JSONB, default=list)
+    status: Mapped[TripStatus] = mapped_column(str_enum(TripStatus), default=TripStatus.DRAFT)
+    # Set when published: the public link is /t/<share_code>, carrying the creator's affiliate tag.
+    share_code: Mapped[str | None] = mapped_column(String(64), unique=True)

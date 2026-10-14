@@ -14,6 +14,7 @@ from app.db.session import engine
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.chat.router import router as chat_router
+from app.modules.creators.creator_router import router as creator_router
 from app.modules.creators.router import router as creators_router
 from app.modules.explore.router import router as explore_router
 from app.modules.knowledge.router import router as knowledge_router
@@ -50,6 +51,7 @@ for router in (
     chat_router,
     reels_router,
     creators_router,
+    creator_router,
     menus_router,
     support_router,
 ):

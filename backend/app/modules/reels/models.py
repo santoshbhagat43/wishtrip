@@ -41,6 +41,13 @@ class CreatorContent(UUIDPrimaryKey, Timestamps, Base):
     destination_name: Mapped[str] = mapped_column(String(255), default="")
 
 
+class ImportKind(enum.StrEnum):
+    # A traveller pasting a reel -> a seeded chat session.
+    CHAT = "chat"
+    # A creator importing their own reel -> an editable trip they own.
+    CREATOR_TRIP = "creator_trip"
+
+
 class ImportStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -72,6 +79,10 @@ class ReelImport(UUIDPrimaryKey, Timestamps, Base):
     )
     chat_session_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("chat_sessions.id", ondelete="SET NULL")
+    )
+    kind: Mapped[ImportKind] = mapped_column(str_enum(ImportKind), default=ImportKind.CHAT)
+    creator_trip_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("creator_trips.id", ondelete="SET NULL")
     )
     status: Mapped[ImportStatus] = mapped_column(
         str_enum(ImportStatus), default=ImportStatus.QUEUED

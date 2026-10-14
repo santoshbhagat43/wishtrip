@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { TripTools } from "@/components/creator/trip-tools";
 import { api, unwrap } from "@/lib/api/client";
 import { useMe, useSignOut } from "@/lib/session";
 
@@ -65,6 +66,7 @@ export default function CreatorPage() {
               through your link.
             </p>
           )}
+          <TripTools />
         </>
       ) : status === "paused" ? (
         <>
@@ -87,5 +89,5 @@ export default function CreatorPage() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-lg px-4 py-16">{children}</div>;
+  return <div className="mx-auto max-w-2xl px-4 py-16">{children}</div>;
 }

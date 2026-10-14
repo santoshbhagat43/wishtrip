@@ -17,6 +17,7 @@ import sys
 import tempfile
 import uuid
 from collections import Counter
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -31,10 +32,17 @@ from app.core.config import settings
 from app.modules.chat.models import ChatSession
 from app.modules.chat.pipeline import resolve_destination
 from app.modules.creators import service as creators
+from app.modules.creators import trips as creator_trips
 from app.modules.knowledge.models import Location, LocationStatus, LocationType
 from app.modules.media.storage import storage
 from app.modules.reels import fetch, media
-from app.modules.reels.models import CreatorContent, ImportStatus, ImportStep, ReelImport
+from app.modules.reels.models import (
+    CreatorContent,
+    ImportKind,
+    ImportStatus,
+    ImportStep,
+    ReelImport,
+)
 from app.modules.reels.understand import Reading, Transcript, material, read_places, transcribe
 from app.modules.search.service import semantic_search
 from app.modules.users.models import User
@@ -206,78 +214,105 @@ async def match_places(
     return destination, out
 
 
+StepCallback = Callable[[ImportStep], Awaitable[None]]
+
+
+async def produce_content(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    shortcode: str,
+    on_step: StepCallback | None = None,
+) -> CreatorContent:
+    """Download and read one reel into a CreatorContent row (cached by shortcode).
+
+    This is the shared heavy lifting behind both a traveller pasting a reel and a creator
+    building a trip from their own reel. Video, audio and frames are deleted afterwards.
+    """
+    cached_content = await cached(session, shortcode)
+    if cached_content is not None:
+        return cached_content
+
+    async def step(value: ImportStep) -> None:
+        if on_step is not None:
+            await on_step(value)
+
+    workdir = Path(tempfile.mkdtemp(prefix=f"reel-{shortcode}-"))
+    try:
+        await step(ImportStep.DOWNLOADING)
+        meta = download(shortcode, workdir)
+        video = _first(workdir, "reel")
+        if video is None:
+            raise ReelError("We couldn't download that reel. Try again in a bit.")
+        info = media.probe(video)
+        if info.duration > settings.reel_max_seconds:
+            raise ReelError(
+                f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
+                "Paste a reel."
+            )
+
+        await step(ImportStep.READING_SCREEN)
+        frame_list = media.frames(
+            video, workdir / "frames", settings.reel_max_frames, info.duration
+        )
+        ocr_lines = media.ocr(frame_list)
+
+        await step(ImportStep.LISTENING)
+        transcript = await listen(ai, video, workdir, info.has_audio)
+
+        await step(ImportStep.FINDING_PLACES)
+        text = material(
+            meta.get("caption", ""), meta.get("hashtags", []), meta.get("location", ""),
+            ocr_lines, transcript,
+        )  # fmt: skip
+        if not ai.enabled:
+            raise ReelError("Reading reels needs the AI service, which is not set up.")
+        reading = await read_places(ai, text)
+        destination, places = await match_places(session, ai, reading)
+
+        creator = await creators.upsert(
+            session, meta["owner_username"], meta.get("owner_full_name", "")
+        )
+        thumb = _first(workdir, "thumb")
+        content = CreatorContent(
+            creator_id=creator.id,
+            shortcode=shortcode,
+            url=canonical_url(shortcode),
+            caption=meta.get("caption", ""),
+            location_tag=meta.get("location", "") or "",
+            posted_at=datetime.fromisoformat(meta["posted_at"]) if meta.get("posted_at") else None,
+            duration_seconds=info.duration,
+            thumbnail_key=storage.save(thumb.read_bytes(), thumb.name, "reels") if thumb else None,
+            ocr_lines=ocr_lines,
+            transcript=transcript.text,
+            transcript_language=transcript.language,
+            transcript_en=transcript.english,
+            extracted=reading.to_dict(),
+            places=places,
+            destination_id=destination.id if destination else None,
+            destination_name=destination.name if destination else reading.destination,
+        )
+        session.add(content)
+        await session.flush()
+        return content
+    finally:
+        # Keep no video, audio or frames: only the cover image and the text we read.
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) -> None:
-    """Run one import to the end. Errors land on the job for the traveller to read."""
+    """Run one import to the end. Errors land on the job for the person to read."""
     job_id = job.id
-    workdir = Path(tempfile.mkdtemp(prefix=f"reel-{job.shortcode}-"))
 
     async def step(value: ImportStep) -> None:
         job.status, job.step = ImportStatus.RUNNING, value
         await session.commit()
 
     try:
-        content = await cached(session, job.shortcode)
-        if content is None:
-            await step(ImportStep.DOWNLOADING)
-            meta = download(job.shortcode, workdir)
-            video = _first(workdir, "reel")
-            if video is None:
-                raise ReelError("We couldn't download that reel. Try again in a bit.")
-            info = media.probe(video)
-            if info.duration > settings.reel_max_seconds:
-                raise ReelError(
-                    f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
-                    "Paste a reel."
-                )
-
-            await step(ImportStep.READING_SCREEN)
-            frame_list = media.frames(
-                video, workdir / "frames", settings.reel_max_frames, info.duration
-            )
-            ocr_lines = media.ocr(frame_list)
-
-            await step(ImportStep.LISTENING)
-            transcript = await listen(ai, video, workdir, info.has_audio)
-
-            await step(ImportStep.FINDING_PLACES)
-            text = material(
-                meta.get("caption", ""), meta.get("hashtags", []), meta.get("location", ""),
-                ocr_lines, transcript,
-            )  # fmt: skip
-            if not ai.enabled:
-                raise ReelError("Reading reels needs the AI service, which is not set up.")
-            reading = await read_places(ai, text)
-            destination, places = await match_places(session, ai, reading)
-
-            creator = await creators.upsert(
-                session, meta["owner_username"], meta.get("owner_full_name", "")
-            )
-            thumb = _first(workdir, "thumb")
-            content = CreatorContent(
-                creator_id=creator.id,
-                shortcode=job.shortcode,
-                url=canonical_url(job.shortcode),
-                caption=meta.get("caption", ""),
-                location_tag=meta.get("location", "") or "",
-                posted_at=datetime.fromisoformat(meta["posted_at"])
-                if meta.get("posted_at")
-                else None,
-                duration_seconds=info.duration,
-                thumbnail_key=storage.save(thumb.read_bytes(), thumb.name, "reels")
-                if thumb
-                else None,
-                ocr_lines=ocr_lines,
-                transcript=transcript.text,
-                transcript_language=transcript.language,
-                transcript_en=transcript.english,
-                extracted=reading.to_dict(),
-                places=places,
-                destination_id=destination.id if destination else None,
-                destination_name=destination.name if destination else reading.destination,
-            )
-            session.add(content)
-            await session.flush()
-        await finish(session, job, content)
+        content = await produce_content(session, ai, job.shortcode, on_step=step)
+        if job.kind == ImportKind.CREATOR_TRIP:
+            await creator_trips.finish_import(session, job, content)
+        else:
+            await finish(session, job, content)
     except (ReelError, media.MediaError, AIUnavailableError, ValueError) as exc:
         await session.rollback()
         job = await session.get(ReelImport, job_id, populate_existing=True)
@@ -285,9 +320,6 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
         job.status, job.error = ImportStatus.FAILED, _message(exc)
         job.finished_at = datetime.now(UTC)
         await session.commit()
-    finally:
-        # Keep no video, audio or frames: only the cover image and the text we read.
-        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def _message(exc: Exception) -> str:

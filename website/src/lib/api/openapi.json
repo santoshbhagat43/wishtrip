@@ -2937,6 +2937,278 @@
     }
    }
   },
+  "/creator/trips/import": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Import Reel",
+    "description": "Build a trip from one of the creator's own reels (same pipeline as a traveller paste).",
+    "operationId": "import_reel_creator_trips_import_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TripImportStart"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/trips/imports/{import_id}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Import Status",
+    "operationId": "import_status_creator_trips_imports__import_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "List Trips",
+    "operationId": "list_trips_creator_trips_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreatorTripRead"
+         },
+         "type": "array",
+         "title": "Response List Trips Creator Trips Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/trips/{trip_id}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Get Trip",
+    "operationId": "get_trip_creator_trips__trip_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Update Trip",
+    "operationId": "update_trip_creator_trips__trip_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorTripUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/trips/{share_code}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Public Trip",
+    "description": "The shareable affiliate link. Public, so a creator can put it in their video.",
+    "operationId": "public_trip_trips__share_code__get",
+    "parameters": [
+     {
+      "name": "share_code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Share Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/admin/menus": {
    "get": {
     "tags": [
@@ -4851,6 +5123,147 @@
      "paused"
     ],
     "title": "CreatorStatus"
+   },
+   "CreatorTripRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "source_shortcode": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Shortcode"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TripItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TripStatus"
+     },
+     "share_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Code"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "destination_name",
+     "summary",
+     "items",
+     "status",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "CreatorTripRead"
+   },
+   "CreatorTripUpdate": {
+    "properties": {
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "items": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TripItem"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Items"
+     },
+     "publish": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Publish"
+     }
+    },
+    "type": "object",
+    "title": "CreatorTripUpdate"
    },
    "CreatorUpdate": {
     "properties": {
@@ -8062,6 +8475,35 @@
     ],
     "title": "ProfileRead"
    },
+   "PublicCreator": {
+    "properties": {
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "display_name",
+     "referral_code"
+    ],
+    "title": "PublicCreator"
+   },
    "PublicLocation": {
     "properties": {
      "id": {
@@ -8302,6 +8744,53 @@
     ],
     "title": "PublicMenuItem",
     "description": "What the traveler website renders: a label and a URL, nothing internal."
+   },
+   "PublicTripRead": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "creator": {
+      "$ref": "#/components/schemas/PublicCreator"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TripItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "destination_name",
+     "summary",
+     "creator",
+     "items"
+    ],
+    "title": "PublicTripRead",
+    "description": "A published creator trip, shown on the shareable /t/<code> link."
    },
    "RecentEvent": {
     "properties": {
@@ -8696,6 +9185,18 @@
       ],
       "title": "Chat Session Id"
      },
+     "creator_trip_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Creator Trip Id"
+     },
      "seed_message": {
       "anyOf": [
        {
@@ -8727,7 +9228,7 @@
      "error",
      "created_at",
      "finished_at",
-     "chat_session_id"
+     "creator_trip_id"
     ],
     "title": "ReelImportRead"
    },
@@ -10688,6 +11189,84 @@
     ],
     "title": "TripContext",
     "description": "What we actually hold about this traveler, for the agent's side panel."
+   },
+   "TripImportStart": {
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "url"
+    ],
+    "title": "TripImportStart"
+   },
+   "TripItem": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
+     },
+     "day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Day"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "name"
+    ],
+    "title": "TripItem"
+   },
+   "TripStatus": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "published"
+    ],
+    "title": "TripStatus"
    },
    "UserCreate": {
     "properties": {

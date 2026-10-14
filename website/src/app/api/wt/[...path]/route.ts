@@ -45,4 +45,4 @@ async function gateway(request: NextRequest, ctx: { params: Promise<{ path: stri
   return response;
 }
 
-export { gateway as DELETE, gateway as GET, gateway as POST, gateway as PUT };
+export { gateway as DELETE, gateway as GET, gateway as PATCH, gateway as POST, gateway as PUT };

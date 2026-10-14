@@ -9,6 +9,7 @@ from app.modules.creators.models import (
     CommissionStatus,
     CommissionType,
     CreatorStatus,
+    TripStatus,
 )
 
 
@@ -120,3 +121,57 @@ class ReferralRead(BaseModel):
     handle: str
     display_name: str
     referral_code: str
+
+
+class TripItem(BaseModel):
+    id: str
+    kind: str
+    name: str
+    note: str = ""
+    day: int | None = None
+    location_id: str | None = None
+    verified: bool = False
+
+
+class CreatorTripRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    destination_name: str
+    summary: str
+    cover_image_url: str | None = None
+    source_shortcode: str | None = None
+    items: list[TripItem]
+    status: TripStatus
+    share_code: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TripImportStart(BaseModel):
+    url: str = Field(min_length=1, max_length=1000)
+
+
+class CreatorTripUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+    summary: str | None = Field(default=None, max_length=2000)
+    items: list[TripItem] | None = None
+    publish: bool | None = None
+
+
+class PublicCreator(BaseModel):
+    handle: str | None = None
+    display_name: str
+    referral_code: str
+
+
+class PublicTripRead(BaseModel):
+    """A published creator trip, shown on the shareable /t/<code> link."""
+
+    title: str
+    destination_name: str
+    summary: str
+    cover_image_url: str | None = None
+    creator: PublicCreator
+    items: list[TripItem]

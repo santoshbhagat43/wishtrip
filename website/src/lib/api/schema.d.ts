@@ -856,6 +856,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/creator/trips/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Reel
+         * @description Build a trip from one of the creator's own reels (same pipeline as a traveller paste).
+         */
+        post: operations["import_reel_creator_trips_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import Status */
+        get: operations["import_status_creator_trips_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Trips */
+        get: operations["list_trips_creator_trips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Trip */
+        get: operations["get_trip_creator_trips__trip_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Trip */
+        patch: operations["update_trip_creator_trips__trip_id__patch"];
+        trace?: never;
+    };
+    "/trips/{share_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Trip
+         * @description The shareable affiliate link. Public, so a creator can put it in their video.
+         */
+        get: operations["public_trip_trips__share_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/menus": {
         parameters: {
             query?: never;
@@ -1541,6 +1633,50 @@ export interface components {
          * @enum {string}
          */
         CreatorStatus: "pending" | "unclaimed" | "invited" | "active" | "paused";
+        /** CreatorTripRead */
+        CreatorTripRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /** Source Shortcode */
+            source_shortcode?: string | null;
+            /** Items */
+            items: components["schemas"]["TripItem"][];
+            status: components["schemas"]["TripStatus"];
+            /** Share Code */
+            share_code?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CreatorTripUpdate */
+        CreatorTripUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Items */
+            items?: components["schemas"]["TripItem"][] | null;
+            /** Publish */
+            publish?: boolean | null;
+        };
         /** CreatorUpdate */
         CreatorUpdate: {
             /** Handle */
@@ -2696,6 +2832,15 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** PublicCreator */
+        PublicCreator: {
+            /** Handle */
+            handle?: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Referral Code */
+            referral_code: string;
+        };
         /**
          * PublicLocation
          * @description What travelers may see: no provenance, source, reference data, status or index state.
@@ -2770,6 +2915,23 @@ export interface components {
             url: string;
             /** Opens In New Tab */
             opens_in_new_tab: boolean;
+        };
+        /**
+         * PublicTripRead
+         * @description A published creator trip, shown on the shareable /t/<code> link.
+         */
+        PublicTripRead: {
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            creator: components["schemas"]["PublicCreator"];
+            /** Items */
+            items: components["schemas"]["TripItem"][];
         };
         /** RecentEvent */
         RecentEvent: {
@@ -2910,7 +3072,9 @@ export interface components {
             /** Finished At */
             finished_at: string | null;
             /** Chat Session Id */
-            chat_session_id: string | null;
+            chat_session_id?: string | null;
+            /** Creator Trip Id */
+            creator_trip_id: string | null;
             /** Seed Message */
             seed_message?: string | null;
             content?: components["schemas"]["ReelContentRead"] | null;
@@ -3641,6 +3805,39 @@ export interface components {
             /** Past Tickets */
             past_tickets: number;
         };
+        /** TripImportStart */
+        TripImportStart: {
+            /** Url */
+            url: string;
+        };
+        /** TripItem */
+        TripItem: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Day */
+            day?: number | null;
+            /** Location Id */
+            location_id?: string | null;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+        };
+        /**
+         * TripStatus
+         * @enum {string}
+         */
+        TripStatus: "draft" | "published";
         /** UserCreate */
         UserCreate: {
             /**
@@ -5428,6 +5625,187 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReferralRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_reel_creator_trips_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripImportStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_status_creator_trips_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_trips_creator_trips_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"][];
+                };
+            };
+        };
+    };
+    get_trip_creator_trips__trip_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_trip_creator_trips__trip_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorTripUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_trip_trips__share_code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTripRead"];
                 };
             };
             /** @description Validation Error */

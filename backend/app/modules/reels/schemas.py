@@ -46,7 +46,8 @@ class ReelImportRead(BaseModel):
     error: str
     created_at: datetime
     finished_at: datetime | None
-    chat_session_id: uuid.UUID | None
+    chat_session_id: uuid.UUID | None = None
+    creator_trip_id: uuid.UUID | None
     # The message that starts planning in chat; set when the import is done.
     seed_message: str | None = None
     content: ReelContentRead | None = None
