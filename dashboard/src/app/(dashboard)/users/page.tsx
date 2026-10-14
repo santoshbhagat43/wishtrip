@@ -12,20 +12,21 @@ import { api, unwrap } from "@/lib/api/client";
 import { relativeTime } from "@/lib/format";
 import { useMe } from "@/lib/hooks/use-me";
 
-type Role = "admin" | "editor" | "traveler";
+type Role = "admin" | "editor" | "support" | "traveler";
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
-  const [form, setForm] = useState({ email: "", full_name: "", password: "", role: "editor" as Role });
+  const [form, setForm] = useState({ email: "", full_name: "", password: "", role: "support" as Role });
   const users = useQuery({
     queryKey: ["users"],
+    enabled: me?.role === "admin",
     queryFn: async () => unwrap(await api.GET("/admin/users", { params: { query: { page_size: 100 } } })),
   });
   const create = useMutation({
     mutationFn: async () => unwrap(await api.POST("/admin/users", { body: form })),
     onSuccess: () => {
-      setForm({ email: "", full_name: "", password: "", role: "editor" });
+      setForm({ email: "", full_name: "", password: "", role: "support" });
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
@@ -35,11 +36,19 @@ export default function UsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
-  if (me && me.role !== "admin") return <ErrorNote error="Only admins can manage users." />;
+  if (!me) return <Spinner />;
+  if (me.role !== "admin") {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <PageHeader title="Staff users" description="Only admins can manage staff accounts." />
+        <ErrorNote error="Only admins can manage users." />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Staff users" description="Admins manage everything; editors manage the knowledge base." />
+      <PageHeader title="Staff users" description="Admins manage everything; editors manage the knowledge base; support works the inbox." />
       <Card className="mb-6">
         <form
           className="grid gap-2 p-4 sm:grid-cols-[1fr_1fr_1fr_auto_auto]"
@@ -52,6 +61,7 @@ export default function UsersPage() {
           <Input placeholder="Full name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
           <Input type="password" placeholder="Temporary password (8+)" minLength={8} required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           <Select className="w-auto" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
+            <option value="support">Support</option>
             <option value="editor">Editor</option>
             <option value="admin">Admin</option>
           </Select>
@@ -79,6 +89,7 @@ export default function UsersPage() {
                         disabled={u.id === me?.id}
                         onChange={(e) => update.mutate({ id: u.id, body: { role: e.target.value as Role } })}
                       >
+                        <option value="support">Support</option>
                         <option value="editor">Editor</option>
                         <option value="admin">Admin</option>
                       </Select>

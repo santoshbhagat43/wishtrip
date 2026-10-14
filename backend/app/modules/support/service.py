@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.errors import not_found
+from app.core.errors import bad_request, forbidden, not_found
 from app.modules.chat.models import ChatMessage, ChatSession
 from app.modules.knowledge.models import Tag
 from app.modules.profiles.models import EventType, ProfileEvent, TravelerProfile
@@ -33,12 +33,23 @@ from app.modules.support.schemas import (
     TicketListItem,
     TicketRead,
     TicketUpdate,
+    TravelerMessageCreate,
+    TravelerTicketRead,
     TripContext,
 )
 from app.modules.users.models import Role, User
 
 # Views the inbox offers, in the order the pills appear.
 OPEN_STATUSES = (TicketStatus.OPEN, TicketStatus.WAITING_CUSTOMER)
+_AGENT_ROLES = (Role.SUPPORT, Role.ADMIN, Role.EDITOR)
+_PUBLIC_AUTHORS = (MessageAuthor.CUSTOMER, MessageAuthor.AGENT)
+
+
+def _visible_in_inbox(ticket: SupportTicket, viewer: User) -> bool:
+    """Support only sees unassigned tickets and tickets assigned to them."""
+    if viewer.role != Role.SUPPORT:
+        return True
+    return ticket.assignee_id is None or ticket.assignee_id == viewer.id
 
 
 def _minutes_since(value: datetime | None) -> int:
@@ -91,9 +102,13 @@ async def inbox(
     page_size: int = 50,
 ) -> Inbox:
     await routing.sweep_overdue(session)
-    tickets = list(
-        await session.scalars(select(SupportTicket).options(selectinload(SupportTicket.messages)))
-    )
+    tickets = [
+        t
+        for t in await session.scalars(
+            select(SupportTicket).options(selectinload(SupportTicket.messages))
+        )
+        if _visible_in_inbox(t, viewer)
+    ]
     counts = InboxCounts(
         open=sum(1 for t in tickets if t.status in OPEN_STATUSES),
         unassigned=sum(1 for t in tickets if t.status in OPEN_STATUSES and not t.assignee_id),
@@ -196,33 +211,90 @@ async def _context(session: AsyncSession, ticket: SupportTicket) -> TripContext:
     )
 
 
-async def get_ticket(session: AsyncSession, ticket_id: uuid.UUID) -> TicketRead:
+def _message_read(ticket: SupportTicket, message: SupportMessage) -> SupportMessageRead:
+    return SupportMessageRead(
+        id=message.id,
+        author=message.author,
+        author_name=(
+            message.author_user.full_name if message.author_user else ticket.user.full_name
+        ),
+        body=message.body,
+        created_at=message.created_at,
+    )
+
+
+async def get_ticket(
+    session: AsyncSession, ticket_id: uuid.UUID, viewer: User | None = None
+) -> TicketRead:
     ticket = await session.get(
         SupportTicket,
         ticket_id,
         options=[selectinload(SupportTicket.messages)],
         populate_existing=True,
     )
-    if not ticket:
+    if not ticket or (viewer is not None and not _visible_in_inbox(ticket, viewer)):
         raise not_found("Ticket not found")
     base = _to_list_item(ticket, await _trip_title(session, ticket))
     return TicketRead(
         **base.model_dump(),
-        messages=[
-            SupportMessageRead(
-                id=m.id,
-                author=m.author,
-                author_name=m.author_user.full_name if m.author_user else ticket.user.full_name,
-                body=m.body,
-                created_at=m.created_at,
-            )
-            for m in ticket.messages
-        ],
+        messages=[_message_read(ticket, m) for m in ticket.messages],
         context=await _context(session, ticket),
     )
 
 
+async def _owned_ticket(session: AsyncSession, ticket_id: uuid.UUID, user: User) -> SupportTicket:
+    ticket = await session.get(
+        SupportTicket,
+        ticket_id,
+        options=[selectinload(SupportTicket.messages)],
+        populate_existing=True,
+    )
+    if not ticket or ticket.user_id != user.id:
+        raise not_found("Ticket not found")
+    return ticket
+
+
+def _traveler_ticket_read(ticket: SupportTicket) -> TravelerTicketRead:
+    return TravelerTicketRead(
+        id=ticket.id,
+        number=ticket.number,
+        subject=ticket.subject,
+        status=ticket.status,
+        created_at=ticket.created_at,
+        updated_at=ticket.updated_at,
+        messages=[
+            _message_read(ticket, m) for m in ticket.messages if m.author in _PUBLIC_AUTHORS
+        ],
+    )
+
+
+async def get_traveler_ticket(
+    session: AsyncSession, ticket_id: uuid.UUID, user: User
+) -> TravelerTicketRead:
+    ticket = await _owned_ticket(session, ticket_id, user)
+    return _traveler_ticket_read(ticket)
+
+
+async def traveler_follow_up(
+    session: AsyncSession, ticket_id: uuid.UUID, user: User, data: TravelerMessageCreate
+) -> TravelerTicketRead:
+    ticket = await _owned_ticket(session, ticket_id, user)
+    session.add(
+        SupportMessage(ticket_id=ticket.id, author=MessageAuthor.CUSTOMER, body=data.body)
+    )
+    if ticket.status in (TicketStatus.WAITING_CUSTOMER, TicketStatus.RESOLVED):
+        ticket.status = TicketStatus.OPEN
+        ticket.resolved_at = None
+    await session.commit()
+    return await get_traveler_ticket(session, ticket_id, user)
+
+
 async def create_ticket(session: AsyncSession, user: User, data: TicketCreate) -> SupportTicket:
+    chat = None
+    if data.session_id:
+        chat = await session.get(ChatSession, data.session_id)
+        if not chat or chat.user_id != user.id:
+            raise bad_request("That trip is not available")
     ticket = SupportTicket(
         user_id=user.id,
         session_id=data.session_id,
@@ -234,8 +306,6 @@ async def create_ticket(session: AsyncSession, user: User, data: TicketCreate) -
     session.add(ticket)
     await session.flush()
     session.add(SupportMessage(ticket_id=ticket.id, author=MessageAuthor.CUSTOMER, body=data.body))
-    # Route it by the team's own rules, and record why it went where it did.
-    chat = await session.get(ChatSession, data.session_id) if data.session_id else None
     destination = (chat.state or {}).get("destination") if chat else None
     await routing.assign(session, ticket, hints=routing.ticket_hints(ticket, destination))
     await session.commit()
@@ -243,13 +313,45 @@ async def create_ticket(session: AsyncSession, user: User, data: TicketCreate) -
     return ticket
 
 
+async def _eligible_agent(session: AsyncSession, user_id: uuid.UUID) -> User:
+    agent = await session.get(User, user_id)
+    if not agent or not agent.is_active or agent.role not in _AGENT_ROLES:
+        raise bad_request("Assignee must be an active support agent")
+    return agent
+
+
+async def _apply_assignee_change(
+    session: AsyncSession, ticket: SupportTicket, actor: User, assignee_id: uuid.UUID | None
+) -> None:
+    """Admin/editor: any eligible agent or unassign. Support: claim unassigned to self only."""
+    if actor.role in (Role.ADMIN, Role.EDITOR):
+        if assignee_id is not None:
+            await _eligible_agent(session, assignee_id)
+        ticket.assignee_id = assignee_id
+        return
+
+    if actor.role != Role.SUPPORT:
+        raise forbidden()
+
+    # Support may only claim an unassigned ticket for themselves.
+    if ticket.assignee_id is not None:
+        raise forbidden("Only admins can change an existing assignment")
+    if assignee_id != actor.id:
+        raise forbidden("Support agents can only assign unassigned tickets to themselves")
+    await _eligible_agent(session, assignee_id)
+    ticket.assignee_id = assignee_id
+
+
 async def update_ticket(
-    session: AsyncSession, ticket_id: uuid.UUID, data: TicketUpdate
+    session: AsyncSession, ticket_id: uuid.UUID, data: TicketUpdate, actor: User
 ) -> TicketRead:
     ticket = await session.get(SupportTicket, ticket_id)
-    if not ticket:
+    if not ticket or not _visible_in_inbox(ticket, actor):
         raise not_found("Ticket not found")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    fields = data.model_dump(exclude_unset=True)
+    if "assignee_id" in fields:
+        await _apply_assignee_change(session, ticket, actor, fields.pop("assignee_id"))
+    for field, value in fields.items():
         setattr(ticket, field, value)
     if data.status == TicketStatus.RESOLVED and not ticket.resolved_at:
         ticket.resolved_at = datetime.now(UTC)
@@ -263,7 +365,7 @@ async def reply(
     session: AsyncSession, ticket_id: uuid.UUID, agent: User, data: ReplyCreate
 ) -> TicketRead:
     ticket = await session.get(SupportTicket, ticket_id)
-    if not ticket:
+    if not ticket or not _visible_in_inbox(ticket, agent):
         raise not_found("Ticket not found")
     session.add(
         SupportMessage(
@@ -290,7 +392,10 @@ async def agents(session: AsyncSession) -> list[AgentLoad]:
     """Staff who can hold tickets, with what they are already carrying."""
     staff = list(
         await session.scalars(
-            select(User).where(User.role != Role.TRAVELER, User.is_active.is_(True))
+            select(User).where(
+                User.role.in_(_AGENT_ROLES),
+                User.is_active.is_(True),
+            )
         )
     )
     open_counts = dict(

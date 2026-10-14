@@ -10,6 +10,7 @@ from app.db.base import Base, Timestamps, UUIDPrimaryKey, str_enum
 class Role(enum.StrEnum):
     ADMIN = "admin"
     EDITOR = "editor"
+    SUPPORT = "support"
     TRAVELER = "traveler"
 
 

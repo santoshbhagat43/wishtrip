@@ -11,3 +11,7 @@ def bad_request(detail: str) -> HTTPException:
 
 def conflict(detail: str) -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, detail)
+
+
+def forbidden(detail: str = "Insufficient permissions") -> HTTPException:
+    return HTTPException(status.HTTP_403_FORBIDDEN, detail)

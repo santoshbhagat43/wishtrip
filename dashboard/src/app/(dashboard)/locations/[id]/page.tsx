@@ -76,6 +76,7 @@ function LocationEditor({ loc }: { loc: Location }) {
 
   function verify() {
     save.mutate({
+      ...changes,
       provenance: { ...loc.provenance, needs_verification: false, verified_at: new Date().toISOString().slice(0, 10) },
     });
   }
@@ -131,12 +132,18 @@ function LocationEditor({ loc }: { loc: Location }) {
 
       <div className="mb-4 space-y-2">
         <ErrorNote error={save.error ?? remove.error} />
-        {isContainer && loc.children_count > 0 && (
+        {isContainer && (
           <p className="flex flex-wrap items-center gap-3 rounded-lg bg-surface-2 px-4 py-2.5 text-sm">
-            <span>{loc.children_count} locations inside {loc.name}.</span>
-            <Link className="font-medium text-brand" href={`/destinations/${loc.id}`}>
+            <span>
+              {loc.children_count > 0
+                ? `${loc.children_count} locations inside ${loc.name}.`
+                : `No locations inside ${loc.name} yet.`}
+            </span>
+            {loc.children_count > 0 && (
+              <Link className="font-medium text-brand" href={`/destinations/${loc.id}`}>
               {loc.type === "city" ? "Open the city page" : "View its cities"}
             </Link>
+            )}
             <Link className="flex items-center gap-1 font-medium text-brand" href={`/locations/new?parent_id=${loc.id}&type=${loc.type === "country" ? "city" : "attraction"}`}>
               <Plus className="size-3.5" /> Add one
             </Link>

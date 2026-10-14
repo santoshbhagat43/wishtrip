@@ -34,7 +34,7 @@ async def list_audit_log(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
+    _: User = Depends(require_roles(Role.ADMIN)),
 ):
     query = select(AuditLog)
     if entity_type:

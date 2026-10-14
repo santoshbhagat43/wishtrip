@@ -73,6 +73,11 @@ async def traveler() -> User:
 
 
 @pytest.fixture
+async def support() -> User:
+    return await _user(Role.SUPPORT, "support@example.com")
+
+
+@pytest.fixture
 async def london(client, editor):
     """A small published knowledge base: UK > London > three places."""
     h = auth(editor)

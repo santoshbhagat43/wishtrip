@@ -8793,6 +8793,7 @@
     "enum": [
      "admin",
      "editor",
+     "support",
      "traveler"
     ],
     "title": "Role"

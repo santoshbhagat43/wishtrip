@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.scheduling import schedule_embedding
-from app.core.deps import require_staff
+from app.core.deps import require_reader, require_staff
 from app.core.pagination import Page
 from app.db.session import get_session
 from app.modules.audit.service import record
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/admin", tags=["knowledge"])
 
 @router.get("/stats", response_model=KnowledgeStats)
 async def knowledge_stats(
-    session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_reader)
 ):
     return await service.stats(session)
 
@@ -43,7 +43,7 @@ async def review_queue(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     """Everything waiting for a person: drafts, unverified imports, gaps, stale indexes."""
     return await service.review_queue(session, reason=reason, page=page, page_size=page_size)
@@ -51,7 +51,7 @@ async def review_queue(
 
 @router.get("/destinations", response_model=list[DestinationRow])
 async def destinations(
-    session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_reader)
 ):
     """Every city with what the engine holds for it, and how often travelers ask for it."""
     return await service.destinations(session)
@@ -59,7 +59,7 @@ async def destinations(
 
 @router.get("/system", response_model=SystemStatus)
 async def system_status(
-    session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_reader)
 ):
     """Live provider, model, index and volume figures for the System health screen."""
     return await service.system_status(session)
@@ -78,7 +78,7 @@ async def list_locations(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     rows, total = await service.list_locations(
         session,
@@ -102,7 +102,7 @@ async def list_locations(
 async def children_counts(
     location_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     """Child counts for each direct child of a location (used by the hierarchy tree)."""
     rows, _total = await service.list_locations(
@@ -137,7 +137,7 @@ async def create_location(
 async def get_location(
     location_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     return await service.to_read(session, await service.get(session, location_id))
 
@@ -192,7 +192,7 @@ async def reindex_locations(
 async def list_relations(
     location_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     return await service.list_relations(session, location_id)
 
@@ -224,7 +224,9 @@ async def delete_relation(
 
 
 @router.get("/tags", response_model=list[TagRead])
-async def list_tags(session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)):
+async def list_tags(
+    session: AsyncSession = Depends(get_session), _: User = Depends(require_reader)
+):
     return await service.list_tags(session)
 
 

@@ -20,11 +20,13 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
 export function Field({
   label,
   hint,
+  error,
   children,
   className,
 }: {
   label: string;
   hint?: ReactNode;
+  error?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -35,7 +37,11 @@ export function Field({
         <span className="text-sm font-medium text-text">{label}</span>
         {children}
       </label>
-      {hint && <span className="text-xs text-muted">{hint}</span>}
+      {error ? (
+        <span className="text-xs text-danger" role="alert">{error}</span>
+      ) : (
+        hint && <span className="text-xs text-muted">{hint}</span>
+      )}
     </div>
   );
 }

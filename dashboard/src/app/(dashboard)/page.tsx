@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, ErrorNote, PageHeader, Spinner } from "@/components/ui/card";
 import { api, unwrap } from "@/lib/api/client";
 import { LOCATION_TYPES, relativeTime, titleCase } from "@/lib/format";
+import { useMe } from "@/lib/hooks/use-me";
 
 type Health = { status: string; ai_enabled: boolean; chat_model: string | null; embedder: string };
 
@@ -24,6 +25,9 @@ function Stat({ label, value, href, tone }: { label: string; value: number | str
 
 export default function OverviewPage() {
   const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const canAudit = me?.role === "admin";
+  const canWriteKb = me?.role === "admin" || me?.role === "editor";
   const stats = useQuery({ queryKey: ["stats"], queryFn: async () => unwrap(await api.GET("/admin/stats")) });
   const health = useQuery({
     queryKey: ["health"],
@@ -36,6 +40,7 @@ export default function OverviewPage() {
   });
   const activity = useQuery({
     queryKey: ["audit", "recent"],
+    enabled: canAudit,
     queryFn: async () => unwrap(await api.GET("/admin/audit-log", { params: { query: { page_size: 8 } } })),
   });
   const reindex = useMutation({
@@ -98,11 +103,13 @@ export default function OverviewPage() {
               </div>
               {s.embeddings_pending === 0 ? (
                 <Badge tone="ok"><CheckCircle2 className="size-3.5" /> Up to date</Badge>
-              ) : (
+              ) : canWriteKb ? (
                 <Button size="sm" variant="secondary" onClick={() => reindex.mutate()} disabled={reindex.isPending}>
                   <RefreshCw className={`size-3.5 ${reindex.isPending ? "animate-spin" : ""}`} />
                   {reindex.isSuccess ? "Queued" : "Index now"}
                 </Button>
+              ) : (
+                <Badge tone="warn">{s.embeddings_pending} pending</Badge>
               )}
             </li>
           </ul>
@@ -150,22 +157,24 @@ export default function OverviewPage() {
             </li>
           </ul>
         </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader title="Recent activity" action={<Link href="/audit-log" className="text-sm text-brand">View all</Link>} />
-          <ul className="divide-y divide-border">
-            {activity.data?.items.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
-                <span>
-                  <span className="font-medium">{entry.user_email}</span>{" "}
-                  <span className="text-muted">{entry.action}d a {entry.entity_type}</span>{" "}
-                  {"name" in entry.changes && <span>“{String(entry.changes.name)}”</span>}
-                </span>
-                <span className="shrink-0 text-muted">{relativeTime(entry.created_at)}</span>
-              </li>
-            ))}
-            {activity.data?.items.length === 0 && <li className="px-5 py-6 text-sm text-muted">No changes yet.</li>}
-          </ul>
-        </Card>
+        {canAudit && (
+          <Card className="lg:col-span-2">
+            <CardHeader title="Recent activity" action={<Link href="/audit-log" className="text-sm text-brand">View all</Link>} />
+            <ul className="divide-y divide-border">
+              {activity.data?.items.map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
+                  <span>
+                    <span className="font-medium">{entry.user_email}</span>{" "}
+                    <span className="text-muted">{entry.action}d a {entry.entity_type}</span>{" "}
+                    {"name" in entry.changes && <span>“{String(entry.changes.name)}”</span>}
+                  </span>
+                  <span className="shrink-0 text-muted">{relativeTime(entry.created_at)}</span>
+                </li>
+              ))}
+              {activity.data?.items.length === 0 && <li className="px-5 py-6 text-sm text-muted">No changes yet.</li>}
+            </ul>
+          </Card>
+        )}
       </div>
     </div>
   );

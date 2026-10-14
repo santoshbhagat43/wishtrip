@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
-from app.core.deps import get_current_user, require_staff
+from app.core.deps import get_current_user, require_reader
 from app.db.session import get_session
 from app.modules.knowledge.models import LocationType
 from app.modules.knowledge.schemas import LocationListItem, PublicLocation
@@ -97,7 +97,7 @@ async def preview_recommendations(
     limit: int = Query(20, ge=1, le=50),
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     """Inspector for staff: what would this traveler be recommended, and why."""
     await users.get(session, user_id)

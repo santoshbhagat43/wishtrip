@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.deps import require_staff
+from app.core.deps import require_reader, require_staff
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
 from app.modules.audit.service import record
@@ -42,7 +42,7 @@ class MediaRead(BaseModel):
 async def list_media(
     location_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(require_staff),
+    _: User = Depends(require_reader),
 ):
     rows = await session.scalars(
         select(Media)

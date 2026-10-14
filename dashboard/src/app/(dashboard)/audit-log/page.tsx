@@ -10,17 +10,29 @@ import { Select } from "@/components/ui/field";
 import { Pagination, Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap } from "@/lib/api/client";
 import { relativeTime } from "@/lib/format";
+import { useMe } from "@/lib/hooks/use-me";
 
 const ACTION_TONE = { create: "ok", update: "info", delete: "danger" } as const;
 
 export default function AuditLogPage() {
+  const { data: me } = useMe();
   const [page, setPage] = useState(1);
   const [entity, setEntity] = useState("");
   const log = useQuery({
     queryKey: ["audit", page, entity],
+    enabled: me?.role === "admin",
     queryFn: async () =>
       unwrap(await api.GET("/admin/audit-log", { params: { query: { page, page_size: 50, entity_type: entity || undefined } } })),
   });
+  if (!me) return <Spinner />;
+  if (me.role !== "admin") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <PageHeader title="Audit log" description="Only admins can view the audit log." />
+        <ErrorNote error="Only admins can view the audit log." />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader

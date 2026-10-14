@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { GATE_COOKIE, gateEnabled, gateToken } from "@/lib/server/gate";
 import { REFRESH_COOKIE } from "@/lib/server/session";
 
-const PRIVATE = ["/plan", "/profile", "/saved"];
+const PRIVATE = ["/plan", "/profile", "/saved", "/help"];
 // Reachable without the site password: the gate itself.
 const GATE_PATHS = ["/gate", "/api/gate"];
 

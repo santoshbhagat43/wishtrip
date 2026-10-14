@@ -74,6 +74,22 @@ class TicketRead(TicketListItem):
     context: TripContext
 
 
+class TravelerTicketRead(BaseModel):
+    """Ticket thread for the traveler who owns it — no staff context or internal notes."""
+
+    id: uuid.UUID
+    number: int
+    subject: str
+    status: TicketStatus
+    created_at: datetime
+    updated_at: datetime
+    messages: list[SupportMessageRead]
+
+
+class TravelerMessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
 class TicketCreate(BaseModel):
     subject: str = Field(min_length=3, max_length=255)
     body: str = Field(min_length=1, max_length=4000)

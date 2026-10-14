@@ -41,4 +41,9 @@ def require_roles(*roles: Role):
     return checker
 
 
+# Knowledge-base and menu writers (create / edit / delete).
 require_staff = require_roles(Role.ADMIN, Role.EDITOR)
+# Read-only staff GETs (locations, travelers, stats, …) — support included.
+require_reader = require_roles(Role.ADMIN, Role.EDITOR, Role.SUPPORT)
+# Support inbox: list, read, reply, resolve.
+require_support = require_roles(Role.ADMIN, Role.EDITOR, Role.SUPPORT)

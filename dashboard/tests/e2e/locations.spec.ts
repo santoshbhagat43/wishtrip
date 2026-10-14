@@ -32,7 +32,8 @@ test.describe("Location lifecycle", () => {
     await page.goto("/locations/new");
     await locationPage.field("Name").fill(name);
     await locationPage.select("Type").selectOption("restaurant");
-    await locationPage.select("Belongs to (city)").selectOption({ label: "London — United Kingdom" });
+    await page.getByPlaceholder("Search city…").fill("London");
+    await page.getByRole("button", { name: /^London\b/ }).click();
     await locationPage.field("Summary").fill("Test café with skyline views");
     await page.getByRole("button", { name: "Create" }).click();
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
