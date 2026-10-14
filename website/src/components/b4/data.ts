@@ -22,9 +22,9 @@ export const LINKS = {
   start: "/plan",
   arya: "/plan",
   destinations: "/explore",
-  destination: "/explore",
-  creatorTrip: "/explore",
-  creators: "/#b4-creators",
+  destination: "/destination",
+  creatorTrip: "/creator-trip",
+  creators: "/creators",
   // Paste a reel → book
   reel: "/reel",
   details: "/trip/details",

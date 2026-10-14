@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "backend/app/db/models.py": {
-    "mtime": 1791951763.6359358,
-    "ast_hash": "5e21772c9bc2ad6953e75b1406b63ff5",
+    "mtime": 1791998100.626167,
+    "ast_hash": "693be54cde6fde05fb0836d31ecbdd4f",
     "semantic_hash": ""
   },
   "backend/app/db/session.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "backend/app/main.py": {
-    "mtime": 1791951973.1616588,
-    "ast_hash": "544397a04693e5749238bf6e98cfe2a6",
+    "mtime": 1791998167.920082,
+    "ast_hash": "1b35d820ee9db2b4e7a38678aed6ef09",
     "semantic_hash": ""
   },
   "backend/app/modules/__init__.py": {
@@ -1055,8 +1055,8 @@
     "semantic_hash": ""
   },
   "website/src/app/api/wt/[...path]/route.ts": {
-    "mtime": 1791608008.595636,
-    "ast_hash": "a2fe287bdf3954575dd2fe19456ffd89",
+    "mtime": 1791998830.652586,
+    "ast_hash": "691a54ef4cb7b91dae824e9321fce321",
     "semantic_hash": ""
   },
   "website/src/app/layout.tsx": {
@@ -1130,13 +1130,13 @@
     "semantic_hash": ""
   },
   "website/src/lib/api/openapi.json": {
-    "mtime": 1791997563.6794732,
-    "ast_hash": "10ba54d3e6c5e3cbd8882815cc1fb9dd",
+    "mtime": 1791998325.6727068,
+    "ast_hash": "5e434638510342b747dc47df7b7c055e",
     "semantic_hash": ""
   },
   "website/src/lib/api/schema.d.ts": {
-    "mtime": 1791997564.2520235,
-    "ast_hash": "debb16bdcc9a9e8266c22a65cbe2aac7",
+    "mtime": 1791998326.262458,
+    "ast_hash": "389a608ca0371322328af50277d9bc47",
     "semantic_hash": ""
   },
   "website/src/lib/cn.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "website/src/lib/server/session.ts": {
-    "mtime": 1791994663.5649579,
-    "ast_hash": "c9c4756614219af57baec393f5299c77",
+    "mtime": 1791998326.3311083,
+    "ast_hash": "ed3baac68c2ecb0650ed22cb1a2d3fcb",
     "semantic_hash": ""
   },
   "website/src/lib/session.ts": {
@@ -1165,7 +1165,7 @@
     "semantic_hash": ""
   },
   "website/test-results/.last-run.json": {
-    "mtime": 1791995037.3421543,
+    "mtime": 1791998948.3446906,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
@@ -1330,7 +1330,7 @@
     "semantic_hash": ""
   },
   "website/playwright-report/index.html": {
-    "mtime": 1791995353.4704776,
+    "mtime": 1791998973.6971548,
     "ast_hash": "8f3b2c7cee5f8f2174094c3c66d32d83",
     "semantic_hash": ""
   },
@@ -1805,8 +1805,8 @@
     "semantic_hash": ""
   },
   "backend/app/modules/creators/models.py": {
-    "mtime": 1791997489.0984592,
-    "ast_hash": "72579a4acb107a3d76c8091f6c390a1f",
+    "mtime": 1791998064.9499347,
+    "ast_hash": "2f84f7a23e33ea855002c5bdb2b8a12c",
     "semantic_hash": ""
   },
   "backend/app/modules/creators/router.py": {
@@ -1815,8 +1815,8 @@
     "semantic_hash": ""
   },
   "backend/app/modules/creators/schemas.py": {
-    "mtime": 1791997500.7713256,
-    "ast_hash": "207cc2f522d5dc7f29365d0a7af13dad",
+    "mtime": 1791998124.2281778,
+    "ast_hash": "31fbdf8218b3e7e549174b082a655a6a",
     "semantic_hash": ""
   },
   "backend/app/modules/creators/service.py": {
@@ -1840,8 +1840,8 @@
     "semantic_hash": ""
   },
   "backend/app/modules/reels/models.py": {
-    "mtime": 1791951909.2155485,
-    "ast_hash": "c2ed9f26e05d96d2fa940b879faf38cd",
+    "mtime": 1791998053.93126,
+    "ast_hash": "dd8e07c247f9f63c72e592adcdea59f5",
     "semantic_hash": ""
   },
   "backend/app/modules/reels/router.py": {
@@ -1850,13 +1850,13 @@
     "semantic_hash": ""
   },
   "backend/app/modules/reels/schemas.py": {
-    "mtime": 1791952838.675885,
-    "ast_hash": "e75e36397561a5e66741190c74247388",
+    "mtime": 1791998124.228038,
+    "ast_hash": "2b078d08b00f1cfe25fb965ca6866415",
     "semantic_hash": ""
   },
   "backend/app/modules/reels/service.py": {
-    "mtime": 1791952703.4837663,
-    "ast_hash": "5b2c668d65f18284e563a199fd94e62f",
+    "mtime": 1791998247.9779396,
+    "ast_hash": "e2e368683b557c30492ec359b9d2cb0f",
     "semantic_hash": ""
   },
   "backend/app/modules/reels/understand.py": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": ""
   },
   "website/src/app/(site)/creator/page.tsx": {
-    "mtime": 1791997585.3839264,
-    "ast_hash": "b814b08ebe121da2f1c07a6ad7dec305",
+    "mtime": 1791998445.0642173,
+    "ast_hash": "592d9a46cb9e00f084bf05e14b1eef69",
     "semantic_hash": ""
   },
   "website/src/app/api/auth/creator/request-otp/route.ts": {
@@ -2037,6 +2037,46 @@
   "backend/alembic/versions/20261014_887cecdc664b_creator_booking_commission_type_and_.py": {
     "mtime": 1791997520.998524,
     "ast_hash": "91e7de3c38f12d2b3a693128419f6931",
+    "semantic_hash": ""
+  },
+  "backend/alembic/versions/20261014_e9a4e5b9ea42_creator_trips.py": {
+    "mtime": 1791998182.960979,
+    "ast_hash": "3998c952adea8617e007629b4ce976d1",
+    "semantic_hash": ""
+  },
+  "backend/app/modules/creators/creator_router.py": {
+    "mtime": 1791998160.9915223,
+    "ast_hash": "5b32b00c3cd5eae1b45ab08cb7bf9071",
+    "semantic_hash": ""
+  },
+  "backend/app/modules/creators/trips.py": {
+    "mtime": 1791998106.8159804,
+    "ast_hash": "9a7851d09d3ec73fef4874677b14fc6f",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_creator_trips.py": {
+    "mtime": 1791998237.7333844,
+    "ast_hash": "17fb59a81ff59747a13423726ad7ac01",
+    "semantic_hash": ""
+  },
+  "website/src/app/(site)/creator/trips/[id]/page.tsx": {
+    "mtime": 1791998465.1396995,
+    "ast_hash": "7a4dfb5fa42b3e107d803592eac89b36",
+    "semantic_hash": ""
+  },
+  "website/src/app/(site)/t/[code]/page.tsx": {
+    "mtime": 1791998375.327148,
+    "ast_hash": "4b7608a6c83e1998970d8fb9cd0cf8fe",
+    "semantic_hash": ""
+  },
+  "website/src/app/api/creator-visit/route.ts": {
+    "mtime": 1791998352.8775797,
+    "ast_hash": "cf39b1bc77243922b8552c40e0d9ace6",
+    "semantic_hash": ""
+  },
+  "website/src/components/creator/trip-tools.tsx": {
+    "mtime": 1791998434.6736817,
+    "ast_hash": "8d0448ef9e3fc115f289605dbc0962ac",
     "semantic_hash": ""
   }
 }
