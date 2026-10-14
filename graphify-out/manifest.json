@@ -1555,8 +1555,8 @@
     "semantic_hash": ""
   },
   "website/src/components/b4/data.ts": {
-    "mtime": 1791948159.7979336,
-    "ast_hash": "cda977183bf2f274321cd7c6343d5552",
+    "mtime": 1791999846.7634647,
+    "ast_hash": "4884b7a3af886ea63d000fc3190fbfde",
     "semantic_hash": ""
   },
   "website/src/components/b4/header.tsx": {
@@ -2077,6 +2077,36 @@
   "website/src/components/creator/trip-tools.tsx": {
     "mtime": 1791998434.6736817,
     "ast_hash": "8d0448ef9e3fc115f289605dbc0962ac",
+    "semantic_hash": ""
+  },
+  "website/src/app/(b4)/creator-trip/page.tsx": {
+    "mtime": 1791999846.7406151,
+    "ast_hash": "16c6ad5879b151b861680f0dc08f9a9d",
+    "semantic_hash": ""
+  },
+  "website/src/app/(b4)/creators/page.tsx": {
+    "mtime": 1791999646.397706,
+    "ast_hash": "68bc1afa2b19dd0a7656a8dc0b9bb384",
+    "semantic_hash": ""
+  },
+  "website/src/app/(b4)/destination/page.tsx": {
+    "mtime": 1791999769.8754735,
+    "ast_hash": "29488d258d6957cd725bf4e7fb0b0685",
+    "semantic_hash": ""
+  },
+  "website/src/components/b4/screens/creators.tsx": {
+    "mtime": 1791999639.3983572,
+    "ast_hash": "3f85abef3e50522508aa4f9134812385",
+    "semantic_hash": ""
+  },
+  "website/src/components/b4/screens/destination.tsx": {
+    "mtime": 1791999763.2988799,
+    "ast_hash": "7cda8e6ce19c7a697d399a84776a688f",
+    "semantic_hash": ""
+  },
+  "website/src/components/b4/screens/trip.tsx": {
+    "mtime": 1791999832.0164282,
+    "ast_hash": "35311efb588eafb15927851f893f4221",
     "semantic_hash": ""
   }
 }
