@@ -12,6 +12,7 @@ class Role(enum.StrEnum):
     EDITOR = "editor"
     SUPPORT = "support"
     TRAVELER = "traveler"
+    CREATOR = "creator"
 
 
 class User(UUIDPrimaryKey, Timestamps, Base):

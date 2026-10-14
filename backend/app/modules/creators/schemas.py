@@ -26,7 +26,8 @@ class CreatorRead(BaseModel):
 
     id: uuid.UUID
     platform: str
-    handle: str
+    handle: str | None = None
+    email: str | None = None
     display_name: str
     profile_url: str
     status: CreatorStatus
@@ -38,10 +39,24 @@ class CreatorRead(BaseModel):
 
 
 class CreatorUpdate(BaseModel):
+    handle: str | None = Field(default=None, max_length=100)
     display_name: str | None = Field(default=None, max_length=255)
     status: CreatorStatus | None = None
     commission_per_user_paise: int | None = Field(default=None, ge=0, le=10_000_000)
     notes: str | None = None
+
+
+class CreatorMe(BaseModel):
+    """What a signed-in creator sees about their own account."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str | None = None
+    handle: str | None = None
+    display_name: str
+    status: CreatorStatus
+    referral_code: str
 
 
 class CreatorReel(BaseModel):

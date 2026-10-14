@@ -88,6 +88,88 @@
     }
    }
   },
+  "/auth/creator/request-otp": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Creator Request Otp",
+    "description": "Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.",
+    "operationId": "creator_request_otp_auth_creator_request_otp_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorOtpRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/creator/verify": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Creator Verify",
+    "description": "Verify the code and sign the creator in, creating a pending account on first sign-in.",
+    "operationId": "creator_verify_auth_creator_verify_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorOtpVerify"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/auth/refresh": {
    "post": {
     "tags": [
@@ -2504,24 +2586,21 @@
     }
    }
   },
-  "/creators": {
+  "/creators/me": {
    "get": {
     "tags": [
      "creators"
     ],
-    "summary": "List Creators",
-    "operationId": "list_creators_creators_get",
+    "summary": "My Creator",
+    "description": "The signed-in creator's own account, so the website can show their approval state.",
+    "operationId": "my_creator_creators_me_get",
     "responses": {
      "200": {
       "description": "Successful Response",
       "content": {
        "application/json": {
         "schema": {
-         "items": {
-          "$ref": "#/components/schemas/CreatorRead"
-         },
-         "type": "array",
-         "title": "Response List Creators Creators Get"
+         "$ref": "#/components/schemas/CreatorMe"
         }
        }
       }
@@ -2532,6 +2611,64 @@
       "HTTPBearer": []
      }
     ]
+   }
+  },
+  "/creators": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "List Creators",
+    "operationId": "list_creators_creators_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/CreatorStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/CreatorRead"
+         },
+         "title": "Response List Creators Creators Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/creators/{creator_id}": {
@@ -3545,6 +3682,114 @@
     ]
    }
   },
+  "/support/tickets/{ticket_id}": {
+   "get": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Read My Ticket",
+    "description": "The traveler's own thread: public messages only, never internal notes.",
+    "operationId": "read_my_ticket_support_tickets__ticket_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TravelerTicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/support/tickets/{ticket_id}/messages": {
+   "post": {
+    "tags": [
+     "support"
+    ],
+    "summary": "Follow Up My Ticket",
+    "description": "Traveler follow-up; reopens the ticket for the inbox when needed.",
+    "operationId": "follow_up_my_ticket_support_tickets__ticket_id__messages_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "ticket_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Ticket Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TravelerMessageCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TravelerTicketRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/admin/support/routing": {
    "get": {
     "tags": [
@@ -4184,8 +4429,26 @@
       "title": "Platform"
      },
      "handle": {
-      "type": "string",
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Handle"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
      },
      "display_name": {
       "type": "string",
@@ -4253,7 +4516,6 @@
     "required": [
      "id",
      "platform",
-     "handle",
      "display_name",
      "profile_url",
      "status",
@@ -4267,6 +4529,92 @@
     ],
     "title": "CreatorDetail"
    },
+   "CreatorMe": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CreatorStatus"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "display_name",
+     "status",
+     "referral_code"
+    ],
+    "title": "CreatorMe",
+    "description": "What a signed-in creator sees about their own account."
+   },
+   "CreatorOtpRequest": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "CreatorOtpRequest"
+   },
+   "CreatorOtpVerify": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "code": {
+      "type": "string",
+      "maxLength": 8,
+      "minLength": 4,
+      "title": "Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "code"
+    ],
+    "title": "CreatorOtpVerify"
+   },
    "CreatorRead": {
     "properties": {
      "id": {
@@ -4279,8 +4627,26 @@
       "title": "Platform"
      },
      "handle": {
-      "type": "string",
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Handle"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
      },
      "display_name": {
       "type": "string",
@@ -4327,7 +4693,6 @@
     "required": [
      "id",
      "platform",
-     "handle",
      "display_name",
      "profile_url",
      "status",
@@ -4443,6 +4808,7 @@
    "CreatorStatus": {
     "type": "string",
     "enum": [
+     "pending",
      "unclaimed",
      "invited",
      "active",
@@ -4452,6 +4818,18 @@
    },
    "CreatorUpdate": {
     "properties": {
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 100
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
      "display_name": {
       "anyOf": [
        {
@@ -8199,7 +8577,7 @@
      "url": {
       "type": "string",
       "maxLength": 1000,
-      "minLength": 10,
+      "minLength": 1,
       "title": "Url"
      }
     },
@@ -8794,7 +9172,8 @@
      "admin",
      "editor",
      "support",
-     "traveler"
+     "traveler",
+     "creator"
     ],
     "title": "Role"
    },
@@ -10029,6 +10408,21 @@
     ],
     "title": "TravelerDetail"
    },
+   "TravelerMessageCreate": {
+    "properties": {
+     "body": {
+      "type": "string",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Body"
+     }
+    },
+    "type": "object",
+    "required": [
+     "body"
+    ],
+    "title": "TravelerMessageCreate"
+   },
    "TravelerSummary": {
     "properties": {
      "user_id": {
@@ -10068,6 +10462,55 @@
      "event_count"
     ],
     "title": "TravelerSummary"
+   },
+   "TravelerTicketRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "number": {
+      "type": "integer",
+      "title": "Number"
+     },
+     "subject": {
+      "type": "string",
+      "title": "Subject"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TicketStatus"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "messages": {
+      "items": {
+       "$ref": "#/components/schemas/SupportMessageRead"
+      },
+      "type": "array",
+      "title": "Messages"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "number",
+     "subject",
+     "status",
+     "created_at",
+     "updated_at",
+     "messages"
+    ],
+    "title": "TravelerTicketRead",
+    "description": "Ticket thread for the traveler who owns it \u2014 no staff context or internal notes."
    },
    "TripContext": {
     "properties": {

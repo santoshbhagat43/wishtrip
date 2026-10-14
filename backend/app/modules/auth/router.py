@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.core.security import create_token, decode_token, verify_password
 from app.db.session import get_session
-from app.modules.auth.schemas import LoginRequest, RefreshRequest, RegisterRequest, TokenPair
+from app.modules.auth.schemas import (
+    CreatorOtpRequest,
+    CreatorOtpVerify,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenPair,
+)
 from app.modules.creators import service as creators
 from app.modules.users import service as users
 from app.modules.users.models import Role, User
@@ -37,6 +44,21 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
     fields = data.model_dump(exclude={"referral_code", "visitor_id"})
     user = await users.create(session, UserCreate(**fields, role=Role.TRAVELER))
     await creators.credit_signup(session, user, data.referral_code, data.visitor_id)
+    await session.commit()
+    return _tokens(user)
+
+
+@router.post("/creator/request-otp", status_code=202)
+async def creator_request_otp(data: CreatorOtpRequest):
+    """Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged."""
+    creators.send_otp(data.email)
+    return {"sent": True}
+
+
+@router.post("/creator/verify", response_model=TokenPair)
+async def creator_verify(data: CreatorOtpVerify, session: AsyncSession = Depends(get_session)):
+    """Verify the code and sign the creator in, creating a pending account on first sign-in."""
+    user = await creators.login_with_otp(session, data.email, data.code)
     await session.commit()
     return _tokens(user)
 

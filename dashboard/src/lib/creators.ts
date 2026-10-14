@@ -6,6 +6,7 @@ export const WEBSITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://wisht
 export const referralLink = (code: string) => `${WEBSITE_URL}/c/${code}`;
 
 export const CREATOR_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: "Pending approval", tone: "warn" },
   unclaimed: { label: "Unclaimed", tone: "neutral" },
   invited: { label: "Invited", tone: "info" },
   active: { label: "Affiliate", tone: "ok" },

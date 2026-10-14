@@ -3,7 +3,7 @@ import { expect, test, watchConsoleErrors } from "../fixtures/test";
 const PAGES: [link: string, heading: string][] = [
   ["Overview", "Overview"],
   ["Destinations", "Destinations"],
-  ["All locations", "Locations"],
+  ["Locations", "Locations"],
   ["Tags", "Tags"],
   ["Semantic search", "Semantic search"],
   ["Travelers", "Travelers"],

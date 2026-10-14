@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     # What a creator earns per credited traveller who plans a trip. Staff set it per creator;
     # 0 = nothing agreed yet.
     creator_commission_per_user_paise: int = 0
+    # Creator sign-up is email + a 4-digit code. Until SMTP/OTP is wired up the code is fixed
+    # (the "email" is only logged). Swap this for a real one-time code later.
+    creator_dev_otp: str = "1234"
 
     @property
     def ai_enabled(self) -> bool:

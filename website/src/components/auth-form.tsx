@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { postJson } from "@/lib/session";
 
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export function AuthForm({ mode, embedded = false }: { mode: "login" | "signup"; embedded?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const next = useSearchParams().get("next");
@@ -33,7 +33,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col px-4 py-14">
+    <div className={embedded ? "flex flex-col" : "mx-auto flex max-w-sm flex-col px-4 py-14"}>
       <h1 className="text-[32px] leading-tight">{mode === "login" ? "Welcome back" : "Start planning"}</h1>
       <p className="mt-1 text-sm text-muted">
         {mode === "login" ? "Sign in to your trips." : "Create a free account to plan and save trips."}

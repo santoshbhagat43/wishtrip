@@ -9,6 +9,8 @@ from app.db.base import Base, Timestamps, UUIDPrimaryKey, str_enum
 
 
 class CreatorStatus(enum.StrEnum):
+    # Signed up on the website (email + OTP) and waiting for a staff member to approve them.
+    PENDING = "pending"
     # Saved automatically from a reel a traveller pasted. We count who they bring in, but
     # owe nothing and never present them as a partner until they accept the affiliate terms.
     UNCLAIMED = "unclaimed"
@@ -22,7 +24,10 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     __table_args__ = (UniqueConstraint("platform", "handle"),)
 
     platform: Mapped[str] = mapped_column(String(32), default="instagram")
-    handle: Mapped[str] = mapped_column(String(100), index=True)
+    # Null for a creator who signed up by email before we know their Instagram handle.
+    handle: Mapped[str | None] = mapped_column(String(100), index=True)
+    # Set for a creator who signed up on the website; staff fill in the handle later.
+    email: Mapped[str | None] = mapped_column(String(255), unique=True)
     display_name: Mapped[str] = mapped_column(String(255), default="")
     profile_url: Mapped[str] = mapped_column(String(500), default="")
     status: Mapped[CreatorStatus] = mapped_column(

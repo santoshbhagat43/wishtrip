@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_staff
+from app.core.deps import get_current_user, require_staff
 from app.core.errors import not_found
 from app.db.session import get_session
 from app.modules.creators import service
@@ -16,12 +16,14 @@ from app.modules.creators.models import (
     CommissionStatus,
     Creator,
     CreatorAttribution,
+    CreatorStatus,
 )
 from app.modules.creators.schemas import (
     AttributionRead,
     CommissionRead,
     CommissionUpdate,
     CreatorDetail,
+    CreatorMe,
     CreatorRead,
     CreatorReel,
     CreatorStats,
@@ -31,7 +33,7 @@ from app.modules.creators.schemas import (
 )
 from app.modules.media.storage import storage
 from app.modules.reels.models import CreatorContent, ReelImport
-from app.modules.users.models import User
+from app.modules.users.models import Role, User
 
 router = APIRouter(tags=["creators"])
 
@@ -82,9 +84,25 @@ async def _read(session: AsyncSession, creator: Creator) -> CreatorRead:
     return data
 
 
+@router.get("/creators/me", response_model=CreatorMe)
+async def my_creator(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    """The signed-in creator's own account, so the website can show their approval state."""
+    creator = await service.for_user(session, user.id)
+    if not creator or user.role != Role.CREATOR:
+        raise not_found("Creator")
+    return creator
+
+
 @router.get("/creators", response_model=list[CreatorRead], dependencies=[Depends(require_staff)])
-async def list_creators(session: AsyncSession = Depends(get_session)):
-    creators = list(await session.scalars(select(Creator).order_by(Creator.created_at.desc())))
+async def list_creators(
+    status: CreatorStatus | None = None, session: AsyncSession = Depends(get_session)
+):
+    query = select(Creator).order_by(Creator.created_at.desc())
+    if status is not None:
+        query = query.where(Creator.status == status)
+    creators = list(await session.scalars(query))
     stats = await _stats(session, [c.id for c in creators])
     out = []
     for c in creators:

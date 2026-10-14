@@ -6,22 +6,29 @@ of joining. A credited traveller earns the creator a commission when they get th
 plan.
 """
 
+import logging
 import re
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.errors import bad_request, conflict
+from app.core.security import hash_password
 from app.modules.creators.models import (
     AttributionEvent,
     AttributionSource,
     CommissionEntry,
     Creator,
     CreatorAttribution,
+    CreatorStatus,
 )
-from app.modules.users.models import User
+from app.modules.users.models import Role, User
+
+logger = logging.getLogger(__name__)
 
 
 def _code_base(handle: str) -> str:
@@ -63,6 +70,56 @@ async def upsert(
 
 async def by_code(session: AsyncSession, code: str) -> Creator | None:
     return await session.scalar(select(Creator).where(Creator.referral_code == code.lower()))
+
+
+async def for_user(session: AsyncSession, user_id: uuid.UUID) -> Creator | None:
+    return await session.scalar(select(Creator).where(Creator.user_id == user_id))
+
+
+def send_otp(email: str) -> None:
+    """Email the creator a one-time code. No SMTP yet, so the fixed dev code is only logged."""
+    logger.info("Creator OTP for %s: %s (dev code)", email, settings.creator_dev_otp)
+
+
+async def login_with_otp(session: AsyncSession, email: str, code: str) -> User:
+    """Verify the code and return the creator's account, creating it on first sign-in.
+
+    A new account lands as a PENDING creator: they see "waiting for approval" until staff
+    approve them in the dashboard.
+    """
+    email = email.strip().lower()
+    if code.strip() != settings.creator_dev_otp:
+        raise bad_request("That code isn't right. Check the 4-digit code and try again.")
+
+    user = await session.scalar(select(User).where(func.lower(User.email) == email))
+    if user and user.role != Role.CREATOR:
+        raise conflict("This email already has a traveller account. Use a different email.")
+    if user is None:
+        # No password sign-in for creators; a random hash keeps the column non-guessable.
+        user = User(
+            email=email,
+            hashed_password=hash_password(secrets.token_urlsafe(24)),
+            role=Role.CREATOR,
+        )
+        session.add(user)
+        await session.flush()
+
+    creator = await for_user(session, user.id) or await session.scalar(
+        select(Creator).where(func.lower(Creator.email) == email)
+    )
+    if creator is None:
+        creator = Creator(
+            email=email,
+            status=CreatorStatus.PENDING,
+            user_id=user.id,
+            referral_code=await _unique_code(session, email.split("@")[0]),
+            commission_per_user_paise=settings.creator_commission_per_user_paise,
+        )
+        session.add(creator)
+        await session.flush()
+    elif creator.user_id is None:
+        creator.user_id = user.id
+    return user
 
 
 def record(

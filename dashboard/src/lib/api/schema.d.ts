@@ -41,6 +41,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/creator/request-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Creator Request Otp
+         * @description Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.
+         */
+        post: operations["creator_request_otp_auth_creator_request_otp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/creator/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Creator Verify
+         * @description Verify the code and sign the creator in, creating a pending account on first sign-in.
+         */
+        post: operations["creator_verify_auth_creator_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -710,6 +750,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/creators/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Creator
+         * @description The signed-in creator's own account, so the website can show their approval state.
+         */
+        get: operations["my_creator_creators_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creators": {
         parameters: {
             query?: never;
@@ -989,6 +1049,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/support/tickets/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read My Ticket
+         * @description The traveler's own thread: public messages only, never internal notes.
+         */
+        get: operations["read_my_ticket_support_tickets__ticket_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/support/tickets/{ticket_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Follow Up My Ticket
+         * @description Traveler follow-up; reopens the ticket for the inbox when needed.
+         */
+        post: operations["follow_up_my_ticket_support_tickets__ticket_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/support/routing": {
         parameters: {
             query?: never;
@@ -1242,7 +1342,9 @@ export interface components {
             /** Platform */
             platform: string;
             /** Handle */
-            handle: string;
+            handle?: string | null;
+            /** Email */
+            email?: string | null;
             /** Display Name */
             display_name: string;
             /** Profile Url */
@@ -1278,6 +1380,44 @@ export interface components {
             /** Commissions */
             commissions: components["schemas"]["CommissionRead"][];
         };
+        /**
+         * CreatorMe
+         * @description What a signed-in creator sees about their own account.
+         */
+        CreatorMe: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email?: string | null;
+            /** Handle */
+            handle?: string | null;
+            /** Display Name */
+            display_name: string;
+            status: components["schemas"]["CreatorStatus"];
+            /** Referral Code */
+            referral_code: string;
+        };
+        /** CreatorOtpRequest */
+        CreatorOtpRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /** CreatorOtpVerify */
+        CreatorOtpVerify: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Code */
+            code: string;
+        };
         /** CreatorRead */
         CreatorRead: {
             /**
@@ -1288,7 +1428,9 @@ export interface components {
             /** Platform */
             platform: string;
             /** Handle */
-            handle: string;
+            handle?: string | null;
+            /** Email */
+            email?: string | null;
             /** Display Name */
             display_name: string;
             /** Profile Url */
@@ -1384,9 +1526,11 @@ export interface components {
          * CreatorStatus
          * @enum {string}
          */
-        CreatorStatus: "unclaimed" | "invited" | "active" | "paused";
+        CreatorStatus: "pending" | "unclaimed" | "invited" | "active" | "paused";
         /** CreatorUpdate */
         CreatorUpdate: {
+            /** Handle */
+            handle?: string | null;
             /** Display Name */
             display_name?: string | null;
             status?: components["schemas"]["CreatorStatus"] | null;
@@ -2952,7 +3096,7 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "admin" | "editor" | "support" | "traveler";
+        Role: "admin" | "editor" | "support" | "traveler" | "creator";
         /**
          * RoutingAgent
          * @description An agent as the routing screen shows them.
@@ -3400,6 +3544,11 @@ export interface components {
             /** Recent Events */
             recent_events: components["schemas"]["RecentEvent"][];
         };
+        /** TravelerMessageCreate */
+        TravelerMessageCreate: {
+            /** Body */
+            body: string;
+        };
         /** TravelerSummary */
         TravelerSummary: {
             /**
@@ -3414,6 +3563,34 @@ export interface components {
             profile: components["schemas"]["ProfileRead"] | null;
             /** Event Count */
             event_count: number;
+        };
+        /**
+         * TravelerTicketRead
+         * @description Ticket thread for the traveler who owns it — no staff context or internal notes.
+         */
+        TravelerTicketRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
+            /** Subject */
+            subject: string;
+            status: components["schemas"]["TicketStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Messages */
+            messages: components["schemas"]["SupportMessageRead"][];
         };
         /**
          * TripContext
@@ -3564,6 +3741,72 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creator_request_otp_auth_creator_request_otp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorOtpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    creator_verify_auth_creator_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorOtpVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4962,7 +5205,7 @@ export interface operations {
             };
         };
     };
-    list_creators_creators_get: {
+    my_creator_creators_me_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4977,7 +5220,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+        };
+    };
+    list_creators_creators_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["CreatorStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": components["schemas"]["CreatorRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5592,6 +5866,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TicketListItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_my_ticket_support_tickets__ticket_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelerTicketRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    follow_up_my_ticket_support_tickets__ticket_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TravelerMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelerTicketRead"];
                 };
             };
             /** @description Validation Error */

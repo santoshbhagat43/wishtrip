@@ -45,14 +45,17 @@ export default function CreatorPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         breadcrumb="Creators"
-        title={`@${c.handle}`}
+        title={c.handle ? `@${c.handle}` : c.email ?? "New creator"}
         description={
           <span className="flex flex-wrap items-center gap-2">
             <Badge tone={CREATOR_STATUS[c.status].tone}>{CREATOR_STATUS[c.status].label}</Badge>
+            {c.email && <span>{c.email}</span>}
             {c.display_name && <span>{c.display_name}</span>}
-            <a href={c.profile_url} target="_blank" rel="noreferrer" className="text-brand hover:underline">
-              Instagram profile ↗
-            </a>
+            {c.handle && (
+              <a href={c.profile_url} target="_blank" rel="noreferrer" className="text-brand hover:underline">
+                Instagram profile ↗
+              </a>
+            )}
           </span>
         }
       />
@@ -137,6 +140,7 @@ export default function CreatorPage() {
 
 function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
   const [status, setStatus] = useState<Status>(creator.status);
+  const [handle, setHandle] = useState(creator.handle ?? "");
   const [rate, setRate] = useState(String(creator.commission_per_user_paise / 100));
   const [notes, setNotes] = useState(creator.notes);
   const [copied, setCopied] = useState(false);
@@ -145,7 +149,7 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
       unwrap(
         await api.PATCH("/creators/{creator_id}", {
           params: { path: { creator_id: creator.id } },
-          body: { status, notes, commission_per_user_paise: Math.round(Number(rate || 0) * 100) },
+          body: { status, notes, handle: handle.trim() || null, commission_per_user_paise: Math.round(Number(rate || 0) * 100) },
         }),
       ),
     onSuccess: onChange,
@@ -177,6 +181,9 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
               {copied ? "Copied" : "Copy"}
             </Button>
           </span>
+        </Field>
+        <Field label="Instagram handle" hint="Set this for a creator who signed up by email, so reels and their link line up.">
+          <Input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))} placeholder="goadiaries" />
         </Field>
         <Field label="Status" hint="Only an affiliate who accepted the terms is owed commission.">
           <Select value={status} onChange={(e) => setStatus(e.target.value as Status)}>

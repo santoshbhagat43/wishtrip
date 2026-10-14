@@ -1160,12 +1160,12 @@
     "semantic_hash": ""
   },
   "website/src/proxy.ts": {
-    "mtime": 1791925489.194023,
-    "ast_hash": "4af777b7d4418702797871136b9afb1f",
+    "mtime": 1791954492.0272117,
+    "ast_hash": "acbe0dbb0af19ad93b030a62c477cf44",
     "semantic_hash": ""
   },
   "website/test-results/.last-run.json": {
-    "mtime": 1791952952.6018684,
+    "mtime": 1791954565.391713,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
@@ -1330,8 +1330,8 @@
     "semantic_hash": ""
   },
   "website/playwright-report/index.html": {
-    "mtime": 1791952952.6015522,
-    "ast_hash": "a52752559f7272a9ced83f7cac986727",
+    "mtime": 1791954572.8335125,
+    "ast_hash": "8f3b2c7cee5f8f2174094c3c66d32d83",
     "semantic_hash": ""
   },
   "website/pnpm-workspace.yaml": {
@@ -1450,13 +1450,13 @@
     "semantic_hash": ""
   },
   "deploy/deploy.sh": {
-    "mtime": 1791792270.0007975,
-    "ast_hash": "3b8feb5e569560052fbe06825b4ca234",
+    "mtime": 1791954048.5523462,
+    "ast_hash": "e7cb198f0adac164bd5c2d7899490a70",
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
-    "mtime": 1791952145.252425,
-    "ast_hash": "69f35ef574e035e45f44dfed98f365fd",
+    "mtime": 1791954048.5519855,
+    "ast_hash": "68592c71be3901d49cf6bc94c1653cc6",
     "semantic_hash": ""
   },
   "docs/DEPLOY.md": {
@@ -1465,13 +1465,13 @@
     "semantic_hash": ""
   },
   "website/src/app/api/gate/route.ts": {
-    "mtime": 1791789825.0152478,
-    "ast_hash": "0078d6c91a54934fecc0a79b8747ca00",
+    "mtime": 1791954048.5516782,
+    "ast_hash": "21dc9b1bd65bcd95579b14914724a4c9",
     "semantic_hash": ""
   },
   "website/src/lib/server/gate.ts": {
-    "mtime": 1791789546.3852684,
-    "ast_hash": "b2bb30ad4a977c4f570ede877b35b6b7",
+    "mtime": 1791954048.5513573,
+    "ast_hash": "3f9bf115a4dcf69c6da87e1400be9594",
     "semantic_hash": ""
   },
   "website/src/components/chat/follow-ups.tsx": {
@@ -1970,8 +1970,13 @@
     "semantic_hash": ""
   },
   "docs/REEL_IMPORT_PLAN.md": {
-    "mtime": 1791951404.9219332,
-    "ast_hash": "b9bf6a8ed269ce0fa79462bdf0720d02",
+    "mtime": 1791953292.6842408,
+    "ast_hash": "3aa24bc3fdadba34ae5d411b025050af",
+    "semantic_hash": ""
+  },
+  "backend/app/scripts/instagram_session.py": {
+    "mtime": 1791991925.0560482,
+    "ast_hash": "9bdb09851c7e7602629e15fe2018f9d7",
     "semantic_hash": ""
   }
 }
