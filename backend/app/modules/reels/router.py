@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,26 +90,31 @@ async def start_import(
 
 @router.post("/uploads", response_model=ReelImportRead, status_code=201)
 async def upload_video(
-    file: UploadFile = File(...),
+    request: Request,
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
     user: User = Depends(get_current_user),
 ):
-    """Build a trip from a video the traveller uploads from their device."""
-    if not (file.content_type or "").startswith("video/"):
+    """Build a trip from a video the traveller uploads from their device.
+
+    The raw video is the request body (content-type video/*, filename in X-Reel-Filename),
+    so it streams straight through the website's proxy without a multipart hop.
+    """
+    if not (request.headers.get("content-type") or "").startswith("video/"):
         raise bad_request("Upload a video file (mp4 or mov).")
     if await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try again in an hour."
         )
-    data = await file.read()
+    data = await request.body()
     if len(data) > settings.reel_upload_max_mb * 1024 * 1024:
         raise bad_request(
             f"That video is over {settings.reel_upload_max_mb} MB. Try a shorter clip."
         )
     if not data:
         raise bad_request("That file is empty.")
-    key = storage.save(data, file.filename or "upload.mp4", "reel-uploads")
+    filename = request.headers.get("x-reel-filename") or "upload.mp4"
+    key = storage.save(data, filename, "reel-uploads")
     job = ReelImport(url="", shortcode=service.upload_shortcode(), upload_key=key, user_id=user.id)
     session.add(job)
     await session.commit()

@@ -108,9 +108,11 @@ function PasteForm({ error = "" }: { error?: string }) {
     setUploading(true);
     setUploadErr(null);
     try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/reel-upload", { method: "POST", body });
+      const res = await fetch("/api/reel-upload", {
+        method: "POST",
+        headers: { "content-type": file.type || "video/mp4", "x-reel-filename": file.name },
+        body: file,
+      });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
         router.push(`/login?next=${encodeURIComponent(LINKS.reel)}`);

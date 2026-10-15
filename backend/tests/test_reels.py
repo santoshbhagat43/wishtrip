@@ -36,7 +36,7 @@ def make_reel(path: Path, lines: list[str]) -> Path:
     video = path / "reel.mp4"
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-framerate", "1", "-i", str(path / "s%d.png"),
-         "-f", "lavfi", "-i", "sine=frequency=440:duration=%d" % len(lines),
+         "-f", "lavfi", "-i", f"sine=frequency=440:duration={len(lines)}",
          "-r", "30", "-pix_fmt", "yuv420p", "-shortest", str(video)],
         check=True,
     )  # fmt: skip
@@ -289,8 +289,12 @@ async def test_upload_a_video_builds_a_trip(client, traveler, london, tmp_path, 
     try:
         r = await client.post(
             "/reels/uploads",
-            files={"file": ("my-reel.mp4", video.read_bytes(), "video/mp4")},
-            headers=auth(traveler),
+            content=video.read_bytes(),
+            headers={
+                **auth(traveler),
+                "content-type": "video/mp4",
+                "x-reel-filename": "my-reel.mp4",
+            },
         )
     finally:
         app.dependency_overrides.clear()
@@ -309,7 +313,7 @@ async def test_upload_rejects_non_video(client, traveler, monkeypatch):
     monkeypatch.setattr(settings, "reels_inline", True)
     r = await client.post(
         "/reels/uploads",
-        files={"file": ("notes.txt", b"hello", "text/plain")},
-        headers=auth(traveler),
+        content=b"hello",
+        headers={**auth(traveler), "content-type": "text/plain"},
     )
     assert r.status_code == 400

@@ -41,7 +41,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Skipped: Next's build files, the image optimizer (it fetches files without the visitor's
-  // cookie) and the site's own design images in public/. /media — place photos and reel covers
-  // from the backend — always goes through the gate.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|(?!media/)[^?]*\\.(?:png|jpg|webp|mp4|svg|ico|woff2?)$).*)"],
+  // cookie), the site's own design images in public/, and the reel-upload route (middleware
+  // clones the body and would cap a video at 10MB; the backend still requires auth). /media —
+  // place photos and reel covers from the backend — always goes through the gate.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/reel-upload|(?!media/)[^?]*\\.(?:png|jpg|webp|mp4|svg|ico|woff2?)$).*)"],
 };
