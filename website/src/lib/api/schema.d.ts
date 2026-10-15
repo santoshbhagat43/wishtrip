@@ -716,6 +716,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Video
+         * @description Build a trip from a video the traveller uploads from their device.
+         */
+        post: operations["upload_video_reels_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reels/imports/{import_id}": {
         parameters: {
             query?: never;
@@ -1384,6 +1404,11 @@ export interface components {
             external_url?: string | null;
             /** File */
             file?: string | null;
+        };
+        /** Body_upload_video_reels_uploads_post */
+        Body_upload_video_reels_uploads_post: {
+            /** File */
+            file: string;
         };
         /** ChatTurn */
         ChatTurn: {
@@ -5334,6 +5359,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReelImportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_video_reels_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_video_reels_uploads_post"];
             };
         };
         responses: {

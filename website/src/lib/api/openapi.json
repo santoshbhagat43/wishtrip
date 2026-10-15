@@ -2491,6 +2491,53 @@
     ]
    }
   },
+  "/reels/uploads": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Upload Video",
+    "description": "Build a trip from a video the traveller uploads from their device.",
+    "operationId": "upload_video_reels_uploads_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_video_reels_uploads_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/reels/imports/{import_id}": {
    "get": {
     "tags": [
@@ -4591,6 +4638,20 @@
      "kind"
     ],
     "title": "Body_add_media_admin_locations__location_id__media_post"
+   },
+   "Body_upload_video_reels_uploads_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "contentMediaType": "application/octet-stream",
+      "title": "File"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_video_reels_uploads_post"
    },
    "ChatTurn": {
     "properties": {

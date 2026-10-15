@@ -68,6 +68,11 @@ def canonical_url(shortcode: str) -> str:
     return f"https://www.instagram.com/reel/{shortcode}/"
 
 
+def upload_shortcode() -> str:
+    """A synthetic id for an uploaded video (there is no Instagram shortcode)."""
+    return "upload-" + uuid.uuid4().hex[:16]
+
+
 # Steps ------------------------------------------------------------------------------------
 
 
@@ -217,25 +222,103 @@ async def match_places(
 StepCallback = Callable[[ImportStep], Awaitable[None]]
 
 
+UPLOAD_META = {
+    "owner_username": "",
+    "owner_full_name": "",
+    "caption": "",
+    "hashtags": [],
+    "location": "",
+    "posted_at": None,
+}
+
+
+async def _read_into_content(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    *,
+    shortcode: str,
+    url: str,
+    video: Path,
+    meta: dict,
+    workdir: Path,
+    thumb: Path | None,
+    step: StepCallback,
+) -> CreatorContent:
+    """Shared: read a video (frames, OCR, voice-over) into a CreatorContent row."""
+    info = media.probe(video)
+    if info.duration > settings.reel_max_seconds:
+        raise ReelError(
+            f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
+            "Try a shorter reel."
+        )
+
+    await step(ImportStep.READING_SCREEN)
+    frame_list = media.frames(video, workdir / "frames", settings.reel_max_frames, info.duration)
+    ocr_lines = media.ocr(frame_list)
+
+    await step(ImportStep.LISTENING)
+    transcript = await listen(ai, video, workdir, info.has_audio)
+
+    await step(ImportStep.FINDING_PLACES)
+    text = material(
+        meta.get("caption", ""),
+        meta.get("hashtags", []),
+        meta.get("location", ""),
+        ocr_lines,
+        transcript,
+    )
+    if not ai.enabled:
+        raise ReelError("Reading reels needs the AI service, which is not set up.")
+    reading = await read_places(ai, text)
+    destination, places = await match_places(session, ai, reading)
+
+    owner = meta.get("owner_username") or ""
+    creator = (
+        await creators.upsert(session, owner, meta.get("owner_full_name", "")) if owner else None
+    )
+    cover = thumb or (frame_list[0].path if frame_list else None)
+    content = CreatorContent(
+        creator_id=creator.id if creator else None,
+        shortcode=shortcode,
+        url=url,
+        caption=meta.get("caption", ""),
+        location_tag=meta.get("location", "") or "",
+        posted_at=datetime.fromisoformat(meta["posted_at"]) if meta.get("posted_at") else None,
+        duration_seconds=info.duration,
+        thumbnail_key=storage.save(cover.read_bytes(), cover.name, "reels") if cover else None,
+        ocr_lines=ocr_lines,
+        transcript=transcript.text,
+        transcript_language=transcript.language,
+        transcript_en=transcript.english,
+        extracted=reading.to_dict(),
+        places=places,
+        destination_id=destination.id if destination else None,
+        destination_name=destination.name if destination else reading.destination,
+    )
+    session.add(content)
+    await session.flush()
+    return content
+
+
+def _stepper(on_step: StepCallback | None) -> StepCallback:
+    async def step(value: ImportStep) -> None:
+        if on_step is not None:
+            await on_step(value)
+
+    return step
+
+
 async def produce_content(
     session: AsyncSession,
     ai: AIOrchestrator,
     shortcode: str,
     on_step: StepCallback | None = None,
 ) -> CreatorContent:
-    """Download and read one reel into a CreatorContent row (cached by shortcode).
-
-    This is the shared heavy lifting behind both a traveller pasting a reel and a creator
-    building a trip from their own reel. Video, audio and frames are deleted afterwards.
-    """
+    """Download an Instagram reel and read it into a CreatorContent row (cached by shortcode)."""
     cached_content = await cached(session, shortcode)
     if cached_content is not None:
         return cached_content
-
-    async def step(value: ImportStep) -> None:
-        if on_step is not None:
-            await on_step(value)
-
+    step = _stepper(on_step)
     workdir = Path(tempfile.mkdtemp(prefix=f"reel-{shortcode}-"))
     try:
         await step(ImportStep.DOWNLOADING)
@@ -243,60 +326,52 @@ async def produce_content(
         video = _first(workdir, "reel")
         if video is None:
             raise ReelError("We couldn't download that reel. Try again in a bit.")
-        info = media.probe(video)
-        if info.duration > settings.reel_max_seconds:
-            raise ReelError(
-                f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
-                "Paste a reel."
-            )
-
-        await step(ImportStep.READING_SCREEN)
-        frame_list = media.frames(
-            video, workdir / "frames", settings.reel_max_frames, info.duration
-        )
-        ocr_lines = media.ocr(frame_list)
-
-        await step(ImportStep.LISTENING)
-        transcript = await listen(ai, video, workdir, info.has_audio)
-
-        await step(ImportStep.FINDING_PLACES)
-        text = material(
-            meta.get("caption", ""), meta.get("hashtags", []), meta.get("location", ""),
-            ocr_lines, transcript,
-        )  # fmt: skip
-        if not ai.enabled:
-            raise ReelError("Reading reels needs the AI service, which is not set up.")
-        reading = await read_places(ai, text)
-        destination, places = await match_places(session, ai, reading)
-
-        creator = await creators.upsert(
-            session, meta["owner_username"], meta.get("owner_full_name", "")
-        )
-        thumb = _first(workdir, "thumb")
-        content = CreatorContent(
-            creator_id=creator.id,
+        return await _read_into_content(
+            session,
+            ai,
             shortcode=shortcode,
             url=canonical_url(shortcode),
-            caption=meta.get("caption", ""),
-            location_tag=meta.get("location", "") or "",
-            posted_at=datetime.fromisoformat(meta["posted_at"]) if meta.get("posted_at") else None,
-            duration_seconds=info.duration,
-            thumbnail_key=storage.save(thumb.read_bytes(), thumb.name, "reels") if thumb else None,
-            ocr_lines=ocr_lines,
-            transcript=transcript.text,
-            transcript_language=transcript.language,
-            transcript_en=transcript.english,
-            extracted=reading.to_dict(),
-            places=places,
-            destination_id=destination.id if destination else None,
-            destination_name=destination.name if destination else reading.destination,
+            video=video,
+            meta=meta,
+            workdir=workdir,
+            thumb=_first(workdir, "thumb"),
+            step=step,
         )
-        session.add(content)
-        await session.flush()
-        return content
     finally:
-        # Keep no video, audio or frames: only the cover image and the text we read.
         shutil.rmtree(workdir, ignore_errors=True)
+
+
+async def produce_content_from_upload(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    shortcode: str,
+    upload_key: str,
+    on_step: StepCallback | None = None,
+) -> CreatorContent:
+    """Read an uploaded video file into a CreatorContent row (no Instagram download)."""
+    step = _stepper(on_step)
+    src = Path(storage.root) / upload_key
+    workdir = Path(tempfile.mkdtemp(prefix="reel-upload-"))
+    try:
+        await step(ImportStep.DOWNLOADING)
+        if not src.exists():
+            raise ReelError("We couldn't find your uploaded video. Try again.")
+        video = workdir / f"reel{src.suffix.lower() or '.mp4'}"
+        shutil.copy(src, video)
+        return await _read_into_content(
+            session,
+            ai,
+            shortcode=shortcode,
+            url="",
+            video=video,
+            meta=dict(UPLOAD_META),
+            workdir=workdir,
+            thumb=None,
+            step=step,
+        )
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+        storage.delete(upload_key)  # keep no raw upload; only the cover + text remain
 
 
 async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) -> None:
@@ -308,7 +383,12 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
         await session.commit()
 
     try:
-        content = await produce_content(session, ai, job.shortcode, on_step=step)
+        if job.upload_key:
+            content = await produce_content_from_upload(
+                session, ai, job.shortcode, job.upload_key, on_step=step
+            )
+        else:
+            content = await produce_content(session, ai, job.shortcode, on_step=step)
         if job.kind == ImportKind.CREATOR_TRIP:
             await creator_trips.finish_import(session, job, content)
         else:
@@ -338,7 +418,8 @@ def seed_message(content: CreatorContent, handle: str) -> str:
     names = [p["location_name"] or p["name"] for p in content.places if p.get("kind") != "area"]
     where = content.destination_name or "this trip"
     days = (content.extracted or {}).get("days_hint")
-    text = f"Plan a trip to {where} based on @{handle}'s reel"
+    source = f"@{handle}'s reel" if handle else "this video"
+    text = f"Plan a trip to {where} based on {source}"
     if days:
         text += f", about {days} days"
     if names:
@@ -349,12 +430,15 @@ def seed_message(content: CreatorContent, handle: str) -> str:
 async def finish(session: AsyncSession, job: ReelImport, content: CreatorContent) -> None:
     """Give the traveller a chat session seeded with the reel, and credit the creator."""
     user = await session.get(User, job.user_id)
-    creator = await session.get(creators.Creator, content.creator_id)
-    assert user is not None and creator is not None
+    assert user is not None
+    creator = (
+        await session.get(creators.Creator, content.creator_id) if content.creator_id else None
+    )
+    handle = creator.handle if creator else ""
     reel = {
         "import_id": str(job.id),
         "url": content.url,
-        "handle": creator.handle,
+        "handle": handle,
         "summary": (content.extracted or {}).get("summary", ""),
         "places": content.places,
         "tips": (content.extracted or {}).get("tips", []),
@@ -365,14 +449,13 @@ async def finish(session: AsyncSession, job: ReelImport, content: CreatorContent
     days = (content.extracted or {}).get("days_hint")
     if days:
         state["duration_days"] = days
-    chat = ChatSession(
-        user_id=user.id,
-        title=f"{content.destination_name or 'Trip'} from @{creator.handle}’s reel"[:255],
-        state=state,
-    )
+    title = content.destination_name or "Trip"
+    title = f"{title} from @{handle}’s reel" if handle else f"{title} from your video"
+    chat = ChatSession(user_id=user.id, title=title[:255], state=state)
     session.add(chat)
     await session.flush()
-    await creators.credit_reel(session, user, creator, content.id)
+    if creator is not None:
+        await creators.credit_reel(session, user, creator, content.id)
     job.content_id, job.chat_session_id = content.id, chat.id
     job.status, job.step, job.error = ImportStatus.DONE, ImportStep.DONE, ""
     job.finished_at = datetime.now(UTC)

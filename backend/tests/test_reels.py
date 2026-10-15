@@ -277,3 +277,39 @@ def test_a_close_vector_needs_a_shared_name():
     assert service._shares_name("Fort Aguada", "Fort Aguada & lighthouse")
     assert not service._shares_name("Cafe Bodega", "Cafe Bhonsle")
     assert not service._shares_name("Baga beach", "Morjim beach")
+
+
+@needs_ffmpeg
+async def test_upload_a_video_builds_a_trip(client, traveler, london, tmp_path, monkeypatch):
+    """A traveller uploads a video from their device → same pipeline, no Instagram."""
+    monkeypatch.setattr(settings, "reels_inline", True)
+    video = make_reel(tmp_path, ["Tower Bridge", "Borough Market"])
+    ai = ReelAI()
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    try:
+        r = await client.post(
+            "/reels/uploads",
+            files={"file": ("my-reel.mp4", video.read_bytes(), "video/mp4")},
+            headers=auth(traveler),
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 201, r.text
+    job = r.json()
+    assert job["status"] == "done", job["error"]
+    content = job["content"]
+    # No Instagram owner on an upload.
+    assert content["creator_handle"] == ""
+    assert content["screen_lines"] >= 2
+    assert {"Tower Bridge", "Borough Market Food Walk"} <= {p["name"] for p in content["places"]}
+    assert job["chat_session_id"]
+
+
+async def test_upload_rejects_non_video(client, traveler, monkeypatch):
+    monkeypatch.setattr(settings, "reels_inline", True)
+    r = await client.post(
+        "/reels/uploads",
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+        headers=auth(traveler),
+    )
+    assert r.status_code == 400

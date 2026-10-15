@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,13 +24,13 @@ from app.modules.users.models import Role, User
 router = APIRouter(prefix="/reels", tags=["reels"])
 
 
-def content_read(content: CreatorContent, creator: Creator) -> dict:
+def content_read(content: CreatorContent, creator: Creator | None) -> dict:
     extracted = content.extracted or {}
     return {
         "shortcode": content.shortcode,
         "url": content.url,
-        "creator_handle": creator.handle,
-        "creator_name": creator.display_name,
+        "creator_handle": creator.handle if creator else "",
+        "creator_name": creator.display_name if creator else "",
         "caption": content.caption,
         "thumbnail_url": storage.url(content.thumbnail_key) if content.thumbnail_key else None,
         "destination_name": content.destination_name,
@@ -47,10 +47,10 @@ async def import_read(session: AsyncSession, job: ReelImport) -> ReelImportRead:
     data = ReelImportRead.model_validate(job, from_attributes=True)
     if job.content_id:
         content = await session.get(CreatorContent, job.content_id)
-        creator = await session.get(Creator, content.creator_id) if content else None
-        if content and creator:
+        if content:
+            creator = await session.get(Creator, content.creator_id) if content.creator_id else None
             data.content = ReelContentRead(**content_read(content, creator))
-            data.seed_message = service.seed_message(content, creator.handle)
+            data.seed_message = service.seed_message(content, creator.handle if creator else "")
     return data
 
 
@@ -81,6 +81,39 @@ async def start_import(
     if content:
         await service.finish(session, job, content)  # read before: no download needed
     elif settings.reels_inline:
+        await service.process(session, ai, job)
+    else:
+        enqueue(job.id)
+    await session.refresh(job)
+    return await import_read(session, job)
+
+
+@router.post("/uploads", response_model=ReelImportRead, status_code=201)
+async def upload_video(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    ai: AIOrchestrator = Depends(get_orchestrator),
+    user: User = Depends(get_current_user),
+):
+    """Build a trip from a video the traveller uploads from their device."""
+    if not (file.content_type or "").startswith("video/"):
+        raise bad_request("Upload a video file (mp4 or mov).")
+    if await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try again in an hour."
+        )
+    data = await file.read()
+    if len(data) > settings.reel_upload_max_mb * 1024 * 1024:
+        raise bad_request(
+            f"That video is over {settings.reel_upload_max_mb} MB. Try a shorter clip."
+        )
+    if not data:
+        raise bad_request("That file is empty.")
+    key = storage.save(data, file.filename or "upload.mp4", "reel-uploads")
+    job = ReelImport(url="", shortcode=service.upload_shortcode(), upload_key=key, user_id=user.id)
+    session.add(job)
+    await session.commit()
+    if settings.reels_inline:
         await service.process(session, ai, job)
     else:
         enqueue(job.id)

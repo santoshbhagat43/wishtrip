@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     reel_max_frames: int = 60
     reel_download_timeout_seconds: int = 120
     reel_imports_per_hour: int = 10
+    reel_upload_max_mb: int = 120
     # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
     # outside MEDIA_ROOT: everything there is served publicly.
     instagram_username: str | None = None

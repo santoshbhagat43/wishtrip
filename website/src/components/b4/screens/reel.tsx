@@ -29,7 +29,8 @@ const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.round(t % 60))
 /** What the traveller sends to start planning, with only the places they kept. */
 function seedMessage(content: ReelContent, kept: ReelPlace[]) {
   const names = kept.filter((p) => p.kind !== "area").map((p) => p.location_name ?? p.name);
-  let text = `Plan a trip to ${content.destination_name || "this place"} based on @${content.creator_handle}'s reel`;
+  const from = content.creator_handle ? `@${content.creator_handle}'s reel` : "your video";
+  let text = `Plan a trip to ${content.destination_name || "this place"} based on ${from}`;
   if (content.days_hint) text += `, about ${content.days_hint} days`;
   if (names.length) text += `. I want to see: ${names.slice(0, 10).join(", ")}`;
   return `${text}.`;
@@ -99,6 +100,31 @@ export function ReelScreen() {
 function PasteForm({ error = "" }: { error?: string }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function upload(file: File) {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/reel-upload", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(LINKS.reel)}`);
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Upload failed");
+      router.push(`${LINKS.reel}?id=${data.id}`);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "Upload failed");
+      setUploading(false);
+    }
+  }
+
+  const shown = error || uploadErr;
   return (
     <main className="mx-auto flex max-w-[640px] flex-col gap-5 px-4 pb-16 pt-8 md:pt-16">
       <div className="flex flex-col gap-2">
@@ -108,9 +134,9 @@ function PasteForm({ error = "" }: { error?: string }) {
           We watch it, read the text on screen, listen to the voice-over and list every place, checked against what we know.
         </p>
       </div>
-      {error && (
+      {shown && (
         <div role="alert" className="rounded-2xl border border-[#F2C7C0] bg-[#FBE9E6] px-4 py-3 text-sm font-semibold text-[#B8362A]">
-          {error}
+          {shown}
         </div>
       )}
       <form
@@ -135,8 +161,40 @@ function PasteForm({ error = "" }: { error?: string }) {
           Get the trip →
         </button>
       </form>
+
+      <div className="flex items-center gap-3 text-[13px] text-[#8A7F72]">
+        <span className="h-px flex-1 bg-[#E8E1D8]" />
+        or
+        <span className="h-px flex-1 bg-[#E8E1D8]" />
+      </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload(f);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => fileRef.current?.click()}
+        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[18px] border-[1.5px] border-dashed border-[#CBBfB0] bg-white px-4 py-7 text-center disabled:opacity-70"
+      >
+        <span className="text-[15px] font-semibold text-[#0D2436]">
+          {uploading ? "Uploading your video…" : "Browse a video from your device"}
+        </span>
+        <span className="text-[13px] text-[#8A7F72]">
+          {uploading ? "Hang on a moment" : "MP4 or MOV from your phone or computer"}
+        </span>
+      </button>
+
       <span className="text-[13px] text-[#566E85]">
-        Works with public Instagram reels. Rather type it?{" "}
+        Reels work from a link or a video file. Rather type it?{" "}
         <Link href={LINKS.arya} className="font-semibold text-[#0A7C80] underline">
           Tell Arya the places
         </Link>
@@ -193,7 +251,7 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
   const banner = (
     <div className="flex flex-col items-stretch gap-3 rounded-[20px] bg-[#072338] p-4 text-white md:flex-row md:items-center md:gap-[22px] md:px-6 md:py-5">
       <span className="flex flex-col gap-0.5">
-        <Kicker className="text-[#6BEDEF]!">FROM @{content.creator_handle.toUpperCase()}’S REEL</Kicker>
+        <Kicker className="text-[#6BEDEF]!">{content.creator_handle ? `FROM @${content.creator_handle.toUpperCase()}’S REEL` : "FROM YOUR VIDEO"}</Kicker>
         <strong className="font-display text-[26px] font-medium leading-[1.1] md:text-[32px]">
           {content.destination_name || "Your trip"} · {kept.length} {kept.length === 1 ? "place" : "places"}
         </strong>
@@ -257,15 +315,19 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
   const thumb = (sizes: string) =>
     content.thumbnail_url ? (
       // eslint-disable-next-line @next/next/no-img-element -- served by the backend under /media
-      <img src={content.thumbnail_url} alt={`Cover of @${content.creator_handle}’s reel`} sizes={sizes} className="absolute inset-0 size-full object-cover" />
+      <img src={content.thumbnail_url} alt={content.creator_handle ? `Cover of @${content.creator_handle}’s reel` : "Your reel cover"} sizes={sizes} className="absolute inset-0 size-full object-cover" />
     ) : (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={IMG.mark} alt="" className="absolute left-1/2 top-1/2 size-10 -translate-x-1/2 -translate-y-1/2 opacity-60" />
     );
   const handle = (
-    <a href={content.url} target="_blank" rel="noreferrer" className="text-white no-underline">
-      @{content.creator_handle}
-    </a>
+    content.creator_handle ? (
+      <a href={content.url} target="_blank" rel="noreferrer" className="text-white no-underline">
+        @{content.creator_handle}
+      </a>
+    ) : (
+      <span className="text-white">Your video</span>
+    )
   );
   const summary = `${content.summary ? `${content.summary} ` : ""}Untick anything you don’t want.`;
 
@@ -332,7 +394,7 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={IMG.mark} alt="" width={28} height={28} className="size-7" />
-              <strong className="flex-1 text-base">From @{content.creator_handle}’s reel · on your board</strong>
+              <strong className="flex-1 text-base">{content.creator_handle ? `From @${content.creator_handle}’s reel` : "From your video"} · on your board</strong>
               <span className="text-[13.5px] text-[#566E85]">
                 {kept.length} of {content.places.length} kept
               </span>

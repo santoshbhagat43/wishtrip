@@ -14,7 +14,8 @@ class CreatorContent(UUIDPrimaryKey, Timestamps, Base):
 
     __tablename__ = "creator_content"
 
-    creator_id: Mapped[uuid.UUID] = mapped_column(
+    # Null for an uploaded video (no Instagram owner to credit).
+    creator_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("creators.id", ondelete="CASCADE"), index=True
     )
     platform: Mapped[str] = mapped_column(String(32), default="instagram")
@@ -71,6 +72,8 @@ class ReelImport(UUIDPrimaryKey, Timestamps, Base):
 
     url: Mapped[str] = mapped_column(String(1000))
     shortcode: Mapped[str] = mapped_column(String(64), index=True)
+    # Set when the traveller uploaded a video file instead of pasting a link.
+    upload_key: Mapped[str | None] = mapped_column(String(500))
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
