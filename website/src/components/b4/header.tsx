@@ -103,11 +103,11 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
 }
 
 /** The top bar of the B4 pages: logo, main links on desktop, Sign in, and the menu drawer. */
-export function B4Header() {
+export function B4Header({ solid = false }: { solid?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <header className="absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10">
+      <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(251,248,244,0.97)] border-b border-[#EDE6DC] backdrop-blur" : ""}`}>
         <Link href={LINKS.home} aria-label="wishtrip home" className="flex">
           <Image src={IMG.logo} alt="wishtrip" width={138} height={38} priority className="h-[31px] w-auto md:h-[38px]" />
         </Link>

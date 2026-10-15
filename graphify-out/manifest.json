@@ -1125,13 +1125,13 @@
     "semantic_hash": ""
   },
   "website/src/lib/api/openapi.json": {
-    "mtime": 1792042061.5346828,
-    "ast_hash": "991f705781aad7d3f4a37b18f914cdf9",
+    "mtime": 1792043011.0204387,
+    "ast_hash": "027c85538055811702332cb16f772083",
     "semantic_hash": ""
   },
   "website/src/lib/api/schema.d.ts": {
-    "mtime": 1792042062.7073255,
-    "ast_hash": "2003091543bdf8a478b4605099d4314f",
+    "mtime": 1792043011.6263008,
+    "ast_hash": "c9927bc4987d1af53a429ec541da500b",
     "semantic_hash": ""
   },
   "website/src/lib/cn.ts": {
@@ -1145,8 +1145,8 @@
     "semantic_hash": ""
   },
   "website/src/lib/server/session.ts": {
-    "mtime": 1792042082.2290413,
-    "ast_hash": "da1be9174e280d7594f805e2d2c05049",
+    "mtime": 1792043011.6831007,
+    "ast_hash": "8176a7981389e5db6f3466b93772f55d",
     "semantic_hash": ""
   },
   "website/src/lib/session.ts": {
@@ -1795,18 +1795,18 @@
     "semantic_hash": ""
   },
   "backend/app/modules/creators/router.py": {
-    "mtime": 1791994455.6253386,
-    "ast_hash": "7c79068dea1c9da087f5573c30f779d6",
+    "mtime": 1792042986.8488882,
+    "ast_hash": "8e46887de413ed059b1ae72c848c3278",
     "semantic_hash": ""
   },
   "backend/app/modules/creators/schemas.py": {
-    "mtime": 1792042035.4442651,
-    "ast_hash": "aa8f2522780850ba6be69b96ac39dbf4",
+    "mtime": 1792042980.566323,
+    "ast_hash": "e34b2ef22e9761a8a22919dba5a5ced1",
     "semantic_hash": ""
   },
   "backend/app/modules/creators/service.py": {
-    "mtime": 1791994399.0534635,
-    "ast_hash": "9304facef834af6cb7c5daae4c293e70",
+    "mtime": 1792042980.5658371,
+    "ast_hash": "0705c705a867cbcca9330a132bb6c330",
     "semantic_hash": ""
   },
   "backend/app/modules/reels/__init__.py": {
@@ -2070,8 +2070,8 @@
     "semantic_hash": ""
   },
   "website/src/components/b4/screens/creators.tsx": {
-    "mtime": 1792042509.881212,
-    "ast_hash": "1216f5d03d4a1ac8f0ef67e4dab35353",
+    "mtime": 1792043095.4615474,
+    "ast_hash": "7ca81c0a9d34b64e97828dbcdb92776a",
     "semantic_hash": ""
   },
   "website/src/components/b4/screens/destination.tsx": {
@@ -2157,6 +2157,11 @@
   "website/src/components/b4/trip-journey.ts": {
     "mtime": 1792042082.2352543,
     "ast_hash": "786cb307b0e6ce76e03b34c71c9117b5",
+    "semantic_hash": ""
+  },
+  "docs/CREATOR_JOURNEY_QUESTIONS.md": {
+    "mtime": 1792042737.4123547,
+    "ast_hash": "3ee0450a2777354feb0b47f98e9e182d",
     "semantic_hash": ""
   }
 }

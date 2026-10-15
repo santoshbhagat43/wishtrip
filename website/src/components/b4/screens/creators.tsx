@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -43,7 +44,7 @@ const DASH = [
 export function CreatorsScreen() {
   return (
     <div className="min-h-dvh bg-[#FBF8F4]">
-      <B4Header />
+      <B4Header solid />
 
       {/* Hero (dark) */}
       <section className="bg-[#072338] px-4 pb-14 pt-[84px] text-white md:px-10 md:pb-20 md:pt-[120px]">
@@ -81,7 +82,7 @@ export function CreatorsScreen() {
           <div className="rounded-[22px] bg-white/[0.06] p-5 ring-1 ring-white/10 backdrop-blur">
             <Kicker className="text-[#6BEDEF]!">EXAMPLE · YOUR CREATOR DASHBOARD</Kicker>
             <div className="mt-3 flex items-center gap-3">
-              <span className="size-11 flex-none rounded-xl bg-[#0E3550]" />
+              <Image src="/b4/goa-aguada-fort-9x16.webp" alt="" width={44} height={44} className="size-11 flex-none rounded-xl object-cover" />
               <span className="flex flex-col">
                 <strong className="text-[15px]">Slow North Goa</strong>
                 <span className="text-[12.5px] text-[#A9C2D4]">Your reel from Dec 2025</span>
