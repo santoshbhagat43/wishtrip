@@ -68,6 +68,48 @@ async def upsert(
     return creator
 
 
+async def apply_as_creator(
+    session: AsyncSession,
+    *,
+    email: str,
+    name: str,
+    handle: str = "",
+    whatsapp: str = "",
+    followers: str = "",
+    posted_from: str = "",
+) -> Creator:
+    """A creator applies through the website form. Creates a pending creator (keyed by email)
+    for staff to approve; the extra details are kept in notes until there's a column for them."""
+    email = email.strip().lower()
+    handle = handle.strip().lstrip("@")
+    notes = (
+        f"Applied via website. WhatsApp: {whatsapp or '—'} · "
+        f"Followers: {followers or '—'} · Posts from: {posted_from or '—'}"
+    )
+    creator = await session.scalar(select(Creator).where(func.lower(Creator.email) == email))
+    if creator is None:
+        creator = Creator(
+            email=email,
+            display_name=name.strip(),
+            handle=handle or None,
+            status=CreatorStatus.PENDING,
+            referral_code=await _unique_code(session, handle or email.split("@")[0]),
+            commission_per_user_paise=settings.creator_commission_per_user_paise,
+            notes=notes,
+        )
+        session.add(creator)
+        await session.flush()
+    else:
+        if name.strip():
+            creator.display_name = name.strip()
+        if handle and not creator.handle:
+            creator.handle = handle
+        creator.notes = notes
+        if creator.status not in (CreatorStatus.ACTIVE, CreatorStatus.PAUSED):
+            creator.status = CreatorStatus.PENDING
+    return creator
+
+
 async def by_code(session: AsyncSession, code: str) -> Creator | None:
     return await session.scalar(select(Creator).where(Creator.referral_code == code.lower()))
 

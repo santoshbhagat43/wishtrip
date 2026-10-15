@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+
+import { api, errorMessage, unwrap } from "@/lib/api/client";
 
 import { B4Header } from "../header";
 import { CARD, Kicker } from "../flow";
@@ -67,7 +70,7 @@ export function CreatorsScreen() {
               ))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-4">
-              <Link href="/creators/join" className="rounded-full bg-[#22DDE0] px-7 py-4 text-base font-bold text-[#072338] no-underline">
+              <Link href="#apply" className="rounded-full bg-[#22DDE0] px-7 py-4 text-base font-bold text-[#072338] no-underline">
                 Join the creator program
               </Link>
               <span className="text-[13.5px] text-[#A9C2D4]">Free to join · for Instagram and YouTube creators</span>
@@ -126,20 +129,79 @@ export function CreatorsScreen() {
               </dl>
             </div>
 
-            {/* Join card — leads to the real creator sign-in */}
-            <div className={`${CARD} flex flex-col gap-3 rounded-[22px] p-6`}>
-              <h3 className="font-display m-0 text-[24px] font-medium">Ready to earn from your trips?</h3>
-              <p className="m-0 text-[14.5px] leading-normal text-[#566E85]">
-                Sign in with your email to start. We&rsquo;ll set you up and turn your first reel into a bookable trip.
-              </p>
-              <Link href="/creators/join" className="rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white no-underline">
-                Join the creator program
-              </Link>
-              <span className="text-center text-xs text-[#8A7F72]">Free to join. You keep the rights to your content.</span>
-            </div>
+            <div id="apply"><ApplyForm /></div>
           </div>
         </div>
       </section>
     </div>
+  );
+}
+
+const INPUT =
+  "rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white p-3 text-[15px] text-[#0D2436] outline-none focus:border-[#0A7C80]";
+const FLABEL = "flex flex-col gap-1.5 text-[11px] font-bold tracking-[.12em] text-[#8A7F72]";
+const FOLLOWERS = ["Under 10k", "10k to 50k", "50k to 200k", "200k+"];
+const POSTED = ["India", "Asia", "Europe", "Worldwide"];
+
+/** The prototype's "Apply to join" form — creates a pending creator for staff to review. */
+function ApplyForm() {
+  const [form, setForm] = useState({ email: "", name: "", handle: "", whatsapp: "", followers: FOLLOWERS[1], posted_from: "" });
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      unwrap(await api.POST("/creators/apply", { body: form }));
+      setDone(true);
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className={`${CARD} flex flex-col items-center gap-2 rounded-[22px] p-7 text-center`}>
+        <span className="grid size-12 place-items-center rounded-full bg-[#E3F5EE]">
+          <Path d="M5 12l5 5 9-10" size={22} stroke="#0B7A57" width={2.6} />
+        </span>
+        <h3 className="font-display m-0 text-[24px] font-medium">You&rsquo;re on the list</h3>
+        <p className="m-0 text-[14px] text-[#566E85]">
+          Our team will review your profile and set you up. We&rsquo;ll be in touch soon.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className={`${CARD} flex flex-col gap-3 rounded-[22px] p-6`}>
+      <h3 className="font-display m-0 text-[24px] font-medium">Apply to join</h3>
+      <p className="m-0 text-[13px] text-[#566E85]">Free to join. You keep the rights to your content.</p>
+      <label className={FLABEL}>YOUR NAME<input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Meera Kamat" className={INPUT} /></label>
+      <label className={FLABEL}>EMAIL<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" className={INPUT} /></label>
+      <label className={FLABEL}>INSTAGRAM OR YOUTUBE HANDLE<input value={form.handle} onChange={(e) => set("handle", e.target.value)} placeholder="@yourhandle" className={INPUT} /></label>
+      <label className={FLABEL}>WHATSAPP NUMBER<input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+91" className={INPUT} /></label>
+      <div className={FLABEL}>
+        WHERE HAVE YOU POSTED TRIPS FROM?
+        <span className="flex flex-wrap gap-1.5">
+          {POSTED.map((o) => (
+            <button key={o} type="button" onClick={() => set("posted_from", o)} className={`rounded-full border-[1.5px] px-3 py-1.5 text-[13px] font-semibold ${form.posted_from === o ? "border-[#072338] bg-[#072338] text-white" : "border-[#E3DCD2] bg-white text-[#3F5A72]"}`}>{o}</button>
+          ))}
+        </span>
+      </div>
+      <label className={FLABEL}>FOLLOWERS<select value={form.followers} onChange={(e) => set("followers", e.target.value)} className={INPUT}>{FOLLOWERS.map((f) => <option key={f}>{f}</option>)}</select></label>
+      {error && <p className="rounded-xl bg-[#FBE9E6] px-3 py-2 text-sm font-semibold text-[#B8362A]">{error}</p>}
+      <button type="submit" disabled={busy} className="cursor-pointer rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white disabled:opacity-60">
+        {busy ? "Sending…" : "Apply to join"}
+      </button>
+      <span className="text-center text-xs text-[#8A7F72]">
+        Already applied? <Link href="/creators/join" className="font-semibold text-[#0A7C80]">Sign in</Link>
+      </span>
+    </form>
   );
 }

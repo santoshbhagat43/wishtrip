@@ -2870,6 +2870,46 @@
     }
    }
   },
+  "/creators/apply": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Apply",
+    "description": "Public: a creator applies to join from the website's creator program page.",
+    "operationId": "apply_creators_apply_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorApplication"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/referrals/{code}": {
    "get": {
     "tags": [
@@ -4771,6 +4811,51 @@
      "seniors"
     ],
     "title": "Companions"
+   },
+   "CreatorApplication": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "handle": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Handle",
+      "default": ""
+     },
+     "whatsapp": {
+      "type": "string",
+      "maxLength": 40,
+      "title": "Whatsapp",
+      "default": ""
+     },
+     "followers": {
+      "type": "string",
+      "maxLength": 40,
+      "title": "Followers",
+      "default": ""
+     },
+     "posted_from": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Posted From",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "name"
+    ],
+    "title": "CreatorApplication"
    },
    "CreatorDetail": {
     "properties": {

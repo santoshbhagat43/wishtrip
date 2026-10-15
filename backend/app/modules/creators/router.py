@@ -22,6 +22,7 @@ from app.modules.creators.schemas import (
     AttributionRead,
     CommissionRead,
     CommissionUpdate,
+    CreatorApplication,
     CreatorDetail,
     CreatorMe,
     CreatorRead,
@@ -227,6 +228,22 @@ async def update_commission(
 
 
 # Public: the website's /c/<code> link ---------------------------------------------------------
+
+
+@router.post("/creators/apply", status_code=202)
+async def apply(data: CreatorApplication, session: AsyncSession = Depends(get_session)):
+    """Public: a creator applies to join from the website's creator program page."""
+    await service.apply_as_creator(
+        session,
+        email=data.email,
+        name=data.name,
+        handle=data.handle,
+        whatsapp=data.whatsapp,
+        followers=data.followers,
+        posted_from=data.posted_from,
+    )
+    await session.commit()
+    return {"ok": True}
 
 
 @router.get("/referrals/{code}", response_model=ReferralRead)

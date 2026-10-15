@@ -50,6 +50,7 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["DELETE", /^chat\/sessions\/[0-9a-f-]{36}$/],
   ["POST", /^chat\/sessions\/[0-9a-f-]{36}\/messages$/],
   ["POST", /^reels\/imports$/],
+  ["POST", /^creators\/apply$/],
   ["GET", /^creators\/me$/],
   ["POST", /^creator\/trips\/import$/],
   ["POST", /^creator\/trips\/from-reel$/],

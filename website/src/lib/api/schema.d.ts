@@ -845,6 +845,26 @@ export interface paths {
         patch: operations["update_commission_creators__creator_id__commissions__entry_id__patch"];
         trace?: never;
     };
+    "/creators/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply
+         * @description Public: a creator applies to join from the website's creator program page.
+         */
+        post: operations["apply_creators_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/referrals/{code}": {
         parameters: {
             query?: never;
@@ -1472,6 +1492,36 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /** CreatorApplication */
+        CreatorApplication: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * Handle
+             * @default
+             */
+            handle: string;
+            /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
+            /**
+             * Followers
+             * @default
+             */
+            followers: string;
+            /**
+             * Posted From
+             * @default
+             */
+            posted_from: string;
+        };
         /** CreatorDetail */
         CreatorDetail: {
             /**
@@ -5634,6 +5684,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_creators_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorApplication"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

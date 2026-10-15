@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.modules.creators.models import (
     AttributionEvent,
@@ -11,6 +11,15 @@ from app.modules.creators.models import (
     CreatorStatus,
     TripStatus,
 )
+
+
+class CreatorApplication(BaseModel):
+    email: EmailStr
+    name: str = Field(min_length=1, max_length=120)
+    handle: str = Field(default="", max_length=100)
+    whatsapp: str = Field(default="", max_length=40)
+    followers: str = Field(default="", max_length=40)
+    posted_from: str = Field(default="", max_length=120)
 
 
 class CreatorStats(BaseModel):
