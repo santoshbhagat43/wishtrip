@@ -33,7 +33,9 @@ async def test_creator_signup_creates_pending_account(client):
 
 async def test_wrong_code_is_rejected(client):
     await client.post("/auth/creator/request-otp", json={"email": "x@creators.example.com"})
-    r = await client.post("/auth/creator/verify", json={"email": "x@creators.example.com", "code": "9999"})
+    r = await client.post(
+        "/auth/creator/verify", json={"email": "x@creators.example.com", "code": "9999"}
+    )
     assert r.status_code == 400
     async with SessionLocal() as session:
         assert await session.scalar(select(Creator)) is None
@@ -64,7 +66,12 @@ async def test_staff_approve_a_pending_creator(client, admin):
 
     approved = await client.patch(
         f"/creators/{rows[0]['id']}",
-        json={"status": "active", "handle": "mayatravels", "commission_type": "percent", "commission_value": 1000},
+        json={
+            "status": "active",
+            "handle": "mayatravels",
+            "commission_type": "percent",
+            "commission_value": 1000,
+        },
         headers=auth(admin),
     )
     assert approved.status_code == 200 and approved.json()["status"] == "active"

@@ -18,28 +18,39 @@ type Who = "traveler" | "creator";
 
 /** The B4-styled sign in / sign up, with a traveller (email + password) and a creator
  *  (email + 4-digit code) path. Labels match what the rest of the app and tests expect. */
-export function B4Auth({ mode }: { mode: "login" | "signup" }) {
-  const [who, setWho] = useState<Who>("traveler");
+export function B4Auth({ mode, only }: { mode: "login" | "signup"; only?: "creator" }) {
+  const [who, setWho] = useState<Who>(only ?? "traveler");
   return (
     <div className="b4-auth flex min-h-dvh flex-col bg-[#FBF8F4] px-4 py-8">
       <Link href={LINKS.home} aria-label="wishtrip home" className="mx-auto mb-8 flex">
         <Image src={IMG.logo} alt="wishtrip" width={138} height={38} priority className="h-[34px] w-auto" />
       </Link>
       <div className="mx-auto w-full max-w-[420px]">
-        <div role="tablist" aria-label="Account type" className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-[#E8E1D8] bg-[#F1EAE0] p-1">
-          {([["traveler", "I'm a traveller"], ["creator", "I'm a creator"]] as const).map(([id, label]) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={who === id}
-              onClick={() => setWho(id)}
-              className={`cursor-pointer rounded-full px-3 py-2 text-sm font-semibold transition-colors ${who === id ? "bg-white text-[#0D2436] shadow-sm" : "text-[#8A7F72] hover:text-[#0D2436]"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {who === "traveler" ? <TravelerForm mode={mode} /> : <CreatorForm />}
+        {only === "creator" ? (
+          <>
+            <span className="mb-3 inline-block rounded-full bg-[#E3F5EE] px-3 py-1 text-xs font-bold tracking-[.12em] text-[#0B7A57]">
+              CREATOR REGISTRATION
+            </span>
+            <CreatorForm />
+          </>
+        ) : (
+          <>
+            <div role="tablist" aria-label="Account type" className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-[#E8E1D8] bg-[#F1EAE0] p-1">
+              {([["traveler", "I'm a traveller"], ["creator", "I'm a creator"]] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={who === id}
+                  onClick={() => setWho(id)}
+                  className={`cursor-pointer rounded-full px-3 py-2 text-sm font-semibold transition-colors ${who === id ? "bg-white text-[#0D2436] shadow-sm" : "text-[#8A7F72] hover:text-[#0D2436]"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {who === "traveler" ? <TravelerForm mode={mode} /> : <CreatorForm />}
+          </>
+        )}
       </div>
     </div>
   );

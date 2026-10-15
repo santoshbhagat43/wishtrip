@@ -69,6 +69,30 @@ async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
     return trip
 
 
+async def create_from_content(
+    session: AsyncSession,
+    creator: Creator,
+    content,
+    *,
+    title: str | None = None,
+    items: list | None = None,
+) -> CreatorTrip:
+    """A creator's trip from a processed reel's content (their own draft to publish)."""
+    extracted = content.extracted or {}
+    trip = CreatorTrip(
+        creator_id=creator.id,
+        title=title or f"{content.destination_name or 'My'} trip",
+        destination_name=content.destination_name or extracted.get("destination", ""),
+        summary=extracted.get("summary", ""),
+        cover_image_key=content.thumbnail_key,
+        source_shortcode=content.shortcode,
+        items=clean_items(items) if items else [_item_from_place(p) for p in content.places],
+    )
+    session.add(trip)
+    await session.flush()
+    return trip
+
+
 async def require_creator(session: AsyncSession, user_id: uuid.UUID) -> Creator:
     creator = await session.scalar(select(Creator).where(Creator.user_id == user_id))
     if creator is None:

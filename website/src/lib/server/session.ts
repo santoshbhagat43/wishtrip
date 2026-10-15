@@ -52,6 +52,7 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["POST", /^reels\/imports$/],
   ["GET", /^creators\/me$/],
   ["POST", /^creator\/trips\/import$/],
+  ["POST", /^creator\/trips\/from-reel$/],
   ["GET", /^creator\/trips\/imports\/[0-9a-f-]{36}$/],
   ["GET", /^creator\/trips$/],
   ["GET", /^creator\/trips\/[0-9a-f-]{36}$/],

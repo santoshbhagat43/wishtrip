@@ -160,6 +160,12 @@ class CreatorTripUpdate(BaseModel):
     publish: bool | None = None
 
 
+class SaveFromReel(BaseModel):
+    import_id: uuid.UUID
+    title: str | None = Field(default=None, max_length=255)
+    items: list[TripItem] | None = None
+
+
 class PublicCreator(BaseModel):
     handle: str | None = None
     display_name: str

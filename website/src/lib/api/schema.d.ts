@@ -728,6 +728,9 @@ export interface paths {
         /**
          * Upload Video
          * @description Build a trip from a video the traveller uploads from their device.
+         *
+         *     The raw video is the request body (content-type video/*, filename in X-Reel-Filename),
+         *     so it streams straight through the website's proxy without a multipart hop.
          */
         post: operations["upload_video_reels_uploads_post"];
         delete?: never;
@@ -946,6 +949,26 @@ export interface paths {
         head?: never;
         /** Update Trip */
         patch: operations["update_trip_creator_trips__trip_id__patch"];
+        trace?: never;
+    };
+    "/creator/trips/from-reel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save From Reel
+         * @description Save a creator's reel-based trip and publish its affiliate link in one step.
+         */
+        post: operations["save_from_reel_creator_trips_from_reel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/trips/{share_code}": {
@@ -1404,11 +1427,6 @@ export interface components {
             external_url?: string | null;
             /** File */
             file?: string | null;
-        };
-        /** Body_upload_video_reels_uploads_post */
-        Body_upload_video_reels_uploads_post: {
-            /** File */
-            file: string;
         };
         /** ChatTurn */
         ChatTurn: {
@@ -3368,6 +3386,18 @@ export interface components {
             method?: components["schemas"]["RoutingMethod"] | null;
             /** Reassign After Minutes */
             reassign_after_minutes?: number | null;
+        };
+        /** SaveFromReel */
+        SaveFromReel: {
+            /**
+             * Import Id
+             * Format: uuid
+             */
+            import_id: string;
+            /** Title */
+            title?: string | null;
+            /** Items */
+            items?: components["schemas"]["TripItem"][] | null;
         };
         /** SavedPlace */
         SavedPlace: {
@@ -5389,11 +5419,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_video_reels_uploads_post"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             201: {
@@ -5402,15 +5428,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReelImportRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5828,6 +5845,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_from_reel_creator_trips_from_reel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFromReel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

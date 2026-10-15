@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { CheckoutScreen } from "@/components/b4/screens/checkout";
 
 export const metadata: Metadata = { title: "Book it in one go — wishtrip" };
 
 export default function Page() {
-  return <CheckoutScreen />;
+  return (
+    <Suspense>
+      <CheckoutScreen />
+    </Suspense>
+  );
 }

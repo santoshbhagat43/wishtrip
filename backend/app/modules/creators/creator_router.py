@@ -18,10 +18,11 @@ from app.modules.creators.schemas import (
     CreatorTripUpdate,
     PublicCreator,
     PublicTripRead,
+    SaveFromReel,
     TripImportStart,
 )
 from app.modules.reels import service as reels
-from app.modules.reels.models import ImportKind, ReelImport
+from app.modules.reels.models import CreatorContent, ImportKind, ReelImport
 from app.modules.reels.schemas import ReelImportRead
 from app.modules.users.models import User
 
@@ -120,6 +121,31 @@ async def update_trip(
         trip.items = trips.clean_items([i.model_dump() for i in data.items])
     if data.publish:
         await trips.publish(session, trip)
+    await session.commit()
+    await session.refresh(trip)
+    return trip_read(trip)
+
+
+@router.post("/creator/trips/from-reel", response_model=CreatorTripRead, status_code=201)
+async def save_from_reel(
+    data: SaveFromReel,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Save a creator's reel-based trip and publish its affiliate link in one step."""
+    creator = await _active_creator(session, user)
+    job = await session.get(ReelImport, data.import_id)
+    if not job or job.user_id != user.id:
+        raise not_found("Reel")
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    if content is None:
+        raise bad_request("That reel isn't ready yet.")
+    trip = await trips.create_from_content(
+        session, creator, content,
+        title=data.title,
+        items=[i.model_dump() for i in data.items] if data.items is not None else None,
+    )
+    await trips.publish(session, trip)
     await session.commit()
     await session.refresh(trip)
     return trip_read(trip)

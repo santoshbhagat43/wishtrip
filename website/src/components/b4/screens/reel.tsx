@@ -13,7 +13,6 @@ import { CHECK, Path } from "../icons";
 
 type ReelImport = Schemas["ReelImportRead"];
 type ReelContent = Schemas["ReelContentRead"];
-type ReelPlace = Schemas["ReelPlace"];
 
 const STEPS: [step: ReelImport["step"], label: string][] = [
   ["downloading", "Watching the reel"],
@@ -25,16 +24,6 @@ const STEPS: [step: ReelImport["step"], label: string][] = [
 const KIND: Record<string, Kind> = { stay: "Stay", food: "Food" };
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}`;
-
-/** What the traveller sends to start planning, with only the places they kept. */
-function seedMessage(content: ReelContent, kept: ReelPlace[]) {
-  const names = kept.filter((p) => p.kind !== "area").map((p) => p.location_name ?? p.name);
-  const from = content.creator_handle ? `@${content.creator_handle}'s reel` : "your video";
-  let text = `Plan a trip to ${content.destination_name || "this place"} based on ${from}`;
-  if (content.days_hint) text += `, about ${content.days_hint} days`;
-  if (names.length) text += `. I want to see: ${names.slice(0, 10).join(", ")}`;
-  return `${text}.`;
-}
 
 /** Step 1: paste a reel; we watch it, read it and list its places. Untick what you don't want. */
 export function ReelScreen() {
@@ -240,9 +229,8 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
   const [off, setOff] = useState<Record<string, boolean>>({});
   const kept = content.places.filter((p) => !off[p.name]);
   const verified = content.places.filter((p) => p.verified).length;
-  const planHref = job.chat_session_id
-    ? `/plan?session=${job.chat_session_id}&prompt=${encodeURIComponent(seedMessage(content, kept))}`
-    : LINKS.arya;
+  // The reel flows into the prototype journey: details → board → book → booked.
+  const planHref = `${LINKS.details}?id=${job.id}`;
   const progress = [
     "Watched the reel",
     ...(content.screen_lines ? [`Read ${content.screen_lines} lines on screen`] : []),

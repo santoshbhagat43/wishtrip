@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { LINKS } from "../data";
 import { B4Header } from "../header";
 import { CARD, Kicker } from "../flow";
 import { Path } from "../icons";
@@ -68,7 +67,7 @@ export function CreatorsScreen() {
               ))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-4">
-              <Link href={LINKS.signIn} className="rounded-full bg-[#22DDE0] px-7 py-4 text-base font-bold text-[#072338] no-underline">
+              <Link href="/creators/join" className="rounded-full bg-[#22DDE0] px-7 py-4 text-base font-bold text-[#072338] no-underline">
                 Join the creator program
               </Link>
               <span className="text-[13.5px] text-[#A9C2D4]">Free to join · for Instagram and YouTube creators</span>
@@ -133,7 +132,7 @@ export function CreatorsScreen() {
               <p className="m-0 text-[14.5px] leading-normal text-[#566E85]">
                 Sign in with your email to start. We&rsquo;ll set you up and turn your first reel into a bookable trip.
               </p>
-              <Link href={LINKS.signIn} className="rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white no-underline">
+              <Link href="/creators/join" className="rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white no-underline">
                 Join the creator program
               </Link>
               <span className="text-center text-xs text-[#8A7F72]">Free to join. You keep the rights to your content.</span>

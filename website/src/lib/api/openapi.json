@@ -2497,18 +2497,8 @@
      "reels"
     ],
     "summary": "Upload Video",
-    "description": "Build a trip from a video the traveller uploads from their device.",
+    "description": "Build a trip from a video the traveller uploads from their device.\n\nThe raw video is the request body (content-type video/*, filename in X-Reel-Filename),\nso it streams straight through the website's proxy without a multipart hop.",
     "operationId": "upload_video_reels_uploads_post",
-    "requestBody": {
-     "content": {
-      "multipart/form-data": {
-       "schema": {
-        "$ref": "#/components/schemas/Body_upload_video_reels_uploads_post"
-       }
-      }
-     },
-     "required": true
-    },
     "responses": {
      "201": {
       "description": "Successful Response",
@@ -2516,16 +2506,6 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ReelImportRead"
-        }
-       }
-      }
-     },
-     "422": {
-      "description": "Validation Error",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
@@ -3211,6 +3191,53 @@
       }
      }
     }
+   }
+  },
+  "/creator/trips/from-reel": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Save From Reel",
+    "description": "Save a creator's reel-based trip and publish its affiliate link in one step.",
+    "operationId": "save_from_reel_creator_trips_from_reel_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SaveFromReel"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
    }
   },
   "/trips/{share_code}": {
@@ -4638,20 +4665,6 @@
      "kind"
     ],
     "title": "Body_add_media_admin_locations__location_id__media_post"
-   },
-   "Body_upload_video_reels_uploads_post": {
-    "properties": {
-     "file": {
-      "type": "string",
-      "contentMediaType": "application/octet-stream",
-      "title": "File"
-     }
-    },
-    "type": "object",
-    "required": [
-     "file"
-    ],
-    "title": "Body_upload_video_reels_uploads_post"
    },
    "ChatTurn": {
     "properties": {
@@ -9986,6 +9999,46 @@
     },
     "type": "object",
     "title": "RoutingUpdate"
+   },
+   "SaveFromReel": {
+    "properties": {
+     "import_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Import Id"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "items": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TripItem"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "import_id"
+    ],
+    "title": "SaveFromReel"
    },
    "SavedPlace": {
     "properties": {
