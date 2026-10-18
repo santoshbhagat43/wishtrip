@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.core.security import create_token, decode_token, verify_password
 from app.db.session import get_session
+from app.modules.auth import google
 from app.modules.auth.schemas import (
     CreatorOtpRequest,
     CreatorOtpVerify,
+    GoogleExchange,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -44,6 +46,17 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
     fields = data.model_dump(exclude={"referral_code", "visitor_id"})
     user = await users.create(session, UserCreate(**fields, role=Role.TRAVELER))
     await creators.credit_signup(session, user, data.referral_code, data.visitor_id)
+    await session.commit()
+    return _tokens(user)
+
+
+@router.post("/google/exchange", response_model=TokenPair)
+async def google_exchange(data: GoogleExchange, session: AsyncSession = Depends(get_session)):
+    """Exchange a Google auth code (from the SSO app) for a wishtrip token pair."""
+    claims = await google.exchange_code(data.code, data.redirect_uri)
+    user = await users.get_or_create_google_user(
+        session, email=claims["email"], full_name=claims.get("name", "")
+    )
     await session.commit()
     return _tokens(user)
 

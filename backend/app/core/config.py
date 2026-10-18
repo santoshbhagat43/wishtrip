@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     access_token_minutes: int = 30
     refresh_token_days: int = 7
 
+    # Google sign-in (SSO). The client_id is public; the client_secret stays on the server only.
+    # The SSO app runs the browser redirect; the backend only exchanges the code for tokens.
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_token_url: str = "https://oauth2.googleapis.com/token"
+
     media_root: str = "./media"
     media_url_prefix: str = "/media"
     max_upload_mb: int = 25

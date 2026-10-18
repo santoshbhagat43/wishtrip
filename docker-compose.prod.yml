@@ -77,6 +77,7 @@ services:
       backend:
         condition: service_started
 
+  # Serves the staff dashboard (DASHBOARD_DOMAIN) AND the SSO login (SSO_DOMAIN), host-based.
   dashboard:
     build:
       context: ./dashboard
@@ -84,9 +85,15 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8000
+      # SSO: one session shared across every app on the parent domain (e.g. .listnr.co).
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+      SSO_URL: ${SSO_URL}
+      POST_LOGIN_FALLBACK_URL: ${POST_LOGIN_FALLBACK_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       - backend
 
+  # Serves the traveler website (WEBSITE_DOMAIN) AND the creator site (CREATOR_DOMAIN), host-based.
   website:
     build:
       context: ./website
@@ -94,6 +101,9 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8000
+      # SSO: share the session cookie and send sign-in to the SSO app.
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+      SSO_URL: ${SSO_URL}
       # Private preview: /gate asks for these. The gate stays on until SITE_PUBLIC=true (launch).
       SITE_USER: ${SITE_USER}
       SITE_PASSWORD: ${SITE_PASSWORD}
@@ -110,7 +120,9 @@ services:
       - "443:443/udp"
     environment:
       WEBSITE_DOMAIN: ${WEBSITE_DOMAIN}
+      CREATOR_DOMAIN: ${CREATOR_DOMAIN}
       DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN}
+      SSO_DOMAIN: ${SSO_DOMAIN}
       API_DOMAIN: ${API_DOMAIN}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { GATE_COOKIE, gateEnabled, gateToken } from "@/lib/server/gate";
 import { REFRESH_COOKIE } from "@/lib/server/session";
+import { publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
 
 const PRIVATE = ["/plan", "/profile", "/saved", "/help", "/creator"];
 // Reachable without the site password: the gate itself.
@@ -26,12 +27,11 @@ export async function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api/") || pathname.startsWith("/media/")) return NextResponse.next();
 
-  // Signed-in pages send visitors to /login; landing and explore stay public.
+  // Signed-in pages send visitors to the shared SSO login; landing and explore stay public.
   const signedIn = request.cookies.has(REFRESH_COOKIE);
   if (!signedIn && PRIVATE.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    const url = new URL("/login", request.url);
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    const here = `${publicOrigin(request)}${pathname}${request.nextUrl.search}`;
+    return NextResponse.redirect(ssoLoginUrl(here));
   }
   if (signedIn && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/plan", request.url));

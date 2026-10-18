@@ -1,11 +1,12 @@
-import { Suspense } from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { B4Auth } from "@/components/b4/screens/auth";
+import { ssoLoginUrl } from "@/lib/server/sso";
 
-export default function SignupPage() {
-  return (
-    <Suspense>
-      <B4Auth mode="signup" />
-    </Suspense>
-  );
+/** Sign-up is handled on the shared SSO app (Continue with Google creates an account). */
+export default async function SignupPage() {
+  const h = await headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  redirect(ssoLoginUrl(host ? `${proto}://${host}/plan` : "/plan"));
 }

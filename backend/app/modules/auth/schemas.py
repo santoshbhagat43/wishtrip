@@ -26,6 +26,13 @@ class TokenPair(BaseModel):
     token_type: str = "bearer"
 
 
+class GoogleExchange(BaseModel):
+    # The one-time auth code from Google and the exact redirect_uri the SSO app used (Google
+    # requires them to match). The code is exchanged server-side with the client secret.
+    code: str = Field(min_length=1, max_length=2048)
+    redirect_uri: str = Field(min_length=1, max_length=1000)
+
+
 class CreatorOtpRequest(BaseModel):
     email: EmailStr
 

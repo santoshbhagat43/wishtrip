@@ -1,3 +1,4 @@
+import secrets
 import uuid
 
 from sqlalchemy import func, select
@@ -28,6 +29,28 @@ async def create(session: AsyncSession, data: UserCreate) -> User:
         hashed_password=hash_password(data.password),
         full_name=data.full_name,
         role=data.role,
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
+
+async def get_or_create_google_user(
+    session: AsyncSession, email: str, full_name: str = ""
+) -> User:
+    """Find the user who owns this Google email, or create a traveler for them.
+
+    Google sign-in has no password, so (like creator OTP) we store a random hash to keep the
+    column non-guessable. The caller commits.
+    """
+    user = await get_by_email(session, email)
+    if user:
+        return user
+    user = User(
+        email=email.lower(),
+        hashed_password=hash_password(secrets.token_urlsafe(24)),
+        full_name=full_name,
+        role=Role.TRAVELER,
     )
     session.add(user)
     await session.flush()

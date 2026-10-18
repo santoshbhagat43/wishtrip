@@ -1,11 +1,18 @@
-import { Suspense } from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { B4Auth } from "@/components/b4/screens/auth";
+import { ssoLoginUrl } from "@/lib/server/sso";
 
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <B4Auth mode="login" />
-    </Suspense>
-  );
+/** Login now happens on the shared SSO app; bounce there and return to where the visitor was. */
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  const h = await headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const path = next && next.startsWith("/") ? next : "/plan";
+  redirect(ssoLoginUrl(host ? `${proto}://${host}${path}` : "/plan"));
 }

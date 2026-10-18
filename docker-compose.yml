@@ -85,11 +85,17 @@ services:
       backend:
         condition: service_started
 
+  # Serves the staff dashboard (dashboard.lvh.me:3001) AND the SSO login (sso.lvh.me:3001).
   dashboard:
     build: ./dashboard
     environment:
       BACKEND_URL: http://backend:8000
       WATCHPACK_POLLING: "true"
+      # SSO: one session shared across all apps on .lvh.me (resolves to 127.0.0.1 locally).
+      SESSION_COOKIE_DOMAIN: .lvh.me
+      SSO_URL: http://sso.lvh.me:3001
+      POST_LOGIN_FALLBACK_URL: http://app.lvh.me:3002/
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "3001:3000"
     volumes:
@@ -105,6 +111,9 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
       WATCHPACK_POLLING: "true"
+      # SSO: share the session cookie across .lvh.me and send sign-in to the SSO app.
+      SESSION_COOKIE_DOMAIN: .lvh.me
+      SSO_URL: http://sso.lvh.me:3001
     ports:
       - "3002:3000"
     volumes:

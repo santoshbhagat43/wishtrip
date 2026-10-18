@@ -8,7 +8,20 @@
 	reverse_proxy website:3000
 }
 
+# The creator site runs from the same website app (host-based), so it shares the gate too.
+{$CREATOR_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy website:3000
+}
+
 {$DASHBOARD_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy dashboard:3000
+}
+
+# Single sign-on runs from the same dashboard app (host-based); it is the login surface for
+# every app, so it is deliberately NOT behind the website gate.
+{$SSO_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy dashboard:3000
 }
