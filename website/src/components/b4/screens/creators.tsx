@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { CountryCode } from "libphonenumber-js";
 import { useState } from "react";
 
 import { api, errorMessage, unwrap } from "@/lib/api/client";
@@ -9,6 +10,7 @@ import { api, errorMessage, unwrap } from "@/lib/api/client";
 import { B4Header } from "../header";
 import { CARD, Kicker } from "../flow";
 import { Path } from "../icons";
+import { PhoneField, countryName, toE164 } from "../phone-field";
 
 const PLAY = "M4 4h16v16H4zM10 9l5 3-5 3z";
 const BOARD = "M4 5h16v14H4zM4 10h16M10 10v9";
@@ -146,7 +148,9 @@ const POSTED = ["India", "Asia", "Europe", "Worldwide"];
 
 /** The prototype's "Apply to join" form — creates a pending creator for staff to review. */
 function ApplyForm() {
-  const [form, setForm] = useState({ email: "", name: "", handle: "", whatsapp: "", followers: FOLLOWERS[1], posted_from: "" });
+  const [form, setForm] = useState({ email: "", name: "", handle: "", followers: FOLLOWERS[1], posted_from: "" });
+  const [waCountry, setWaCountry] = useState<CountryCode>("IN");
+  const [waNumber, setWaNumber] = useState("");
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,10 +158,16 @@ function ApplyForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    // Optional, but if given it must be a real number for the chosen country.
+    const whatsapp = waNumber.trim() ? toE164(waCountry, waNumber) : "";
+    if (whatsapp === null) {
+      setError(`That doesn't look like a valid WhatsApp number for ${countryName(waCountry)}.`);
+      return;
+    }
+    setBusy(true);
     try {
-      unwrap(await api.POST("/creators/apply", { body: form }));
+      unwrap(await api.POST("/creators/apply", { body: { ...form, whatsapp } }));
       setDone(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -165,28 +175,28 @@ function ApplyForm() {
     }
   }
 
-  if (done) {
-    return (
-      <div className={`${CARD} flex flex-col items-center gap-2 rounded-[22px] p-7 text-center`}>
-        <span className="grid size-12 place-items-center rounded-full bg-[#E3F5EE]">
-          <Path d="M5 12l5 5 9-10" size={22} stroke="#0B7A57" width={2.6} />
-        </span>
-        <h3 className="font-display m-0 text-[24px] font-medium">You&rsquo;re on the list</h3>
-        <p className="m-0 text-[14px] text-[#566E85]">
-          We&rsquo;ll message you on WhatsApp within 2 days to turn your first trip into a bookable one.
-        </p>
-      </div>
-    );
-  }
-
+  // The confirmation sits in the same grid cell as the form, which stays laid out (just hidden),
+  // so the card keeps its size instead of collapsing around a short message.
   return (
-    <form onSubmit={submit} className={`${CARD} flex flex-col gap-3 rounded-[22px] p-6`}>
+    <div className={`${CARD} grid rounded-[22px]`}>
+    <form onSubmit={submit} aria-hidden={done} className={`flex flex-col gap-3 p-6 [grid-area:1/1] ${done ? "invisible" : ""}`}>
       <h3 className="font-display m-0 text-[24px] font-medium">Apply to join</h3>
       <p className="m-0 text-[13px] text-[#566E85]">Takes a minute. We reply on WhatsApp within 2 days.</p>
       <label className={FLABEL}>YOUR NAME<input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Meera Kamat" className={INPUT} /></label>
       <label className={FLABEL}>EMAIL<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" className={INPUT} /></label>
       <label className={FLABEL}>INSTAGRAM OR YOUTUBE HANDLE<input value={form.handle} onChange={(e) => set("handle", e.target.value)} placeholder="@yourhandle" className={INPUT} /></label>
-      <label className={FLABEL}>WHATSAPP NUMBER<input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+91" className={INPUT} /></label>
+      <div className={FLABEL}>
+        WHATSAPP NUMBER
+        <PhoneField
+          country={waCountry}
+          number={waNumber}
+          onChange={(c, n) => {
+            setWaCountry(c);
+            setWaNumber(n);
+          }}
+          inputClassName={INPUT}
+        />
+      </div>
       <div className={FLABEL}>
         WHERE HAVE YOU POSTED TRIPS FROM?
         <span className="flex flex-wrap gap-1.5">
@@ -205,5 +215,17 @@ function ApplyForm() {
         Already applied? <Link href="/creators/join" className="font-semibold text-[#0A7C80]">Sign in</Link>
       </span>
     </form>
+    {done && (
+      <div role="status" className="flex flex-col items-center justify-center gap-2 p-7 text-center [grid-area:1/1]">
+        <span className="grid size-12 place-items-center rounded-full bg-[#E3F5EE]">
+          <Path d="M5 12l5 5 9-10" size={22} stroke="#0B7A57" width={2.6} />
+        </span>
+        <h3 className="font-display m-0 text-[24px] font-medium">You&rsquo;re on the list</h3>
+        <p className="m-0 max-w-[300px] text-[14px] text-[#566E85]">
+          We&rsquo;ll message you on WhatsApp within 2 days to turn your first trip into a bookable one.
+        </p>
+      </div>
+    )}
+    </div>
   );
 }
