@@ -1,5 +1,8 @@
 import { ssoLoginUrl, SSO_URL } from "@/lib/server/sso";
 
+// Rendered at request time: it builds absolute SSO URLs from env that isn't present at build.
+export const dynamic = "force-dynamic";
+
 /** Shown when a signed-in non-staff user lands on the dashboard. The shared SSO session is valid,
  *  it just isn't a staff account — so we offer to switch accounts rather than loop on the login. */
 export default function NoAccessPage() {
