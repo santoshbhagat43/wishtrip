@@ -8,7 +8,9 @@ COPY . .
 # Rewrites (e.g. /media → backend) are resolved at build time, so the backend URL is a build arg.
 ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=$BACKEND_URL NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production
-RUN pnpm build
+# Build with webpack: Next 16's default (Turbopack) fails to resolve next/font/google in a
+# production build (@vercel/turbopack-next/internal/font/google/font). webpack is stable here.
+RUN pnpm build --webpack
 
 # next.config.ts sets output: "standalone": ship only the traced server, its static files and
 # public/, and run it with plain node (no pnpm, nothing downloaded at start-up).
