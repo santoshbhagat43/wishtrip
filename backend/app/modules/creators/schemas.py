@@ -243,6 +243,8 @@ class CreatorLinkRead(BaseModel):
     error: str = ""
     trip_id: uuid.UUID | None = None
     share_code: str | None = None
+    # A picture from the reel, for the card and the itinerary.
+    cover_image_url: str | None = None
     created_at: datetime
     stats: LinkStats
 

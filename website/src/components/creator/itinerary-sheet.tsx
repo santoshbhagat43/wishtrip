@@ -158,6 +158,16 @@ export function ItinerarySheet({
 
       <main className="mx-auto grid max-w-[1240px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pt-8">
         <section className="flex min-w-0 flex-col gap-3">
+          {link.cover_image_url && (
+            <div className="relative mb-2 h-52 overflow-hidden rounded-[22px] md:h-64">
+              {/* eslint-disable-next-line @next/next/no-img-element -- backend media */}
+              <img src={link.cover_image_url} alt="" className="absolute inset-0 size-full object-cover" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+              <span className="absolute bottom-3 left-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#072338]">
+                <Play className="size-3" /> From your reel
+              </span>
+            </div>
+          )}
           <span className="text-[11.5px] font-bold tracking-wider text-[#0A7C80]">YOUR ITINERARY</span>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">

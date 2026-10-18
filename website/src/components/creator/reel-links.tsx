@@ -205,6 +205,7 @@ function CreateLinkModal({ onClose }: { onClose: () => void }) {
 /** One reel, as a tall card: its title, where it stands, and how many people opened its link. */
 function ReelCard({ link, onOpen }: { link: Link; onOpen: () => void }) {
   const state = STATE[link.status];
+  const cover = link.cover_image_url;
   return (
     <li>
       <button
@@ -212,15 +213,22 @@ function ReelCard({ link, onOpen }: { link: Link; onOpen: () => void }) {
         onClick={onOpen}
         className="relative flex aspect-[3/4] w-full flex-col justify-between overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-brand-soft via-surface-2 to-surface p-3.5 text-left transition hover:border-brand hover:shadow-card focus-visible:outline-2 focus-visible:outline-brand"
       >
-        <span className="flex items-start justify-between gap-2">
+        {cover && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- backend media */}
+            <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/30" />
+          </>
+        )}
+        <span className="relative flex items-start justify-between gap-2">
           <Badge tone={state.tone}>{state.label}</Badge>
-          <span className="flex size-8 flex-none items-center justify-center rounded-full bg-surface/80 text-brand">
+          <span className="flex size-8 flex-none items-center justify-center rounded-full bg-surface/85 text-brand">
             <Play className="size-4" />
           </span>
         </span>
-        <span className="flex flex-col gap-1">
-          <strong className="line-clamp-3 text-base leading-snug">{link.label}</strong>
-          <span className="text-xs text-muted">
+        <span className="relative flex flex-col gap-1">
+          <strong className={`line-clamp-3 text-base leading-snug ${cover ? "text-white" : ""}`}>{link.label}</strong>
+          <span className={`text-xs ${cover ? "text-white/85" : "text-muted"}`}>
             {link.stats.visits} {link.stats.visits === 1 ? "visit" : "visits"} · {link.stats.signups}{" "}
             {link.stats.signups === 1 ? "sign-up" : "sign-ups"}
           </span>
@@ -274,9 +282,15 @@ function ReelModal({
   return (
     <Modal title={link.label} onClose={onClose}>
       <div className="flex flex-col gap-5">
-        <h2 className="flex flex-wrap items-center gap-2 text-xl">
-          {link.label} <Badge tone={state.tone}>{state.label}</Badge>
-        </h2>
+        <div className="flex items-center gap-3">
+          {link.cover_image_url && (
+            // eslint-disable-next-line @next/next/no-img-element -- backend media
+            <img src={link.cover_image_url} alt="" className="h-16 w-12 flex-none rounded-lg object-cover" />
+          )}
+          <h2 className="flex flex-wrap items-center gap-2 text-xl">
+            {link.label} <Badge tone={state.tone}>{state.label}</Badge>
+          </h2>
+        </div>
 
         <LinkBox code={link.code} />
 

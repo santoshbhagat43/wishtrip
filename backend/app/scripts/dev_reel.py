@@ -6,9 +6,13 @@ A fixture for browser tests and local demos; the real reading is `app.modules.re
 """
 
 import asyncio
+import io
 import sys
 
+from PIL import Image, ImageDraw
+
 from app.db.session import SessionLocal
+from app.modules.media.storage import storage
 from app.modules.reels import service
 from app.modules.reels.models import CreatorContent
 
@@ -22,6 +26,20 @@ PLACES = [
 ]
 
 
+def cover() -> bytes:
+    """A stand-in cover picture: a sunset gradient, as tall as a reel."""
+    image = Image.new("RGB", (540, 960))
+    draw = ImageDraw.Draw(image)
+    for y in range(960):
+        f = y / 959
+        draw.line(
+            [(0, y), (540, y)], fill=(int(250 - 120 * f), int(150 - 90 * f), int(90 + 60 * f))
+        )
+    out = io.BytesIO()
+    image.save(out, "JPEG")
+    return out.getvalue()
+
+
 async def main(shortcode: str) -> None:
     async with SessionLocal() as session:
         if await service.cached(session, shortcode):
@@ -31,6 +49,7 @@ async def main(shortcode: str) -> None:
                 shortcode=shortcode,
                 url=service.canonical_url(shortcode),
                 caption="A slow weekend in Goa",
+                thumbnail_key=storage.save(cover(), "cover.jpg", "reels"),
                 destination_name="Goa",
                 extracted={"summary": "A slow Goa weekend.", "days_hint": 2, "tips": []},
                 places=[

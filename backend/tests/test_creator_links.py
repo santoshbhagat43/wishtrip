@@ -39,6 +39,7 @@ def fake_reel(monkeypatch):
             shortcode=shortcode,
             url=reels.canonical_url(shortcode),
             destination_name="Goa",
+            thumbnail_key="reels/cover.jpg",
             extracted={"summary": "A slow Goa trip.", "days_hint": 3},
             places=[
                 {"name": "Fort Aguada", "kind": "sight", "evidence": "sunset", "source": "voice",
@@ -282,6 +283,8 @@ async def test_the_reel_becomes_an_itinerary_the_creator_publishes(client, fake_
     # Read straight away: a draft itinerary, not yet visible to anyone.
     assert link["status"] == "ready" and link["step"] is None
     assert link["share_code"] is None
+    # A picture from the reel comes along, for the card and the itinerary.
+    assert link["cover_image_url"].endswith("/reels/cover.jpg")
     trip = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
     assert [i["name"] for i in trip["items"]] == ["Fort Aguada", "Thalassa"]
     assert trip["items"][0]["t"] == 4  # where in the reel it was seen

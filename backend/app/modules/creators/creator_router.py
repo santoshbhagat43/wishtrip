@@ -283,6 +283,7 @@ async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[Cr
                 error=job.error if job and state == "failed" else "",
                 trip_id=trip.id if trip else None,
                 share_code=trip.share_code if trip and state == "published" else None,
+                cover_image_url=trips.cover_url(trip) if trip else None,
                 created_at=link.created_at,
                 stats=LinkStats(**stats[link.id]),
             )

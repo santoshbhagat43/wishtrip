@@ -1760,6 +1760,8 @@ export interface components {
             trip_id?: string | null;
             /** Share Code */
             share_code?: string | null;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
             /**
              * Created At
              * Format: date-time

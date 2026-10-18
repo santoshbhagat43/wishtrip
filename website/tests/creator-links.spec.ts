@@ -123,12 +123,16 @@ test.describe("Reel links", () => {
     await expect(reel.getByLabel("Instagram reel URL")).toHaveValue(`https://www.instagram.com/reel/${shortcode}/`);
     await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 60_000 });
     await expect(reel.getByRole("button", { name: "Publish", exact: true })).toBeEnabled();
+    // A picture from the reel: on the card behind its title.
+    await expect(card.locator("img")).toBeVisible();
+    await expect.poll(() => card.locator("img").evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-ready.png` });
 
     // 5. Open the itinerary: the stops that were read, in days, each traced back to the reel.
     await reel.getByRole("button", { name: "Open itinerary" }).click();
     const sheet = page.getByRole("dialog", { name: "Itinerary: Goa beach weekend" });
     await expect(sheet.getByText("DAY 1")).toBeVisible();
+    await expect(sheet.getByText("From your reel", { exact: true })).toBeVisible();
     await expect(sheet.getByText("Fort Aguada", { exact: true })).toBeVisible();
     await expect(sheet.getByText("Old Goa churches", { exact: true })).toBeVisible();
     await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
