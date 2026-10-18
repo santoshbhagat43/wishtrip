@@ -130,7 +130,7 @@ export function CreatorsScreen() {
               </dl>
             </div>
 
-            <div id="apply"><ApplyForm /></div>
+            <div id="apply" className="scroll-mt-24"><ApplyForm /></div>
           </div>
         </div>
       </section>
