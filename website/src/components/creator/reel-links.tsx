@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, ErrorNote } from "@/components/ui/card";
-import { Input, Select } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { reelLink, rupees, withoutScheme } from "@/lib/creator";
 import { relativeTime } from "@/lib/format";
@@ -48,29 +48,21 @@ export function ReelLinks({ approved }: { approved: boolean }) {
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [label, setLabel] = useState("");
-  const [destination, setDestination] = useState("");
 
   const links = useQuery({
     queryKey: ["creator-links"],
     queryFn: async () => unwrap(await api.GET("/creator/links")),
-  });
-  const destinations = useQuery({
-    queryKey: ["destinations"],
-    enabled: creating,
-    staleTime: 5 * 60_000,
-    queryFn: async () => unwrap(await api.GET("/explore/destinations")),
   });
 
   const create = useMutation({
     mutationFn: async () =>
       unwrap(
         await api.POST("/creator/links", {
-          body: { label: label.trim(), destination_id: destination || null },
+          body: { label: label.trim() },
         }),
       ),
     onSuccess: () => {
       setLabel("");
-      setDestination("");
       setCreating(false);
       queryClient.invalidateQueries({ queryKey: ["creator-links"] });
     },
@@ -121,34 +113,17 @@ export function ReelLinks({ approved }: { approved: boolean }) {
             create.mutate();
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
-              What&rsquo;s the reel about?
-              <Input
-                required
-                autoFocus
-                maxLength={120}
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g. Goa beach weekend"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
-              Where should travellers land?
-              <Select value={destination} onChange={(e) => setDestination(e.target.value)}>
-                <option value="">The WishTrip home page</option>
-                {(destinations.data ?? [])
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                      {d.region && d.region !== d.name ? ` · ${d.region}` : ""}
-                    </option>
-                  ))}
-              </Select>
-            </label>
-          </div>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            What&rsquo;s the reel about?
+            <Input
+              required
+              autoFocus
+              maxLength={120}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. Goa beach weekend"
+            />
+          </label>
           <ErrorNote error={create.error} />
           <div className="flex gap-2">
             <Button type="submit" disabled={!label.trim() || create.isPending}>

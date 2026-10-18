@@ -63,18 +63,17 @@ test.describe("Reel links", () => {
     await expect(section.getByText("Add the reel's URL")).toBeVisible();
     await expect(section.getByText("No reel links yet")).toBeVisible();
 
-    // 1. Create a referral link, pointed at a destination.
+    // 1. Create a referral link — just a name for the reel.
     await section.getByRole("button", { name: "Create referral link" }).click();
     await section.getByLabel("What’s the reel about?").fill("Goa beach weekend");
-    await section.getByLabel("Where should travellers land?").selectOption({ label: "Goa" });
     await section.getByRole("button", { name: "Create link" }).click();
 
     // It's waiting for a reel, with a short link shown in full.
     await expect(section.getByText("Waiting for your reel")).toBeVisible();
     const short = section.locator("code").first();
     const shortText = (await short.textContent())!.trim();
-    expect(shortText).toMatch(/\/r\/goa-[a-z0-9]{4}$/);
-    await expect(section.getByText("Opens Goa")).toBeVisible();
+    expect(shortText).toMatch(/\/r\/[a-z]+-[a-z0-9]{4}$/);
+    await expect(section.getByText("Opens the WishTrip home page")).toBeVisible();
     await expect(section.getByText("Posted it? Add the reel")).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-waiting.png`, fullPage: true });
 
@@ -85,7 +84,7 @@ test.describe("Reel links", () => {
       maxRedirects: 0,
     });
     expect(visit.status()).toBe(307);
-    expect(visit.headers()["location"]).toMatch(/^\/explore\/[0-9a-f-]{36}$/); // the Goa page
+    expect(visit.headers()["location"]).toBe("/");
     const cookies = visit.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
     expect(cookies.some((c) => c.startsWith("wishtrip_link=" + code))).toBe(true);
     await visitor.close();
