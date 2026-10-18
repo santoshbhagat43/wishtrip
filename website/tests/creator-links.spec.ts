@@ -56,17 +56,20 @@ test.describe("Reel links", () => {
     page.on("pageerror", (e) => pageErrors.push(e.message));
     await approvedCreator(page, request);
 
-    // The section explains the three steps, and starts empty.
-    const section = page.locator("section").filter({ hasText: "Your reel links" });
-    await expect(section.getByText("Create a link")).toBeVisible();
-    await expect(section.getByText("Use it in your reel")).toBeVisible();
-    await expect(section.getByText("Add the reel's URL")).toBeVisible();
-    await expect(section.getByText("No reel links yet")).toBeVisible();
+    // The three steps sit beside the other tools; the Reels card has no links yet.
+    const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
+    await expect(page.getByText("How reel links work")).toBeVisible();
+    await expect(page.getByText("Use it in your reel")).toBeVisible();
+    await expect(page.getByText("Add the reel's URL")).toBeVisible();
+    await expect(section.locator("ul > li").filter({ hasText: "Visits" })).toHaveCount(0);
 
     // 1. Create a referral link — just a name for the reel.
-    await section.getByRole("button", { name: "Create referral link" }).click();
-    await section.getByLabel("What’s the reel about?").fill("Goa beach weekend");
     await section.getByRole("button", { name: "Create link" }).click();
+    const dialog = page.getByRole("dialog", { name: "Create referral link" });
+    await dialog.getByLabel("What’s the reel about?").fill("Goa beach weekend");
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-modal.png` });
+    await dialog.getByRole("button", { name: "Create link" }).click();
+    await expect(dialog).toHaveCount(0);
 
     // It's waiting for a reel, with a short link shown in full.
     await expect(section.getByText("Waiting for your reel")).toBeVisible();
@@ -139,9 +142,9 @@ test.describe("Reel links", () => {
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
 
-    const section = page.locator("section").filter({ hasText: "Your reel links" });
+    const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
     await expect(section.getByText("unlock as soon as the WishTrip team approves")).toBeVisible();
-    await expect(section.getByRole("button", { name: "Create referral link" })).toHaveCount(0);
+    await expect(section.getByRole("button", { name: "Create link" })).toHaveCount(0);
   });
 
   test("an unknown reel link just opens the home page", async ({ request }) => {

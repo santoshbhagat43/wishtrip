@@ -5,7 +5,7 @@ import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { ReelLinks } from "@/components/creator/reel-links";
+import { ReelLinkSteps, ReelsCard } from "@/components/creator/reel-links";
 import { TripTools } from "@/components/creator/trip-tools";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,19 +126,7 @@ export default function CreatorDashboardPage() {
             </div>
           </Card>
 
-          <ReelLinks approved={o.status === "active"} />
-
-          {o.status === "active" && (
-            <Card>
-              <CardHeader title="Your trips" description="Turn a reel into a trip travellers can follow and book." />
-              <div className="px-5 pb-5">
-                <TripTools />
-              </div>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader title="Reels" description="Your reels that travellers pasted into WishTrip, and what we read from each." />
+          <ReelsCard approved={o.status === "active"}>
             {o.reels.length === 0 ? (
               <Empty title="No reels yet">When a traveller pastes one of your reels, it shows up here.</Empty>
             ) : (
@@ -172,7 +160,7 @@ export default function CreatorDashboardPage() {
                 ))}
               </ul>
             )}
-          </Card>
+          </ReelsCard>
 
           <Card>
             <CardHeader
@@ -230,7 +218,18 @@ export default function CreatorDashboardPage() {
           </Card>
         </div>
 
-        <Affiliate overview={o} />
+        <div className="flex min-w-0 flex-col gap-5">
+          <Affiliate overview={o} />
+          <ReelLinkSteps />
+          {o.status === "active" && (
+            <Card className="h-fit">
+              <CardHeader title="Your trips" description="Turn a reel into a trip travellers can follow and book." />
+              <div className="px-5 pb-5 pt-4">
+                <TripTools />
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -266,7 +265,7 @@ function Affiliate({ overview: o }: { overview: Overview }) {
             {copied ? "Copied" : "Copy link"}
           </Button>
           <span className="text-xs text-muted">
-            Works anywhere. For a single reel, make a reel link above, so you can see which one is working.
+            Works anywhere. For a single reel, make a reel link, so you can see which one is working.
             Travellers who sign up through either are credited to you for 30 days.
           </span>
         </div>

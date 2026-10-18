@@ -75,7 +75,7 @@ test.describe("Creator site", () => {
     const phone = `+9198${local}`;
     const email = `e2e-wa-${Date.now()}@creators.example.com`;
     const applied = await page.request.post(`${API_URL}/creators/apply`, {
-      data: { email, name: "E2E WhatsApp Creator", handle: "e2e.whatsapp", whatsapp: phone },
+      data: { email, name: "E2E WhatsApp Creator", handle: `e2e.wa.${Date.now().toString(36)}`, whatsapp: phone },
     });
     expect(applied.status()).toBe(202);
 

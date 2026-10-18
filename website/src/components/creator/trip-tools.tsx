@@ -62,16 +62,12 @@ function CreateTrip() {
   }, [importId, router]);
 
   return (
-    <form onSubmit={start} className="flex flex-col gap-3 rounded-[22px] border border-border bg-surface p-6 shadow-card">
-      <div>
-        <h2 className="text-xl">Turn your reel into a trip</h2>
-        <p className="mt-1 text-sm text-muted">Paste one of your Instagram reels. We pull out the places; you edit and publish a shareable link.</p>
-      </div>
+    <form onSubmit={start} className="flex flex-col gap-3">
       {busy ? (
         <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm font-medium">{STEP_LABEL[step] ?? "Working…"}</p>
       ) : (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input className="min-w-0 flex-1" inputMode="url" placeholder="instagram.com/reel/…" value={url} onChange={(e) => setUrl(e.target.value)} required />
+        <div className="flex flex-col gap-2">
+          <Input inputMode="url" placeholder="instagram.com/reel/…" value={url} onChange={(e) => setUrl(e.target.value)} required />
           <Button type="submit" disabled={!url.trim()}>Create trip</Button>
         </div>
       )}
@@ -83,13 +79,12 @@ function CreateTrip() {
 export function TripTools() {
   const trips = useQuery({ queryKey: ["my-trips"], queryFn: async () => unwrap(await api.GET("/creator/trips")) });
   return (
-    <div className="mt-6 flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <CreateTrip />
       {trips.data && trips.data.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-xl">Your trips</h2>
           {trips.data.map((t) => (
-            <Link key={t.id} href={`/creator/trips/${t.id}`} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 hover:border-brand">
+            <Link key={t.id} href={`/creator/trips/${t.id}`} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 hover:border-brand">
               <span className="flex flex-1 flex-col">
                 <strong>{t.title}</strong>
                 <span className="text-sm text-muted">{t.destination_name} · {t.items.length} stops</span>

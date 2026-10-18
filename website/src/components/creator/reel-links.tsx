@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, ExternalLink, Link2, Plus } from "lucide-react";
-import { useState } from "react";
+import { Check, Copy, ExternalLink, Plus } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,52 +40,12 @@ function CopyButton({ value, label = "Copy" }: { value: string; label?: string }
   );
 }
 
-/**
- * A creator's reel links: make one before posting, use it in the reel, then come back and add the
- * reel's Instagram URL. Each link shows its own numbers.
- */
-export function ReelLinks({ approved }: { approved: boolean }) {
-  const queryClient = useQueryClient();
-  const [creating, setCreating] = useState(false);
-  const [label, setLabel] = useState("");
-
-  const links = useQuery({
-    queryKey: ["creator-links"],
-    queryFn: async () => unwrap(await api.GET("/creator/links")),
-  });
-
-  const create = useMutation({
-    mutationFn: async () =>
-      unwrap(
-        await api.POST("/creator/links", {
-          body: { label: label.trim() },
-        }),
-      ),
-    onSuccess: () => {
-      setLabel("");
-      setCreating(false);
-      queryClient.invalidateQueries({ queryKey: ["creator-links"] });
-    },
-  });
-
-  const items = links.data ?? [];
-  const waiting = items.filter((l) => l.status === "waiting").length;
-
+/** The three steps, shown beside the creator's other tools. */
+export function ReelLinkSteps() {
   return (
-    <Card>
-      <CardHeader
-        title="Your reel links"
-        description="A short link for each reel, so you can see which one brings travellers in."
-        action={
-          approved && !creating ? (
-            <Button type="button" onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> Create referral link
-            </Button>
-          ) : undefined
-        }
-      />
-
-      <ol className="grid gap-3 px-5 pt-4 sm:grid-cols-3">
+    <Card className="h-fit">
+      <CardHeader title="How reel links work" />
+      <ol className="flex flex-col gap-4 px-5 pb-5 pt-4">
         {STEPS.map(([title, body], i) => (
           <li key={title} className="flex items-start gap-3">
             <span className="flex size-7 flex-none items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand">
@@ -98,68 +58,137 @@ export function ReelLinks({ approved }: { approved: boolean }) {
           </li>
         ))}
       </ol>
-
-      {!approved && (
-        <p className="m-5 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">
-          Reel links unlock as soon as the WishTrip team approves your account.
-        </p>
-      )}
-
-      {creating && (
-        <form
-          className="m-5 flex flex-col gap-3 rounded-2xl border border-border bg-surface-2/60 p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-        >
-          <label className="flex flex-col gap-1.5 text-sm font-semibold">
-            What&rsquo;s the reel about?
-            <Input
-              required
-              autoFocus
-              maxLength={120}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Goa beach weekend"
-            />
-          </label>
-          <ErrorNote error={create.error} />
-          <div className="flex gap-2">
-            <Button type="submit" disabled={!label.trim() || create.isPending}>
-              {create.isPending ? "Creating…" : "Create link"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setCreating(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {links.isLoading ? null : items.length === 0 ? (
-        approved && !creating && (
-          <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
-            <Link2 className="size-6 text-muted" />
-            <p className="text-sm font-medium">No reel links yet</p>
-            <p className="text-sm text-muted">Create one before you post your next reel.</p>
-          </div>
-        )
-      ) : (
-        <>
-          {waiting > 0 && (
-            <p className="mx-5 mt-4 text-sm text-muted">
-              {waiting} {waiting === 1 ? "link is" : "links are"} waiting for a reel. Once it&rsquo;s posted, add its
-              Instagram URL.
-            </p>
-          )}
-          <ul className="flex flex-col divide-y divide-border">
-            {items.map((link) => (
-              <LinkRow key={link.id} link={link} />
-            ))}
-          </ul>
-        </>
-      )}
     </Card>
+  );
+}
+
+/** A plain modal: Escape or a click outside closes it. */
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-card">
+        <h2 className="text-xl">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CreateLinkModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [label, setLabel] = useState("");
+
+  const create = useMutation({
+    mutationFn: async () => unwrap(await api.POST("/creator/links", { body: { label: label.trim() } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creator-links"] });
+      onClose();
+    },
+  });
+
+  return (
+    <Modal title="Create referral link" onClose={onClose}>
+      <p className="mt-1 text-sm text-muted">
+        We&rsquo;ll make a short link for this reel. Put it in the caption or your bio, then come back and add the
+        reel&rsquo;s URL once it&rsquo;s posted.
+      </p>
+      <form
+        className="mt-4 flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          create.mutate();
+        }}
+      >
+        <label className="flex flex-col gap-1.5 text-sm font-semibold">
+          What&rsquo;s the reel about?
+          <Input
+            required
+            autoFocus
+            maxLength={120}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="e.g. Goa beach weekend"
+          />
+        </label>
+        <ErrorNote error={create.error} />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!label.trim() || create.isPending}>
+            {create.isPending ? "Creating…" : "Create link"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * The Reels card: the creator's reel links (make one before posting, add the reel's Instagram URL
+ * afterwards, see each link's numbers), then whatever the page puts below — the reels travellers
+ * pasted into WishTrip.
+ */
+export function ReelsCard({ approved, children }: { approved: boolean; children?: ReactNode }) {
+  const [creating, setCreating] = useState(false);
+  const links = useQuery({
+    queryKey: ["creator-links"],
+    queryFn: async () => unwrap(await api.GET("/creator/links")),
+  });
+
+  const items = links.data ?? [];
+  const waiting = items.filter((l) => l.status === "waiting").length;
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Reels"
+          description="Your reel links, and the reels travellers pasted into WishTrip."
+          action={
+            approved ? (
+              <Button type="button" onClick={() => setCreating(true)}>
+                <Plus className="size-4" /> Create link
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {!approved && (
+          <p className="m-5 rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">
+            Reel links unlock as soon as the WishTrip team approves your account.
+          </p>
+        )}
+
+        {items.length > 0 && (
+          <>
+            {waiting > 0 && (
+              <p className="mx-5 mt-4 text-sm text-muted">
+                {waiting} {waiting === 1 ? "link is" : "links are"} waiting for a reel. Once it&rsquo;s posted, add its
+                Instagram URL.
+              </p>
+            )}
+            <ul className="flex flex-col divide-y divide-border">
+              {items.map((link) => (
+                <LinkRow key={link.id} link={link} />
+              ))}
+            </ul>
+          </>
+        )}
+
+        {children}
+      </Card>
+      {creating && <CreateLinkModal onClose={() => setCreating(false)} />}
+    </>
   );
 }
 
