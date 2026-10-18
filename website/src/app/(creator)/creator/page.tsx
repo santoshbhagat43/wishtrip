@@ -127,9 +127,9 @@ export default function CreatorDashboardPage() {
           </Card>
 
           <ReelsCard approved={o.status === "active"}>
-            {o.reels.length === 0 ? (
-              <Empty title="No reels yet">When a traveller pastes one of your reels, it shows up here.</Empty>
-            ) : (
+            {o.reels.length > 0 && (
+              <>
+                <h3 className="border-t border-border px-5 pb-1 pt-4 text-sm font-semibold">Pasted into WishTrip</h3>
               <ul className="divide-y divide-border">
                 {o.reels.map((r) => (
                   <li key={r.shortcode}>
@@ -159,6 +159,7 @@ export default function CreatorDashboardPage() {
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </ReelsCard>
 
