@@ -17,11 +17,11 @@ const COIN = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 12h6M12 9v6";
 const STEPS = [
   { icon: PLAY, title: "Connect your Instagram or YouTube", body: "Pick the trips you've posted. No new content needed." },
   { icon: BOARD, title: "We turn them into bookable trips", body: "Your reels become a day-by-day trip with real prices, credited to you." },
-  { icon: COIN, title: "Earn every time someone books", body: "You get your share of every booking from your trip, paid monthly to your bank." },
+  { icon: COIN, title: "Earn every time someone books", body: "You get [X%] of every booking from your trip, paid monthly to your bank." },
 ];
 
 const PERKS = [
-  { title: "A share of every booking", body: "Paid monthly to your bank, for as long as people book." },
+  { title: "Earn [X%] of every booking", body: "Paid monthly to your bank, for as long as people book." },
   { title: "Your name on every trip", body: "Travellers see who made it. You build a following." },
   { title: "A dashboard that shows it all", body: "Views, saves and bookings for each trip." },
   { title: "We do the hard part", body: "Flights, stays, support and refunds are on us." },
@@ -33,11 +33,11 @@ const FAQ = [
   ["When do I get paid?", "On the 5th of every month, for the bookings in the month before."],
 ];
 
-const DASH = [
-  ["Views on wishtrip", "4,210"],
-  ["Bookings this month", "18"],
-  ["Your share of each booking", "Set with you"],
-  ["Earned this month", "Paid on the 5th"],
+const DASH: [label: string, value: string, accent?: boolean][] = [
+  ["Views on wishtrip", "18.2k"],
+  ["Bookings this month", "42"],
+  ["Your share of each booking", "[X%]"],
+  ["Earned this month", "₹ [your earnings]", true],
 ];
 
 /** The creator program landing: how earning works, what you get, and a way in. */
@@ -78,25 +78,25 @@ export function CreatorsScreen() {
             </div>
           </div>
 
-          {/* Dashboard preview */}
-          <div className="rounded-[22px] bg-white/[0.06] p-5 ring-1 ring-white/10 backdrop-blur">
-            <Kicker className="text-[#6BEDEF]!">EXAMPLE · YOUR CREATOR DASHBOARD</Kicker>
+          {/* Example creator dashboard — a white card on the dark hero */}
+          <div className="rounded-[22px] bg-white p-5 text-[#0D2436] shadow-[0_30px_70px_rgba(7,35,56,.3)] md:p-6">
+            <Kicker teal>EXAMPLE · YOUR CREATOR DASHBOARD</Kicker>
             <div className="mt-3 flex items-center gap-3">
-              <Image src="/b4/goa-aguada-fort-9x16.webp" alt="" width={44} height={44} className="size-11 flex-none rounded-xl object-cover" />
+              <Image src="/b4/goa-hero-beach-9x16.webp" alt="" width={48} height={48} className="size-12 flex-none rounded-xl object-cover" />
               <span className="flex flex-col">
                 <strong className="text-[15px]">Slow North Goa</strong>
-                <span className="text-[12.5px] text-[#A9C2D4]">Your reel from Dec 2025</span>
+                <span className="text-[12.5px] text-[#566E85]">Your reel from Dec 2025 · now a bookable trip</span>
               </span>
             </div>
             <div className="mt-3 flex flex-col">
-              {DASH.map(([k, v], i) => (
-                <span key={k} className={`flex items-center justify-between py-2.5 text-[13.5px] ${i < DASH.length - 1 ? "border-b border-white/10" : ""}`}>
-                  <span className="text-[#A9C2D4]">{k}</span>
-                  <span className="font-semibold text-white">{v}</span>
+              {DASH.map(([k, v, accent], i) => (
+                <span key={k} className={`flex items-center justify-between py-3 text-[13.5px] ${i < DASH.length - 1 ? "border-b border-[#EDE6DC]" : ""}`}>
+                  <span className="text-[#566E85]">{k}</span>
+                  <strong className={accent ? "text-[#0B7A57]" : "text-[#0D2436]"}>{v}</strong>
                 </span>
               ))}
             </div>
-            <p className="mt-3 text-[12px] text-[#8DA7BC]">Paid to your bank on the 5th of every month.</p>
+            <p className="mt-3 text-[12px] text-[#8A7F72]">Paid to your bank on the 5th of every month.</p>
           </div>
         </div>
       </section>
@@ -173,7 +173,7 @@ function ApplyForm() {
         </span>
         <h3 className="font-display m-0 text-[24px] font-medium">You&rsquo;re on the list</h3>
         <p className="m-0 text-[14px] text-[#566E85]">
-          Our team will review your profile and set you up. We&rsquo;ll be in touch soon.
+          We&rsquo;ll message you on WhatsApp within 2 days to turn your first trip into a bookable one.
         </p>
       </div>
     );
@@ -182,7 +182,7 @@ function ApplyForm() {
   return (
     <form onSubmit={submit} className={`${CARD} flex flex-col gap-3 rounded-[22px] p-6`}>
       <h3 className="font-display m-0 text-[24px] font-medium">Apply to join</h3>
-      <p className="m-0 text-[13px] text-[#566E85]">Free to join. You keep the rights to your content.</p>
+      <p className="m-0 text-[13px] text-[#566E85]">Takes a minute. We reply on WhatsApp within 2 days.</p>
       <label className={FLABEL}>YOUR NAME<input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Meera Kamat" className={INPUT} /></label>
       <label className={FLABEL}>EMAIL<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" className={INPUT} /></label>
       <label className={FLABEL}>INSTAGRAM OR YOUTUBE HANDLE<input value={form.handle} onChange={(e) => set("handle", e.target.value)} placeholder="@yourhandle" className={INPUT} /></label>
@@ -200,6 +200,7 @@ function ApplyForm() {
       <button type="submit" disabled={busy} className="cursor-pointer rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white disabled:opacity-60">
         {busy ? "Sending…" : "Apply to join"}
       </button>
+      <p className="m-0 text-xs text-[#8A7F72]">Free to join. You keep the rights to your content.</p>
       <span className="text-center text-xs text-[#8A7F72]">
         Already applied? <Link href="/creators/join" className="font-semibold text-[#0A7C80]">Sign in</Link>
       </span>
