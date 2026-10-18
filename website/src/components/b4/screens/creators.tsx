@@ -101,24 +101,24 @@ export function CreatorsScreen() {
         </div>
       </section>
 
-      {/* What you get */}
-      <section className="px-4 py-14 md:px-10 md:py-20">
-        <div className="mx-auto max-w-[1240px]">
-          <Kicker teal>WHAT YOU GET</Kicker>
-          <h2 className="font-display mb-0 mt-2 max-w-[620px] text-[30px] font-medium leading-[1.12] md:text-[42px]">
-            Your reels keep working long after you&rsquo;re home
-          </h2>
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            {PERKS.map((p) => (
-              <div key={p.title} className={`${CARD} flex flex-col gap-1.5 p-5`}>
-                <strong className="text-[16px]">{p.title}</strong>
-                <span className="text-[14px] leading-normal text-[#566E85]">{p.body}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12 grid items-start gap-10 md:grid-cols-[1fr_380px]">
-            <div>
+      {/* What you get — the prototype's two-column layout: text + perks + FAQ on the
+          left, a sticky apply card on the right. */}
+      <section className="px-4 py-12 md:px-10 md:pb-20 md:pt-16">
+        <div className="mx-auto grid max-w-[1240px] items-start gap-10 md:grid-cols-[1fr_440px] md:gap-12">
+          <div className="flex flex-col gap-[18px]">
+            <Kicker teal>WHAT YOU GET</Kicker>
+            <h2 className="font-display m-0 max-w-[620px] text-[30px] font-medium leading-[1.12] md:text-[42px]">
+              Your reels keep working long after you&rsquo;re home
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {PERKS.map((p) => (
+                <div key={p.title} className={`${CARD} flex flex-col gap-1.5 p-5`}>
+                  <strong className="text-[16px]">{p.title}</strong>
+                  <span className="text-[14px] leading-normal text-[#566E85]">{p.body}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2">
               <Kicker>QUESTIONS</Kicker>
               <dl className="mt-3 flex flex-col">
                 {FAQ.map(([q, a]) => (
@@ -129,9 +129,9 @@ export function CreatorsScreen() {
                 ))}
               </dl>
             </div>
-
-            <div id="apply" className="scroll-mt-24"><ApplyForm /></div>
           </div>
+
+          <aside id="apply" className="scroll-mt-24 md:sticky md:top-[100px]"><ApplyForm /></aside>
         </div>
       </section>
     </div>
