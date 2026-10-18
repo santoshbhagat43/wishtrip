@@ -23,6 +23,27 @@ test.describe("Creator site", () => {
     await expect(page).toHaveURL(`${CREATOR_URL}/creators`);
   });
 
+  test("'Already applied? Sign in' goes straight to SSO, without stopping on /creators/join", async ({ page }) => {
+    const visited: string[] = [];
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) visited.push(frame.url());
+    });
+    await page.goto("/creators");
+    const signIn = page.getByRole("link", { name: "Sign in", exact: true }).last();
+    // The link itself points at SSO — not at a page on this site that redirects there later.
+    await expect(signIn).toHaveAttribute("href", SSO_LOGIN);
+    await signIn.click();
+
+    await expect(page).toHaveURL(SSO_LOGIN);
+    const url = new URL(page.url());
+    expect(url.searchParams.get("for")).toBe("creator");
+    // After signing in they land on their dashboard on the creator site.
+    expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/creator`);
+    // And nothing on the way was the old creators sign-in page, or the creator site's gate.
+    expect(visited.filter((u) => u.includes("/creators/join") || u.includes("/gate"))).toEqual([]);
+    await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
+  });
+
   test("on the traveller site, creator portal links move to the creator site", async ({ page }) => {
     await page.goto("/creator");
     // …and, signed out, on to creator sign-in on SSO with the portal as the way back.

@@ -43,7 +43,7 @@ const DASH: [label: string, value: string, accent?: boolean][] = [
 ];
 
 /** The creator program landing: how earning works, what you get, and a way in. */
-export function CreatorsScreen() {
+export function CreatorsScreen({ signInHref }: { signInHref: string }) {
   return (
     <div className="min-h-dvh bg-[#FBF8F4]">
       <B4Header solid />
@@ -133,7 +133,7 @@ export function CreatorsScreen() {
             </div>
           </div>
 
-          <aside id="apply" className="scroll-mt-24 md:sticky md:top-[100px]"><ApplyForm /></aside>
+          <aside id="apply" className="scroll-mt-24 md:sticky md:top-[100px]"><ApplyForm signInHref={signInHref} /></aside>
         </div>
       </section>
     </div>
@@ -147,7 +147,7 @@ const FOLLOWERS = ["Under 10k", "10k to 50k", "50k to 200k", "200k+"];
 const POSTED = ["India", "Asia", "Europe", "Worldwide"];
 
 /** The prototype's "Apply to join" form — creates a pending creator for staff to review. */
-function ApplyForm() {
+function ApplyForm({ signInHref }: { signInHref: string }) {
   const [form, setForm] = useState({ email: "", name: "", handle: "", followers: FOLLOWERS[1], posted_from: "" });
   const [waCountry, setWaCountry] = useState<CountryCode>("IN");
   const [waNumber, setWaNumber] = useState("");
@@ -212,7 +212,7 @@ function ApplyForm() {
       </button>
       <p className="m-0 text-xs text-[#8A7F72]">Free to join. You keep the rights to your content.</p>
       <span className="text-center text-xs text-[#8A7F72]">
-        Already applied? <Link href="/creators/join" className="font-semibold text-[#0A7C80]">Sign in</Link>
+        Already applied? <a href={signInHref} className="font-semibold text-[#0A7C80]">Sign in</a>
       </span>
     </form>
     {done && (
