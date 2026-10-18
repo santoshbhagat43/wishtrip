@@ -4,6 +4,7 @@ and publishes shareable affiliate links. Plus the public endpoint those links re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
@@ -11,16 +12,24 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
-from app.modules.creators import trips
-from app.modules.creators.models import Creator, CreatorStatus, CreatorTrip
+from app.modules.creators import service, trips
+from app.modules.creators.models import Creator, CreatorLink, CreatorStatus, CreatorTrip
 from app.modules.creators.schemas import (
+    CreatorLinkCreate,
+    CreatorLinkRead,
+    CreatorLinkUpdate,
     CreatorTripRead,
     CreatorTripUpdate,
+    LinkDestination,
+    LinkStats,
+    LinkVisit,
     PublicCreator,
     PublicTripRead,
+    ReferralVisit,
     SaveFromReel,
     TripImportStart,
 )
+from app.modules.knowledge.models import Location
 from app.modules.reels import service as reels
 from app.modules.reels.models import CreatorContent, ImportKind, ReelImport
 from app.modules.reels.schemas import ReelImportRead
@@ -141,7 +150,9 @@ async def save_from_reel(
     if content is None:
         raise bad_request("That reel isn't ready yet.")
     trip = await trips.create_from_content(
-        session, creator, content,
+        session,
+        creator,
+        content,
         title=data.title,
         items=[i.model_dump() for i in data.items] if data.items is not None else None,
     )
@@ -174,4 +185,117 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
             referral_code=creator.referral_code,
         ),
         items=trip.items,
+    )
+
+
+# --- Reel links ---------------------------------------------------------------------------------
+
+
+async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[CreatorLinkRead]:
+    stats = await service.link_stats(session, [link.id for link in links])
+    places = {
+        p.id: p
+        for p in await session.scalars(
+            select(Location).where(
+                Location.id.in_([link.destination_id for link in links if link.destination_id])
+            )
+        )
+    }
+    return [
+        CreatorLinkRead(
+            id=link.id,
+            code=link.code,
+            label=link.label,
+            destination=(
+                LinkDestination(
+                    id=places[link.destination_id].id,
+                    name=places[link.destination_id].name,
+                    region=places[link.destination_id].region,
+                )
+                if link.destination_id in places
+                else None
+            ),
+            instagram_url=link.instagram_url,
+            status="live" if link.instagram_url else "waiting",
+            created_at=link.created_at,
+            stats=LinkStats(**stats[link.id]),
+        )
+        for link in links
+    ]
+
+
+async def _own_link(session: AsyncSession, creator: Creator, link_id: uuid.UUID) -> CreatorLink:
+    link = await session.get(CreatorLink, link_id)
+    if not link or link.creator_id != creator.id:
+        raise not_found("Link")
+    return link
+
+
+@router.get("/creator/links", response_model=list[CreatorLinkRead])
+async def my_links(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    """The creator's reel links with each one's own numbers, newest first."""
+    creator = await trips.require_creator(session, user.id)
+    links = list(
+        await session.scalars(
+            select(CreatorLink)
+            .where(CreatorLink.creator_id == creator.id)
+            .order_by(CreatorLink.created_at.desc())
+        )
+    )
+    return await _link_read(session, links)
+
+
+@router.post("/creator/links", response_model=CreatorLinkRead, status_code=201)
+async def create_my_link(
+    data: CreatorLinkCreate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Make a short link for a reel you are about to post. The Instagram URL comes later."""
+    creator = await _active_creator(session, user)
+    link = await service.create_link(session, creator, data.label, data.destination_id)
+    await session.commit()
+    await session.refresh(link)
+    return (await _link_read(session, [link]))[0]
+
+
+@router.patch("/creator/links/{link_id}", response_model=CreatorLinkRead)
+async def change_my_link(
+    link_id: uuid.UUID,
+    data: CreatorLinkUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Add the Instagram URL once the reel is posted, or rename the link."""
+    creator = await _active_creator(session, user)
+    link = await _own_link(session, creator, link_id)
+    sent = data.model_dump(exclude_unset=True)
+    await service.update_link(
+        session,
+        link,
+        label=data.label,
+        instagram_url=(data.instagram_url or None) if "instagram_url" in sent else None,
+        clear_instagram="instagram_url" in sent and not (data.instagram_url or "").strip(),
+    )
+    await session.commit()
+    await session.refresh(link)
+    return (await _link_read(session, [link]))[0]
+
+
+@router.post("/referrals/links/{code}/visit", response_model=LinkVisit)
+async def visit_reel_link(
+    code: str, data: ReferralVisit, session: AsyncSession = Depends(get_session)
+):
+    """A reel link was opened: credit the creator and the link, and say where to send them."""
+    found = await service.visit_link(session, code, data.visitor_id)
+    if not found:
+        raise not_found("Link")
+    creator, link = found
+    await session.commit()
+    return LinkVisit(
+        referral_code=creator.referral_code,
+        link_code=link.code,
+        destination_id=link.destination_id,
     )

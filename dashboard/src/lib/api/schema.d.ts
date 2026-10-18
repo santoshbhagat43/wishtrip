@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/google/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Exchange
+         * @description Exchange a Google auth code (from the SSO app) for a wishtrip token pair.
+         */
+        post: operations["google_exchange_auth_google_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/creator/request-otp": {
         parameters: {
             query?: never;
@@ -52,7 +72,11 @@ export interface paths {
         put?: never;
         /**
          * Creator Request Otp
-         * @description Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.
+         * @description Send a creator a one-time sign-in code, by email or on WhatsApp.
+         *
+         *     Always answers the same way, so it can't be used to discover who is a creator. WhatsApp codes
+         *     only go to numbers a creator gave when applying; an email can be new (it signs up a pending
+         *     creator).
          */
         post: operations["creator_request_otp_auth_creator_request_otp_post"];
         delete?: never;
@@ -72,7 +96,7 @@ export interface paths {
         put?: never;
         /**
          * Creator Verify
-         * @description Verify the code and sign the creator in, creating a pending account on first sign-in.
+         * @description Check the code and sign the creator in (a first email sign-in makes a pending creator).
          */
         post: operations["creator_verify_auth_creator_verify_post"];
         delete?: never;
@@ -716,6 +740,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Video
+         * @description Build a trip from a video the traveller uploads from their device.
+         *
+         *     The raw video is the request body (content-type video/*, filename in X-Reel-Filename),
+         *     so it streams straight through the website's proxy without a multipart hop.
+         */
+        post: operations["upload_video_reels_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reels/imports/{import_id}": {
         parameters: {
             query?: never;
@@ -762,6 +809,29 @@ export interface paths {
          * @description The signed-in creator's own account, so the website can show their approval state.
          */
         get: operations["my_creator_creators_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/me/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Overview
+         * @description The signed-in creator's dashboard: their numbers, reels, commissions and activity.
+         *
+         *     Built from the same data as the staff view, but a creator never sees which travellers they
+         *     brought in — every traveller email is dropped — and never sees staff notes.
+         */
+        get: operations["my_overview_creators_me_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -822,6 +892,26 @@ export interface paths {
         patch: operations["update_commission_creators__creator_id__commissions__entry_id__patch"];
         trace?: never;
     };
+    "/creators/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply
+         * @description Public: a creator applies to join from the website's creator program page.
+         */
+        post: operations["apply_creators_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/referrals/{code}": {
         parameters: {
             query?: never;
@@ -850,6 +940,182 @@ export interface paths {
         put?: never;
         /** Referral Visit */
         post: operations["referral_visit_referrals__code__visit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Reel
+         * @description Build a trip from one of the creator's own reels (same pipeline as a traveller paste).
+         */
+        post: operations["import_reel_creator_trips_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import Status */
+        get: operations["import_status_creator_trips_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Trips */
+        get: operations["list_trips_creator_trips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Trip */
+        get: operations["get_trip_creator_trips__trip_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Trip */
+        patch: operations["update_trip_creator_trips__trip_id__patch"];
+        trace?: never;
+    };
+    "/creator/trips/from-reel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save From Reel
+         * @description Save a creator's reel-based trip and publish its affiliate link in one step.
+         */
+        post: operations["save_from_reel_creator_trips_from_reel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trips/{share_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Trip
+         * @description The shareable affiliate link. Public, so a creator can put it in their video.
+         */
+        get: operations["public_trip_trips__share_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Links
+         * @description The creator's reel links with each one's own numbers, newest first.
+         */
+        get: operations["my_links_creator_links_get"];
+        put?: never;
+        /**
+         * Create My Link
+         * @description Make a short link for a reel you are about to post. The Instagram URL comes later.
+         */
+        post: operations["create_my_link_creator_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change My Link
+         * @description Add the Instagram URL once the reel is posted, or rename the link.
+         */
+        patch: operations["change_my_link_creator_links__link_id__patch"];
+        trace?: never;
+    };
+    "/referrals/links/{code}/visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Visit Reel Link
+         * @description A reel link was opened: credit the creator and the link, and say where to send them.
+         */
+        post: operations["visit_reel_link_referrals_links__code__visit_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1337,6 +1603,44 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /**
+         * CreatorApplication
+         * @description The apply form. A creator gives an Instagram handle, a YouTube channel, or both.
+         */
+        CreatorApplication: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Name */
+            name: string;
+            /**
+             * Handle
+             * @default
+             */
+            handle: string;
+            /**
+             * Youtube
+             * @default
+             */
+            youtube: string;
+            /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
+            /**
+             * Followers
+             * @default
+             */
+            followers: string;
+            /**
+             * Posted From
+             * @default
+             */
+            posted_from: string;
+        };
         /** CreatorDetail */
         CreatorDetail: {
             /**
@@ -1354,6 +1658,8 @@ export interface components {
             display_name: string;
             /** Profile Url */
             profile_url: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1388,6 +1694,49 @@ export interface components {
             /** Commissions */
             commissions: components["schemas"]["CommissionRead"][];
         };
+        /** CreatorLinkCreate */
+        CreatorLinkCreate: {
+            /** Label */
+            label: string;
+            /** Destination Id */
+            destination_id?: string | null;
+        };
+        /**
+         * CreatorLinkRead
+         * @description One reel link on the creator's dashboard.
+         */
+        CreatorLinkRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            destination: components["schemas"]["LinkDestination"] | null;
+            /** Instagram Url */
+            instagram_url: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "waiting" | "live";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            stats: components["schemas"]["LinkStats"];
+        };
+        /** CreatorLinkUpdate */
+        CreatorLinkUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Instagram Url */
+            instagram_url?: string | null;
+        };
         /**
          * CreatorMe
          * @description What a signed-in creator sees about their own account.
@@ -1404,6 +1753,8 @@ export interface components {
             handle?: string | null;
             /** Display Name */
             display_name: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1411,23 +1762,79 @@ export interface components {
             /** Commission Value */
             commission_value: number;
         };
-        /** CreatorOtpRequest */
+        /**
+         * CreatorOtpRequest
+         * @description Ask for a sign-in code by email, or on WhatsApp to a number in international format.
+         */
         CreatorOtpRequest: {
             /**
-             * Email
-             * Format: email
+             * Channel
+             * @default email
+             * @enum {string}
              */
-            email: string;
+            channel: "email" | "whatsapp";
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** CreatorOtpVerify */
         CreatorOtpVerify: {
             /**
-             * Email
-             * Format: email
+             * Channel
+             * @default email
+             * @enum {string}
              */
-            email: string;
+            channel: "email" | "whatsapp";
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
             /** Code */
             code: string;
+        };
+        /**
+         * CreatorOverview
+         * @description A signed-in creator's own dashboard: the admin view of them, minus anything about other
+         *     people (traveller emails are never included) and minus staff notes.
+         */
+        CreatorOverview: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email?: string | null;
+            /** Handle */
+            handle?: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
+            status: components["schemas"]["CreatorStatus"];
+            /** Referral Code */
+            referral_code: string;
+            commission_type: components["schemas"]["CommissionType"];
+            /** Commission Value */
+            commission_value: number;
+            /**
+             * Profile Url
+             * @default
+             */
+            profile_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            stats: components["schemas"]["CreatorStats"];
+            /** Reels */
+            reels: components["schemas"]["CreatorReel"][];
+            /** Activity */
+            activity: components["schemas"]["AttributionRead"][];
+            /** Commissions */
+            commissions: components["schemas"]["CommissionRead"][];
         };
         /** CreatorRead */
         CreatorRead: {
@@ -1446,6 +1853,8 @@ export interface components {
             display_name: string;
             /** Profile Url */
             profile_url: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1541,6 +1950,50 @@ export interface components {
          * @enum {string}
          */
         CreatorStatus: "pending" | "unclaimed" | "invited" | "active" | "paused";
+        /** CreatorTripRead */
+        CreatorTripRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /** Source Shortcode */
+            source_shortcode?: string | null;
+            /** Items */
+            items: components["schemas"]["TripItem"][];
+            status: components["schemas"]["TripStatus"];
+            /** Share Code */
+            share_code?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CreatorTripUpdate */
+        CreatorTripUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Items */
+            items?: components["schemas"]["TripItem"][] | null;
+            /** Publish */
+            publish?: boolean | null;
+        };
         /** CreatorUpdate */
         CreatorUpdate: {
             /** Handle */
@@ -1715,6 +2168,22 @@ export interface components {
              */
             answers: string[];
         };
+        /** GoogleExchange */
+        GoogleExchange: {
+            /** Code */
+            code: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /** Referral Code */
+            referral_code?: string | null;
+            /**
+             * Visitor Id
+             * @default
+             */
+            visitor_id: string;
+            /** Link Code */
+            link_code?: string | null;
+        };
         /**
          * Grounding
          * @enum {string}
@@ -1804,6 +2273,56 @@ export interface components {
             relations: number;
             /** Tags */
             tags: number;
+        };
+        /** LinkDestination */
+        LinkDestination: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Region
+             * @default
+             */
+            region: string;
+        };
+        /** LinkStats */
+        LinkStats: {
+            /**
+             * Visits
+             * @default 0
+             */
+            visits: number;
+            /**
+             * Signups
+             * @default 0
+             */
+            signups: number;
+            /**
+             * Trips Planned
+             * @default 0
+             */
+            trips_planned: number;
+            /**
+             * Earned Paise
+             * @default 0
+             */
+            earned_paise: number;
+        };
+        /**
+         * LinkVisit
+         * @description What the website needs to send a visitor on: who to credit and where to land.
+         */
+        LinkVisit: {
+            /** Referral Code */
+            referral_code: string;
+            /** Link Code */
+            link_code: string;
+            /** Destination Id */
+            destination_id?: string | null;
         };
         /** LocationCreate */
         LocationCreate: {
@@ -2696,6 +3215,15 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** PublicCreator */
+        PublicCreator: {
+            /** Handle */
+            handle?: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Referral Code */
+            referral_code: string;
+        };
         /**
          * PublicLocation
          * @description What travelers may see: no provenance, source, reference data, status or index state.
@@ -2770,6 +3298,23 @@ export interface components {
             url: string;
             /** Opens In New Tab */
             opens_in_new_tab: boolean;
+        };
+        /**
+         * PublicTripRead
+         * @description A published creator trip, shown on the shareable /t/<code> link.
+         */
+        PublicTripRead: {
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            creator: components["schemas"]["PublicCreator"];
+            /** Items */
+            items: components["schemas"]["TripItem"][];
         };
         /** RecentEvent */
         RecentEvent: {
@@ -2910,7 +3455,9 @@ export interface components {
             /** Finished At */
             finished_at: string | null;
             /** Chat Session Id */
-            chat_session_id: string | null;
+            chat_session_id?: string | null;
+            /** Creator Trip Id */
+            creator_trip_id: string | null;
             /** Seed Message */
             seed_message?: string | null;
             content?: components["schemas"]["ReelContentRead"] | null;
@@ -2982,6 +3529,8 @@ export interface components {
              * @default
              */
             visitor_id: string;
+            /** Link Code */
+            link_code?: string | null;
         };
         /** RelationCreate */
         RelationCreate: {
@@ -3179,6 +3728,18 @@ export interface components {
             method?: components["schemas"]["RoutingMethod"] | null;
             /** Reassign After Minutes */
             reassign_after_minutes?: number | null;
+        };
+        /** SaveFromReel */
+        SaveFromReel: {
+            /**
+             * Import Id
+             * Format: uuid
+             */
+            import_id: string;
+            /** Title */
+            title?: string | null;
+            /** Items */
+            items?: components["schemas"]["TripItem"][] | null;
         };
         /** SavedPlace */
         SavedPlace: {
@@ -3641,6 +4202,39 @@ export interface components {
             /** Past Tickets */
             past_tickets: number;
         };
+        /** TripImportStart */
+        TripImportStart: {
+            /** Url */
+            url: string;
+        };
+        /** TripItem */
+        TripItem: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Day */
+            day?: number | null;
+            /** Location Id */
+            location_id?: string | null;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+        };
+        /**
+         * TripStatus
+         * @enum {string}
+         */
+        TripStatus: "draft" | "published";
         /** UserCreate */
         UserCreate: {
             /**
@@ -3758,6 +4352,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_exchange_auth_google_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleExchange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5160,6 +5787,26 @@ export interface operations {
             };
         };
     };
+    upload_video_reels_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+        };
+    };
     get_import_reels_imports__import_id__get: {
         parameters: {
             query?: never;
@@ -5238,6 +5885,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+        };
+    };
+    my_overview_creators_me_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorOverview"];
                 };
             };
         };
@@ -5375,6 +6042,39 @@ export interface operations {
             };
         };
     };
+    apply_creators_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorApplication"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_referral_referrals__code__get: {
         parameters: {
             query?: never;
@@ -5428,6 +6128,343 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReferralRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_reel_creator_trips_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripImportStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_status_creator_trips_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_trips_creator_trips_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"][];
+                };
+            };
+        };
+    };
+    get_trip_creator_trips__trip_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_trip_creator_trips__trip_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorTripUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_from_reel_creator_trips_from_reel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFromReel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_trip_trips__share_code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_links_creator_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"][];
+                };
+            };
+        };
+    };
+    create_my_link_creator_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_my_link_creator_links__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorLinkUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    visit_reel_link_referrals_links__code__visit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferralVisit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkVisit"];
                 };
             };
             /** @description Validation Error */

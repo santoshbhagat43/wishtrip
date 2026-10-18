@@ -85,6 +85,7 @@ async def test_whatsapp_codes_only_go_to_numbers_a_creator_gave(client):
         json={
             "email": "wa@creators.example.com",
             "name": "WA Creator",
+            "handle": "wa.creator",
             "whatsapp": "+919876543210",
         },
     )
@@ -115,9 +116,10 @@ async def test_whatsapp_codes_only_go_to_numbers_a_creator_gave(client):
 
 
 async def test_a_number_already_used_by_another_creator_is_not_reassigned(client):
-    for email in ("first@creators.example.com", "second@creators.example.com"):
+    for n, email in enumerate(("first@creators.example.com", "second@creators.example.com")):
         await client.post(
-            "/creators/apply", json={"email": email, "name": "C", "whatsapp": "+447400123456"}
+            "/creators/apply",
+            json={"email": email, "name": "C", "handle": f"c.{n}", "whatsapp": "+447400123456"},
         )
     async with SessionLocal() as session:
         second = await session.scalar(
@@ -138,7 +140,12 @@ async def test_google_sign_in_for_an_applied_creator_signs_in_as_that_creator(cl
     from tests.test_google_auth import _configure, _id_token
 
     await client.post(
-        "/creators/apply", json={"email": "gcreator@creators.example.com", "name": "G Creator"}
+        "/creators/apply",
+        json={
+            "email": "gcreator@creators.example.com",
+            "name": "G Creator",
+            "youtube": "@gcreator",
+        },
     )
     _configure(
         monkeypatch, {"id_token": _id_token(email="gcreator@creators.example.com", name="G")}

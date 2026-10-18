@@ -5,18 +5,17 @@ import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { ReelLinks } from "@/components/creator/reel-links";
 import { TripTools } from "@/components/creator/trip-tools";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, Empty, ErrorNote, Spinner } from "@/components/ui/card";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
+import { overallLink, rupees, withoutScheme } from "@/lib/creator";
 import { relativeTime, titleCase } from "@/lib/format";
 import { useMe } from "@/lib/session";
 
 type Overview = Schemas["CreatorOverview"];
-
-// The traveller site a referral link points at — the same setting the admin dashboard uses.
-const WEBSITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://wishtrip.listnr.co";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
   active: { label: "Approved creator", tone: "ok" },
@@ -32,10 +31,6 @@ const EVENT_LABEL: Record<string, string> = {
   trip_planned: "A traveller you brought in planned a trip",
   booking: "A traveller you brought in booked",
 };
-
-function rupees(paise: number) {
-  return `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-}
 
 function deal(o: Overview) {
   if (o.commission_type === "percent") return `${o.commission_value / 100}% of every booking`;
@@ -91,6 +86,11 @@ export default function CreatorDashboardPage() {
               Instagram profile ↗
             </a>
           )}
+          {o.youtube_url && (
+            <a href={o.youtube_url} target="_blank" rel="noreferrer" className="text-brand hover:underline">
+              YouTube channel ↗
+            </a>
+          )}
           <span>· creator since {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
         </p>
       </div>
@@ -125,6 +125,8 @@ export default function CreatorDashboardPage() {
               ))}
             </div>
           </Card>
+
+          <ReelLinks approved={o.status === "active"} />
 
           {o.status === "active" && (
             <Card>
@@ -237,41 +239,44 @@ export default function CreatorDashboardPage() {
 /** The creator's link and deal. Read-only: the WishTrip team sets the terms. */
 function Affiliate({ overview: o }: { overview: Overview }) {
   const [copied, setCopied] = useState(false);
-  const link = `${WEBSITE_URL}/c/${o.referral_code}`;
+  const link = overallLink(o.referral_code);
 
   return (
     <Card className="h-fit">
       <CardHeader title="Affiliate" />
       <div className="flex flex-col gap-5 px-5 pb-5 pt-4 text-sm">
-        <div className="flex flex-col gap-1.5">
-          <span className="font-semibold">Your link</span>
-          <span className="flex gap-2">
-            <input
-              readOnly
-              value={link}
-              aria-label="Your referral link"
-              className="h-10 min-w-0 flex-1 rounded-xl border-[1.5px] border-border bg-surface-2 px-3 text-sm"
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                navigator.clipboard.writeText(link);
-                setCopied(true);
-              }}
-            >
-              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
+        <div className="flex flex-col gap-2">
+          <span className="font-semibold">Your overall link</span>
+          <code
+            aria-label="Your overall referral link"
+            className="break-all rounded-xl bg-surface-2 px-3 py-2.5 text-[13px] leading-snug"
+          >
+            {withoutScheme(link)}
+          </code>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              navigator.clipboard.writeText(link);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+            {copied ? "Copied" : "Copy link"}
+          </Button>
+          <span className="text-xs text-muted">
+            Works anywhere. For a single reel, make a reel link above, so you can see which one is working.
+            Travellers who sign up through either are credited to you for 30 days.
           </span>
-          <span className="text-xs text-muted">Travellers who sign up through it are credited to you for 30 days.</span>
         </div>
 
         <dl className="flex flex-col gap-3">
           {(
             [
               ["Your deal", deal(o)],
-              ["Instagram handle", o.handle ? `@${o.handle}` : "Not set yet"],
+              ["Instagram", o.handle ? `@${o.handle}` : "Not added"],
+              ["YouTube", o.youtube_url ? o.youtube_url.replace(/^https:\/\/www\.youtube\.com\//, "") : "Not added"],
               ["Status", (STATUS[o.status] ?? STATUS.pending).label],
             ] as const
           ).map(([label, value]) => (

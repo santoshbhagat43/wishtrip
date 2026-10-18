@@ -144,11 +144,51 @@ const INPUT =
   "rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white p-3 text-[15px] text-[#0D2436] outline-none focus:border-[#0A7C80]";
 const FLABEL = "flex flex-col gap-1.5 text-[11px] font-bold tracking-[.12em] text-[#8A7F72]";
 const FOLLOWERS = ["Under 10k", "10k to 50k", "50k to 200k", "200k+"];
+
+/** A channel input: the platform's mark, then the field. Looks like one of the form's inputs. */
+const CHANNEL_ROW =
+  "flex items-center gap-2.5 rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white px-3 focus-within:border-[#0A7C80]";
+const CHANNEL_INPUT = "min-w-0 flex-1 bg-transparent py-3 text-[15px] text-[#0D2436] outline-none";
+
+function InstagramMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-6 flex-none">
+      <defs>
+        <linearGradient id="ig-grad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#FEDA75" />
+          <stop offset=".35" stopColor="#FA7E1E" />
+          <stop offset=".6" stopColor="#D62976" />
+          <stop offset="1" stopColor="#4F5BD5" />
+        </linearGradient>
+      </defs>
+      <rect width="24" height="24" rx="6.5" fill="url(#ig-grad)" />
+      <rect x="5.2" y="5.2" width="13.6" height="13.6" rx="4" fill="none" stroke="#fff" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" strokeWidth="1.7" />
+      <circle cx="16.1" cy="7.9" r="1" fill="#fff" />
+    </svg>
+  );
+}
+
+function YouTubeMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-6 flex-none">
+      <rect y="4.5" width="24" height="15" rx="4.5" fill="#FF0000" />
+      <path d="M9.9 8.9v6.2l5.4-3.1z" fill="#fff" />
+    </svg>
+  );
+}
 const POSTED = ["India", "Asia", "Europe", "Worldwide"];
 
 /** The prototype's "Apply to join" form — creates a pending creator for staff to review. */
 function ApplyForm({ signInHref }: { signInHref: string }) {
-  const [form, setForm] = useState({ email: "", name: "", handle: "", followers: FOLLOWERS[1], posted_from: "" });
+  const [form, setForm] = useState({
+    email: "",
+    name: "",
+    handle: "", // Instagram
+    youtube: "",
+    followers: FOLLOWERS[1],
+    posted_from: "",
+  });
   const [waCountry, setWaCountry] = useState<CountryCode>("IN");
   const [waNumber, setWaNumber] = useState("");
   const [done, setDone] = useState(false);
@@ -159,6 +199,11 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // A channel to look at is the one thing staff need to review an application.
+    if (!form.handle.trim() && !form.youtube.trim()) {
+      setError("Add your Instagram, your YouTube, or both, so we can see your work.");
+      return;
+    }
     // Optional, but if given it must be a real number for the chosen country.
     const whatsapp = waNumber.trim() ? toE164(waCountry, waNumber) : "";
     if (whatsapp === null) {
@@ -184,7 +229,34 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
       <p className="m-0 text-[13px] text-[#566E85]">Takes a minute. We reply on WhatsApp within 2 days.</p>
       <label className={FLABEL}>YOUR NAME<input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Meera Kamat" className={INPUT} /></label>
       <label className={FLABEL}>EMAIL<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" className={INPUT} /></label>
-      <label className={FLABEL}>INSTAGRAM OR YOUTUBE HANDLE<input value={form.handle} onChange={(e) => set("handle", e.target.value)} placeholder="@yourhandle" className={INPUT} /></label>
+      <div role="group" aria-labelledby="channels-label" className={FLABEL}>
+        <span id="channels-label">YOUR CHANNELS</span>
+        <span className="text-[12px] font-normal normal-case tracking-normal text-[#8A7F72]">
+          Add Instagram, YouTube, or both.
+        </span>
+        <label className={CHANNEL_ROW}>
+          <InstagramMark />
+          <input
+            aria-label="Instagram handle or link"
+            value={form.handle}
+            onChange={(e) => set("handle", e.target.value)}
+            placeholder="@yourhandle"
+            autoCapitalize="none"
+            className={CHANNEL_INPUT}
+          />
+        </label>
+        <label className={CHANNEL_ROW}>
+          <YouTubeMark />
+          <input
+            aria-label="YouTube channel link or @handle"
+            value={form.youtube}
+            onChange={(e) => set("youtube", e.target.value)}
+            placeholder="@yourchannel or channel link"
+            autoCapitalize="none"
+            className={CHANNEL_INPUT}
+          />
+        </label>
+      </div>
       <div className={FLABEL}>
         WHATSAPP NUMBER
         <PhoneField
@@ -205,7 +277,7 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
           ))}
         </span>
       </div>
-      <label className={FLABEL}>FOLLOWERS<select value={form.followers} onChange={(e) => set("followers", e.target.value)} className={INPUT}>{FOLLOWERS.map((f) => <option key={f}>{f}</option>)}</select></label>
+      <label className={FLABEL}>FOLLOWERS OR SUBSCRIBERS · YOUR BIGGEST CHANNEL<select value={form.followers} onChange={(e) => set("followers", e.target.value)} className={INPUT}>{FOLLOWERS.map((f) => <option key={f}>{f}</option>)}</select></label>
       {error && <p className="rounded-xl bg-[#FBE9E6] px-3 py-2 text-sm font-semibold text-[#B8362A]">{error}</p>}
       <button type="submit" disabled={busy} className="cursor-pointer rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white disabled:opacity-60">
         {busy ? "Sending…" : "Apply to join"}

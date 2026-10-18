@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -14,9 +15,12 @@ from app.modules.creators.models import (
 
 
 class CreatorApplication(BaseModel):
+    """The apply form. A creator gives an Instagram handle, a YouTube channel, or both."""
+
     email: EmailStr
     name: str = Field(min_length=1, max_length=120)
-    handle: str = Field(default="", max_length=100)
+    handle: str = Field(default="", max_length=200)  # Instagram handle or profile link
+    youtube: str = Field(default="", max_length=300)  # YouTube @handle or channel link
     whatsapp: str = Field(default="", max_length=40)
     followers: str = Field(default="", max_length=40)
     posted_from: str = Field(default="", max_length=120)
@@ -41,6 +45,7 @@ class CreatorRead(BaseModel):
     email: str | None = None
     display_name: str
     profile_url: str
+    youtube_url: str | None = None
     status: CreatorStatus
     referral_code: str
     commission_per_user_paise: int
@@ -71,6 +76,7 @@ class CreatorMe(BaseModel):
     email: str | None = None
     handle: str | None = None
     display_name: str
+    youtube_url: str | None = None
     status: CreatorStatus
     referral_code: str
     commission_type: CommissionType
@@ -202,3 +208,49 @@ class PublicTripRead(BaseModel):
     cover_image_url: str | None = None
     creator: PublicCreator
     items: list[TripItem]
+
+
+class LinkStats(BaseModel):
+    visits: int = 0
+    signups: int = 0
+    trips_planned: int = 0
+    earned_paise: int = 0
+
+
+class LinkDestination(BaseModel):
+    id: uuid.UUID
+    name: str
+    region: str = ""
+
+
+class CreatorLinkRead(BaseModel):
+    """One reel link on the creator's dashboard."""
+
+    id: uuid.UUID
+    code: str
+    label: str
+    destination: LinkDestination | None
+    instagram_url: str | None
+    # "waiting" until the creator adds the Instagram URL of the reel they posted, then "live".
+    status: Literal["waiting", "live"]
+    created_at: datetime
+    stats: LinkStats
+
+
+class CreatorLinkCreate(BaseModel):
+    label: str = Field(min_length=1, max_length=120)
+    destination_id: uuid.UUID | None = None
+
+
+class CreatorLinkUpdate(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=120)
+    # A blank string removes the reel again; a value attaches (or replaces) it.
+    instagram_url: str | None = Field(default=None, max_length=500)
+
+
+class LinkVisit(BaseModel):
+    """What the website needs to send a visitor on: who to credit and where to land."""
+
+    referral_code: str
+    link_code: str
+    destination_id: uuid.UUID | None = None

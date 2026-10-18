@@ -41,6 +41,9 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     whatsapp: Mapped[str | None] = mapped_column(String(20), unique=True)
     display_name: Mapped[str] = mapped_column(String(255), default="")
     profile_url: Mapped[str] = mapped_column(String(500), default="")
+    # The creator's YouTube channel (canonical https URL), alongside the Instagram handle above.
+    # A creator may have either channel or both.
+    youtube_url: Mapped[str | None] = mapped_column(String(300))
     status: Mapped[CreatorStatus] = mapped_column(
         str_enum(CreatorStatus), default=CreatorStatus.UNCLAIMED
     )
@@ -57,6 +60,31 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     )
     commission_value: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str] = mapped_column(Text, default="")
+
+
+class CreatorLink(UUIDPrimaryKey, Timestamps, Base):
+    """A short, trackable link a creator puts in one reel's caption or bio.
+
+    Made before the reel exists, so the Instagram URL is empty at first ("waiting for your reel")
+    and added once the reel is posted ("live"). Opening it credits the creator, exactly like their
+    overall link, and keeps its own numbers so they can see which reel is working.
+    """
+
+    __tablename__ = "creator_links"
+
+    creator_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("creators.id", ondelete="CASCADE"), index=True
+    )
+    # The short code in wishtrip.../r/<code>.
+    code: Mapped[str] = mapped_column(String(40), unique=True)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    # Where a traveller lands: a destination page (a published city), or the home page if unset.
+    destination_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("locations.id", ondelete="SET NULL")
+    )
+    # Added by the creator once the reel is posted. Null = still waiting for the reel.
+    instagram_url: Mapped[str | None] = mapped_column(String(500))
+    instagram_shortcode: Mapped[str | None] = mapped_column(String(64))
 
 
 class AttributionSource(enum.StrEnum):
@@ -82,6 +110,11 @@ class CreatorAttribution(UUIDPrimaryKey, Base):
     )
     content_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("creator_content.id", ondelete="SET NULL")
+    )
+    # The reel link this touch came through, when it came through one.
+    link_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("creator_links.id", ondelete="SET NULL", name="fk_creator_attributions_link"),
+        index=True,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True

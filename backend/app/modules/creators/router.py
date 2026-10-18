@@ -257,6 +257,7 @@ async def apply(data: CreatorApplication, session: AsyncSession = Depends(get_se
         email=data.email,
         name=data.name,
         handle=data.handle,
+        youtube=data.youtube,
         whatsapp=data.whatsapp,
         followers=data.followers,
         posted_from=data.posted_from,

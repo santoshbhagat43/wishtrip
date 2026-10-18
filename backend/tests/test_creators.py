@@ -124,3 +124,95 @@ async def test_creator_overview_is_only_for_creators(client, traveler):
     r = await client.get("/creators/me/overview", headers=auth(traveler))
     assert r.status_code == 404
     assert (await client.get("/creators/me/overview")).status_code == 401
+
+
+async def _apply(client, **fields):
+    body = {"email": "channels@creators.example.com", "name": "Channels", **fields}
+    return await client.post("/creators/apply", json=body)
+
+
+async def _applied(email: str = "channels@creators.example.com") -> Creator:
+    async with SessionLocal() as session:
+        return await session.scalar(select(Creator).where(Creator.email == email))
+
+
+async def test_a_creator_can_apply_with_instagram_only(client):
+    assert (await _apply(client, handle="@meera.travels")).status_code == 202
+    creator = await _applied()
+    assert creator.handle == "meera.travels"
+    assert creator.profile_url == "https://www.instagram.com/meera.travels/"
+    assert creator.youtube_url is None
+
+
+async def test_a_creator_can_apply_with_youtube_only(client):
+    assert (await _apply(client, youtube="@MeeraTravels")).status_code == 202
+    creator = await _applied()
+    assert creator.handle is None
+    assert creator.youtube_url == "https://www.youtube.com/@MeeraTravels"
+
+
+async def test_a_creator_can_apply_with_both_channels(client):
+    r = await _apply(client, handle="meera.travels", youtube="youtube.com/@meeratravels")
+    assert r.status_code == 202
+    creator = await _applied()
+    assert creator.handle == "meera.travels"
+    assert creator.youtube_url == "https://www.youtube.com/@meeratravels"
+
+
+async def test_at_least_one_channel_is_needed(client):
+    r = await _apply(client)
+    assert r.status_code == 400
+    assert "Instagram" in r.json()["detail"] and "YouTube" in r.json()["detail"]
+    assert await _applied() is None, "nothing was created"
+    # Blank or whitespace-only counts as nothing.
+    assert (await _apply(client, handle="  ", youtube="")).status_code == 400
+
+
+async def test_pasted_links_are_turned_into_handles_and_canonical_urls(client):
+    r = await _apply(
+        client,
+        handle="https://www.instagram.com/meera.travels/?igsh=abc",
+        youtube="https://m.youtube.com/channel/UCabcdefghijklmnopqrstuv?si=x",
+    )
+    assert r.status_code == 202, r.text
+    creator = await _applied()
+    assert creator.handle == "meera.travels"
+    assert creator.youtube_url == "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv"
+
+
+async def test_things_that_are_not_channels_are_refused_with_a_clear_message(client):
+    r = await _apply(client, handle="not a handle!")
+    assert r.status_code == 400 and "Instagram handle" in r.json()["detail"]
+    r = await _apply(client, youtube="https://example.com/watch?v=1")
+    assert r.status_code == 400 and "YouTube channel" in r.json()["detail"]
+    assert await _applied() is None
+
+
+async def test_reapplying_can_add_a_channel_but_never_replaces_one(client):
+    await _apply(client, handle="meera.travels")
+    await _apply(client, handle="someone.else", youtube="@meeratravels")
+    creator = await _applied()
+    assert creator.handle == "meera.travels"
+    assert creator.youtube_url == "https://www.youtube.com/@meeratravels"
+
+
+async def test_a_creator_sees_their_own_channels_on_their_dashboard(client):
+    await _apply(client, email="mine@creators.example.com", handle="mine.insta", youtube="@mine")
+    headers = await _creator_login(client, "mine@creators.example.com")
+    overview = (await client.get("/creators/me/overview", headers=headers)).json()
+    assert overview["handle"] == "mine.insta"
+    assert overview["youtube_url"] == "https://www.youtube.com/@mine"
+
+
+async def test_an_instagram_handle_already_registered_is_a_clear_conflict_not_a_crash(client):
+    assert (
+        await _apply(client, email="first@creators.example.com", handle="shared.handle")
+    ).status_code == 202
+    r = await _apply(client, email="second@creators.example.com", handle="@Shared.handle")
+    assert r.status_code == 409, r.text
+    assert "@shared.handle is already registered" in r.json()["detail"]
+    assert await _applied("second@creators.example.com") is None
+    # The same person re-applying with their own handle is not a conflict with themselves.
+    assert (
+        await _apply(client, email="first@creators.example.com", handle="shared.handle")
+    ).status_code == 202

@@ -1058,6 +1058,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/creator/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Links
+         * @description The creator's reel links with each one's own numbers, newest first.
+         */
+        get: operations["my_links_creator_links_get"];
+        put?: never;
+        /**
+         * Create My Link
+         * @description Make a short link for a reel you are about to post. The Instagram URL comes later.
+         */
+        post: operations["create_my_link_creator_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change My Link
+         * @description Add the Instagram URL once the reel is posted, or rename the link.
+         */
+        patch: operations["change_my_link_creator_links__link_id__patch"];
+        trace?: never;
+    };
+    "/referrals/links/{code}/visit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Visit Reel Link
+         * @description A reel link was opened: credit the creator and the link, and say where to send them.
+         */
+        post: operations["visit_reel_link_referrals_links__code__visit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/menus": {
         parameters: {
             query?: never;
@@ -1539,7 +1603,10 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
-        /** CreatorApplication */
+        /**
+         * CreatorApplication
+         * @description The apply form. A creator gives an Instagram handle, a YouTube channel, or both.
+         */
         CreatorApplication: {
             /**
              * Email
@@ -1553,6 +1620,11 @@ export interface components {
              * @default
              */
             handle: string;
+            /**
+             * Youtube
+             * @default
+             */
+            youtube: string;
             /**
              * Whatsapp
              * @default
@@ -1586,6 +1658,8 @@ export interface components {
             display_name: string;
             /** Profile Url */
             profile_url: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1620,6 +1694,49 @@ export interface components {
             /** Commissions */
             commissions: components["schemas"]["CommissionRead"][];
         };
+        /** CreatorLinkCreate */
+        CreatorLinkCreate: {
+            /** Label */
+            label: string;
+            /** Destination Id */
+            destination_id?: string | null;
+        };
+        /**
+         * CreatorLinkRead
+         * @description One reel link on the creator's dashboard.
+         */
+        CreatorLinkRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            destination: components["schemas"]["LinkDestination"] | null;
+            /** Instagram Url */
+            instagram_url: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "waiting" | "live";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            stats: components["schemas"]["LinkStats"];
+        };
+        /** CreatorLinkUpdate */
+        CreatorLinkUpdate: {
+            /** Label */
+            label?: string | null;
+            /** Instagram Url */
+            instagram_url?: string | null;
+        };
         /**
          * CreatorMe
          * @description What a signed-in creator sees about their own account.
@@ -1636,6 +1753,8 @@ export interface components {
             handle?: string | null;
             /** Display Name */
             display_name: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1691,6 +1810,8 @@ export interface components {
             handle?: string | null;
             /** Display Name */
             display_name: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -1732,6 +1853,8 @@ export interface components {
             display_name: string;
             /** Profile Url */
             profile_url: string;
+            /** Youtube Url */
+            youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
             /** Referral Code */
             referral_code: string;
@@ -2058,6 +2181,8 @@ export interface components {
              * @default
              */
             visitor_id: string;
+            /** Link Code */
+            link_code?: string | null;
         };
         /**
          * Grounding
@@ -2148,6 +2273,56 @@ export interface components {
             relations: number;
             /** Tags */
             tags: number;
+        };
+        /** LinkDestination */
+        LinkDestination: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Region
+             * @default
+             */
+            region: string;
+        };
+        /** LinkStats */
+        LinkStats: {
+            /**
+             * Visits
+             * @default 0
+             */
+            visits: number;
+            /**
+             * Signups
+             * @default 0
+             */
+            signups: number;
+            /**
+             * Trips Planned
+             * @default 0
+             */
+            trips_planned: number;
+            /**
+             * Earned Paise
+             * @default 0
+             */
+            earned_paise: number;
+        };
+        /**
+         * LinkVisit
+         * @description What the website needs to send a visitor on: who to credit and where to land.
+         */
+        LinkVisit: {
+            /** Referral Code */
+            referral_code: string;
+            /** Link Code */
+            link_code: string;
+            /** Destination Id */
+            destination_id?: string | null;
         };
         /** LocationCreate */
         LocationCreate: {
@@ -3354,6 +3529,8 @@ export interface components {
              * @default
              */
             visitor_id: string;
+            /** Link Code */
+            link_code?: string | null;
         };
         /** RelationCreate */
         RelationCreate: {
@@ -6165,6 +6342,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_links_creator_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"][];
+                };
+            };
+        };
+    };
+    create_my_link_creator_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_my_link_creator_links__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorLinkUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    visit_reel_link_referrals_links__code__visit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferralVisit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkVisit"];
                 };
             };
             /** @description Validation Error */

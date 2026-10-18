@@ -44,9 +44,9 @@ async def login(data: LoginRequest, session: AsyncSession = Depends(get_session)
 @router.post("/register", response_model=TokenPair, status_code=201)
 async def register(data: RegisterRequest, session: AsyncSession = Depends(get_session)):
     """Public sign-up always creates a traveler; staff accounts are created by admins."""
-    fields = data.model_dump(exclude={"referral_code", "visitor_id"})
+    fields = data.model_dump(exclude={"referral_code", "visitor_id", "link_code"})
     user = await users.create(session, UserCreate(**fields, role=Role.TRAVELER))
-    await creators.credit_signup(session, user, data.referral_code, data.visitor_id)
+    await creators.credit_signup(session, user, data.referral_code, data.visitor_id, data.link_code)
     await session.commit()
     return _tokens(user)
 
@@ -60,7 +60,9 @@ async def google_exchange(data: GoogleExchange, session: AsyncSession = Depends(
     )
     # Only a new traveller is a referral; a creator signing in for the first time is not.
     if created and user.role == Role.TRAVELER:
-        await creators.credit_signup(session, user, data.referral_code, data.visitor_id)
+        await creators.credit_signup(
+            session, user, data.referral_code, data.visitor_id, data.link_code
+        )
     await session.commit()
     return _tokens(user)
 

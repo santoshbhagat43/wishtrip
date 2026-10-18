@@ -24,8 +24,12 @@ from app.modules.users.models import Role, User
 @pytest.fixture(scope="session", autouse=True)
 async def schema():
     async with engine.begin() as conn:
+        # Start from an empty schema rather than Base.metadata.drop_all: drop_all removes the
+        # circular-reference foreign keys by name and fails if this database was built before
+        # one of them existed (a stale test database after pulling a schema change).
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()

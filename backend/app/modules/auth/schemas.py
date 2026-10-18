@@ -17,6 +17,8 @@ class RegisterRequest(BaseModel):
     # A creator's referral code (from their /c/<code> link) and the visitor id that opened it.
     referral_code: str | None = Field(default=None, max_length=64)
     visitor_id: str = Field(default="", max_length=64)
+    # The specific reel link they came through, so that link's numbers can count them.
+    link_code: str | None = Field(default=None, max_length=40)
 
 
 class RefreshRequest(BaseModel):
@@ -38,6 +40,8 @@ class GoogleExchange(BaseModel):
     # this Google sign-in creates a new account.
     referral_code: str | None = Field(default=None, max_length=64)
     visitor_id: str = Field(default="", max_length=64)
+    # The specific reel link they came through, so that link's numbers can count them.
+    link_code: str | None = Field(default=None, max_length=40)
 
 
 _E164 = re.compile(r"\+[1-9]\d{6,14}")

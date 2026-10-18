@@ -38,6 +38,7 @@ test("WhatsApp number: pick a country, validate, send in international format", 
   // Fill the rest; an invalid number is refused before anything is sent.
   await form.getByPlaceholder("e.g. Meera Kamat").fill("Test Creator");
   await form.getByPlaceholder("you@example.com").fill("test.creator@example.com");
+  await form.getByLabel("Instagram handle or link").fill("@test.creator");
   await code.selectOption("IN");
   await number.fill("12345");
   await form.getByRole("button", { name: "Apply to join" }).click();
@@ -62,4 +63,82 @@ test("WhatsApp number: pick a country, validate, send in international format", 
   await expect(form).toBeHidden();
   await page.screenshot({ path: process.env.SHOT ?? "test-results/creators-applied.png", fullPage: false });
   expect(pageErrors).toEqual([]);
+});
+
+
+test.describe("Channels: Instagram, YouTube, or both", () => {
+  async function fill(page: import("@playwright/test").Page, channels: { instagram?: string; youtube?: string }) {
+    const sent: Record<string, string>[] = [];
+    await page.route("**/creators/apply", async (route) => {
+      sent.push(route.request().postDataJSON());
+      await route.fulfill({ status: 202, contentType: "application/json", body: "{}" });
+    });
+    await page.goto("/creators");
+    const form = page.locator("form").filter({ hasText: "Apply to join" });
+    await form.getByPlaceholder("e.g. Meera Kamat").fill("Test Creator");
+    await form.getByPlaceholder("you@example.com").fill("channels@example.com");
+    if (channels.instagram) await form.getByLabel("Instagram handle or link").fill(channels.instagram);
+    if (channels.youtube) await form.getByLabel("YouTube channel link or @handle").fill(channels.youtube);
+    await form.getByRole("button", { name: "Apply to join" }).click();
+    return { form, sent };
+  }
+
+  test("the form asks for both channels, each marked with its own icon", async ({ page }) => {
+    await page.goto("/creators");
+    const form = page.locator("form").filter({ hasText: "Apply to join" });
+    await expect(form.getByText("YOUR CHANNELS")).toBeVisible();
+    await expect(form.getByText("Add Instagram, YouTube, or both.")).toBeVisible();
+    const instagram = form.getByLabel("Instagram handle or link");
+    const youtube = form.getByLabel("YouTube channel link or @handle");
+    await expect(instagram).toBeVisible();
+    await expect(youtube).toBeVisible();
+    // Each field sits in a row with its platform's mark in front of it.
+    for (const field of [instagram, youtube]) {
+      await expect(field.locator("xpath=..").locator("svg")).toHaveCount(1);
+    }
+    // And it is no longer a single "Instagram or YouTube" field.
+    await expect(form.getByText("INSTAGRAM OR YOUTUBE")).toHaveCount(0);
+  });
+
+  test("neither channel is refused before anything is sent", async ({ page }) => {
+    const { form, sent } = await fill(page, {});
+    await expect(form.getByText("Add your Instagram, your YouTube, or both")).toBeVisible();
+    expect(sent).toHaveLength(0);
+  });
+
+  test("Instagram alone is enough", async ({ page }) => {
+    const { sent } = await fill(page, { instagram: "@meera.travels" });
+    await expect(page.getByRole("status").filter({ hasText: "You’re on the list" })).toBeVisible();
+    expect(sent[0]).toMatchObject({ handle: "@meera.travels", youtube: "" });
+  });
+
+  test("YouTube alone is enough", async ({ page }) => {
+    const { sent } = await fill(page, { youtube: "@meeratravels" });
+    await expect(page.getByRole("status").filter({ hasText: "You’re on the list" })).toBeVisible();
+    expect(sent[0]).toMatchObject({ handle: "", youtube: "@meeratravels" });
+  });
+
+  test("both can be given together", async ({ page }) => {
+    const { sent } = await fill(page, { instagram: "@meera.travels", youtube: "youtube.com/@meeratravels" });
+    await expect(page.getByRole("status").filter({ hasText: "You’re on the list" })).toBeVisible();
+    expect(sent[0]).toMatchObject({ handle: "@meera.travels", youtube: "youtube.com/@meeratravels" });
+  });
+
+  test("a channel the server rejects shows its message and keeps the form", async ({ page }) => {
+    await page.route("**/creators/apply", (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Paste your YouTube channel link, or your @handle." }),
+      }),
+    );
+    await page.goto("/creators");
+    const form = page.locator("form").filter({ hasText: "Apply to join" });
+    await form.getByPlaceholder("e.g. Meera Kamat").fill("Test Creator");
+    await form.getByPlaceholder("you@example.com").fill("channels@example.com");
+    await form.getByLabel("YouTube channel link or @handle").fill("https://example.com/x");
+    await form.getByRole("button", { name: "Apply to join" }).click();
+    await expect(form.getByText("Paste your YouTube channel link, or your @handle.")).toBeVisible();
+    await expect(form.getByLabel("YouTube channel link or @handle")).toHaveValue("https://example.com/x");
+  });
 });

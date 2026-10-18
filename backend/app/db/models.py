@@ -7,6 +7,7 @@ from app.modules.creators.models import (
     CommissionEntry,
     Creator,
     CreatorAttribution,
+    CreatorLink,
     CreatorTrip,
 )
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
@@ -32,6 +33,7 @@ __all__ = [
     "CommissionEntry",
     "Creator",
     "CreatorAttribution",
+    "CreatorLink",
     "CreatorContent",
     "CreatorTrip",
     "Location",

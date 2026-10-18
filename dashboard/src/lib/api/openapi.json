@@ -88,13 +88,55 @@
     }
    }
   },
+  "/auth/google/exchange": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Exchange",
+    "description": "Exchange a Google auth code (from the SSO app) for a wishtrip token pair.",
+    "operationId": "google_exchange_auth_google_exchange_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GoogleExchange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/auth/creator/request-otp": {
    "post": {
     "tags": [
      "auth"
     ],
     "summary": "Creator Request Otp",
-    "description": "Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.",
+    "description": "Send a creator a one-time sign-in code, by email or on WhatsApp.\n\nAlways answers the same way, so it can't be used to discover who is a creator. WhatsApp codes\nonly go to numbers a creator gave when applying; an email can be new (it signs up a pending\ncreator).",
     "operationId": "creator_request_otp_auth_creator_request_otp_post",
     "requestBody": {
      "content": {
@@ -134,7 +176,7 @@
      "auth"
     ],
     "summary": "Creator Verify",
-    "description": "Verify the code and sign the creator in, creating a pending account on first sign-in.",
+    "description": "Check the code and sign the creator in (a first email sign-in makes a pending creator).",
     "operationId": "creator_verify_auth_creator_verify_post",
     "requestBody": {
      "content": {
@@ -2491,6 +2533,33 @@
     ]
    }
   },
+  "/reels/uploads": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Upload Video",
+    "description": "Build a trip from a video the traveller uploads from their device.\n\nThe raw video is the request body (content-type video/*, filename in X-Reel-Filename),\nso it streams straight through the website's proxy without a multipart hop.",
+    "operationId": "upload_video_reels_uploads_post",
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/reels/imports/{import_id}": {
    "get": {
     "tags": [
@@ -2601,6 +2670,33 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creators/me/overview": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "My Overview",
+    "description": "The signed-in creator's dashboard: their numbers, reels, commissions and activity.\n\nBuilt from the same data as the staff view, but a creator never sees which travellers they\nbrought in \u2014 every traveller email is dropped \u2014 and never sees staff notes.",
+    "operationId": "my_overview_creators_me_overview_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorOverview"
         }
        }
       }
@@ -2843,6 +2939,46 @@
     }
    }
   },
+  "/creators/apply": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Apply",
+    "description": "Public: a creator applies to join from the website's creator program page.",
+    "operationId": "apply_creators_apply_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorApplication"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/referrals/{code}": {
    "get": {
     "tags": [
@@ -2920,6 +3056,513 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ReferralRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips/import": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Import Reel",
+    "description": "Build a trip from one of the creator's own reels (same pipeline as a traveller paste).",
+    "operationId": "import_reel_creator_trips_import_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TripImportStart"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/trips/imports/{import_id}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Import Status",
+    "operationId": "import_status_creator_trips_imports__import_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReelImportRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "List Trips",
+    "operationId": "list_trips_creator_trips_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreatorTripRead"
+         },
+         "type": "array",
+         "title": "Response List Trips Creator Trips Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/trips/{trip_id}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Get Trip",
+    "operationId": "get_trip_creator_trips__trip_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Update Trip",
+    "operationId": "update_trip_creator_trips__trip_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorTripUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips/from-reel": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Save From Reel",
+    "description": "Save a creator's reel-based trip and publish its affiliate link in one step.",
+    "operationId": "save_from_reel_creator_trips_from_reel_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SaveFromReel"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/trips/{share_code}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Public Trip",
+    "description": "The shareable affiliate link. Public, so a creator can put it in their video.",
+    "operationId": "public_trip_trips__share_code__get",
+    "parameters": [
+     {
+      "name": "share_code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Share Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/links": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "My Links",
+    "description": "The creator's reel links with each one's own numbers, newest first.",
+    "operationId": "my_links_creator_links_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreatorLinkRead"
+         },
+         "type": "array",
+         "title": "Response My Links Creator Links Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Create My Link",
+    "description": "Make a short link for a reel you are about to post. The Instagram URL comes later.",
+    "operationId": "create_my_link_creator_links_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorLinkCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/links/{link_id}": {
+   "patch": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Change My Link",
+    "description": "Add the Instagram URL once the reel is posted, or rename the link.",
+    "operationId": "change_my_link_creator_links__link_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Link Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorLinkUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/referrals/links/{code}/visit": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Visit Reel Link",
+    "description": "A reel link was opened: credit the creator and the link, and say where to send them.",
+    "operationId": "visit_reel_link_referrals_links__code__visit_post",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReferralVisit"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LinkVisit"
         }
        }
       }
@@ -4426,6 +5069,58 @@
     ],
     "title": "Companions"
    },
+   "CreatorApplication": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "handle": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Handle",
+      "default": ""
+     },
+     "youtube": {
+      "type": "string",
+      "maxLength": 300,
+      "title": "Youtube",
+      "default": ""
+     },
+     "whatsapp": {
+      "type": "string",
+      "maxLength": 40,
+      "title": "Whatsapp",
+      "default": ""
+     },
+     "followers": {
+      "type": "string",
+      "maxLength": 40,
+      "title": "Followers",
+      "default": ""
+     },
+     "posted_from": {
+      "type": "string",
+      "maxLength": 120,
+      "title": "Posted From",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "name"
+    ],
+    "title": "CreatorApplication",
+    "description": "The apply form. A creator gives an Instagram handle, a YouTube channel, or both."
+   },
    "CreatorDetail": {
     "properties": {
      "id": {
@@ -4466,6 +5161,17 @@
      "profile_url": {
       "type": "string",
       "title": "Profile Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
@@ -4547,6 +5253,131 @@
     ],
     "title": "CreatorDetail"
    },
+   "CreatorLinkCreate": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Label"
+     },
+     "destination_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label"
+    ],
+    "title": "CreatorLinkCreate"
+   },
+   "CreatorLinkRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "destination": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LinkDestination"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "instagram_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instagram Url"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "waiting",
+       "live"
+      ],
+      "title": "Status"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/LinkStats"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "code",
+     "label",
+     "destination",
+     "instagram_url",
+     "status",
+     "created_at",
+     "stats"
+    ],
+    "title": "CreatorLinkRead",
+    "description": "One reel link on the creator's dashboard."
+   },
+   "CreatorLinkUpdate": {
+    "properties": {
+     "label": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "instagram_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instagram Url"
+     }
+    },
+    "type": "object",
+    "title": "CreatorLinkUpdate"
+   },
    "CreatorMe": {
     "properties": {
      "id": {
@@ -4580,6 +5411,17 @@
       "type": "string",
       "title": "Display Name"
      },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
+     },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
      },
@@ -4609,24 +5451,78 @@
    },
    "CreatorOtpRequest": {
     "properties": {
-     "email": {
+     "channel": {
       "type": "string",
-      "format": "email",
+      "enum": [
+       "email",
+       "whatsapp"
+      ],
+      "title": "Channel",
+      "default": "email"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Email"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
      }
     },
     "type": "object",
-    "required": [
-     "email"
-    ],
-    "title": "CreatorOtpRequest"
+    "title": "CreatorOtpRequest",
+    "description": "Ask for a sign-in code by email, or on WhatsApp to a number in international format."
    },
    "CreatorOtpVerify": {
     "properties": {
-     "email": {
+     "channel": {
       "type": "string",
-      "format": "email",
+      "enum": [
+       "email",
+       "whatsapp"
+      ],
+      "title": "Channel",
+      "default": "email"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Email"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
      },
      "code": {
       "type": "string",
@@ -4637,10 +5533,119 @@
     },
     "type": "object",
     "required": [
-     "email",
      "code"
     ],
     "title": "CreatorOtpVerify"
+   },
+   "CreatorOverview": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CreatorStatus"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "commission_type": {
+      "$ref": "#/components/schemas/CommissionType"
+     },
+     "commission_value": {
+      "type": "integer",
+      "title": "Commission Value"
+     },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url",
+      "default": ""
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/CreatorStats"
+     },
+     "reels": {
+      "items": {
+       "$ref": "#/components/schemas/CreatorReel"
+      },
+      "type": "array",
+      "title": "Reels"
+     },
+     "activity": {
+      "items": {
+       "$ref": "#/components/schemas/AttributionRead"
+      },
+      "type": "array",
+      "title": "Activity"
+     },
+     "commissions": {
+      "items": {
+       "$ref": "#/components/schemas/CommissionRead"
+      },
+      "type": "array",
+      "title": "Commissions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "display_name",
+     "status",
+     "referral_code",
+     "commission_type",
+     "commission_value",
+     "created_at",
+     "stats",
+     "reels",
+     "activity",
+     "commissions"
+    ],
+    "title": "CreatorOverview",
+    "description": "A signed-in creator's own dashboard: the admin view of them, minus anything about other\npeople (traveller emails are never included) and minus staff notes."
    },
    "CreatorRead": {
     "properties": {
@@ -4682,6 +5687,17 @@
      "profile_url": {
       "type": "string",
       "title": "Profile Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
@@ -4851,6 +5867,147 @@
      "paused"
     ],
     "title": "CreatorStatus"
+   },
+   "CreatorTripRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "source_shortcode": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Shortcode"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TripItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "status": {
+      "$ref": "#/components/schemas/TripStatus"
+     },
+     "share_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Code"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "title",
+     "destination_name",
+     "summary",
+     "items",
+     "status",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "CreatorTripRead"
+   },
+   "CreatorTripUpdate": {
+    "properties": {
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "items": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TripItem"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Items"
+     },
+     "publish": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Publish"
+     }
+    },
+    "type": "object",
+    "title": "CreatorTripUpdate"
    },
    "CreatorUpdate": {
     "properties": {
@@ -5306,6 +6463,58 @@
     "title": "FollowUp",
     "description": "A question the assistant asks the traveler, with replies they can send as they are."
    },
+   "GoogleExchange": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "redirect_uri": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Redirect Uri"
+     },
+     "referral_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Referral Code"
+     },
+     "visitor_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Visitor Id",
+      "default": ""
+     },
+     "link_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Link Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "redirect_uri"
+    ],
+    "title": "GoogleExchange"
+   },
    "Grounding": {
     "type": "string",
     "enum": [
@@ -5543,6 +6752,87 @@
      "tags"
     ],
     "title": "KnowledgeStats"
+   },
+   "LinkDestination": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "LinkDestination"
+   },
+   "LinkStats": {
+    "properties": {
+     "visits": {
+      "type": "integer",
+      "title": "Visits",
+      "default": 0
+     },
+     "signups": {
+      "type": "integer",
+      "title": "Signups",
+      "default": 0
+     },
+     "trips_planned": {
+      "type": "integer",
+      "title": "Trips Planned",
+      "default": 0
+     },
+     "earned_paise": {
+      "type": "integer",
+      "title": "Earned Paise",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "LinkStats"
+   },
+   "LinkVisit": {
+    "properties": {
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "link_code": {
+      "type": "string",
+      "title": "Link Code"
+     },
+     "destination_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "referral_code",
+     "link_code"
+    ],
+    "title": "LinkVisit",
+    "description": "What the website needs to send a visitor on: who to credit and where to land."
    },
    "LocationCreate": {
     "properties": {
@@ -8062,6 +9352,35 @@
     ],
     "title": "ProfileRead"
    },
+   "PublicCreator": {
+    "properties": {
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "display_name",
+     "referral_code"
+    ],
+    "title": "PublicCreator"
+   },
    "PublicLocation": {
     "properties": {
      "id": {
@@ -8302,6 +9621,53 @@
     ],
     "title": "PublicMenuItem",
     "description": "What the traveler website renders: a label and a URL, nothing internal."
+   },
+   "PublicTripRead": {
+    "properties": {
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "creator": {
+      "$ref": "#/components/schemas/PublicCreator"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TripItem"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "title",
+     "destination_name",
+     "summary",
+     "creator",
+     "items"
+    ],
+    "title": "PublicTripRead",
+    "description": "A published creator trip, shown on the shareable /t/<code> link."
    },
    "RecentEvent": {
     "properties": {
@@ -8696,6 +10062,18 @@
       ],
       "title": "Chat Session Id"
      },
+     "creator_trip_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Creator Trip Id"
+     },
      "seed_message": {
       "anyOf": [
        {
@@ -8727,7 +10105,7 @@
      "error",
      "created_at",
      "finished_at",
-     "chat_session_id"
+     "creator_trip_id"
     ],
     "title": "ReelImportRead"
    },
@@ -8892,6 +10270,18 @@
       "maxLength": 64,
       "title": "Visitor Id",
       "default": ""
+     },
+     "link_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Link Code"
      }
     },
     "type": "object",
@@ -9424,6 +10814,46 @@
     },
     "type": "object",
     "title": "RoutingUpdate"
+   },
+   "SaveFromReel": {
+    "properties": {
+     "import_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Import Id"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "items": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TripItem"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "import_id"
+    ],
+    "title": "SaveFromReel"
    },
    "SavedPlace": {
     "properties": {
@@ -10688,6 +12118,84 @@
     ],
     "title": "TripContext",
     "description": "What we actually hold about this traveler, for the agent's side panel."
+   },
+   "TripImportStart": {
+    "properties": {
+     "url": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "url"
+    ],
+    "title": "TripImportStart"
+   },
+   "TripItem": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
+     },
+     "day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Day"
+     },
+     "location_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location Id"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "name"
+    ],
+    "title": "TripItem"
+   },
+   "TripStatus": {
+    "type": "string",
+    "enum": [
+     "draft",
+     "published"
+    ],
+    "title": "TripStatus"
    },
    "UserCreate": {
     "properties": {

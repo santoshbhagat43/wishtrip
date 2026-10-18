@@ -51,9 +51,14 @@ export default function CreatorPage() {
             <Badge tone={CREATOR_STATUS[c.status].tone}>{CREATOR_STATUS[c.status].label}</Badge>
             {c.email && <span>{c.email}</span>}
             {c.display_name && <span>{c.display_name}</span>}
-            {c.handle && (
+            {c.handle && c.profile_url && (
               <a href={c.profile_url} target="_blank" rel="noreferrer" className="text-brand hover:underline">
                 Instagram profile ↗
+              </a>
+            )}
+            {c.youtube_url && (
+              <a href={c.youtube_url} target="_blank" rel="noreferrer" className="text-brand hover:underline">
+                YouTube channel ↗
               </a>
             )}
           </span>

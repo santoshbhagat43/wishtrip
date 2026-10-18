@@ -3392,6 +3392,194 @@
     }
    }
   },
+  "/creator/links": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "My Links",
+    "description": "The creator's reel links with each one's own numbers, newest first.",
+    "operationId": "my_links_creator_links_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CreatorLinkRead"
+         },
+         "type": "array",
+         "title": "Response My Links Creator Links Get"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Create My Link",
+    "description": "Make a short link for a reel you are about to post. The Instagram URL comes later.",
+    "operationId": "create_my_link_creator_links_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorLinkCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creator/links/{link_id}": {
+   "patch": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Change My Link",
+    "description": "Add the Instagram URL once the reel is posted, or rename the link.",
+    "operationId": "change_my_link_creator_links__link_id__patch",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Link Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorLinkUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/referrals/links/{code}/visit": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Visit Reel Link",
+    "description": "A reel link was opened: credit the creator and the link, and say where to send them.",
+    "operationId": "visit_reel_link_referrals_links__code__visit_post",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReferralVisit"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LinkVisit"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/admin/menus": {
    "get": {
     "tags": [
@@ -4896,8 +5084,14 @@
      },
      "handle": {
       "type": "string",
-      "maxLength": 100,
+      "maxLength": 200,
       "title": "Handle",
+      "default": ""
+     },
+     "youtube": {
+      "type": "string",
+      "maxLength": 300,
+      "title": "Youtube",
       "default": ""
      },
      "whatsapp": {
@@ -4924,7 +5118,8 @@
      "email",
      "name"
     ],
-    "title": "CreatorApplication"
+    "title": "CreatorApplication",
+    "description": "The apply form. A creator gives an Instagram handle, a YouTube channel, or both."
    },
    "CreatorDetail": {
     "properties": {
@@ -4966,6 +5161,17 @@
      "profile_url": {
       "type": "string",
       "title": "Profile Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
@@ -5047,6 +5253,131 @@
     ],
     "title": "CreatorDetail"
    },
+   "CreatorLinkCreate": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Label"
+     },
+     "destination_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label"
+    ],
+    "title": "CreatorLinkCreate"
+   },
+   "CreatorLinkRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "destination": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LinkDestination"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "instagram_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instagram Url"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "waiting",
+       "live"
+      ],
+      "title": "Status"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/LinkStats"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "code",
+     "label",
+     "destination",
+     "instagram_url",
+     "status",
+     "created_at",
+     "stats"
+    ],
+    "title": "CreatorLinkRead",
+    "description": "One reel link on the creator's dashboard."
+   },
+   "CreatorLinkUpdate": {
+    "properties": {
+     "label": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "instagram_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instagram Url"
+     }
+    },
+    "type": "object",
+    "title": "CreatorLinkUpdate"
+   },
    "CreatorMe": {
     "properties": {
      "id": {
@@ -5079,6 +5410,17 @@
      "display_name": {
       "type": "string",
       "title": "Display Name"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
@@ -5228,6 +5570,17 @@
       "type": "string",
       "title": "Display Name"
      },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
+     },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
      },
@@ -5334,6 +5687,17 @@
      "profile_url": {
       "type": "string",
       "title": "Profile Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      },
      "status": {
       "$ref": "#/components/schemas/CreatorStatus"
@@ -6130,6 +6494,18 @@
       "maxLength": 64,
       "title": "Visitor Id",
       "default": ""
+     },
+     "link_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Link Code"
      }
     },
     "type": "object",
@@ -6376,6 +6752,87 @@
      "tags"
     ],
     "title": "KnowledgeStats"
+   },
+   "LinkDestination": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "region": {
+      "type": "string",
+      "title": "Region",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "LinkDestination"
+   },
+   "LinkStats": {
+    "properties": {
+     "visits": {
+      "type": "integer",
+      "title": "Visits",
+      "default": 0
+     },
+     "signups": {
+      "type": "integer",
+      "title": "Signups",
+      "default": 0
+     },
+     "trips_planned": {
+      "type": "integer",
+      "title": "Trips Planned",
+      "default": 0
+     },
+     "earned_paise": {
+      "type": "integer",
+      "title": "Earned Paise",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "title": "LinkStats"
+   },
+   "LinkVisit": {
+    "properties": {
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "link_code": {
+      "type": "string",
+      "title": "Link Code"
+     },
+     "destination_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "referral_code",
+     "link_code"
+    ],
+    "title": "LinkVisit",
+    "description": "What the website needs to send a visitor on: who to credit and where to land."
    },
    "LocationCreate": {
     "properties": {
@@ -9813,6 +10270,18 @@
       "maxLength": 64,
       "title": "Visitor Id",
       "default": ""
+     },
+     "link_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Link Code"
      }
     },
     "type": "object",
