@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Play, Plus } from "lucide-react";
-import { ItinerarySheet, sampleItinerary, stopCount } from "@/components/creator/itinerary-sheet";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { ItinerarySheet } from "@/components/creator/itinerary-sheet";
+import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, Empty, ErrorNote } from "@/components/ui/card";
 import { Input } from "@/components/ui/field";
@@ -14,47 +14,45 @@ import { reelLink, rupees, withoutScheme } from "@/lib/creator";
 
 type Link = Schemas["CreatorLinkRead"];
 
-/**
- * What a reel also has beyond the stored link. Held in the page for now: the YouTube link, the
- * itinerary and the publishing choices aren't stored by the backend yet, so they last until the
- * page is closed.
- */
-type Extras = {
-  youtube: string;
-  /** Not built yet, being built, or built. */
-  itinerary: "none" | "processing" | "ready";
-  /** Which of BUILD_STEPS is running. */
-  step: number;
-  published: boolean;
-  /** Publish as soon as the itinerary is built. */
-  auto: boolean;
-};
-const NO_EXTRAS: Extras = { youtube: "", itinerary: "none", step: 0, published: false, auto: false };
-
-/** What happens to a reel once its link is added, in order (shown while the itinerary is built). */
+/** What happens to a reel once its link is added, in order, as the server reports it. */
 const BUILD_STEPS = [
   "Downloading your reel",
   "Reading the text on screen",
   "Listening to the voice-over",
-  "Finding the places",
-  "Building your itinerary",
+  "Finding the places and building your itinerary",
 ] as const;
-const STEP_MS = 1100;
+const STEP_INDEX: Record<string, number> = { queued: 0, downloading: 0, reading_screen: 1, listening: 2, finding_places: 3 };
 
 const STEPS = [
   ["Create a link", "One for each reel you're about to post."],
   ["Use it in your reel", "Put it in the caption or your bio."],
-  ["Add the reel's URL", "Once it's on Instagram or YouTube, paste its link. We build the itinerary."],
+  ["Add the reel's URL", "Once it's on Instagram, paste its link. We build the itinerary."],
 ] as const;
 
-/** Where a reel stands, from nothing added to published. */
-function stateOf(link: Link, extras: Extras) {
-  const hasChannel = Boolean(link.instagram_url || extras.youtube);
-  if (!hasChannel) return { label: "Waiting for reel", tone: "warn" as const, hasChannel };
-  if (extras.itinerary === "processing") return { label: "Building itinerary", tone: "info" as const, hasChannel };
-  if (extras.itinerary === "none") return { label: "No itinerary yet", tone: "neutral" as const, hasChannel };
-  if (extras.published) return { label: "Published", tone: "ok" as const, hasChannel };
-  return { label: "Ready to publish", tone: "brand" as const, hasChannel };
+const STATE: Record<Link["status"], { label: string; tone: Tone }> = {
+  waiting: { label: "Waiting for reel", tone: "warn" },
+  unread: { label: "No itinerary yet", tone: "neutral" },
+  building: { label: "Building itinerary", tone: "info" },
+  failed: { label: "Couldn't read it", tone: "danger" },
+  ready: { label: "Ready to publish", tone: "brand" },
+  published: { label: "Published", tone: "ok" },
+};
+
+/** Change a reel link: its reel links, its publishing, and re-reading it. */
+function useLinkActions(link: Link) {
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["creator-links"] });
+  const patch = useMutation({
+    mutationFn: async (body: Schemas["CreatorLinkUpdate"]) =>
+      unwrap(await api.PATCH("/creator/links/{link_id}", { params: { path: { link_id: link.id } }, body })),
+    onSuccess: refresh,
+  });
+  const build = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/creator/links/{link_id}/build", { params: { path: { link_id: link.id } } })),
+    onSuccess: refresh,
+  });
+  return { patch, build };
 }
 
 /** Copy a value, and say so for a moment. */
@@ -205,8 +203,8 @@ function CreateLinkModal({ onClose }: { onClose: () => void }) {
 }
 
 /** One reel, as a tall card: its title, where it stands, and how many people opened its link. */
-function ReelCard({ link, extras, onOpen }: { link: Link; extras: Extras; onOpen: () => void }) {
-  const state = stateOf(link, extras);
+function ReelCard({ link, onOpen }: { link: Link; onOpen: () => void }) {
+  const state = STATE[link.status];
   return (
     <li>
       <button
@@ -235,54 +233,33 @@ function ReelCard({ link, extras, onOpen }: { link: Link; extras: Extras; onOpen
 /** Everything about one reel: its link, its numbers, where it's posted, and its itinerary. */
 function ReelModal({
   link,
-  extras,
-  onExtras,
-  onBuild,
   onOpenItinerary,
   onClose,
 }: {
   link: Link;
-  extras: Extras;
-  onExtras: (next: Extras) => void;
-  onBuild: () => void;
   onOpenItinerary: () => void;
   onClose: () => void;
 }) {
-  const queryClient = useQueryClient();
+  const { patch, build } = useLinkActions(link);
   const [instagram, setInstagram] = useState(link.instagram_url ?? "");
-  const [youtube, setYoutube] = useState(extras.youtube);
+  const [youtube, setYoutube] = useState(link.youtube_url ?? "");
+  const [auto, setAuto] = useState(link.auto_publish);
   const [problem, setProblem] = useState<string | null>(null);
-  const state = stateOf(link, extras);
-  const building = extras.itinerary === "processing";
+  const state = STATE[link.status];
+  const building = link.status === "building";
+  const hasItinerary = link.status === "ready" || link.status === "published";
 
   const save = useMutation({
     mutationFn: async () => {
-      const ig = instagram.trim();
-      const yt = youtube.trim();
-      if (!ig && !yt) throw new Error("Add your Instagram or YouTube link — one of them is needed.");
-      if (yt && !/(^|\/\/|\.)(youtube\.com|youtu\.be)\//i.test(yt)) {
-        throw new Error("Paste the link to your YouTube video, like youtube.com/watch?v=…");
+      if (!instagram.trim() && !youtube.trim()) {
+        throw new Error("Add your Instagram or YouTube link — one of them is needed.");
       }
-      let stored = link.instagram_url ?? "";
-      // The Instagram link is stored; an unchanged one isn't sent again.
-      if (ig !== stored) {
-        const updated = unwrap(
-          await api.PATCH("/creator/links/{link_id}", {
-            params: { path: { link_id: link.id } },
-            body: { instagram_url: ig },
-          }),
-        );
-        stored = updated.instagram_url ?? "";
-        setInstagram(stored);
-      }
-      return { changed: stored !== (link.instagram_url ?? "") || yt !== extras.youtube, youtube: yt };
+      return patch.mutateAsync({ instagram_url: instagram.trim(), youtube_url: youtube.trim() });
     },
     onMutate: () => setProblem(null),
-    onSuccess: ({ changed, youtube: yt }) => {
-      onExtras({ ...extras, youtube: yt });
-      queryClient.invalidateQueries({ queryKey: ["creator-links"] });
-      // A new or changed reel link means a new itinerary.
-      if (changed || extras.itinerary === "none") onBuild();
+    onSuccess: (updated) => {
+      setInstagram(updated.instagram_url ?? "");
+      setYoutube(updated.youtube_url ?? "");
     },
     onError: (e) => setProblem(e instanceof Error ? e.message : String(e)),
   });
@@ -322,8 +299,8 @@ function ReelModal({
           <div>
             <h3 className="text-sm font-semibold">Where did you post it?</h3>
             <p className="text-sm text-muted">
-              Add the reel&rsquo;s link from Instagram or YouTube — one is needed, or both. We&rsquo;ll build your itinerary
-              from it.
+              Add the reel&rsquo;s link from Instagram or YouTube — one is needed, or both. We build your itinerary from
+              the Instagram reel.
             </p>
           </div>
           <label className="flex flex-col gap-1.5 text-sm font-semibold">
@@ -350,22 +327,26 @@ function ReelModal({
             <input
               type="checkbox"
               className="size-4 accent-brand"
-              checked={extras.auto}
-              onChange={(e) => onExtras({ ...extras, auto: e.target.checked })}
+              checked={auto}
+              onChange={(e) => {
+                setAuto(e.target.checked);
+                patch.mutate({ auto_publish: e.target.checked });
+              }}
             />
             Publish it automatically once the itinerary is built
           </label>
           {problem && <ErrorNote error={problem} />}
           <Button type="submit" disabled={save.isPending || building}>
-            {save.isPending ? "Saving…" : extras.itinerary === "none" ? "Save and build itinerary" : "Save"}
+            {save.isPending ? "Saving…" : instagram.trim() && link.status === "waiting" ? "Save and build itinerary" : "Save"}
           </Button>
         </form>
 
         {building && (
           <ol aria-label="Building your itinerary" className="flex flex-col gap-2.5 rounded-2xl bg-surface-2 p-4">
             {BUILD_STEPS.map((label, i) => {
-              const done = i < extras.step;
-              const active = i === extras.step;
+              const current = STEP_INDEX[link.step ?? "queued"] ?? 0;
+              const done = i < current;
+              const active = i === current;
               return (
                 <li key={label} className={`flex items-center gap-2.5 text-sm ${done || active ? "" : "text-muted"}`}>
                   <span className="grid size-5 flex-none place-items-center">
@@ -384,31 +365,50 @@ function ReelModal({
           </ol>
         )}
 
-        {extras.itinerary === "ready" && (
+        {link.status === "failed" && (
+          <div className="flex flex-col gap-3 rounded-2xl bg-danger-soft p-4">
+            <p className="text-sm text-danger">{link.error || "We couldn't read that reel."}</p>
+            <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
+              {build.isPending ? "Starting…" : "Try again"}
+            </Button>
+          </div>
+        )}
+
+        {hasItinerary && (
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-soft p-4">
             <p className="text-sm">
               <strong className="block text-brand">Your itinerary is ready</strong>
-              <span className="text-muted">
-                {sampleItinerary().length} days · {stopCount(sampleItinerary())} stops, made from your reel.
-              </span>
+              <span className="text-muted">Made from your reel. Look it over, then publish.</span>
             </p>
-            <Button type="button" onClick={onOpenItinerary}>
+            <Button type="button" className="flex-none whitespace-nowrap" onClick={onOpenItinerary}>
               Open itinerary
             </Button>
           </div>
         )}
 
-        {state.hasChannel && extras.itinerary === "none" && !building && (
-          <Button type="button" variant="secondary" onClick={onBuild}>
-            Build itinerary
-          </Button>
+        {link.status === "unread" && (
+          <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">
+            {link.instagram_url ? (
+              <>
+                <p className="text-sm text-muted">Your reel is saved, but no itinerary has been built from it yet.</p>
+                <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
+                  {build.isPending ? "Starting…" : "Build itinerary"}
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-muted">
+                Your YouTube link is saved. We can only build an itinerary from an Instagram reel for now.
+              </p>
+            )}
+          </div>
         )}
+        <ErrorNote error={build.error ?? (patch.error && !problem ? patch.error : null)} />
 
         <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-sm text-muted">
-            {extras.published
+            {link.status === "published"
               ? "This reel is published."
-              : extras.itinerary === "ready"
+              : hasItinerary
                 ? "Look it over, then publish."
                 : "Publishing opens once the itinerary is ready."}
           </p>
@@ -418,16 +418,30 @@ function ReelModal({
             </Button>
             <Button
               type="button"
-              variant={extras.published ? "secondary" : "primary"}
-              disabled={extras.itinerary !== "ready"}
-              onClick={() => onExtras({ ...extras, published: !extras.published })}
+              variant={link.status === "published" ? "secondary" : "primary"}
+              disabled={!hasItinerary || patch.isPending}
+              onClick={() => patch.mutate({ published: link.status !== "published" })}
             >
-              {extras.published ? "Unpublish" : "Publish"}
+              {link.status === "published" ? "Unpublish" : "Publish"}
             </Button>
           </div>
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** The itinerary sheet for one link, with its publishing wired to the server. */
+function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
+  const { patch } = useLinkActions(link);
+  return (
+    <ItinerarySheet
+      link={link}
+      busy={patch.isPending}
+      onPublished={(next) => patch.mutate({ published: next })}
+      onAuto={(next) => patch.mutate({ auto_publish: next })}
+      onClose={onClose}
+    />
   );
 }
 
@@ -440,38 +454,16 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
-  const [extras, setExtras] = useState<Record<string, Extras>>({});
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const links = useQuery({
     queryKey: ["creator-links"],
     queryFn: async () => unwrap(await api.GET("/creator/links")),
+    // While a reel is being read, keep checking how far it got.
+    refetchInterval: (query) => (query.state.data?.some((l) => l.status === "building") ? 1500 : false),
   });
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
-
-  const update = (id: string, patch: (e: Extras) => Extras) =>
-    setExtras((all) => ({ ...all, [id]: patch(all[id] ?? NO_EXTRAS) }));
-
-  /** Build the itinerary: walk through the steps, then it's ready (and published, if asked). */
-  const build = (id: string) => {
-    update(id, (e) => ({ ...e, itinerary: "processing", step: 0, published: false }));
-    BUILD_STEPS.forEach((_, i) => {
-      timers.current.push(
-        setTimeout(() => {
-          if (i < BUILD_STEPS.length - 1) update(id, (e) => ({ ...e, step: i + 1 }));
-          else update(id, (e) => ({ ...e, itinerary: "ready", step: BUILD_STEPS.length, published: e.auto }));
-        }, STEP_MS * (i + 1)),
-      );
-    });
-  };
 
   const items = links.data ?? [];
   const open = items.find((l) => l.id === openId) ?? null;
   const sheet = items.find((l) => l.id === sheetId) ?? null;
-  const sheetExtras = sheet ? (extras[sheet.id] ?? NO_EXTRAS) : NO_EXTRAS;
 
   return (
     <>
@@ -497,12 +489,7 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
         {items.length > 0 && (
           <ul className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 xl:grid-cols-4">
             {items.map((link) => (
-              <ReelCard
-                key={link.id}
-                link={link}
-                extras={extras[link.id] ?? NO_EXTRAS}
-                onOpen={() => setOpenId(link.id)}
-              />
+              <ReelCard key={link.id} link={link} onOpen={() => setOpenId(link.id)} />
             ))}
           </ul>
         )}
@@ -516,31 +503,9 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
 
       {creating && <CreateLinkModal onClose={() => setCreating(false)} />}
       {open && !sheet && (
-        <ReelModal
-          key={open.id}
-          link={open}
-          extras={extras[open.id] ?? NO_EXTRAS}
-          onExtras={(next) => update(open.id, () => next)}
-          onBuild={() => build(open.id)}
-          onOpenItinerary={() => setSheetId(open.id)}
-          onClose={() => setOpenId(null)}
-        />
+        <ReelModal key={open.id} link={open} onOpenItinerary={() => setSheetId(open.id)} onClose={() => setOpenId(null)} />
       )}
-      {sheet && (
-        <ItinerarySheet
-          title={sheet.label}
-          code={sheet.code}
-          sources={[
-            ...(sheet.instagram_url ? [{ label: "Instagram", url: sheet.instagram_url }] : []),
-            ...(sheetExtras.youtube ? [{ label: "YouTube", url: sheetExtras.youtube }] : []),
-          ]}
-          published={sheetExtras.published}
-          auto={sheetExtras.auto}
-          onPublished={(next) => update(sheet.id, (e) => ({ ...e, published: next }))}
-          onAuto={(next) => update(sheet.id, (e) => ({ ...e, auto: next }))}
-          onClose={() => setSheetId(null)}
-        />
-      )}
+      {sheet && <SheetFor link={sheet} onClose={() => setSheetId(null)} />}
     </>
   );
 }

@@ -10,9 +10,49 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.modules.creators import service
 from app.modules.creators.models import Creator, CreatorStatus
+from app.modules.reels import service as reels
+from app.modules.reels.models import CreatorContent, ReelImport
 from app.modules.users.models import User
 
 OTP = settings.creator_dev_otp
+REEL = "https://www.instagram.com/reel/Cabc123xyz/"
+
+
+@pytest.fixture(autouse=True)
+def no_worker(monkeypatch):
+    """An import queued for the worker just waits: nothing reads reels in these tests."""
+    from app.workers import tasks
+
+    monkeypatch.setattr(settings, "reels_inline", False)
+    monkeypatch.setattr(tasks.process_reel_task, "delay", lambda *_: None)
+
+
+@pytest.fixture
+def fake_reel(monkeypatch):
+    """Skip the media pipeline (covered by test_reels): read the reel into canned content."""
+
+    async def produce_content(session, ai, shortcode, on_step=None):
+        existing = await reels.cached(session, shortcode)
+        if existing:
+            return existing
+        content = CreatorContent(
+            shortcode=shortcode,
+            url=reels.canonical_url(shortcode),
+            destination_name="Goa",
+            extracted={"summary": "A slow Goa trip.", "days_hint": 3},
+            places=[
+                {"name": "Fort Aguada", "kind": "sight", "evidence": "sunset", "source": "voice",
+                 "t": 4, "verified": True, "location_id": None, "location_name": "Fort Aguada"},
+                {"name": "Thalassa", "kind": "food", "evidence": "dinner", "source": "voice",
+                 "t": 12, "verified": False, "location_id": None, "location_name": None},
+            ],
+        )  # fmt: skip
+        session.add(content)
+        await session.flush()
+        return content
+
+    monkeypatch.setattr(reels, "produce_content", produce_content)
+    monkeypatch.setattr(settings, "reels_inline", True)
 
 
 async def _creator(client, email: str, *, active: bool = True) -> dict[str, str]:
@@ -74,7 +114,7 @@ async def test_a_destination_must_be_a_published_city(client, london):
     ).status_code == 422
 
 
-async def test_adding_the_instagram_url_makes_the_link_live(client):
+async def test_adding_the_instagram_url_starts_reading_the_reel(client):
     headers = await _creator(client, "poster@creators.example.com")
     link = await _make(client, headers)
 
@@ -84,10 +124,11 @@ async def test_adding_the_instagram_url_makes_the_link_live(client):
         headers=headers,
     )
     assert r.status_code == 200, r.text
-    live = r.json()
-    assert live["status"] == "live"
+    added = r.json()
+    # Queued for the worker: the itinerary is being built.
+    assert added["status"] == "building" and added["step"] == "queued"
     # Stored in one canonical form, without the tracking noise.
-    assert live["instagram_url"] == "https://www.instagram.com/reel/Cabc123xyz/"
+    assert added["instagram_url"] == "https://www.instagram.com/reel/Cabc123xyz/"
 
     # Not a reel link: refused with something a creator can act on.
     bad = await client.patch(
@@ -223,3 +264,131 @@ async def test_links_need_a_creator_account(client, traveler, path):
 
     assert (await client.get(path)).status_code == 401
     assert (await client.get(path, headers=auth(traveler))).status_code == 404
+
+
+async def _link_with_reel(client, headers, **extra):
+    link = await _make(client, headers)
+    r = await client.patch(
+        f"/creator/links/{link['id']}", json={"instagram_url": REEL, **extra}, headers=headers
+    )
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def test_the_reel_becomes_an_itinerary_the_creator_publishes(client, fake_reel):
+    headers = await _creator(client, "builder@creators.example.com")
+    link = await _link_with_reel(client, headers)
+
+    # Read straight away: a draft itinerary, not yet visible to anyone.
+    assert link["status"] == "ready" and link["step"] is None
+    assert link["share_code"] is None
+    trip = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
+    assert [i["name"] for i in trip["items"]] == ["Fort Aguada", "Thalassa"]
+    assert trip["items"][0]["t"] == 4  # where in the reel it was seen
+    assert (await client.get("/trips/anything")).status_code == 404
+
+    # Opening the link while it's a draft still lands on the home page.
+    visit = await client.post(f"/referrals/links/{link['code']}/visit", json={"visitor_id": "v"})
+    assert visit.json()["trip_share_code"] is None
+
+    published = (
+        await client.patch(
+            f"/creator/links/{link['id']}", json={"published": True}, headers=headers
+        )
+    ).json()
+    assert published["status"] == "published" and published["share_code"]
+    assert (await client.get(f"/trips/{published['share_code']}")).status_code == 200
+
+    # Now the reel link takes travellers to the itinerary.
+    visit = await client.post(f"/referrals/links/{link['code']}/visit", json={"visitor_id": "v"})
+    assert visit.json()["trip_share_code"] == published["share_code"]
+
+    # And the creator can take it back.
+    back = (
+        await client.patch(
+            f"/creator/links/{link['id']}", json={"published": False}, headers=headers
+        )
+    ).json()
+    assert back["status"] == "ready" and back["share_code"] is None
+    assert (await client.get(f"/trips/{published['share_code']}")).status_code == 404
+
+
+async def test_auto_publish_publishes_as_soon_as_the_itinerary_is_built(client, fake_reel):
+    headers = await _creator(client, "auto@creators.example.com")
+    link = await _link_with_reel(client, headers, auto_publish=True)
+    assert link["auto_publish"] is True
+    assert link["status"] == "published" and link["share_code"]
+
+
+async def test_nothing_to_publish_before_the_itinerary_exists(client):
+    headers = await _creator(client, "early@creators.example.com")
+    link = await _make(client, headers)
+    r = await client.patch(
+        f"/creator/links/{link['id']}", json={"published": True}, headers=headers
+    )
+    assert r.status_code == 400 and "no itinerary" in r.json()["detail"]
+
+
+async def test_a_reel_that_cannot_be_read_says_why_and_can_be_retried(client, monkeypatch):
+    async def blocked(session, ai, shortcode, on_step=None):
+        raise reels.ReelError("Instagram is not letting us read reels right now. Try again later.")
+
+    monkeypatch.setattr(reels, "produce_content", blocked)
+    monkeypatch.setattr(settings, "reels_inline", True)
+    headers = await _creator(client, "blocked@creators.example.com")
+    link = await _link_with_reel(client, headers)
+    assert link["status"] == "failed"
+    assert "not letting us read" in link["error"]
+
+    # Retrying reads it again (here it still fails, but as a fresh attempt).
+    again = await client.post(f"/creator/links/{link['id']}/build", headers=headers)
+    assert again.status_code == 200 and again.json()["status"] == "failed"
+    async with SessionLocal() as session:
+        jobs = list(await session.scalars(select(ReelImport)))
+    assert len(jobs) == 2
+
+
+async def test_the_same_reel_link_is_not_read_twice(client, fake_reel):
+    headers = await _creator(client, "once@creators.example.com")
+    link = await _link_with_reel(client, headers)
+    await client.patch(
+        f"/creator/links/{link['id']}",
+        json={"instagram_url": REEL, "auto_publish": True},
+        headers=headers,
+    )
+    async with SessionLocal() as session:
+        assert len(list(await session.scalars(select(ReelImport)))) == 1
+
+
+async def test_a_youtube_video_is_stored_but_not_read_yet(client):
+    headers = await _creator(client, "tuber@creators.example.com")
+    link = await _make(client, headers)
+    r = await client.patch(
+        f"/creator/links/{link['id']}",
+        json={"youtube_url": "https://youtu.be/dQw4w9WgXcQ?si=tracking"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["youtube_url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert r.json()["status"] == "unread"
+
+    bad = await client.patch(
+        f"/creator/links/{link['id']}",
+        json={"youtube_url": "https://www.youtube.com/@somechannel"},
+        headers=headers,
+    )
+    assert bad.status_code == 400 and "YouTube video" in bad.json()["detail"]
+
+    # There's no Instagram reel to read, so building says what to do.
+    build = await client.post(f"/creator/links/{link['id']}/build", headers=headers)
+    assert build.status_code == 400 and "Instagram" in build.json()["detail"]
+
+
+async def test_removing_the_reel_drops_its_itinerary(client, fake_reel):
+    headers = await _creator(client, "undo@creators.example.com")
+    link = await _link_with_reel(client, headers)
+    assert link["status"] == "ready"
+    cleared = await client.patch(
+        f"/creator/links/{link['id']}", json={"instagram_url": ""}, headers=headers
+    )
+    assert cleared.json()["status"] == "waiting" and cleared.json()["trip_id"] is None

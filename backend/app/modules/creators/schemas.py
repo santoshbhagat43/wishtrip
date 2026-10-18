@@ -158,6 +158,8 @@ class TripItem(BaseModel):
     day: int | None = None
     location_id: str | None = None
     verified: bool = False
+    # Seconds into the reel where this place showed up.
+    t: float | None = None
 
 
 class CreatorTripRead(BaseModel):
@@ -231,8 +233,16 @@ class CreatorLinkRead(BaseModel):
     label: str
     destination: LinkDestination | None
     instagram_url: str | None
-    # "waiting" until the creator adds the Instagram URL of the reel they posted, then "live".
-    status: Literal["waiting", "live"]
+    youtube_url: str | None
+    auto_publish: bool
+    # waiting: no reel link yet · unread: has one, but no itinerary (YouTube can't be read yet) ·
+    # building: being read · failed: couldn't be read · ready: a draft itinerary · published.
+    status: Literal["waiting", "unread", "building", "failed", "ready", "published"]
+    # While building: which step the reel is on (see ImportStep). While failed: why.
+    step: str | None = None
+    error: str = ""
+    trip_id: uuid.UUID | None = None
+    share_code: str | None = None
     created_at: datetime
     stats: LinkStats
 
@@ -246,6 +256,10 @@ class CreatorLinkUpdate(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=120)
     # A blank string removes the reel again; a value attaches (or replaces) it.
     instagram_url: str | None = Field(default=None, max_length=500)
+    youtube_url: str | None = Field(default=None, max_length=300)
+    auto_publish: bool | None = None
+    # Publish or unpublish the itinerary built from the reel.
+    published: bool | None = None
 
 
 class LinkVisit(BaseModel):
@@ -254,3 +268,5 @@ class LinkVisit(BaseModel):
     referral_code: str
     link_code: str
     destination_id: uuid.UUID | None = None
+    # Set once the creator has published the reel's itinerary: where the visitor should land.
+    trip_share_code: str | None = None

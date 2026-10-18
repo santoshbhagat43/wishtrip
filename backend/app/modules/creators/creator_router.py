@@ -13,7 +13,13 @@ from app.core.deps import get_current_user
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
 from app.modules.creators import service, trips
-from app.modules.creators.models import Creator, CreatorLink, CreatorStatus, CreatorTrip
+from app.modules.creators.models import (
+    Creator,
+    CreatorLink,
+    CreatorStatus,
+    CreatorTrip,
+    TripStatus,
+)
 from app.modules.creators.schemas import (
     CreatorLinkCreate,
     CreatorLinkRead,
@@ -31,7 +37,7 @@ from app.modules.creators.schemas import (
 )
 from app.modules.knowledge.models import Location
 from app.modules.reels import service as reels
-from app.modules.reels.models import CreatorContent, ImportKind, ReelImport
+from app.modules.reels.models import CreatorContent, ImportKind, ImportStatus, ReelImport
 from app.modules.reels.schemas import ReelImportRead
 from app.modules.users.models import User
 
@@ -63,6 +69,19 @@ async def import_reel(
     shortcode = reels.shortcode_from(data.url)
     if not shortcode:
         raise bad_request("Paste an Instagram reel link, like instagram.com/reel/…")
+    job = await _start_import(session, ai, user, shortcode)
+    return ReelImportRead.model_validate(job, from_attributes=True)
+
+
+async def _start_import(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    user: User,
+    shortcode: str,
+    link: CreatorLink | None = None,
+) -> ReelImport:
+    """Queue the reel → itinerary job (and run it now when there's no worker), noting it on the
+    reel link it was started for."""
     if await reels.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try later.")
     job = ReelImport(
@@ -72,6 +91,9 @@ async def import_reel(
         kind=ImportKind.CREATOR_TRIP,
     )
     session.add(job)
+    await session.flush()
+    if link is not None:
+        link.import_id = job.id
     await session.commit()
     if settings.reels_inline:
         await reels.process(session, ai, job)
@@ -80,7 +102,7 @@ async def import_reel(
 
         process_reel_task.delay(str(job.id))
     await session.refresh(job)
-    return ReelImportRead.model_validate(job, from_attributes=True)
+    return job
 
 
 @router.get("/creator/trips/imports/{import_id}", response_model=ReelImportRead)
@@ -191,6 +213,38 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
 # --- Reel links ---------------------------------------------------------------------------------
 
 
+def _link_status(link: CreatorLink, job: ReelImport | None, trip: CreatorTrip | None) -> str:
+    if not link.instagram_url and not link.youtube_url:
+        return "waiting"
+    if job is None or (job.status == ImportStatus.DONE and trip is None):
+        return "unread"
+    if job.status == ImportStatus.FAILED:
+        return "failed"
+    if job.status != ImportStatus.DONE:
+        return "building"
+    return "published" if trip and trip.status == TripStatus.PUBLISHED else "ready"
+
+
+async def _link_job_trip(
+    session: AsyncSession, links: list[CreatorLink]
+) -> tuple[dict[uuid.UUID, ReelImport], dict[uuid.UUID, CreatorTrip]]:
+    """The import and the draft itinerary behind each link."""
+    jobs = {
+        j.id: j
+        for j in await session.scalars(
+            select(ReelImport).where(
+                ReelImport.id.in_([link.import_id for link in links if link.import_id])
+            )
+        )
+    }
+    trip_ids = [j.creator_trip_id for j in jobs.values() if j.creator_trip_id]
+    found = {
+        t.id: t
+        for t in await session.scalars(select(CreatorTrip).where(CreatorTrip.id.in_(trip_ids)))
+    }
+    return jobs, found
+
+
 async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[CreatorLinkRead]:
     stats = await service.link_stats(session, [link.id for link in links])
     places = {
@@ -201,27 +255,39 @@ async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[Cr
             )
         )
     }
-    return [
-        CreatorLinkRead(
-            id=link.id,
-            code=link.code,
-            label=link.label,
-            destination=(
-                LinkDestination(
-                    id=places[link.destination_id].id,
-                    name=places[link.destination_id].name,
-                    region=places[link.destination_id].region,
-                )
-                if link.destination_id in places
-                else None
-            ),
-            instagram_url=link.instagram_url,
-            status="live" if link.instagram_url else "waiting",
-            created_at=link.created_at,
-            stats=LinkStats(**stats[link.id]),
+    jobs, found = await _link_job_trip(session, links)
+    out = []
+    for link in links:
+        job = jobs.get(link.import_id) if link.import_id else None
+        trip = found.get(job.creator_trip_id) if job and job.creator_trip_id else None
+        state = _link_status(link, job, trip)
+        out.append(
+            CreatorLinkRead(
+                id=link.id,
+                code=link.code,
+                label=link.label,
+                destination=(
+                    LinkDestination(
+                        id=places[link.destination_id].id,
+                        name=places[link.destination_id].name,
+                        region=places[link.destination_id].region,
+                    )
+                    if link.destination_id in places
+                    else None
+                ),
+                instagram_url=link.instagram_url,
+                youtube_url=link.youtube_url,
+                auto_publish=link.auto_publish,
+                status=state,
+                step=job.step.value if job and state == "building" else None,
+                error=job.error if job and state == "failed" else "",
+                trip_id=trip.id if trip else None,
+                share_code=trip.share_code if trip and state == "published" else None,
+                created_at=link.created_at,
+                stats=LinkStats(**stats[link.id]),
+            )
         )
-        for link in links
-    ]
+    return out
 
 
 async def _own_link(session: AsyncSession, creator: Creator, link_id: uuid.UUID) -> CreatorLink:
@@ -266,22 +332,67 @@ async def change_my_link(
     link_id: uuid.UUID,
     data: CreatorLinkUpdate,
     session: AsyncSession = Depends(get_session),
+    ai: AIOrchestrator = Depends(get_orchestrator),
     user: User = Depends(get_current_user),
 ):
-    """Add the Instagram URL once the reel is posted, or rename the link."""
+    """Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into
+    an itinerary), choose auto-publishing, or publish / unpublish the itinerary."""
     creator = await _active_creator(session, user)
     link = await _own_link(session, creator, link_id)
     sent = data.model_dump(exclude_unset=True)
+    before = link.instagram_shortcode
     await service.update_link(
         session,
         link,
         label=data.label,
         instagram_url=(data.instagram_url or None) if "instagram_url" in sent else None,
         clear_instagram="instagram_url" in sent and not (data.instagram_url or "").strip(),
+        youtube_url=data.youtube_url if "youtube_url" in sent else None,
+        auto_publish=data.auto_publish,
     )
+    if data.published is not None:
+        trip = await _link_trip(session, link)
+        if trip is None:
+            raise bad_request("There's no itinerary to publish yet.")
+        if data.published:
+            await trips.publish(session, trip)
+        else:
+            trip.status = TripStatus.DRAFT
+    if "instagram_url" in sent and not link.instagram_shortcode:
+        link.import_id = None  # the reel was removed: so is the itinerary built from it
+    if link.instagram_shortcode and link.instagram_shortcode != before:
+        await _start_import(session, ai, user, link.instagram_shortcode, link)
     await session.commit()
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
+
+
+@router.post("/creator/links/{link_id}/build", response_model=CreatorLinkRead)
+async def build_my_link(
+    link_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    ai: AIOrchestrator = Depends(get_orchestrator),
+    user: User = Depends(get_current_user),
+):
+    """Read the link's Instagram reel into an itinerary again (after a failure, or for a link
+    made before itineraries existed)."""
+    creator = await _active_creator(session, user)
+    link = await _own_link(session, creator, link_id)
+    if not link.instagram_shortcode:
+        raise bad_request(
+            "Add your Instagram reel link first. We can only read Instagram reels for now."
+        )
+    await _start_import(session, ai, user, link.instagram_shortcode, link)
+    await session.refresh(link)
+    return (await _link_read(session, [link]))[0]
+
+
+async def _link_trip(session: AsyncSession, link: CreatorLink) -> CreatorTrip | None:
+    """The itinerary built from this link's reel, if there is one."""
+    job = await session.get(ReelImport, link.import_id) if link.import_id else None
+    if job is None or job.creator_trip_id is None:
+        return None
+    return await session.get(CreatorTrip, job.creator_trip_id)
 
 
 @router.post("/referrals/links/{code}/visit", response_model=LinkVisit)
@@ -294,8 +405,10 @@ async def visit_reel_link(
         raise not_found("Link")
     creator, link = found
     await session.commit()
+    trip = await _link_trip(session, link)
     return LinkVisit(
         referral_code=creator.referral_code,
         link_code=link.code,
         destination_id=link.destination_id,
+        trip_share_code=trip.share_code if trip and trip.status == TripStatus.PUBLISHED else None,
     )

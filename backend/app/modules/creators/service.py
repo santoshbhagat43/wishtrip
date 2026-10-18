@@ -128,6 +128,21 @@ def clean_youtube(value: str) -> str | None:
     raise bad_request("Paste your YouTube channel link, or your @handle.")
 
 
+_YOUTUBE_VIDEO = re.compile(
+    r"^(?:https?://)?(?:(?:www\.|m\.)?youtube\.com/(?:watch\?(?:[^#]*&)?v=|shorts/|live/)|youtu\.be/)"
+    r"([A-Za-z0-9_-]{11})(?:[?&#/].*)?$",
+    re.IGNORECASE,
+)
+
+
+def clean_youtube_video(value: str) -> str:
+    """A canonical link to one YouTube video, from a watch, shorts or youtu.be link."""
+    match = _YOUTUBE_VIDEO.match(value.strip())
+    if not match:
+        raise bad_request("Paste the link to your YouTube video, like youtube.com/watch?v=…")
+    return f"https://www.youtube.com/watch?v={match.group(1)}"
+
+
 async def apply_as_creator(
     session: AsyncSession,
     *,
@@ -441,9 +456,16 @@ async def update_link(
     label: str | None = None,
     instagram_url: str | None = None,
     clear_instagram: bool = False,
+    youtube_url: str | None = None,
+    auto_publish: bool | None = None,
 ) -> CreatorLink:
     if label is not None:
         link.label = label.strip()
+    if auto_publish is not None:
+        link.auto_publish = auto_publish
+    if youtube_url is not None:
+        # A blank value removes it again.
+        link.youtube_url = clean_youtube_video(youtube_url) if youtube_url.strip() else None
     if clear_instagram:
         link.instagram_url = None
         link.instagram_shortcode = None

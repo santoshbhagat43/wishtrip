@@ -3474,7 +3474,7 @@
      "creator"
     ],
     "summary": "Change My Link",
-    "description": "Add the Instagram URL once the reel is posted, or rename the link.",
+    "description": "Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into\nan itinerary), choose auto-publishing, or publish / unpublish the itinerary.",
     "operationId": "change_my_link_creator_links__link_id__patch",
     "security": [
      {
@@ -3503,6 +3503,55 @@
       }
      }
     },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/links/{link_id}/build": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Build My Link",
+    "description": "Read the link's Instagram reel into an itinerary again (after a failure, or for a link\nmade before itineraries existed).",
+    "operationId": "build_my_link_creator_links__link_id__build_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Link Id"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -5316,13 +5365,71 @@
       ],
       "title": "Instagram Url"
      },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
+     },
+     "auto_publish": {
+      "type": "boolean",
+      "title": "Auto Publish"
+     },
      "status": {
       "type": "string",
       "enum": [
        "waiting",
-       "live"
+       "unread",
+       "building",
+       "failed",
+       "ready",
+       "published"
       ],
       "title": "Status"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error",
+      "default": ""
+     },
+     "trip_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trip Id"
+     },
+     "share_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Code"
      },
      "created_at": {
       "type": "string",
@@ -5340,6 +5447,8 @@
      "label",
      "destination",
      "instagram_url",
+     "youtube_url",
+     "auto_publish",
      "status",
      "created_at",
      "stats"
@@ -5373,6 +5482,40 @@
        }
       ],
       "title": "Instagram Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
+     },
+     "auto_publish": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Auto Publish"
+     },
+     "published": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published"
      }
     },
     "type": "object",
@@ -6824,6 +6967,17 @@
        }
       ],
       "title": "Destination Id"
+     },
+     "trip_share_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trip Share Code"
      }
     },
     "type": "object",
@@ -12179,6 +12333,17 @@
       "type": "boolean",
       "title": "Verified",
       "default": false
+     },
+     "t": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "T"
      }
     },
     "type": "object",

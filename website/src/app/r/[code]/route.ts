@@ -6,7 +6,7 @@ import { BACKEND_URL } from "@/lib/server/session";
 /**
  * A creator's reel link (wishtrip…/r/<code>), the short link they put in one reel's caption or
  * bio. Credits the creator and that link, remembers who sent this visitor, then lands them on the
- * destination the creator chose (or the home page).
+ * creator's published itinerary, or the destination they chose, or the home page.
  */
 export async function GET(request: NextRequest, ctx: { params: Promise<{ code: string }> }) {
   const { code } = await ctx.params;
@@ -21,11 +21,19 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ code: s
   // Relative redirects: behind the proxy, request.url is the container's own address.
   if (!res?.ok) return new NextResponse(null, { status: 307, headers: { Location: "/" } }); // unknown link
 
-  const visit = (await res.json()) as { referral_code: string; link_code: string; destination_id: string | null };
-  const response = new NextResponse(null, {
-    status: 307,
-    headers: { Location: visit.destination_id ? `/explore/${visit.destination_id}` : "/" },
-  });
+  const visit = (await res.json()) as {
+    referral_code: string;
+    link_code: string;
+    destination_id: string | null;
+    trip_share_code: string | null;
+  };
+  // The published itinerary if there is one, else the destination the creator chose, else home.
+  const landing = visit.trip_share_code
+    ? `/t/${visit.trip_share_code}`
+    : visit.destination_id
+      ? `/explore/${visit.destination_id}`
+      : "/";
+  const response = new NextResponse(null, { status: 307, headers: { Location: landing } });
 
   const base = {
     httpOnly: true,

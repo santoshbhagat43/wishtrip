@@ -9,7 +9,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import bad_request, not_found
-from app.modules.creators.models import Creator, CreatorTrip, TripStatus
+from app.modules.creators.models import Creator, CreatorLink, CreatorTrip, TripStatus
 from app.modules.media.storage import storage
 
 ITEM_KINDS = {"stay", "food", "sight", "experience", "area", "note"}
@@ -38,6 +38,8 @@ def _item_from_place(place: dict) -> dict:
         "day": None,
         "location_id": place.get("location_id"),
         "verified": bool(place.get("verified")),
+        # Where in the reel it was seen, in seconds.
+        "t": place.get("t"),
     }
 
 
@@ -60,6 +62,10 @@ async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
     await session.flush()
     job.content_id = content.id
     job.creator_trip_id = trip.id
+    # A reel link that asked for it publishes the moment its itinerary exists.
+    link = await session.scalar(select(CreatorLink).where(CreatorLink.import_id == job.id))
+    if link is not None and link.auto_publish and trip.items:
+        await publish(session, trip)
     # status/step set DONE by the caller's commit path
     from app.modules.reels.models import ImportStatus, ImportStep
 
@@ -134,6 +140,7 @@ def clean_items(items: list) -> list:
                 "day": day if isinstance(day, int) and 0 < day <= 60 else None,
                 "location_id": raw.get("location_id"),
                 "verified": bool(raw.get("verified")),
+                "t": raw.get("t") if isinstance(raw.get("t"), int | float) else None,
             }
         )
     return out[:100]

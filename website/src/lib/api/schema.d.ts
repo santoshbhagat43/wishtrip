@@ -1097,9 +1097,31 @@ export interface paths {
         head?: never;
         /**
          * Change My Link
-         * @description Add the Instagram URL once the reel is posted, or rename the link.
+         * @description Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into
+         *     an itinerary), choose auto-publishing, or publish / unpublish the itinerary.
          */
         patch: operations["change_my_link_creator_links__link_id__patch"];
+        trace?: never;
+    };
+    "/creator/links/{link_id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build My Link
+         * @description Read the link's Instagram reel into an itinerary again (after a failure, or for a link
+         *     made before itineraries existed).
+         */
+        post: operations["build_my_link_creator_links__link_id__build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/referrals/links/{code}/visit": {
@@ -1718,11 +1740,26 @@ export interface components {
             destination: components["schemas"]["LinkDestination"] | null;
             /** Instagram Url */
             instagram_url: string | null;
+            /** Youtube Url */
+            youtube_url: string | null;
+            /** Auto Publish */
+            auto_publish: boolean;
             /**
              * Status
              * @enum {string}
              */
-            status: "waiting" | "live";
+            status: "waiting" | "unread" | "building" | "failed" | "ready" | "published";
+            /** Step */
+            step?: string | null;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /** Trip Id */
+            trip_id?: string | null;
+            /** Share Code */
+            share_code?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1736,6 +1773,12 @@ export interface components {
             label?: string | null;
             /** Instagram Url */
             instagram_url?: string | null;
+            /** Youtube Url */
+            youtube_url?: string | null;
+            /** Auto Publish */
+            auto_publish?: boolean | null;
+            /** Published */
+            published?: boolean | null;
         };
         /**
          * CreatorMe
@@ -2323,6 +2366,8 @@ export interface components {
             link_code: string;
             /** Destination Id */
             destination_id?: string | null;
+            /** Trip Share Code */
+            trip_share_code?: string | null;
         };
         /** LocationCreate */
         LocationCreate: {
@@ -4229,6 +4274,8 @@ export interface components {
              * @default false
              */
             verified: boolean;
+            /** T */
+            t?: number | null;
         };
         /**
          * TripStatus
@@ -6422,6 +6469,37 @@ export interface operations {
                 "application/json": components["schemas"]["CreatorLinkUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_my_link_creator_links__link_id__build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

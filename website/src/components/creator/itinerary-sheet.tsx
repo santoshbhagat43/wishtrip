@@ -3,56 +3,55 @@
 import { ArrowLeft, BedDouble, Check, Compass, Copy, Landmark, MessageCircle, Play, Share2, Utensils } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { reelLink, withoutScheme } from "@/lib/creator";
+import { useQuery } from "@tanstack/react-query";
+
+import { api, unwrap, type Schemas } from "@/lib/api/client";
+import { WEBSITE_URL, withoutScheme } from "@/lib/creator";
 
 /**
- * The itinerary made from a creator's reel, laid out like the trip board in the B4 prototype:
- * one column per day, a card per stop, and a note of where in the reel each stop came from.
+ * The itinerary made from a creator's reel, laid out like the trip board in the B4 prototype: one
+ * column per day, a card per stop, and a note of where in the reel each stop was seen.
  *
- * UI only for now — the days below are a sample, not read from the reel yet.
+ * The days are the real itinerary read from the reel. The bookings strip is a sample: there are
+ * no flight, stay or transfer prices to show yet.
  */
 
-export type Stop = { time: string; kind: "sight" | "food" | "stay" | "experience"; name: string; note: string; at: string };
-export type ItineraryDay = { n: number; title: string; stops: Stop[] };
+type Item = Schemas["TripItem"];
+type Link = Schemas["CreatorLinkRead"];
+export type Stop = { when: string; kind: string; name: string; note: string; at: string | null };
+export type ItineraryDay = { n: number; stops: Stop[] };
 
-const KIND = {
+const KIND: Record<string, { label: string; Icon: typeof Landmark }> = {
   sight: { label: "See", Icon: Landmark },
   food: { label: "Eat", Icon: Utensils },
   stay: { label: "Stay", Icon: BedDouble },
   experience: { label: "Do", Icon: Compass },
-} as const;
+  area: { label: "Explore", Icon: Compass },
+  note: { label: "Note", Icon: Landmark },
+};
+const WHEN = ["Morning", "Midday", "Afternoon", "Evening"];
 
-/** A sample three-day itinerary, until reels are really read. */
-export function sampleItinerary(): ItineraryDay[] {
-  return [
-    {
-      n: 1,
-      title: "Arrive slow",
-      stops: [
-        { time: "12:30 pm", kind: "stay", name: "Check in at a heritage villa", note: "Ground floor", at: "0:02" },
-        { time: "4:00 pm", kind: "sight", name: "Sunset at Fort Aguada", note: "Go before 5", at: "0:04" },
-        { time: "8:00 pm", kind: "food", name: "Fish thali in Anjuna", note: "Locals’ pick", at: "0:09" },
-      ],
-    },
-    {
-      n: 2,
-      title: "Beaches and a long lunch",
-      stops: [
-        { time: "10:00 am", kind: "food", name: "Slow breakfast at the villa", note: "Easy start", at: "0:11" },
-        { time: "1:00 pm", kind: "experience", name: "Morjim beach walk", note: "Flat, short walk", at: "0:15" },
-        { time: "6:00 pm", kind: "experience", name: "Mandovi sunset cruise", note: "Lift to the upper deck", at: "0:21" },
-      ],
-    },
-    {
-      n: 3,
-      title: "Old Panaji",
-      stops: [
-        { time: "10:00 am", kind: "sight", name: "Fontainhas walking tour", note: "1.5 km", at: "0:24" },
-        { time: "1:00 pm", kind: "food", name: "Lunch in a 200-year-old house", note: "From the reel", at: "0:27" },
-        { time: "5:00 pm", kind: "sight", name: "Churches of Old Goa", note: "Closes at 6", at: "0:31" },
-      ],
-    },
-  ];
+/** m:ss into the reel, or nothing when we don't know. */
+const reelTime = (t: number | null | undefined) =>
+  typeof t === "number" ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}` : null;
+
+/** The trip's stops as days: the creator's own days if they set them, else about three a day. */
+export function daysFromItems(items: Item[]): ItineraryDay[] {
+  const stops = items.filter((i) => i.name.trim());
+  const dayOf = (i: number) => {
+    if (stops.some((s) => s.day)) return stops[i].day ?? 1;
+    const perDay = Math.ceil(stops.length / Math.min(7, Math.max(1, Math.ceil(stops.length / 3))));
+    return Math.floor(i / perDay) + 1;
+  };
+  const days = new Map<number, Stop[]>();
+  stops.forEach((s, i) => {
+    const day = days.get(dayOf(i)) ?? [];
+    days.set(dayOf(i), [
+      ...day,
+      { when: WHEN[day.length % WHEN.length], kind: s.kind, name: s.name, note: s.note.slice(0, 48), at: reelTime(s.t) },
+    ]);
+  });
+  return [...days.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));
 }
 
 export const stopCount = (days: ItineraryDay[]) => days.reduce((n, d) => n + d.stops.length, 0);
@@ -102,26 +101,34 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (nex
 
 /** The whole-screen itinerary: the day-by-day board and the publishing card beside it. */
 export function ItinerarySheet({
-  title,
-  code,
-  sources,
-  published,
-  auto,
+  link,
+  busy,
   onPublished,
   onAuto,
   onClose,
 }: {
-  title: string;
-  code: string;
-  sources: { label: string; url: string }[];
-  published: boolean;
-  auto: boolean;
+  link: Link;
+  busy: boolean;
   onPublished: (next: boolean) => void;
   onAuto: (next: boolean) => void;
   onClose: () => void;
 }) {
-  const days = sampleItinerary();
-  const short = reelLink(code);
+  const title = link.label;
+  const published = link.status === "published";
+  const auto = link.auto_publish;
+  const sources = [
+    ...(link.instagram_url ? [{ label: "Instagram", url: link.instagram_url }] : []),
+    ...(link.youtube_url ? [{ label: "YouTube", url: link.youtube_url }] : []),
+  ];
+  const trip = useQuery({
+    queryKey: ["trip", link.trip_id],
+    enabled: !!link.trip_id,
+    queryFn: async () =>
+      unwrap(await api.GET("/creator/trips/{trip_id}", { params: { path: { trip_id: link.trip_id! } } })),
+  });
+  const days = daysFromItems(trip.data?.items ?? []);
+  // What travellers open: the published itinerary.
+  const short = link.share_code ? `${WEBSITE_URL}/t/${link.share_code}` : "";
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
 
@@ -146,7 +153,7 @@ export function ItinerarySheet({
         >
           <ArrowLeft className="size-4" /> Back to reel
         </button>
-        <span className="text-sm text-[#566E85]">Itinerary preview · sample details and prices</span>
+        <span className="text-sm text-[#566E85]">Your itinerary · the bookings below are samples</span>
       </header>
 
       <main className="mx-auto grid max-w-[1240px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pt-8">
@@ -156,7 +163,7 @@ export function ItinerarySheet({
             <div className="flex flex-col gap-1">
               <h1 className="font-display m-0 text-[32px] font-medium leading-tight md:text-[44px]">{title}</h1>
               <p className="m-0 text-sm text-[#566E85]">
-                {days.length} days · {stopCount(days)} stops · made from your reel
+                {trip.isLoading ? "Loading…" : `${days.length} ${days.length === 1 ? "day" : "days"} · ${stopCount(days)} stops · made from your reel`}
               </p>
             </div>
             <div className="relative">
@@ -175,16 +182,19 @@ export function ItinerarySheet({
                   className="absolute right-0 top-[calc(100%+8px)] z-20 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E8E1D8] bg-white p-4 shadow-lg"
                 >
                   <strong className="text-sm">Send it to the people coming with you</strong>
-                  <code className="break-all rounded-lg bg-[#F4EFE8] px-2.5 py-2 text-[12.5px]">{withoutScheme(short)}</code>
+                  <code className="break-all rounded-lg bg-[#F4EFE8] px-2.5 py-2 text-[12.5px]">
+                    {short ? withoutScheme(short) : "Appears here once you publish"}
+                  </code>
                   <div className="flex gap-2">
                     <button
                       type="button"
+                      disabled={!short}
                       onClick={() => {
                         navigator.clipboard.writeText(short);
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
                     >
                       {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                       {copied ? "Copied" : "Copy link"}
@@ -193,7 +203,8 @@ export function ItinerarySheet({
                       href={`https://wa.me/?text=${encodeURIComponent(`${title} — ${short}`)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#E8E1D8] px-3.5 py-2 text-[13px] font-semibold"
+                      aria-disabled={!short}
+                      className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#E8E1D8] px-3.5 py-2 text-[13px] font-semibold ${short ? "" : "pointer-events-none opacity-40"}`}
                     >
                       <MessageCircle className="size-3.5" /> WhatsApp
                     </a>
@@ -225,39 +236,47 @@ export function ItinerarySheet({
           </div>
 
           <p className="mt-2 text-[11.5px] font-bold tracking-wider text-[#566E85]">DAY BY DAY</p>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
-            {days.map((d) => (
-              <div key={d.n} className="flex w-[250px] flex-none flex-col gap-2 rounded-[20px] bg-[#F4EFE8] p-3">
-                <span className="flex flex-col px-1 pt-0.5">
-                  <span className="text-[11.5px] font-bold text-[#0A7C80]">DAY {d.n}</span>
-                  <strong className="font-display text-lg font-medium leading-[1.2]">{d.title}</strong>
-                </span>
-                {d.stops.map((s) => {
-                  const { label, Icon } = KIND[s.kind];
-                  return (
-                    <div key={s.name} className="flex items-start gap-2.5 rounded-[14px] border border-[#E8E1D8] bg-white p-2.5">
-                      <span className="grid size-10 flex-none place-items-center rounded-[10px] bg-[#F4EFE8] text-[#0A7C80]">
-                        <Icon className="size-[18px]" />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                        <span className="text-[11px] font-semibold text-[#8A7F72]">
-                          {s.time} · {label}
+          {trip.isLoading ? (
+            <p className="py-8 text-sm text-[#566E85]">Loading your itinerary…</p>
+          ) : (
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
+              {days.map((d) => (
+                <div key={d.n} className="flex w-[250px] flex-none flex-col gap-2 rounded-[20px] bg-[#F4EFE8] p-3">
+                  <span className="flex flex-col px-1 pt-0.5">
+                    <span className="text-[11.5px] font-bold text-[#0A7C80]">DAY {d.n}</span>
+                    <strong className="font-display text-lg font-medium leading-[1.2]">
+                      {d.stops.length} {d.stops.length === 1 ? "stop" : "stops"}
+                    </strong>
+                  </span>
+                  {d.stops.map((s, i) => {
+                    const { label, Icon } = KIND[s.kind] ?? KIND.sight;
+                    return (
+                      <div key={`${s.name}-${i}`} className="flex items-start gap-2.5 rounded-[14px] border border-[#E8E1D8] bg-white p-2.5">
+                        <span className="grid size-10 flex-none place-items-center rounded-[10px] bg-[#F4EFE8] text-[#0A7C80]">
+                          <Icon className="size-[18px]" />
                         </span>
-                        <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
-                        <span className="flex flex-wrap gap-1">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F6F7] px-2 py-0.5 text-[10.5px] font-semibold text-[#0A6B6E]">
-                            <Play className="size-2.5" /> From the reel · {s.at}
+                        <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                          <span className="text-[11px] font-semibold text-[#8A7F72]">
+                            {s.when} · {label}
                           </span>
-                          <span className="rounded-full bg-[#F4EFE8] px-2 py-0.5 text-[10.5px] font-semibold text-[#566E85]">{s.note}</span>
+                          <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
+                          <span className="flex flex-wrap gap-1">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F6F7] px-2 py-0.5 text-[10.5px] font-semibold text-[#0A6B6E]">
+                              <Play className="size-2.5" /> From the reel{s.at ? ` · ${s.at}` : ""}
+                            </span>
+                            {s.note && (
+                              <span className="rounded-full bg-[#F4EFE8] px-2 py-0.5 text-[10.5px] font-semibold text-[#566E85]">{s.note}</span>
+                            )}
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-[#8A7F72]">Scroll sideways for all {days.length} days.</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-[#8A7F72]">Scroll sideways to see every day.</p>
         </section>
 
         <aside className="flex flex-col gap-4 md:sticky md:top-20">
@@ -283,8 +302,9 @@ export function ItinerarySheet({
 
             <button
               type="button"
+              disabled={busy}
               onClick={() => onPublished(!published)}
-              className={`rounded-full p-[15px] text-center text-base font-bold ${
+              className={`rounded-full p-[15px] text-center text-base font-bold disabled:opacity-60 ${
                 published ? "border border-[#E8E1D8] bg-white text-[#072338]" : "bg-[#22DDE0] text-[#072338]"
               }`}
             >
@@ -333,7 +353,7 @@ export function ItinerarySheet({
               </a>
             ))}
             <span className="text-xs text-[#8A7F72]">
-              We watched the reel, read the text on screen, listened to the voice-over, and found the places.
+              We downloaded the reel, read the text on screen, listened to the voice-over, and found the places.
             </span>
           </div>
         </aside>

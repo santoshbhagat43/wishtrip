@@ -2,9 +2,19 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import expression
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey, str_enum
 
@@ -85,6 +95,16 @@ class CreatorLink(UUIDPrimaryKey, Timestamps, Base):
     # Added by the creator once the reel is posted. Null = still waiting for the reel.
     instagram_url: Mapped[str | None] = mapped_column(String(500))
     instagram_shortcode: Mapped[str | None] = mapped_column(String(64))
+    # The same reel on YouTube (a video link). Stored; only Instagram reels are read for now.
+    youtube_url: Mapped[str | None] = mapped_column(String(300))
+    # The import that reads the Instagram reel into an itinerary (a draft CreatorTrip).
+    import_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("reel_imports.id", ondelete="SET NULL", name="fk_creator_links_import")
+    )
+    # Publish the itinerary as soon as it is built, instead of waiting for the creator.
+    auto_publish: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=expression.false()
+    )
 
 
 class AttributionSource(enum.StrEnum):

@@ -78,6 +78,7 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["GET", /^creator\/links$/],
   ["POST", /^creator\/links$/],
   ["PATCH", /^creator\/links\/[0-9a-f-]{36}$/],
+  ["POST", /^creator\/links\/[0-9a-f-]{36}\/build$/],
   ["PATCH", /^creator\/trips\/[0-9a-f-]{36}$/],
   ["GET", /^trips\/[\w-]{3,64}$/],
   ["GET", /^reels\/imports\/[0-9a-f-]{36}$/],
