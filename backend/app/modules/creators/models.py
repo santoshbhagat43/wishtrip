@@ -36,6 +36,9 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     handle: Mapped[str | None] = mapped_column(String(100), index=True)
     # Set for a creator who signed up on the website; staff fill in the handle later.
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
+    # WhatsApp number in international format (+919876543210), from the apply form. Lets a
+    # creator sign in with a code sent on WhatsApp.
+    whatsapp: Mapped[str | None] = mapped_column(String(20), unique=True)
     display_name: Mapped[str] = mapped_column(String(255), default="")
     profile_url: Mapped[str] = mapped_column(String(500), default="")
     status: Mapped[CreatorStatus] = mapped_column(

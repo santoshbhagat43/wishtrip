@@ -90,3 +90,37 @@ async def test_creator_cannot_use_staff_endpoints(client):
 
 async def test_traveler_has_no_creator_record(client, traveler):
     assert (await client.get("/creators/me", headers=auth(traveler))).status_code == 404
+
+
+async def test_creator_overview_shows_their_numbers_but_never_traveller_emails(client):
+    """The creator's own dashboard: same data as the staff view, without other people's emails."""
+    headers = await _creator_login(client, "overview@creators.example.com")
+    me = (await client.get("/creators/me", headers=headers)).json()
+
+    # A traveller signs up through this creator's link.
+    signup = await client.post(
+        "/auth/register",
+        json={
+            "email": "brought-in@example.com",
+            "password": "password123",
+            "referral_code": me["referral_code"],
+            "visitor_id": "v-overview",
+        },
+    )
+    assert signup.status_code == 201
+
+    r = await client.get("/creators/me/overview", headers=headers)
+    assert r.status_code == 200, r.text
+    overview = r.json()
+    assert overview["referral_code"] == me["referral_code"]
+    assert overview["stats"]["credited_travellers"] == 1
+    assert overview["activity"], "the sign-up shows in their activity"
+    assert all(a["user_email"] is None for a in overview["activity"])
+    assert "brought-in@example.com" not in r.text
+    assert "notes" not in overview
+
+
+async def test_creator_overview_is_only_for_creators(client, traveler):
+    r = await client.get("/creators/me/overview", headers=auth(traveler))
+    assert r.status_code == 404
+    assert (await client.get("/creators/me/overview")).status_code == 401

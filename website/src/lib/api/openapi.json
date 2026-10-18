@@ -88,13 +88,55 @@
     }
    }
   },
+  "/auth/google/exchange": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Exchange",
+    "description": "Exchange a Google auth code (from the SSO app) for a wishtrip token pair.",
+    "operationId": "google_exchange_auth_google_exchange_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GoogleExchange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenPair"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/auth/creator/request-otp": {
    "post": {
     "tags": [
      "auth"
     ],
     "summary": "Creator Request Otp",
-    "description": "Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.",
+    "description": "Send a creator a one-time sign-in code, by email or on WhatsApp.\n\nAlways answers the same way, so it can't be used to discover who is a creator. WhatsApp codes\nonly go to numbers a creator gave when applying; an email can be new (it signs up a pending\ncreator).",
     "operationId": "creator_request_otp_auth_creator_request_otp_post",
     "requestBody": {
      "content": {
@@ -134,7 +176,7 @@
      "auth"
     ],
     "summary": "Creator Verify",
-    "description": "Verify the code and sign the creator in, creating a pending account on first sign-in.",
+    "description": "Check the code and sign the creator in (a first email sign-in makes a pending creator).",
     "operationId": "creator_verify_auth_creator_verify_post",
     "requestBody": {
      "content": {
@@ -2640,6 +2682,33 @@
     ]
    }
   },
+  "/creators/me/overview": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "My Overview",
+    "description": "The signed-in creator's dashboard: their numbers, reels, commissions and activity.\n\nBuilt from the same data as the staff view, but a creator never sees which travellers they\nbrought in \u2014 every traveller email is dropped \u2014 and never sees staff notes.",
+    "operationId": "my_overview_creators_me_overview_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorOverview"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/creators": {
    "get": {
     "tags": [
@@ -5040,24 +5109,78 @@
    },
    "CreatorOtpRequest": {
     "properties": {
-     "email": {
+     "channel": {
       "type": "string",
-      "format": "email",
+      "enum": [
+       "email",
+       "whatsapp"
+      ],
+      "title": "Channel",
+      "default": "email"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Email"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
      }
     },
     "type": "object",
-    "required": [
-     "email"
-    ],
-    "title": "CreatorOtpRequest"
+    "title": "CreatorOtpRequest",
+    "description": "Ask for a sign-in code by email, or on WhatsApp to a number in international format."
    },
    "CreatorOtpVerify": {
     "properties": {
-     "email": {
+     "channel": {
       "type": "string",
-      "format": "email",
+      "enum": [
+       "email",
+       "whatsapp"
+      ],
+      "title": "Channel",
+      "default": "email"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Email"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
      },
      "code": {
       "type": "string",
@@ -5068,10 +5191,108 @@
     },
     "type": "object",
     "required": [
-     "email",
      "code"
     ],
     "title": "CreatorOtpVerify"
+   },
+   "CreatorOverview": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CreatorStatus"
+     },
+     "referral_code": {
+      "type": "string",
+      "title": "Referral Code"
+     },
+     "commission_type": {
+      "$ref": "#/components/schemas/CommissionType"
+     },
+     "commission_value": {
+      "type": "integer",
+      "title": "Commission Value"
+     },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url",
+      "default": ""
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/CreatorStats"
+     },
+     "reels": {
+      "items": {
+       "$ref": "#/components/schemas/CreatorReel"
+      },
+      "type": "array",
+      "title": "Reels"
+     },
+     "activity": {
+      "items": {
+       "$ref": "#/components/schemas/AttributionRead"
+      },
+      "type": "array",
+      "title": "Activity"
+     },
+     "commissions": {
+      "items": {
+       "$ref": "#/components/schemas/CommissionRead"
+      },
+      "type": "array",
+      "title": "Commissions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "display_name",
+     "status",
+     "referral_code",
+     "commission_type",
+     "commission_value",
+     "created_at",
+     "stats",
+     "reels",
+     "activity",
+     "commissions"
+    ],
+    "title": "CreatorOverview",
+    "description": "A signed-in creator's own dashboard: the admin view of them, minus anything about other\npeople (traveller emails are never included) and minus staff notes."
    },
    "CreatorRead": {
     "properties": {
@@ -5877,6 +6098,46 @@
     ],
     "title": "FollowUp",
     "description": "A question the assistant asks the traveler, with replies they can send as they are."
+   },
+   "GoogleExchange": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "redirect_uri": {
+      "type": "string",
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Redirect Uri"
+     },
+     "referral_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Referral Code"
+     },
+     "visitor_id": {
+      "type": "string",
+      "maxLength": 64,
+      "title": "Visitor Id",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "redirect_uri"
+    ],
+    "title": "GoogleExchange"
    },
    "Grounding": {
     "type": "string",

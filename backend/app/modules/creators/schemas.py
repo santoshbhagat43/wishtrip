@@ -116,6 +116,18 @@ class CreatorDetail(CreatorRead):
     commissions: list[CommissionRead]
 
 
+class CreatorOverview(CreatorMe):
+    """A signed-in creator's own dashboard: the admin view of them, minus anything about other
+    people (traveller emails are never included) and minus staff notes."""
+
+    profile_url: str = ""
+    created_at: datetime
+    stats: CreatorStats
+    reels: list[CreatorReel]
+    activity: list[AttributionRead]
+    commissions: list[CommissionRead]
+
+
 class CommissionUpdate(BaseModel):
     status: CommissionStatus
 

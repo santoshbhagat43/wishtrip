@@ -114,6 +114,8 @@ services:
       # SSO: share the session cookie across .lvh.me and send sign-in to the SSO app.
       SESSION_COOKIE_DOMAIN: .lvh.me
       SSO_URL: http://sso.lvh.me:3001
+      # The creator portal's own host, served by this same app.
+      CREATOR_URL: http://creator.lvh.me:3002
     ports:
       - "3002:3000"
     volumes:

@@ -25,6 +25,7 @@ from app.modules.creators.schemas import (
     CreatorApplication,
     CreatorDetail,
     CreatorMe,
+    CreatorOverview,
     CreatorRead,
     CreatorReel,
     CreatorStats,
@@ -94,6 +95,24 @@ async def my_creator(
     if not creator or user.role != Role.CREATOR:
         raise not_found("Creator")
     return creator
+
+
+@router.get("/creators/me/overview", response_model=CreatorOverview)
+async def my_overview(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    """The signed-in creator's dashboard: their numbers, reels, commissions and activity.
+
+    Built from the same data as the staff view, but a creator never sees which travellers they
+    brought in — every traveller email is dropped — and never sees staff notes.
+    """
+    creator = await service.for_user(session, user.id)
+    if not creator or user.role != Role.CREATOR:
+        raise not_found("Creator")
+    detail = await _detail(session, creator)
+    for row in (*detail.activity, *detail.commissions):
+        row.user_email = None
+    return CreatorOverview.model_validate(detail.model_dump(exclude={"notes"}))
 
 
 @router.get("/creators", response_model=list[CreatorRead], dependencies=[Depends(require_staff)])

@@ -1,14 +1,13 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { B4Auth } from "@/components/b4/screens/auth";
+import { creatorSsoUrl } from "@/lib/server/sso";
 
-export const metadata: Metadata = { title: "Join as a creator — wishtrip" };
-
-export default function Page() {
-  return (
-    <Suspense>
-      <B4Auth mode="login" only="creator" />
-    </Suspense>
-  );
+/** Creator sign-in now happens on the shared SSO app (one-time code or Google). This keeps old
+ *  "/creators/join" links working; the proxy normally redirects before this renders. */
+export default async function CreatorJoinPage() {
+  const h = await headers();
+  const host = h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  redirect(creatorSsoUrl(host ? `${proto}://${host}/creator` : "/creator"));
 }

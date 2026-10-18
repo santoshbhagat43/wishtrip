@@ -68,6 +68,21 @@ async def upsert(
     return creator
 
 
+# International format, as the apply form sends it: "+" then 7–15 digits.
+_E164 = re.compile(r"\+[1-9]\d{6,14}")
+
+
+async def _claim_whatsapp(session: AsyncSession, creator: Creator, whatsapp: str) -> None:
+    """Store the creator's WhatsApp number for code sign-in, unless another creator has it."""
+    if not _E164.fullmatch(whatsapp) or creator.whatsapp == whatsapp:
+        return
+    taken = await session.scalar(
+        select(Creator.id).where(Creator.whatsapp == whatsapp, Creator.id != creator.id)
+    )
+    if taken is None:
+        creator.whatsapp = whatsapp
+
+
 async def apply_as_creator(
     session: AsyncSession,
     *,
@@ -99,7 +114,9 @@ async def apply_as_creator(
         )
         session.add(creator)
         await session.flush()
+        await _claim_whatsapp(session, creator, whatsapp.strip())
     else:
+        await _claim_whatsapp(session, creator, whatsapp.strip())
         if name.strip():
             creator.display_name = name.strip()
         if handle and not creator.handle:
@@ -118,20 +135,33 @@ async def for_user(session: AsyncSession, user_id: uuid.UUID) -> Creator | None:
     return await session.scalar(select(Creator).where(Creator.user_id == user_id))
 
 
-def send_otp(email: str) -> None:
-    """Email the creator a one-time code. No SMTP yet, so the fixed dev code is only logged."""
-    logger.info("Creator OTP for %s: %s (dev code)", email, settings.creator_dev_otp)
+async def whatsapp_is_known(session: AsyncSession, phone: str | None) -> bool:
+    """Is this WhatsApp number one a creator gave us? Codes are only sent to known numbers."""
+    if not phone:
+        return False
+    return await session.scalar(select(exists().where(Creator.whatsapp == phone))) or False
 
 
-async def login_with_otp(session: AsyncSession, email: str, code: str) -> User:
-    """Verify the code and return the creator's account, creating it on first sign-in.
+async def sign_in_creator(
+    session: AsyncSession, *, email: str | None = None, whatsapp: str | None = None
+) -> User:
+    """Return the creator's account once their one-time code has been checked (auth/otp.py),
+    creating it on first sign-in.
 
-    A new account lands as a PENDING creator: they see "waiting for approval" until staff
-    approve them in the dashboard.
+    By email, a new address lands as a PENDING creator: they see "waiting for approval" until
+    staff approve them in the dashboard. By WhatsApp, the number must belong to a creator who has
+    applied, since an account needs an email.
     """
+    if whatsapp:
+        creator = await session.scalar(select(Creator).where(Creator.whatsapp == whatsapp))
+        if creator is None or not creator.email:
+            raise bad_request(
+                "No creator account uses that WhatsApp number. Sign in with email, or apply first."
+            )
+        email = creator.email
+    if not email:
+        raise bad_request("An email or a WhatsApp number is needed to sign in.")
     email = email.strip().lower()
-    if code.strip() != settings.creator_dev_otp:
-        raise bad_request("That code isn't right. Check the 4-digit code and try again.")
 
     user = await session.scalar(select(User).where(func.lower(User.email) == email))
     if user and user.role != Role.CREATOR:

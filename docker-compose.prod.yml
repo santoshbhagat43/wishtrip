@@ -104,6 +104,8 @@ services:
       # SSO: share the session cookie and send sign-in to the SSO app.
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
       SSO_URL: ${SSO_URL}
+      # The creator portal's own host, served by this same app (CREATOR_DOMAIN is Caddy's).
+      CREATOR_URL: https://${CREATOR_DOMAIN}
       # Private preview: /gate asks for these. The gate stays on until SITE_PUBLIC=true (launch).
       SITE_USER: ${SITE_USER}
       SITE_PASSWORD: ${SITE_PASSWORD}

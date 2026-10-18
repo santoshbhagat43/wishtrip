@@ -44,17 +44,26 @@ async def get_or_create_google_user(
     referral link may be credited for). Google sign-in has no password, so (like creator OTP)
     we store a random hash to keep the column non-guessable. The caller commits.
     """
+    from app.modules.creators.models import Creator  # local: creators imports users
+
     user = await get_by_email(session, email)
     if user:
         return user, False
+    # Someone who applied as a creator with this email signs in as that creator, not as a new
+    # traveller (which would also lock them out of their creator account).
+    creator = await session.scalar(
+        select(Creator).where(func.lower(Creator.email) == email.lower(), Creator.user_id.is_(None))
+    )
     user = User(
         email=email.lower(),
         hashed_password=hash_password(secrets.token_urlsafe(24)),
         full_name=full_name,
-        role=Role.TRAVELER,
+        role=Role.CREATOR if creator else Role.TRAVELER,
     )
     session.add(user)
     await session.flush()
+    if creator:
+        creator.user_id = user.id
     return user, True
 
 

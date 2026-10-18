@@ -1,4 +1,7 @@
-from pydantic import BaseModel, EmailStr, Field
+import re
+from typing import Literal
+
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class LoginRequest(BaseModel):
@@ -37,10 +40,28 @@ class GoogleExchange(BaseModel):
     visitor_id: str = Field(default="", max_length=64)
 
 
+_E164 = re.compile(r"\+[1-9]\d{6,14}")
+
+
 class CreatorOtpRequest(BaseModel):
-    email: EmailStr
+    """Ask for a sign-in code by email, or on WhatsApp to a number in international format."""
+
+    channel: Literal["email", "whatsapp"] = "email"
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, max_length=20)
+
+    @model_validator(mode="after")
+    def _one_address(self):
+        if self.channel == "email" and not self.email:
+            raise ValueError("An email address is needed for an email code")
+        if self.channel == "whatsapp" and not (self.phone and _E164.fullmatch(self.phone)):
+            raise ValueError("A WhatsApp number in international format (+91…) is needed")
+        return self
+
+    @property
+    def identifier(self) -> str:
+        return str(self.email).lower() if self.channel == "email" else self.phone or ""
 
 
-class CreatorOtpVerify(BaseModel):
-    email: EmailStr
+class CreatorOtpVerify(CreatorOtpRequest):
     code: str = Field(min_length=4, max_length=8)

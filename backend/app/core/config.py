@@ -85,9 +85,22 @@ class Settings(BaseSettings):
     # What a creator earns per credited traveller who plans a trip. Staff set it per creator;
     # 0 = nothing agreed yet.
     creator_commission_per_user_paise: int = 0
-    # Creator sign-up is email + a 4-digit code. Until SMTP/OTP is wired up the code is fixed
-    # (the "email" is only logged). Swap this for a real one-time code later.
+    # Creator sign-in codes, by email or WhatsApp (app/modules/auth/otp.py). A channel sends real,
+    # random, single-use codes as soon as its provider is configured. Until then it falls back to
+    # this FIXED code — decided 2026-10-18 to keep creators able to sign in before a provider
+    # exists. While a channel is on the fallback, anyone who knows a creator's email can sign in
+    # as them. Configure SMTP (below) to close it for email.
     creator_dev_otp: str = "1234"
+    otp_ttl_seconds: int = 600
+    otp_max_attempts: int = 5
+    otp_resend_seconds: int = 30
+    # Email codes over SMTP — works with Resend, Amazon SES, Gmail or any SMTP service.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None  # e.g. "WishTrip <login@wishtrip.co>"
+    smtp_starttls: bool = True
 
     @property
     def ai_enabled(self) -> bool:

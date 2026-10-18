@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/google/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Exchange
+         * @description Exchange a Google auth code (from the SSO app) for a wishtrip token pair.
+         */
+        post: operations["google_exchange_auth_google_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/creator/request-otp": {
         parameters: {
             query?: never;
@@ -52,7 +72,11 @@ export interface paths {
         put?: never;
         /**
          * Creator Request Otp
-         * @description Email a creator a 4-digit code. No SMTP yet, so the code is fixed and only logged.
+         * @description Send a creator a one-time sign-in code, by email or on WhatsApp.
+         *
+         *     Always answers the same way, so it can't be used to discover who is a creator. WhatsApp codes
+         *     only go to numbers a creator gave when applying; an email can be new (it signs up a pending
+         *     creator).
          */
         post: operations["creator_request_otp_auth_creator_request_otp_post"];
         delete?: never;
@@ -72,7 +96,7 @@ export interface paths {
         put?: never;
         /**
          * Creator Verify
-         * @description Verify the code and sign the creator in, creating a pending account on first sign-in.
+         * @description Check the code and sign the creator in (a first email sign-in makes a pending creator).
          */
         post: operations["creator_verify_auth_creator_verify_post"];
         delete?: never;
@@ -785,6 +809,29 @@ export interface paths {
          * @description The signed-in creator's own account, so the website can show their approval state.
          */
         get: operations["my_creator_creators_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/me/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Overview
+         * @description The signed-in creator's dashboard: their numbers, reels, commissions and activity.
+         *
+         *     Built from the same data as the staff view, but a creator never sees which travellers they
+         *     brought in — every traveller email is dropped — and never sees staff notes.
+         */
+        get: operations["my_overview_creators_me_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1596,23 +1643,77 @@ export interface components {
             /** Commission Value */
             commission_value: number;
         };
-        /** CreatorOtpRequest */
+        /**
+         * CreatorOtpRequest
+         * @description Ask for a sign-in code by email, or on WhatsApp to a number in international format.
+         */
         CreatorOtpRequest: {
             /**
-             * Email
-             * Format: email
+             * Channel
+             * @default email
+             * @enum {string}
              */
-            email: string;
+            channel: "email" | "whatsapp";
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
         };
         /** CreatorOtpVerify */
         CreatorOtpVerify: {
             /**
-             * Email
-             * Format: email
+             * Channel
+             * @default email
+             * @enum {string}
              */
-            email: string;
+            channel: "email" | "whatsapp";
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
             /** Code */
             code: string;
+        };
+        /**
+         * CreatorOverview
+         * @description A signed-in creator's own dashboard: the admin view of them, minus anything about other
+         *     people (traveller emails are never included) and minus staff notes.
+         */
+        CreatorOverview: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email?: string | null;
+            /** Handle */
+            handle?: string | null;
+            /** Display Name */
+            display_name: string;
+            status: components["schemas"]["CreatorStatus"];
+            /** Referral Code */
+            referral_code: string;
+            commission_type: components["schemas"]["CommissionType"];
+            /** Commission Value */
+            commission_value: number;
+            /**
+             * Profile Url
+             * @default
+             */
+            profile_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            stats: components["schemas"]["CreatorStats"];
+            /** Reels */
+            reels: components["schemas"]["CreatorReel"][];
+            /** Activity */
+            activity: components["schemas"]["AttributionRead"][];
+            /** Commissions */
+            commissions: components["schemas"]["CommissionRead"][];
         };
         /** CreatorRead */
         CreatorRead: {
@@ -1943,6 +2044,20 @@ export interface components {
              * @default []
              */
             answers: string[];
+        };
+        /** GoogleExchange */
+        GoogleExchange: {
+            /** Code */
+            code: string;
+            /** Redirect Uri */
+            redirect_uri: string;
+            /** Referral Code */
+            referral_code?: string | null;
+            /**
+             * Visitor Id
+             * @default
+             */
+            visitor_id: string;
         };
         /**
          * Grounding
@@ -4078,6 +4193,39 @@ export interface operations {
             };
         };
     };
+    google_exchange_auth_google_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleExchange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     creator_request_otp_auth_creator_request_otp_post: {
         parameters: {
             query?: never;
@@ -5560,6 +5708,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+        };
+    };
+    my_overview_creators_me_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorOverview"];
                 };
             };
         };
