@@ -33,6 +33,7 @@ export function FlowHeader({
   subtitle,
   back,
   signedIn = false,
+  traveller,
   nav = false,
 }: {
   /** 1–3: which step is current. Omit (with nav) on the booked page. */
@@ -42,6 +43,8 @@ export function FlowHeader({
   /** Where the mobile back arrow goes; without it the mobile header shows the logo. */
   back?: string;
   signedIn?: boolean;
+  /** The signed-in traveller's name, when we know it (the prototype's demo name otherwise). */
+  traveller?: string;
   /** Show the main navigation instead of the step tracker (desktop). */
   nav?: boolean;
 }) {
@@ -93,8 +96,8 @@ export function FlowHeader({
           <span className="flex items-center gap-3.5">
             {signedIn ? (
               <span className="flex items-center gap-2 text-sm font-semibold">
-                <Avatar />
-                Asha
+                <Avatar letter={(traveller ?? "Asha").charAt(0).toUpperCase()} />
+                {traveller ?? "Asha"}
               </span>
             ) : (
               <Link href={LINKS.signIn} className="px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline">

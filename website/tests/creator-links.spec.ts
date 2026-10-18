@@ -164,7 +164,29 @@ test.describe("Reel links", () => {
     const traveller = await visitor.newPage();
     await traveller.goto(`${WEBSITE}/r/${code}`);
     await expect(traveller).toHaveURL(new RegExp(`/t/${shared.split("/t/")[1]}$`));
+    // The trip board, as in the B4 prototype: nothing missing.
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible();
+    await expect(traveller.getByRole("navigation", { name: "Progress" }).or(traveller.getByRole("list", { name: "Progress" }))).toBeVisible();
+    await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Goa trip");
+    await expect(traveller.getByText("A TRIP BY ")).toBeVisible();
+    await expect(traveller.getByRole("button", { name: "Share with family" })).toBeVisible();
+    await expect(traveller.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
+    for (const kind of ["FLIGHTS", "STAY", "TRANSFERS"]) await expect(traveller.getByText(kind, { exact: true })).toBeVisible();
+    await expect(traveller.getByText("DAY BY DAY")).toBeVisible();
+    await expect(traveller.getByText("DAY 1", { exact: true })).toBeVisible();
+    await expect(traveller.getByText(/From the reel · 0:04/)).toBeVisible();
+    await expect(traveller.getByText(/Scroll sideways for all 2 days/)).toBeVisible();
+    await expect(traveller.getByText("ONE PRICE, EVERYTHING IN")).toBeVisible();
+    await expect(traveller.getByText("Total for 3")).toBeVisible();
+    await expect(traveller.getByRole("link", { name: "Book in one go" })).toBeVisible();
+    await expect(traveller.getByText("Nothing is charged until you choose at checkout")).toBeVisible();
+    await expect(traveller.getByText("Change anything with Arya")).toBeVisible();
+    await expect(traveller.getByRole("link", { name: "Add a sunset cruise" })).toBeVisible();
+    await expect(traveller.locator("main img").first()).toBeVisible(); // the reel's picture
+    await traveller.getByRole("button", { name: "Share with family" }).click();
+    await expect(traveller.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
+    await traveller.getByRole("button", { name: "Share with family" }).click();
+    if (SHOT) await traveller.screenshot({ path: `${SHOT}/shared-trip.png`, fullPage: true });
     await traveller.close();
 
     // 7. They can take it back: the link goes back to the home page.
