@@ -19,7 +19,8 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
-    baseURL: process.env.DASHBOARD_URL ?? "http://localhost:3001",
+    // A sibling of the SSO host (see tests/utils/env.ts): localhost can't read the .lvh.me session.
+    baseURL: process.env.DASHBOARD_URL ?? "http://dashboard.lvh.me:3001",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

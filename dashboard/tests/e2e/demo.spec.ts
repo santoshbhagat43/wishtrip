@@ -111,7 +111,7 @@ test.describe("Demo @demo", () => {
     // Menus: the traveller site's navigation, editable here.
     await page.goto("/menus");
     await expect(page.getByRole("heading", { level: 1, name: "Menus" })).toBeVisible();
-    await expect(page.getByText("Main navigation")).toBeVisible();
+    await expect(page.getByText("Main navigation").first()).toBeVisible();
 
     // Support inbox: someone in destination sorts to the top.
     await page.goto("/support");

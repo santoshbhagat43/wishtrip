@@ -14,6 +14,7 @@ const ERRORS: Record<string, string> = {
   google_denied: "Google sign-in was cancelled.",
   google_state: "Google sign-in expired. Please try again.",
   google_exchange: "We couldn't complete Google sign-in. Please try again.",
+  invalid: "Invalid email or password",
 };
 
 function SsoForm() {
@@ -63,7 +64,10 @@ function SsoForm() {
         <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
       </div>
 
-      <form onSubmit={submit} className="flex flex-col gap-4">
+      {/* A real POST target: if the form is submitted before the page hydrates, the browser posts
+          it to the API instead of doing a GET that would put the password in the URL. */}
+      <form onSubmit={submit} method="post" action="/api/sso/login" className="flex flex-col gap-4">
+        <input type="hidden" name="redirect" value={redirect} />
         <div className="flex flex-col gap-2">
           <label htmlFor="email" className="text-sm font-semibold">
             Email
