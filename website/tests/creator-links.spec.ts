@@ -112,17 +112,33 @@ test.describe("Reel links", () => {
     const shortcode = `Ce2e${Date.now().toString(36)}`;
     await reel.getByLabel("Instagram reel URL").fill(`https://www.instagram.com/reel/${shortcode}/?igsh=xyz`);
     await reel.getByRole("button", { name: "Save" }).click();
-    await expect(reel.getByText("Saved.")).toBeVisible();
+    // The link is stored; the itinerary is built from it, step by step.
     await expect(reel.getByLabel("Instagram reel URL")).toHaveValue(`https://www.instagram.com/reel/${shortcode}/`);
+    await expect(reel.getByRole("list", { name: "Building your itinerary" })).toBeVisible();
+    await expect(section.getByRole("button", { name: /Goa beach weekend/ })).toContainText("Building itinerary");
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-building.png` });
+    await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 20_000 });
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-ready.png` });
 
-    // 5. Publish, and unpublish again.
-    await reel.getByRole("button", { name: "Publish", exact: true }).click();
-    await expect(reel.getByText("This reel is published.")).toBeVisible();
-    if (SHOT) await page.screenshot({ path: `${SHOT}/links-reel.png` });
-    await reel.getByRole("button", { name: "Unpublish" }).click();
-    await expect(reel.getByText("Ready when you are.")).toBeVisible();
+    // 5. Open the itinerary: one column a day, each stop traced back to the reel.
+    await reel.getByRole("button", { name: "Open itinerary" }).click();
+    const sheet = page.getByRole("dialog", { name: "Itinerary: Goa beach weekend" });
+    await expect(sheet.getByText("DAY 1")).toBeVisible();
+    await expect(sheet.getByText("DAY 3")).toBeVisible();
+    await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
+    await expect(sheet.getByText("Ready to publish")).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-itinerary.png`, fullPage: true });
+
+    // 6. Only the creator publishes (unless they chose auto), and can take it back.
+    await sheet.getByRole("button", { name: "Publish itinerary" }).click();
+    await expect(sheet.getByText("Share this link")).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-published.png`, fullPage: true });
+    await sheet.getByRole("button", { name: "Unpublish" }).click();
+    await expect(sheet.getByText("Share this link")).toHaveCount(0);
+    await sheet.getByRole("button", { name: "Back to reel" }).click();
+    await expect(sheet).toHaveCount(0);
     await reel.getByRole("button", { name: "Close" }).click();
-    await expect(card).toContainText("Not published");
+    await expect(card).toContainText("Ready to publish");
 
     expect(pageErrors).toEqual([]);
   });
@@ -142,9 +158,11 @@ test.describe("Reel links", () => {
     await reel.getByRole("button", { name: "Save" }).click();
     await expect(reel.getByText(/Paste the link to your YouTube video/)).toBeVisible();
     await reel.getByLabel("YouTube video URL").fill("https://www.youtube.com/watch?v=abc123");
-    await reel.getByRole("button", { name: "Save" }).click();
-    await expect(reel.getByText("Saved.")).toBeVisible();
-    await reel.getByRole("button", { name: "Publish", exact: true }).click();
+    await reel.getByLabel("Publish it automatically once the itinerary is built").check();
+    await reel.getByRole("button", { name: "Save and build itinerary" }).click();
+    await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 20_000 });
+    // Auto-publish: nobody had to press Publish.
+    await expect(reel.getByText("This reel is published.")).toBeVisible();
     await reel.getByRole("button", { name: "Close" }).click();
     await expect(section.getByRole("button", { name: /Hampi in a day/ })).toContainText("Published");
   });
