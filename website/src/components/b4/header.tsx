@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { IMG, LINKS, MENU as MENU_GROUPS } from "./data";
-import { CLOSE, MENU, Path } from "./icons";
+import { ARROW, CLOSE, MENU, Path } from "./icons";
+import { menuBySlug, useMenus } from "./menus";
 
 export const NAV = [
   { href: "/#b4-arya", label: "How it works" },
@@ -28,6 +29,10 @@ export function RoundButton({ label, d, onClick }: { label: string; d: string; o
 }
 
 export function MenuDrawer({ onClose }: { onClose: () => void }) {
+  const drawerMenus = useMenus("mobile");
+  const drawerLinks =
+    menuBySlug(drawerMenus.data, "b4-drawer")?.items ??
+    MENU_GROUPS.flatMap((g) => g.items.map((i) => ({ label: i.label, url: i.href, opens_in_new_tab: false })));
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", key);
@@ -67,22 +72,22 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
           </span>
           <span className="text-xs text-[#8A7F72]">With your phone number or Google. No passwords.</span>
         </div>
-        {MENU_GROUPS.map((group) => (
-          <div key={group.heading} className="flex flex-col">
-            <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">{group.heading}</span>
-            {group.items.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={onClose}
-                className="flex items-center gap-3 rounded-xl px-1 py-[11px] text-[15.5px] font-medium text-[#0D2436] no-underline"
-              >
-                <Path d={item.icon} stroke="#0A7C80" width={1.9} className="flex-none" />
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ))}
+        <div className="flex flex-col">
+          <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">MENU</span>
+          {drawerLinks.map((item) => (
+            <Link
+              key={item.label}
+              href={item.url}
+              target={item.opens_in_new_tab ? "_blank" : undefined}
+              rel={item.opens_in_new_tab ? "noreferrer" : undefined}
+              onClick={onClose}
+              className="flex items-center gap-3 rounded-xl px-1 py-[11px] text-[15.5px] font-medium text-[#0D2436] no-underline"
+            >
+              <Path d={ARROW} stroke="#0A7C80" width={1.9} className="flex-none" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
         <Link
           href={LINKS.creators}
           onClick={onClose}
@@ -105,6 +110,10 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
 /** The top bar of the B4 pages: logo, main links on desktop, Sign in, and the menu drawer. */
 export function B4Header({ solid = false }: { solid?: boolean }) {
   const [open, setOpen] = useState(false);
+  const headerMenus = useMenus("header");
+  const nav =
+    menuBySlug(headerMenus.data, "b4-primary")?.items ??
+    NAV.map((n) => ({ label: n.label, url: n.href, opens_in_new_tab: false }));
   return (
     <>
       <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(251,248,244,0.97)] border-b border-[#EDE6DC] backdrop-blur" : ""}`}>
@@ -112,8 +121,14 @@ export function B4Header({ solid = false }: { solid?: boolean }) {
           <Image src={IMG.logo} alt="wishtrip" width={138} height={38} priority className="h-[31px] w-auto md:h-[38px]" />
         </Link>
         <nav aria-label="Main" className="hidden flex-1 justify-center gap-1.5 text-[14.5px] font-medium md:flex">
-          {NAV.map((n) => (
-            <Link key={n.label} href={n.href} className="px-3.5 py-2.5 text-[#3F5A72] no-underline hover:text-[#0D2436]">
+          {nav.map((n) => (
+            <Link
+              key={n.label}
+              href={n.url}
+              target={n.opens_in_new_tab ? "_blank" : undefined}
+              rel={n.opens_in_new_tab ? "noreferrer" : undefined}
+              className="px-3.5 py-2.5 text-[#3F5A72] no-underline hover:text-[#0D2436]"
+            >
               {n.label}
             </Link>
           ))}

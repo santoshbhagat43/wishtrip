@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CREATOR_DASHBOARD, CREATOR_STEPS, DESTINATIONS, IMG, LINKS, TRUST } from "./data";
 import { Path } from "./icons";
 import { SectionHead } from "./section-head";
+import { SiteFooter } from "./footer";
 
 /** Destination tiles: Goa leads (full width on phones, a 2×2 block on desktop). */
 export function Destinations() {
@@ -130,12 +131,6 @@ export function Trust() {
 
 /** Closing call to action and the footer. */
 export function StartAndFooter() {
-  const links = [
-    { href: "#b4-creators", label: "Become a creator" },
-    { href: LINKS.creators, label: "Creator program" },
-    { href: "#", label: "Help" },
-    { href: "#", label: "Terms" },
-  ];
   return (
     <section id="b4-start" className="bg-white px-4 pb-7 pt-11 md:px-10 md:pb-10 md:pt-[88px]">
       <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-3 text-center md:gap-3.5">
@@ -147,16 +142,7 @@ export function StartAndFooter() {
         >
           Start planning <span className="text-[#22DDE0]">→</span>
         </Link>
-        <footer className="mt-7 flex flex-col gap-2 self-stretch border-t border-[#E8EEF4] pt-4 text-left text-[12.5px] text-[#566E85] md:mt-16 md:flex-row-reverse md:justify-between md:pt-6 md:text-[13.5px]">
-          <span className="flex flex-wrap gap-x-5 gap-y-2">
-            {links.map((l) => (
-              <Link key={l.label} href={l.href} className="text-[#0A7C80] underline md:text-[#566E85]">
-                {l.label}
-              </Link>
-            ))}
-          </span>
-          <span>© wishtrip · Travel your way</span>
-        </footer>
+        <SiteFooter />
       </div>
     </section>
   );
