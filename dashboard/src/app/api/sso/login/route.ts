@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { BACKEND_URL, setSessionCookies, type TokenPair } from "@/lib/server/session";
+import { BACKEND_URL, setSharedSessionCookies, type TokenPair } from "@/lib/server/session";
 import { SSO_URL, safeRedirect } from "@/lib/server/sso";
 
 /** Password sign-in for any wishtrip user. Mints the shared session cookie and sends the user
@@ -38,6 +38,6 @@ export async function POST(request: NextRequest) {
   const response = isForm
     ? NextResponse.redirect(destination, 303)
     : NextResponse.json({ ok: true, redirect: destination });
-  setSessionCookies(response, body as TokenPair);
+  setSharedSessionCookies(response, body as TokenPair);
   return response;
 }

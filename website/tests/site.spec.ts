@@ -1,7 +1,9 @@
-import { expect, signUp, test } from "./fixtures";
+import { SSO_URL, expect, signUp, test } from "./fixtures";
+
+const SSO_LOGIN = new RegExp(`^${SSO_URL}/sso/login`);
 
 test.describe("Public site", () => {
-  test("landing and explore work signed out, private pages ask to sign in", async ({ page, request }) => {
+  test("landing and explore work signed out, private pages ask to sign in", async ({ page, request, baseURL }) => {
     await page.goto("/");
     // The B4 home: scroll story, then the sections (desktop stage at this viewport).
     await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true })).toContainText("scattered");
@@ -14,8 +16,10 @@ test.describe("Public site", () => {
     await expect(page.getByText("Create a free account")).toBeVisible();
     await expect(page.getByText("not available yet").first()).toBeVisible();
 
+    // Private pages hand over to the shared SSO login, with this page as the way back.
     await page.goto("/plan");
-    await expect(page).toHaveURL(/\/login\?next=%2Fplan/);
+    await expect(page).toHaveURL(SSO_LOGIN);
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe(`${baseURL}/plan`);
 
     // The gateway only forwards traveler routes; staff APIs don't exist from here.
     expect((await request.get("/api/wt/admin/users")).status()).toBe(404);
@@ -47,19 +51,36 @@ test.describe("Navigation", () => {
   });
 });
 
-test.describe("Session isolation", () => {
-  test("a staff dashboard session never signs you in to the website", async ({ page, context, baseURL }) => {
-    // Browsers share cookies across ports of one host: plant dashboard-style cookies here.
+test.describe("Shared sign-in (SSO)", () => {
+  test("cookies from the old per-app sign-in no longer sign you in", async ({ page, context, baseURL }) => {
     const domain = new URL(baseURL!).hostname;
     await context.addCookies(
-      ["wishtrip_staff_session", "wishtrip_staff_refresh", "wt_access", "wt_refresh"].map((name) => ({
-        name, value: "staff-token", domain, path: "/",
-      })),
+      ["wishtrip_staff_session", "wishtrip_staff_refresh", "wishtrip_traveler_session", "wishtrip_traveler_refresh"].map(
+        (name) => ({ name, value: "old-token", domain, path: "/" }),
+      ),
     );
-    await page.goto("/");
-    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await page.goto("/plan");
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(SSO_LOGIN);
+  });
+
+  test("a forged session is refused by the gateway and cleared", async ({ page, context }) => {
+    // Planted on the parent domain, exactly where a real SSO session lives.
+    await context.addCookies(
+      ["wt_session", "wt_refresh"].map((name) => ({ name, value: "forged", domain: ".lvh.me", path: "/" })),
+    );
+    const me = await page.request.get("/api/wt/auth/me");
+    expect(me.status()).toBe(401);
+    const left = (await context.cookies()).filter((c) => c.name.startsWith("wt_") && c.value);
+    expect(left, "the gateway clears a session the backend rejected").toEqual([]);
+  });
+
+  test("one SSO sign-in covers the website, and signing out there signs you out here", async ({ page, baseURL }) => {
+    await signUp(page); // signs in on the SSO app, lands back on the website signed in
+    expect((await page.request.get("/api/wt/auth/me")).status()).toBe(200);
+
+    await page.goto(`${SSO_URL}/api/sso/logout?redirect=${encodeURIComponent(`${baseURL}/plan`)}`);
+    await expect(page).toHaveURL(SSO_LOGIN); // /plan is private again, so it bounces to SSO
+    expect((await page.request.get("/api/wt/auth/me")).status()).toBe(401);
   });
 });
 

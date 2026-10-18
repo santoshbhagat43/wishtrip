@@ -31,6 +31,10 @@ class GoogleExchange(BaseModel):
     # requires them to match). The code is exchanged server-side with the client secret.
     code: str = Field(min_length=1, max_length=2048)
     redirect_uri: str = Field(min_length=1, max_length=1000)
+    # Same as RegisterRequest: the creator whose link brought this visitor, credited only if
+    # this Google sign-in creates a new account.
+    referral_code: str | None = Field(default=None, max_length=64)
+    visitor_id: str = Field(default="", max_length=64)
 
 
 class CreatorOtpRequest(BaseModel):

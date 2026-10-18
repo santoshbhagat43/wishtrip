@@ -7,32 +7,42 @@ import { Suspense, useState } from "react";
 
 import { errorMessage } from "@/lib/api/client";
 
-const REASONS: Record<string, string> = {
-  staff_only: "That area is for WishTrip staff. Sign in with a staff account.",
-};
+type Mode = "signin" | "signup";
+
 const ERRORS: Record<string, string> = {
   google_denied: "Google sign-in was cancelled.",
   google_state: "Google sign-in expired. Please try again.",
   google_exchange: "We couldn't complete Google sign-in. Please try again.",
   invalid: "Invalid email or password",
+  email_taken: "An account with that email already exists. Sign in instead.",
+  signup_invalid: "Check your details: a valid email and a password of at least 8 characters.",
 };
 
-function SsoForm() {
+const INPUT =
+  "h-[52px] rounded-2xl border-[1.5px] border-border bg-surface px-[18px] text-[15px] outline-none focus:border-brand";
+
+function SsoPanel() {
   const params = useSearchParams();
   const redirect = params.get("redirect") ?? "";
-  const notice = REASONS[params.get("reason") ?? ""] ?? null;
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "signup" ? "signup" : "signin");
   const [error, setError] = useState<string | null>(ERRORS[params.get("error") ?? ""] ?? null);
   const [busy, setBusy] = useState(false);
+  const signup = mode === "signup";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    const res = await fetch("/api/sso/login", {
+    const res = await fetch(signup ? "/api/sso/register" : "/api/sso/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: form.get("email"), password: form.get("password"), redirect }),
+      body: JSON.stringify({
+        full_name: form.get("full_name") ?? undefined,
+        email: form.get("email"),
+        password: form.get("password"),
+        redirect,
+      }),
     });
     if (res.ok) {
       const { redirect: dest } = (await res.json()) as { redirect: string };
@@ -47,67 +57,114 @@ function SsoForm() {
   const googleHref = `/api/sso/google/start${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`;
 
   return (
-    <div className="flex flex-col gap-4">
-      {notice && (
-        <p className="rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm text-muted">{notice}</p>
-      )}
-
-      <a
-        href={googleHref}
-        className="flex h-[52px] items-center justify-center gap-2.5 rounded-full border-[1.5px] border-border bg-surface text-[15px] font-semibold transition-colors hover:border-brand"
-      >
-        <GoogleMark />
-        Continue with Google
-      </a>
-
-      <div className="flex items-center gap-3 text-[12px] text-muted">
-        <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-2.5">
+        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted">WishTrip account</p>
+        <h1 className="text-[40px] leading-[1.08]">{signup ? "Create your account" : "Sign in"}</h1>
+        <p className="text-[15px] leading-normal text-muted">
+          One account for WishTrip — planning trips and the creator portal.
+        </p>
       </div>
 
-      {/* A real POST target: if the form is submitted before the page hydrates, the browser posts
-          it to the API instead of doing a GET that would put the password in the URL. */}
-      <form onSubmit={submit} method="post" action="/api/sso/login" className="flex flex-col gap-4">
-        <input type="hidden" name="redirect" value={redirect} />
-        <div className="flex flex-col gap-2">
-          <label htmlFor="email" className="text-sm font-semibold">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            required
-            autoFocus
-            placeholder="you@example.com"
-            className="h-[52px] rounded-2xl border-[1.5px] border-border bg-surface px-[18px] text-[15px] outline-none focus:border-brand"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="password" className="text-sm font-semibold">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="h-[52px] rounded-2xl border-[1.5px] border-border bg-surface px-[18px] text-[15px] outline-none focus:border-brand"
-          />
-        </div>
+      <div role="tablist" aria-label="Sign in or create an account" className="flex gap-1 rounded-full bg-surface-2 p-1">
+        {(
+          [
+            ["signin", "Sign in"],
+            ["signup", "Create account"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={mode === value}
+            onClick={() => {
+              setMode(value);
+              setError(null);
+            }}
+            className={`h-[42px] flex-1 rounded-full text-sm font-bold transition-colors ${
+              mode === value ? "bg-surface text-brand shadow-card" : "text-muted hover:text-text"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-        {error && <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="flex h-[52px] items-center justify-center gap-2.5 rounded-full bg-brand text-[15px] font-bold text-on-brand shadow-raised transition-colors hover:bg-brand-strong disabled:opacity-60"
+      <div className="flex flex-col gap-4">
+        <a
+          href={googleHref}
+          className="flex h-[52px] items-center justify-center gap-2.5 rounded-full border-[1.5px] border-border bg-surface text-[15px] font-semibold transition-colors hover:border-brand"
         >
-          {busy ? "Signing in…" : "Sign in"}
-          {!busy && <ArrowRight className="size-4" />}
-        </button>
-      </form>
+          <GoogleMark />
+          Continue with Google
+        </a>
+
+        <div className="flex items-center gap-3 text-[12px] text-muted">
+          <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+        </div>
+
+        {/* A real POST target: if the form is submitted before the page hydrates, the browser posts
+            it to the API instead of doing a GET that would put the password in the URL. */}
+        <form
+          key={mode}
+          onSubmit={submit}
+          method="post"
+          action={signup ? "/api/sso/register" : "/api/sso/login"}
+          className="flex flex-col gap-4"
+        >
+          <input type="hidden" name="redirect" value={redirect} />
+          {signup && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="full_name" className="text-sm font-semibold">
+                Your name
+              </label>
+              <input id="full_name" name="full_name" autoComplete="name" required className={INPUT} />
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="email" className="text-sm font-semibold">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete={signup ? "email" : "username"}
+              required
+              autoFocus={!signup}
+              placeholder="you@example.com"
+              className={INPUT}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="password" className="text-sm font-semibold">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete={signup ? "new-password" : "current-password"}
+              required
+              minLength={signup ? 8 : undefined}
+              className={INPUT}
+            />
+            {signup && <p className="text-[12.5px] text-muted">At least 8 characters.</p>}
+          </div>
+
+          {error && <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="flex h-[52px] items-center justify-center gap-2.5 rounded-full bg-brand text-[15px] font-bold text-on-brand shadow-raised transition-colors hover:bg-brand-strong disabled:opacity-60"
+          >
+            {busy ? (signup ? "Creating account…" : "Signing in…") : signup ? "Create account" : "Sign in"}
+            {!busy && <ArrowRight className="size-4" />}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -141,20 +198,9 @@ export default function SsoLoginPage() {
       </section>
 
       <main className="flex flex-[1_1_440px] items-center justify-center px-4 py-8">
-        <div className="flex w-full max-w-[420px] flex-col gap-7">
-          <div className="flex flex-col gap-2.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted">
-              WishTrip account
-            </p>
-            <h1 className="text-[40px] leading-[1.08]">Sign in</h1>
-            <p className="text-[15px] leading-normal text-muted">
-              One sign-in for WishTrip — the traveler site, the creator portal and the staff
-              dashboard.
-            </p>
-          </div>
-
-          <Suspense fallback={<div className="h-[52px] animate-pulse rounded-2xl bg-surface-2" />}>
-            <SsoForm />
+        <div className="w-full max-w-[420px]">
+          <Suspense fallback={<div className="h-[420px] animate-pulse rounded-2xl bg-surface-2" />}>
+            <SsoPanel />
           </Suspense>
         </div>
       </main>

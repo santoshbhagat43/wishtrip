@@ -84,3 +84,42 @@ async def test_google_exchange_503_when_not_configured(client, monkeypatch):
         "/auth/google/exchange", json={"code": "abc", "redirect_uri": "http://localhost:3001/cb"}
     )
     assert r.status_code == 503
+
+
+async def test_google_signup_credits_the_creator_whose_link_brought_them(client, monkeypatch):
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.creators.models import Creator
+    from app.modules.users.models import User
+
+    async with SessionLocal() as session:
+        session.add(Creator(handle="keralaslow", referral_code="keralaslow"))
+        session.add(
+            User(email="old@example.com", hashed_password="x", full_name="Old", role="traveler")
+        )
+        await session.commit()
+    referral = {"referral_code": "keralaslow", "visitor_id": "v9"}
+
+    # A brand-new account through the creator's link is credited to them.
+    _configure(monkeypatch, {"id_token": _id_token(email="newbie@example.com", name="Newbie")})
+    r = await client.post(
+        "/auth/google/exchange",
+        json={"code": "c1", "redirect_uri": "http://localhost:3001/cb", **referral},
+    )
+    assert r.status_code == 200, r.text
+
+    # Someone who already had an account is signing in, not signing up: no credit.
+    _configure(monkeypatch, {"id_token": _id_token(email="old@example.com", name="Old")})
+    r = await client.post(
+        "/auth/google/exchange",
+        json={"code": "c2", "redirect_uri": "http://localhost:3001/cb", **referral},
+    )
+    assert r.status_code == 200, r.text
+
+    async with SessionLocal() as session:
+        creator = await session.scalar(select(Creator).where(Creator.handle == "keralaslow"))
+        newbie = await session.scalar(select(User).where(User.email == "newbie@example.com"))
+        old = await session.scalar(select(User).where(User.email == "old@example.com"))
+    assert newbie.referred_by_creator_id == creator.id
+    assert old.referred_by_creator_id is None

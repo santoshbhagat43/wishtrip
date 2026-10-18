@@ -54,9 +54,11 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
 async def google_exchange(data: GoogleExchange, session: AsyncSession = Depends(get_session)):
     """Exchange a Google auth code (from the SSO app) for a wishtrip token pair."""
     claims = await google.exchange_code(data.code, data.redirect_uri)
-    user = await users.get_or_create_google_user(
+    user, created = await users.get_or_create_google_user(
         session, email=claims["email"], full_name=claims.get("name", "")
     )
+    if created:
+        await creators.credit_signup(session, user, data.referral_code, data.visitor_id)
     await session.commit()
     return _tokens(user)
 

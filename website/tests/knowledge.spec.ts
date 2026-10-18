@@ -20,7 +20,8 @@ import { expect, signUp, test } from "./fixtures";
 
 test.describe.configure({ timeout: 420_000 });
 
-const DASHBOARD = process.env.DASHBOARD_URL ?? "http://localhost:3001";
+// On *.lvh.me so the dashboard shares the SSO session cookie (see playwright.config.ts).
+const DASHBOARD = process.env.DASHBOARD_URL ?? "http://dashboard.lvh.me:3001";
 const API = process.env.API_URL ?? "http://localhost:8000";
 const ADMIN = { email: process.env.ADMIN_EMAIL ?? "", password: process.env.ADMIN_PASSWORD ?? "" };
 
@@ -38,7 +39,8 @@ async function addKnowledgeAsStaff(browser: Browser) {
   const staff = await context.newPage();
 
   await test.step("Staff signs in to the dashboard", async () => {
-    await staff.goto("/login");
+    // The dashboard sends a signed-out visitor to the shared SSO login, then back again.
+    await staff.goto("/");
     await staff.getByLabel("Email").fill(ADMIN.email);
     await staff.getByLabel("Password").fill(ADMIN.password);
     await staff.getByRole("button", { name: "Sign in" }).click();
@@ -50,10 +52,9 @@ async function addKnowledgeAsStaff(browser: Browser) {
     await staff.getByRole("textbox", { name: "Name", exact: true }).fill(PLACE);
     await staff.getByRole("combobox", { name: "Type", exact: true }).selectOption("experience");
     await staff.getByRole("combobox", { name: "Status", exact: true }).selectOption("published");
-    const city = staff.getByRole("combobox", { name: "Belongs to (city)" });
-    await expect(city.locator("option", { hasText: "Munnar tea hills" })).toHaveCount(1);
-    const munnar = await city.locator("option", { hasText: "Munnar tea hills" }).getAttribute("value");
-    await city.selectOption(munnar!);
+    // The parent city is a search picker: type, then pick the match.
+    await staff.getByPlaceholder("Search city…").fill("Munnar tea hills");
+    await staff.getByRole("button", { name: /^Munnar tea hills\b/ }).click();
     await staff
       .getByRole("textbox", { name: "Summary", exact: true })
       .fill("Gentle, flat walk along tea rows to a west-facing ridge for sunset over the Munnar hills.");

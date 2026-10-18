@@ -64,8 +64,9 @@ test.describe("Gateway allowlist", () => {
     expect(res.status()).toBe(201);
     expect(await res.json()).toEqual({ ok: true }); // no access/refresh tokens in the body
     const cookies = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
-    expect(cookies.some((c) => c.startsWith("wishtrip_traveler_session=") && /HttpOnly/i.test(c))).toBe(true);
-    expect(cookies.some((c) => c.startsWith("wishtrip_traveler_refresh=") && /HttpOnly/i.test(c))).toBe(true);
+    // The shared SSO session names, so this session works on every wishtrip app.
+    expect(cookies.some((c) => c.startsWith("wt_session=") && /HttpOnly/i.test(c))).toBe(true);
+    expect(cookies.some((c) => c.startsWith("wt_refresh=") && /HttpOnly/i.test(c))).toBe(true);
     // The session works through the gateway.
     expect((await request.get("/api/wt/auth/me")).status()).toBe(200);
   });

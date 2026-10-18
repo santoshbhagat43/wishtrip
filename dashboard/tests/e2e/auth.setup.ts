@@ -1,15 +1,15 @@
 import { expect, test as setup } from "@playwright/test";
 
-import { ADMIN, SSO_URL } from "../utils/env";
+import { ADMIN } from "../utils/env";
 
 /**
- * Sign in the way staff actually do: the dashboard sends a signed-out visitor to the SSO app,
- * which mints the shared session cookie and sends them back. The saved state holds that cookie
- * (scoped to the parent domain), so every dashboard test starts signed in.
+ * Staff sign in on the admin dashboard's own /login — it is deliberately separate from the SSO
+ * used by travellers and creators. The saved state holds the admin session cookie, so every
+ * dashboard test starts signed in.
  */
-setup("sign in as admin through SSO and save the session", async ({ page }) => {
+setup("sign in as admin and save the session", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
+  await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Email").fill(ADMIN.email);
   await page.getByLabel("Password").fill(ADMIN.password);
   await page.getByRole("button", { name: "Sign in" }).click();

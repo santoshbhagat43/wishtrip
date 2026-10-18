@@ -18,7 +18,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     ...devices["Desktop Chrome"],
-    baseURL: process.env.WEBSITE_URL ?? "http://localhost:3002",
+    // A sibling of the SSO host (sso.lvh.me): localhost can't read the shared .lvh.me session.
+    baseURL: process.env.WEBSITE_URL ?? "http://app.lvh.me:3002",
     viewport: { width: 1440, height: 900 },
     headless,
     launchOptions: { slowMo: headless ? 0 : Number(process.env.SLOW_MO ?? 200) },

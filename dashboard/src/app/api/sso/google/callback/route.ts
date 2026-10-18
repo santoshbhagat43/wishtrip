@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { BACKEND_URL, setSessionCookies, type TokenPair } from "@/lib/server/session";
+import { referralFrom } from "@/lib/server/referral";
+import { BACKEND_URL, setSharedSessionCookies, type TokenPair } from "@/lib/server/session";
 import { googleRedirectUri, safeRedirect, SSO_URL } from "@/lib/server/sso";
 
 const STATE_COOKIE = "wt_oauth_state";
@@ -36,7 +37,8 @@ export async function GET(request: NextRequest) {
   const res = await fetch(`${BACKEND_URL}/auth/google/exchange`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ code, redirect_uri: googleRedirectUri() }),
+    // A first Google sign-in is a sign-up: credit the creator whose link brought them here.
+    body: JSON.stringify({ code, redirect_uri: googleRedirectUri(), ...referralFrom(request) }),
     cache: "no-store",
   });
   if (!res.ok) return fail("google_exchange");
@@ -44,6 +46,6 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(safeRedirect(saved.redirect));
   response.cookies.set(STATE_COOKIE, "", { path: "/", maxAge: 0 });
-  setSessionCookies(response, tokens);
+  setSharedSessionCookies(response, tokens);
   return response;
 }

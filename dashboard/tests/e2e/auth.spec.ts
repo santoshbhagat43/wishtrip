@@ -1,59 +1,74 @@
+import type { Page } from "@playwright/test";
+
 import { ADMIN, DASHBOARD_URL, SSO_URL } from "../utils/env";
 import { expect, test } from "../fixtures/test";
 
+const ADMIN_LOGIN = new RegExp(`^${DASHBOARD_URL}/login`);
 const SSO_LOGIN = new RegExp(`^${SSO_URL}/sso/login`);
 
-async function signIn(page: import("@playwright/test").Page, email: string, password: string) {
-  await expect(page).toHaveURL(SSO_LOGIN);
+async function fillAndSubmit(page: Page, email: string, password: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 }
 
-test.describe("Authentication (SSO)", () => {
+test.describe("Admin dashboard sign-in (its own, not SSO)", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("signed-out visitors are sent to SSO, with the page they wanted as the way back", async ({ page }) => {
+  test("signed-out visitors get the admin login, with the page they wanted kept", async ({ page }) => {
     await page.goto("/locations");
-    await expect(page).toHaveURL(SSO_LOGIN);
-    const back = new URL(page.url()).searchParams.get("redirect");
-    expect(back).toBe(`${DASHBOARD_URL}/locations`);
+    await expect(page).toHaveURL(ADMIN_LOGIN);
+    expect(new URL(page.url()).searchParams.get("next")).toBe("/locations");
     await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.getByText(/no public sign-up/)).toBeVisible();
   });
 
-  test("a wrong password shows an error and stays on the SSO login", async ({ page, apiLog: _ }) => {
-    await page.goto("/");
-    await signIn(page, ADMIN.email, "not-the-password");
+  test("a wrong password shows an error and stays on the admin login", async ({ page, apiLog: _ }) => {
+    await page.goto("/login");
+    await fillAndSubmit(page, ADMIN.email, "not-the-password");
     await expect(page.getByText("Invalid email or password")).toBeVisible();
-    await expect(page).toHaveURL(SSO_LOGIN);
+    await expect(page).toHaveURL(ADMIN_LOGIN);
   });
 
-  test("a traveller's session is valid but cannot use the dashboard", async ({ page }) => {
+  test("traveller accounts are refused", async ({ page }) => {
     const email = process.env.DEMO_TRAVELER_EMAIL;
     const password = process.env.DEMO_TRAVELER_PASSWORD;
     test.skip(!email || !password, "DEMO_TRAVELER_* not set in .env");
-    await page.goto("/");
-    await signIn(page, email!, password!);
-    // Shown in place, not redirected — a redirect to SSO would loop for a signed-in traveller.
-    await expect(page.getByRole("heading", { level: 1, name: "Staff only" })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`^${DASHBOARD_URL}/`));
+    await page.goto("/login");
+    await fillAndSubmit(page, email!, password!);
+    await expect(page.getByText(/is for WishTrip staff/)).toBeVisible();
+    await expect(page).toHaveURL(ADMIN_LOGIN);
   });
 
-  test("admin lands on the page they asked for, and sign-out ends the shared session", async ({ page, apiLog: _ }) => {
+  test("admin lands on the page they asked for, and sign-out ends the session", async ({ page, apiLog: _ }) => {
     await page.goto("/tags");
-    await signIn(page, ADMIN.email, ADMIN.password);
+    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
     await expect(page.getByRole("heading", { level: 1, name: "Tags" })).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(SSO_LOGIN);
-    // Signed out everywhere: the dashboard sends us straight back to SSO.
+    await expect(page).toHaveURL(ADMIN_LOGIN);
     await page.goto("/tags");
-    await expect(page).toHaveURL(SSO_LOGIN);
+    await expect(page).toHaveURL(ADMIN_LOGIN);
   });
 
-  test("the SSO host serves only the login, never dashboard pages", async ({ page }) => {
-    await page.goto(`${SSO_URL}/tags`);
-    await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
+  test("an SSO session grants nothing in the admin dashboard — even an admin's", async ({ page, context }) => {
+    // Sign in on the shared SSO app with the admin account itself.
+    await page.goto(`${SSO_URL}/sso/login`);
+    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
+    await expect
+      .poll(async () => (await context.cookies(SSO_URL)).map((c) => c.name))
+      .toContain("wt_refresh");
+
+    // The dashboard ignores that session entirely and asks for its own sign-in.
+    await page.goto("/");
+    await expect(page).toHaveURL(ADMIN_LOGIN);
+  });
+
+  test("after sign-in, a ?next= pointing at another site is not followed", async ({ page }) => {
+    await page.goto(`/login?next=${encodeURIComponent("//evil.example.com/steal")}`);
+    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
+    await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+    expect(page.url()).not.toContain("evil.example.com");
   });
 
   test.describe("before the page has hydrated", () => {
@@ -66,31 +81,49 @@ test.describe("Authentication (SSO)", () => {
         if (frame === page.mainFrame()) visited.push(frame.url());
       });
       await page.goto("/tags");
-      await signIn(page, ADMIN.email, ADMIN.password);
+      await fillAndSubmit(page, ADMIN.email, ADMIN.password);
       await expect(page).toHaveURL(`${DASHBOARD_URL}/tags`);
       expect(visited.filter((u) => u.includes("password"))).toEqual([]);
-      const cookies = await context.cookies(DASHBOARD_URL);
-      expect(cookies.map((c) => c.name)).toContain("wt_refresh");
+      expect((await context.cookies(DASHBOARD_URL)).map((c) => c.name)).toContain("wishtrip_admin_refresh");
     });
 
     test("a wrong password comes back as a message, not as credentials in the URL", async ({ page }) => {
-      await page.goto("/");
-      await signIn(page, ADMIN.email, "not-the-password");
-      await expect(page).toHaveURL(SSO_LOGIN);
+      await page.goto("/login");
+      await fillAndSubmit(page, ADMIN.email, "not-the-password");
+      await expect(page).toHaveURL(ADMIN_LOGIN);
       expect(page.url()).toContain("error=invalid");
       expect(page.url()).not.toContain("password");
-      expect(new URL(page.url()).searchParams.get("redirect")).toBe(`${DASHBOARD_URL}/`);
     });
+  });
+});
+
+test.describe("SSO app (travellers and creators)", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("the SSO host serves only the login, never dashboard pages", async ({ page }) => {
+    await page.goto(`${SSO_URL}/tags`);
+    await expect(page).toHaveURL(SSO_LOGIN);
   });
 
   test("a redirect to a foreign site is refused after sign-in", async ({ page, context }) => {
     const evil = "https://evil.example.com/steal";
     await page.goto(`${SSO_URL}/sso/login?redirect=${encodeURIComponent(evil)}`);
-    await signIn(page, ADMIN.email, ADMIN.password);
+    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
     // The login page itself carries the evil URL in its query, so wait for the navigation away.
     await expect(page).not.toHaveURL(/evil\.example\.com/);
     expect(new URL(page.url()).hostname).toMatch(/\.lvh\.me$/);
-    // And the sign-in really happened — the refusal isn't just a failed login.
-    expect((await context.cookies(DASHBOARD_URL)).map((c) => c.name)).toContain("wt_refresh");
+    expect((await context.cookies(SSO_URL)).map((c) => c.name)).toContain("wt_refresh");
+  });
+
+  test.describe("before the page has hydrated", () => {
+    test.use({ javaScriptEnabled: false });
+
+    test("the SSO form never puts the password in a URL", async ({ page }) => {
+      await page.goto(`${SSO_URL}/sso/login`);
+      await fillAndSubmit(page, ADMIN.email, "not-the-password");
+      await expect(page).toHaveURL(SSO_LOGIN);
+      expect(page.url()).toContain("error=invalid");
+      expect(page.url()).not.toContain("password");
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { REF_COOKIE, REF_MAX_AGE, VISITOR_COOKIE } from "@/lib/server/referral";
+import { REF_COOKIE, REF_COOKIE_DOMAIN, REF_MAX_AGE, VISITOR_COOKIE } from "@/lib/server/referral";
 import { BACKEND_URL } from "@/lib/server/session";
 
 /** A creator's link (wishtrip…/c/<code>): remember who sent this visitor, then show the site. */
@@ -18,7 +18,13 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ code: s
   }).catch(() => null);
   if (!res?.ok) return response; // unknown code: just the home page
 
-  const base = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    domain: REF_COOKIE_DOMAIN,
+  };
   response.cookies.set(VISITOR_COOKIE, visitor, { ...base, maxAge: REF_MAX_AGE });
   // First touch wins: a later creator's link doesn't replace the first one.
   if (!request.cookies.has(REF_COOKIE)) {

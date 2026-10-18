@@ -37,15 +37,16 @@ async def create(session: AsyncSession, data: UserCreate) -> User:
 
 async def get_or_create_google_user(
     session: AsyncSession, email: str, full_name: str = ""
-) -> User:
+) -> tuple[User, bool]:
     """Find the user who owns this Google email, or create a traveler for them.
 
-    Google sign-in has no password, so (like creator OTP) we store a random hash to keep the
-    column non-guessable. The caller commits.
+    Returns the user and whether they were just created (a new sign-up, which a creator's
+    referral link may be credited for). Google sign-in has no password, so (like creator OTP)
+    we store a random hash to keep the column non-guessable. The caller commits.
     """
     user = await get_by_email(session, email)
     if user:
-        return user
+        return user, False
     user = User(
         email=email.lower(),
         hashed_password=hash_password(secrets.token_urlsafe(24)),
@@ -54,7 +55,7 @@ async def get_or_create_google_user(
     )
     session.add(user)
     await session.flush()
-    return user
+    return user, True
 
 
 async def update(session: AsyncSession, user: User, data: UserUpdate) -> User:

@@ -105,9 +105,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const urgent = support.data?.counts.urgent ?? 0;
 
   async function logout() {
-    // Clears the shared SSO cookie (so every app signs out); the dashboard root then bounces to SSO.
+    // Ends the admin session and returns to the admin dashboard's own sign-in.
     await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
+    router.replace("/login");
+    router.refresh();
   }
 
   return (

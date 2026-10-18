@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { REF_COOKIE, REF_MAX_AGE, VISITOR_COOKIE } from "@/lib/server/referral";
+import { REF_COOKIE, REF_COOKIE_DOMAIN, REF_MAX_AGE, VISITOR_COOKIE } from "@/lib/server/referral";
 import { BACKEND_URL } from "@/lib/server/session";
 
 /** A visitor opened a creator's shared trip link: credit the creator (first touch wins). */
@@ -18,7 +18,13 @@ export async function POST(request: NextRequest) {
   }).catch(() => null);
   if (!res?.ok) return response;
 
-  const base = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    domain: REF_COOKIE_DOMAIN,
+  };
   response.cookies.set(VISITOR_COOKIE, visitor, { ...base, maxAge: REF_MAX_AGE });
   if (!request.cookies.has(REF_COOKIE)) response.cookies.set(REF_COOKIE, referralCode, { ...base, maxAge: REF_MAX_AGE });
   return response;
