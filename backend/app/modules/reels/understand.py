@@ -3,6 +3,7 @@
 import base64
 import re
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from typing import Any
 
 from app.ai.orchestrator import AIOrchestrator, parse_json_object
@@ -22,7 +23,7 @@ Rules:
 - Only places that are named in the material. Never add places from your own knowledge.
 - "evidence" must quote the words from the material that name the place (copy them exactly).
 - "source" is where the evidence is: "caption", "screen" or "voice".
-- "t" is the second in the video for screen/voice evidence when known, else null.
+- "t" is always null: timestamps are worked out separately.
 - kind is one of: "stay" (hotel, villa, homestay), "food" (restaurant, cafe, bar, dish spot),
   "sight" (beach, fort, church, viewpoint, market), "experience" (cruise, tour, activity),
   "area" (a town or neighbourhood).
@@ -129,7 +130,52 @@ def grounded(place: dict[str, Any], corpus: str) -> bool:
     return any(re.search(rf"\b{re.escape(w)}\b", corpus) for w in words)
 
 
-def clean_reading(data: dict[str, Any], text: str) -> Reading:
+# Words that say what a place is, not which one ("beach", "temple"): not proof of a match.
+_KIND_WORDS = {
+    "cafe", "restaurant", "beach", "fort", "hotel", "resort", "villa", "market", "temple",
+    "church", "lake", "bar", "bistro", "kitchen", "house", "view", "viewpoint", "point",
+    "island", "falls", "trek", "tour", "cruise", "north", "south", "east", "west", "old", "new",
+    "warung", "pura", "the", "and", "day",
+}  # fmt: skip
+
+
+def _close(word: str, seen: str) -> bool:
+    """Equal, or nearly. OCR clips letters off the edges of a word ("jwatu" for "uluwatu") and
+    misreads others, so a long run of the same letters counts when it sits at the start or end of
+    both words: that is what clipping leaves, and what a coincidence in the middle isn't."""
+    matcher = SequenceMatcher(None, word, seen)
+    if matcher.ratio() >= 0.8:
+        return True
+    m = matcher.find_longest_match(0, len(word), 0, len(seen))
+
+    def at_edge(start: int, size: int, length: int) -> bool:
+        return start == 0 or start + size == length
+
+    return (
+        m.size >= 4
+        and m.size >= 0.6 * min(len(word), len(seen))
+        and at_edge(m.a, m.size, len(word))
+        and at_edge(m.b, m.size, len(seen))
+    )
+
+
+def seen_on_screen(name: str, ocr_lines: list[dict]) -> float | None:
+    """The second a place first shows on screen, from the text actually read off the frames.
+
+    Voice-overs carry no timestamps and a model will happily invent one, so a time is only ever
+    this: the earliest line whose text shares a distinctive word with the place's name.
+    """
+    words = [w for w in _norm(name).split() if len(w) >= 4 and w not in _KIND_WORDS]
+    if not words:
+        return None
+    for line in sorted(ocr_lines, key=lambda x: x["t"]):
+        have = [h for h in _norm(str(line["text"])).split() if len(h) >= 4]
+        if any(_close(w, h) for w in words for h in have):
+            return float(line["t"])
+    return None
+
+
+def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None = None) -> Reading:
     corpus = _norm(text)
     places: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -142,14 +188,15 @@ def clean_reading(data: dict[str, Any], text: str) -> Reading:
         if not name or _norm(name) in seen or not grounded(p, corpus):
             continue
         seen.add(_norm(name))
-        t = p.get("t")
+        # Never the model's own guess at a time: only when the name really appeared on screen.
+        t = seen_on_screen(name, ocr_lines or [])
         places.append(
             {
                 "name": name,
                 "kind": p.get("kind") if p.get("kind") in KINDS else "sight",
                 "evidence": str(p.get("evidence") or "").strip()[:300],
                 "source": p.get("source") if p.get("source") in SOURCES else "caption",
-                "t": float(t) if isinstance(t, int | float) else None,
+                "t": t,
             }
         )
     days = data.get("days_hint")
@@ -163,7 +210,9 @@ def clean_reading(data: dict[str, Any], text: str) -> Reading:
     )
 
 
-async def read_places(ai: AIOrchestrator, text: str) -> Reading:
+async def read_places(
+    ai: AIOrchestrator, text: str, ocr_lines: list[dict] | None = None
+) -> Reading:
     raw = await ai.complete(
         "planner",
         [{"role": "system", "content": EXTRACT_PROMPT}, {"role": "user", "content": text}],
@@ -171,4 +220,4 @@ async def read_places(ai: AIOrchestrator, text: str) -> Reading:
         temperature=0.1,
         max_tokens=2000,
     )
-    return clean_reading(parse_json_object(raw), text)
+    return clean_reading(parse_json_object(raw), text, ocr_lines)

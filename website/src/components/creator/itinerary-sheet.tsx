@@ -35,6 +35,13 @@ const WHEN = ["Morning", "Midday", "Afternoon", "Evening"];
 const reelTime = (t: number | null | undefined) =>
   typeof t === "number" ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}` : null;
 
+/** The reel's words about a stop, unless they only repeat its name. */
+const noteFor = (s: Item) => {
+  const note = s.note.trim().toLowerCase();
+  const name = s.name.trim().toLowerCase();
+  return !note || name.includes(note) || note.includes(name) ? "" : s.note.slice(0, 48);
+};
+
 /** The trip's stops as days: the creator's own days if they set them, else about three a day. */
 export function daysFromItems(items: Item[]): ItineraryDay[] {
   const stops = items.filter((i) => i.name.trim());
@@ -48,7 +55,7 @@ export function daysFromItems(items: Item[]): ItineraryDay[] {
     const day = days.get(dayOf(i)) ?? [];
     days.set(dayOf(i), [
       ...day,
-      { when: WHEN[day.length % WHEN.length], kind: s.kind, name: s.name, note: s.note.slice(0, 48), at: reelTime(s.t) },
+      { when: WHEN[day.length % WHEN.length], kind: s.kind, name: s.name, note: noteFor(s), at: reelTime(s.t) },
     ]);
   });
   return [...days.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));

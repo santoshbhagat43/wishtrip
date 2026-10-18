@@ -2,6 +2,7 @@
 and publishes shareable affiliate links. Plus the public endpoint those links resolve to."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -213,12 +214,24 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
 # --- Reel links ---------------------------------------------------------------------------------
 
 
+# A reel is read in a minute or two. Past this, the worker has died or lost the job: say so,
+# rather than leave the creator watching a spinner.
+READING_GIVES_UP_AFTER = timedelta(minutes=15)
+
+
+def _gave_up(job: ReelImport) -> bool:
+    return (
+        job.status in (ImportStatus.QUEUED, ImportStatus.RUNNING)
+        and datetime.now(UTC) - job.created_at > READING_GIVES_UP_AFTER
+    )
+
+
 def _link_status(link: CreatorLink, job: ReelImport | None, trip: CreatorTrip | None) -> str:
     if not link.instagram_url and not link.youtube_url:
         return "waiting"
     if job is None or (job.status == ImportStatus.DONE and trip is None):
         return "unread"
-    if job.status == ImportStatus.FAILED:
+    if job.status == ImportStatus.FAILED or _gave_up(job):
         return "failed"
     if job.status != ImportStatus.DONE:
         return "building"
@@ -280,7 +293,11 @@ async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[Cr
                 auto_publish=link.auto_publish,
                 status=state,
                 step=job.step.value if job and state == "building" else None,
-                error=job.error if job and state == "failed" else "",
+                error=(
+                    (job.error or "This took too long. Try again.")
+                    if job and state == "failed"
+                    else ""
+                ),
                 trip_id=trip.id if trip else None,
                 share_code=trip.share_code if trip and state == "published" else None,
                 cover_image_url=trips.cover_url(trip) if trip else None,
@@ -351,7 +368,10 @@ async def change_my_link(
         youtube_url=data.youtube_url if "youtube_url" in sent else None,
         auto_publish=data.auto_publish,
     )
-    if data.published is not None:
+    reel_changed = link.instagram_shortcode != before
+    if reel_changed:
+        await _retire_trip(session, link)  # the old reel's itinerary must not stay public
+    if data.published is not None and not reel_changed:
         trip = await _link_trip(session, link)
         if trip is None:
             raise bad_request("There's no itinerary to publish yet.")
@@ -383,9 +403,17 @@ async def build_my_link(
         raise bad_request(
             "Add your Instagram reel link first. We can only read Instagram reels for now."
         )
+    await _retire_trip(session, link)
     await _start_import(session, ai, user, link.instagram_shortcode, link)
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
+
+
+async def _retire_trip(session: AsyncSession, link: CreatorLink) -> None:
+    """Take down the itinerary built from the reel this link is leaving behind."""
+    trip = await _link_trip(session, link)
+    if trip is not None and trip.status == TripStatus.PUBLISHED:
+        trip.status = TripStatus.DRAFT
 
 
 async def _link_trip(session: AsyncSession, link: CreatorLink) -> CreatorTrip | None:

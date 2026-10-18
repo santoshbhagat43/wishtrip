@@ -395,3 +395,92 @@ async def test_removing_the_reel_drops_its_itinerary(client, fake_reel):
         f"/creator/links/{link['id']}", json={"instagram_url": ""}, headers=headers
     )
     assert cleared.json()["status"] == "waiting" and cleared.json()["trip_id"] is None
+
+
+def test_a_reels_days_follow_what_the_creator_said():
+    from app.modules.creators import trips
+
+    def item(name, kind="sight"):
+        return {"name": name, "kind": kind, "day": None}
+
+    six = [item(n) for n in "ABCDEF"]
+    spread = trips.assign_days(six + [item("Villa", "stay")], 4)
+    # "4 days in Bali" with six stops: four days, one or two stops each, in the reel's order.
+    days = [i["day"] for i in spread if i["kind"] != "stay"]
+    assert days == sorted(days) and set(days) == {1, 2, 3}  # six stops fill three 2-stop days
+    assert [i["day"] for i in spread if i["kind"] == "stay"] == [1]
+    assert spread[0]["kind"] == "stay"  # check in comes first
+    # No number said: about three stops a day.
+    assert max(i["day"] for i in trips.assign_days([item(n) for n in "ABCDEFG"], None)) == 3
+    assert trips.assign_days([], None) == []
+
+
+async def test_a_reel_with_no_places_says_so(client, monkeypatch):
+    async def empty(session, ai, shortcode, on_step=None):
+        content = CreatorContent(
+            shortcode=shortcode,
+            url=reels.canonical_url(shortcode),
+            destination_name="Bali",
+            extracted={},
+            places=[
+                {"name": "Bali", "kind": "area", "evidence": "Bali", "source": "caption", "t": None,
+                 "verified": False, "location_id": None, "location_name": None}
+            ],
+        )  # fmt: skip
+        session.add(content)
+        await session.flush()
+        return content
+
+    monkeypatch.setattr(reels, "produce_content", empty)
+    monkeypatch.setattr(settings, "reels_inline", True)
+    headers = await _creator(client, "noplaces@creators.example.com")
+    link = await _link_with_reel(client, headers)
+    assert link["status"] == "failed"
+    assert "couldn't find any places" in link["error"]
+
+
+async def test_an_unexpected_crash_ends_the_job_instead_of_hanging(client, monkeypatch):
+    async def crash(session, ai, shortcode, on_step=None):
+        raise RuntimeError("the worker fell over")
+
+    monkeypatch.setattr(reels, "produce_content", crash)
+    monkeypatch.setattr(settings, "reels_inline", True)
+    headers = await _creator(client, "crash@creators.example.com")
+    link = await _link_with_reel(client, headers)
+    # Not stuck on "building": it failed, with something a creator can read (not the traceback).
+    assert link["status"] == "failed"
+    assert "fell over" not in link["error"] and "Try again" in link["error"]
+
+
+async def test_a_lost_job_is_given_up_on_rather_than_spinning_forever(client):
+    from datetime import UTC, datetime, timedelta
+
+    headers = await _creator(client, "lost@creators.example.com")
+    link = await _link_with_reel(client, headers)  # queued; the worker never takes it
+    assert link["status"] == "building"
+    async with SessionLocal() as session:
+        job = await session.scalar(select(ReelImport))
+        job.created_at = datetime.now(UTC) - timedelta(minutes=30)
+        await session.commit()
+    again = (await client.get("/creator/links", headers=headers)).json()[0]
+    assert again["status"] == "failed" and "took too long" in again["error"]
+
+
+async def test_changing_or_removing_the_reel_takes_the_old_itinerary_down(client, fake_reel):
+    headers = await _creator(client, "swap@creators.example.com")
+    link = await _link_with_reel(client, headers, auto_publish=True)
+    code = link["share_code"]
+    assert code and (await client.get(f"/trips/{code}")).status_code == 200
+
+    other = await client.patch(
+        f"/creator/links/{link['id']}",
+        json={"instagram_url": "instagram.com/reel/Cother0001/"},
+        headers=headers,
+    )
+    assert other.status_code == 200, other.text
+    # The old reel's itinerary is no longer public (the new one is built, and published as asked).
+    assert (await client.get(f"/trips/{code}")).status_code == 404
+    assert other.json()["share_code"] != code
+
+    await client.patch(f"/creator/links/{link['id']}", json={"instagram_url": ""}, headers=headers)
+    assert (await client.get(f"/trips/{other.json()['share_code']}")).status_code == 404

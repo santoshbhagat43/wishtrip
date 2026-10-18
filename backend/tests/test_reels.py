@@ -317,3 +317,44 @@ async def test_upload_rejects_non_video(client, traveler, monkeypatch):
         headers={**auth(traveler), "content-type": "text/plain"},
     )
     assert r.status_code == 400
+
+
+# Timestamps ----------------------------------------------------------------------------------
+
+
+def test_a_time_is_only_ever_one_the_text_on_screen_really_had():
+    from app.modules.reels.understand import seen_on_screen
+
+    screen = [
+        {"t": 0.0, "text": "BALI IN 4 DAYS"},
+        {"t": 4.0, "text": "ijwatu Temple at suns"},  # OCR garbled the first letters
+        {"t": 5.0, "text": "jwatu Temple at sun"},  # OCR clipped the first letters
+        {"t": 15.0, "text": "2galalang Rice Terra"},
+    ]
+    assert seen_on_screen("Uluwatu Temple", screen) == 4.0
+    assert seen_on_screen("Tegalalang Rice Terrace", screen) == 15.0
+    # Only said out loud, never on screen: no time, rather than a made-up one.
+    assert seen_on_screen("Kelingking Beach", screen) is None
+    # A few letters in common with an unrelated word is not a match ("Guling" / "Kelingking").
+    both = [
+        {"t": 10.0, "text": "ung Babi Guling Ibu"},
+        {"t": 20.0, "text": "Kelingking Beach"},
+    ]
+    assert seen_on_screen("Kelingking Beach", both) == 20.0
+    assert seen_on_screen("Kelingking Beach", both[:1]) is None
+    # A word that only says what kind of place it is ("temple") is not a match.
+    assert seen_on_screen("Besakih Temple", screen) is None
+
+
+def test_the_models_own_timestamp_is_ignored():
+    reading = clean_reading(
+        {
+            "places": [
+                {"name": "Kelingking Beach", "kind": "sight", "evidence": "Kelingking Beach",
+                 "source": "voice", "t": 12.5},
+            ]
+        },
+        "VOICE-OVER:\nSee Kelingking Beach",
+        [{"t": 3.0, "text": "Nothing about it here"}],
+    )  # fmt: skip
+    assert reading.places[0]["t"] is None

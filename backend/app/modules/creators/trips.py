@@ -43,6 +43,25 @@ def _item_from_place(place: dict) -> dict:
     }
 
 
+def assign_days(items: list[dict], days_hint: int | None) -> list[dict]:
+    """Spread a reel's stops over its days, in the order the reel names them.
+
+    The creator's own number of days when the reel says one ("4 days in Bali"), else about three
+    stops a day. A stay goes on day 1 (check-in) and is not counted among the day's stops.
+    """
+    stops = [i for i in items if i["kind"] != "stay"]
+    days = min(7, days_hint if days_hint else max(1, -(-len(stops) // 3)))
+    days = max(1, min(days, len(stops) or 1))
+    per_day = -(-len(stops) // days)
+    for n, item in enumerate(stops):
+        item["day"] = n // per_day + 1
+    for item in items:
+        if item["kind"] == "stay":
+            item["day"] = 1
+    # Check in first, then the days in order.
+    return sorted(items, key=lambda i: i["kind"] != "stay")
+
+
 async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
     """Turn a processed reel into a draft trip owned by the creator who imported it."""
     creator = await session.scalar(select(Creator).where(Creator.user_id == job.user_id))
@@ -56,7 +75,10 @@ async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
         summary=extracted.get("summary", ""),
         cover_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
-        items=[_item_from_place(p) for p in content.places],
+        items=assign_days(
+            [_item_from_place(p) for p in content.places if p.get("kind") != "area"],
+            extracted.get("days_hint"),
+        ),
     )
     session.add(trip)
     await session.flush()

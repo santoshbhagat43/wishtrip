@@ -269,7 +269,7 @@ async def _read_into_content(
     )
     if not ai.enabled:
         raise ReelError("Reading reels needs the AI service, which is not set up.")
-    reading = await read_places(ai, text)
+    reading = await read_places(ai, text, ocr_lines)
     destination, places = await match_places(session, ai, reading)
 
     owner = meta.get("owner_username") or ""
@@ -390,10 +390,15 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
         else:
             content = await produce_content(session, ai, job.shortcode, on_step=step)
         if job.kind == ImportKind.CREATOR_TRIP:
+            if not any(p.get("kind") != "area" for p in content.places):
+                raise ReelError(
+                    "We couldn't find any places in that reel. Does it name them in the caption, "
+                    "on screen or out loud?"
+                )
             await creator_trips.finish_import(session, job, content)
         else:
             await finish(session, job, content)
-    except (ReelError, media.MediaError, AIUnavailableError, ValueError) as exc:
+    except Exception as exc:  # noqa: BLE001 - whatever goes wrong, the job must end, not hang
         await session.rollback()
         job = await session.get(ReelImport, job_id, populate_existing=True)
         assert job is not None
@@ -405,8 +410,8 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
 def _message(exc: Exception) -> str:
     if isinstance(exc, ReelError):
         return str(exc)
-    logger.warning("Reel import failed: %s", exc)
-    return "We couldn't read that reel. Try again, or tell Arya the places instead."
+    logger.exception("Reel import failed", exc_info=exc)
+    return "We couldn't read that reel. Try again in a bit, or tell Arya the places instead."
 
 
 async def cached(session: AsyncSession, shortcode: str) -> CreatorContent | None:
