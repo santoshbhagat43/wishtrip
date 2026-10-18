@@ -127,6 +127,18 @@ test.describe("Reel links", () => {
     await expect(sheet.getByText("DAY 3")).toBeVisible();
     await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
     await expect(sheet.getByText("Ready to publish")).toBeVisible();
+    // The bookings that come with the board, and sharing it with family.
+    await expect(sheet.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
+    await expect(sheet.getByText("FLIGHTS")).toBeVisible();
+    await expect(sheet.getByText("STAY", { exact: true })).toBeVisible();
+    await expect(sheet.getByText("TRANSFERS")).toBeVisible();
+    await sheet.getByRole("button", { name: "Share with family" }).click();
+    const share = sheet.getByRole("group", { name: "Share with family" });
+    await expect(share.getByText("Publish the itinerary first")).toBeVisible();
+    await expect(share.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-share.png` });
+    await sheet.getByRole("button", { name: "Share with family" }).click();
+    await expect(share).toHaveCount(0);
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-itinerary.png`, fullPage: true });
 
     // 6. Only the creator publishes (unless they chose auto), and can take it back.

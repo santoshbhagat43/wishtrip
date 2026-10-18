@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Compass, Copy, Landmark, Play, Utensils, BedDouble } from "lucide-react";
+import { ArrowLeft, BedDouble, Check, Compass, Copy, Landmark, MessageCircle, Play, Share2, Utensils } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { reelLink, withoutScheme } from "@/lib/creator";
@@ -57,6 +57,34 @@ export function sampleItinerary(): ItineraryDay[] {
 
 export const stopCount = (days: ItineraryDay[]) => days.reduce((n, d) => n + d.stops.length, 0);
 
+type Booking = { kind: string; price: string; title: string; detail: string; chip: string; swap?: string };
+
+/** What travellers can book with the itinerary. Sample details and prices, as in the prototype. */
+const BOOKINGS: Booking[] = [
+  {
+    kind: "FLIGHTS",
+    price: "₹19,800",
+    title: "BLR ⇄ GOI · IndiGo",
+    detail: "12 Dec 8:10 am · 16 Dec 6:30 pm · 3 seats",
+    chip: "Cheapest, seats together",
+  },
+  {
+    kind: "STAY",
+    price: "₹14,400",
+    title: "Assagao heritage villa",
+    detail: "2 ground-floor rooms · 4 nights",
+    chip: "Ground floor for Mum",
+    swap: "Swap for Siolim (−₹6,200)",
+  },
+  {
+    kind: "TRANSFERS",
+    price: "₹3,200",
+    title: "Private SUV, same driver",
+    detail: "Airport both ways + 3 day trips",
+    chip: "Short drives only",
+  },
+];
+
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label: string }) {
   return (
     <button
@@ -95,6 +123,7 @@ export function ItinerarySheet({
   const days = sampleItinerary();
   const short = reelLink(code);
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -117,16 +146,83 @@ export function ItinerarySheet({
         >
           <ArrowLeft className="size-4" /> Back to reel
         </button>
-        <span className="text-sm text-[#566E85]">Itinerary preview</span>
+        <span className="text-sm text-[#566E85]">Itinerary preview · sample details and prices</span>
       </header>
 
       <main className="mx-auto grid max-w-[1240px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pt-8">
         <section className="flex min-w-0 flex-col gap-3">
           <span className="text-[11.5px] font-bold tracking-wider text-[#0A7C80]">YOUR ITINERARY</span>
-          <h1 className="font-display m-0 text-[32px] font-medium leading-tight md:text-[44px]">{title}</h1>
-          <p className="m-0 text-sm text-[#566E85]">
-            {days.length} days · {stopCount(days)} stops · made from your reel
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h1 className="font-display m-0 text-[32px] font-medium leading-tight md:text-[44px]">{title}</h1>
+              <p className="m-0 text-sm text-[#566E85]">
+                {days.length} days · {stopCount(days)} stops · made from your reel
+              </p>
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={sharing}
+                onClick={() => setSharing((open) => !open)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E1D8] bg-white px-4 py-2 text-sm font-semibold"
+              >
+                <Share2 className="size-4" /> Share with family
+              </button>
+              {sharing && (
+                <div
+                  role="group"
+                  aria-label="Share with family"
+                  className="absolute right-0 top-[calc(100%+8px)] z-20 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E8E1D8] bg-white p-4 shadow-lg"
+                >
+                  <strong className="text-sm">Send it to the people coming with you</strong>
+                  <code className="break-all rounded-lg bg-[#F4EFE8] px-2.5 py-2 text-[12.5px]">{withoutScheme(short)}</code>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(short);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
+                    >
+                      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {copied ? "Copied" : "Copy link"}
+                    </button>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`${title} — ${short}`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-[#E8E1D8] px-3.5 py-2 text-[13px] font-semibold"
+                    >
+                      <MessageCircle className="size-3.5" /> WhatsApp
+                    </a>
+                  </div>
+                  {!published && (
+                    <span className="text-xs text-[#8A7F72]">Publish the itinerary first, so they can open it.</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="mt-3 text-[11.5px] font-bold tracking-wider text-[#566E85]">BOOKINGS ON YOUR BOARD</p>
+          <div className="grid gap-2.5 sm:grid-cols-3">
+            {BOOKINGS.map((b) => (
+              <div key={b.kind} className="flex flex-col gap-1 rounded-[16px] border border-[#E8E1D8] bg-white p-3.5">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[11px] font-bold tracking-wider text-[#8A7F72]">{b.kind}</span>
+                  <strong className="text-[15px]">{b.price}</strong>
+                </span>
+                <strong className="text-[14px] leading-snug">{b.title}</strong>
+                <span className="text-[12.5px] text-[#566E85]">{b.detail}</span>
+                <span className="mt-1 flex flex-col items-start gap-1">
+                  <span className="rounded-full bg-[#D8F6F7] px-2 py-0.5 text-[10.5px] font-semibold text-[#0A6B6E]">{b.chip}</span>
+                  {b.swap && <span className="text-[12px] font-semibold text-[#0A7C80]">{b.swap}</span>}
+                </span>
+              </div>
+            ))}
+          </div>
 
           <p className="mt-2 text-[11.5px] font-bold tracking-wider text-[#566E85]">DAY BY DAY</p>
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
