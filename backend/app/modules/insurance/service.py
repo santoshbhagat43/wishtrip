@@ -3,6 +3,7 @@
 from app.core.config import settings
 from app.modules.insurance.client import tripjack_insurance
 from app.modules.insurance.schemas import InsuranceSearch
+from app.modules.tripjack import trace
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
 
 
@@ -57,7 +58,10 @@ async def search(q: InsuranceSearch) -> dict:
         plans = sorted(
             (plan(p) for p in data.get("productInfo") or []), key=lambda p: p["price"]["total"]
         )
-        cached = {"search_id": data.get("searchId"), "plans": plans}
+        cached = {"search_id": data.get("searchId"), "plans": plans, "_trace": trace.stamp()}
         if plans:
             await cache_set(key, cached, settings.tripjack_insurance_cache_seconds)
-    return {**cached, "total": len(cached["plans"]), "journey": q.journey}
+    else:
+        trace.note_cache(cached.get("_trace"))
+    shown = {k: v for k, v in cached.items() if k != "_trace"}
+    return {**shown, "total": len(cached["plans"]), "journey": q.journey}

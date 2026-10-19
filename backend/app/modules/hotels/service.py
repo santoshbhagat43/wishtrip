@@ -16,6 +16,7 @@ from app.modules.hotels.models import SupplierHotel, SupplierRegion
 from app.modules.hotels.pricing import normalise_options
 from app.modules.hotels.schemas import HotelPricing, HotelSearch
 from app.modules.hotels.sync import sync_region_content, sync_region_mapping
+from app.modules.tripjack import trace
 from app.modules.tripjack.cache import cache_get as _cache_get
 from app.modules.tripjack.cache import cache_key as _key
 from app.modules.tripjack.cache import cache_set as _cache_set
@@ -141,6 +142,7 @@ async def search_stream(
     key = _key("search", region.region_id, q.check_in, q.check_out, _rooms(q), q.nationality)
     cached = await _cache_get(key)
     if cached:
+        trace.note_cache(cached.get("_trace"))
         yield {"hotels": cached["hotels"], "cached": True}
         yield {"done": True, "correlation_id": cached["correlation_id"], "cached": True,
                "region": cached["region"], "total": len(cached["hotels"])}
@@ -187,7 +189,12 @@ async def search_stream(
     if cards:
         await _cache_set(
             key,
-            {"hotels": cards, "correlation_id": correlation_id, "region": region_info},
+            {
+                "hotels": cards,
+                "correlation_id": correlation_id,
+                "region": region_info,
+                "_trace": trace.stamp(),
+            },
             settings.tripjack_listing_cache_seconds,
         )
     yield {"done": True, "correlation_id": correlation_id, "region": region_info,

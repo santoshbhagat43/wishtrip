@@ -18,9 +18,58 @@ def new_correlation_id() -> str:
     return uuid.uuid4().hex[:22]
 
 
+def _option_excerpt(o: dict) -> dict:
+    p = o.get("pricing") or {}
+    return {
+        "optionId": o.get("optionId"),
+        "total": p.get("totalPrice"),
+        "base": p.get("basePrice"),
+        "taxes": p.get("taxes"),
+        "mf": p.get("mf"),
+        "mft": p.get("mft"),
+        "currency": p.get("currency"),
+        "meal": o.get("mealBasis"),
+        "rooms": [r.get("name") for r in o.get("roomInfo") or []],
+    }
+
+
 class TripJackHotels(TripJackHTTP):
+    product = "hotels"
+
     def api_key(self) -> str | None:
         return settings.tripjack_api_key
+
+    def excerpt(self, url: str, body: Any) -> dict | None:
+        """The hotel ids, names and prices exactly as TripJack sent them."""
+        if not isinstance(body, dict):
+            return None
+        if url.endswith("/hotel/listing"):
+            hotels = body.get("hotels") or []
+            return {
+                "count": len(hotels),
+                "hotels": [
+                    {
+                        "hotelId": h.get("hotelId") or h.get("tjHotelId"),
+                        "name": h.get("name"),
+                        "options": [_option_excerpt(o) for o in (h.get("options") or [])[:3]],
+                    }
+                    for h in hotels[:400]
+                ],
+            }
+        if url.endswith("/hotel/pricing"):
+            options = body.get("options") or []
+            return {
+                "hotelId": body.get("hotelId") or body.get("tjHotelId"),
+                "hotelName": body.get("hotelName"),
+                "count": len(options),
+                "options": [_option_excerpt(o) for o in options[:60]],
+            }
+        if "/content/" in url:
+            rows = (
+                body.get("hotels") or body.get("hotelCityRegionIds") or body.get("hotelCountries")
+            )
+            return {"count": len(rows or [])}
+        return None
 
     def read_error(self, body: Any, status_code: int, text: str) -> TripJackError | None:
         """Errors arrive as HTTP 200 with an `error` envelope, so the body is read, not the

@@ -12,6 +12,7 @@ from app.modules.hotels import service
 from app.modules.hotels.client import TripJackError, TripJackNotConfigured, tripjack_hotels
 from app.modules.hotels.models import SupplierRegion
 from app.modules.hotels.schemas import HotelPricing, HotelSearch
+from app.modules.tripjack import trace
 from app.modules.users.models import User
 
 router = APIRouter(prefix="/hotels", tags=["hotels"])
@@ -54,10 +55,12 @@ async def search(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_user),
 ):
+    tr = trace.start()
     try:
-        return await service.search(session, body)
+        result = await service.search(session, body)
     except (TripJackError, TripJackNotConfigured, service.NoDestination) as exc:
         raise _supplier_error(exc) from exc
+    return {**result, "supplier": await trace.finish(tr)}
 
 
 @router.post("/search/stream")
@@ -68,8 +71,11 @@ async def search_stream(body: HotelSearch, _: User = Depends(get_current_user)):
     async def events() -> AsyncIterator[str]:
         # Its own session: the request's would be closed before the stream finishes.
         async with SessionLocal() as session:
+            tr = trace.start()
             try:
                 async for event in service.search_stream(session, body):
+                    if event.get("done"):
+                        event["supplier"] = await trace.finish(tr)
                     yield f"data: {json.dumps(event)}\n\n"
             except (TripJackError, TripJackNotConfigured, service.NoDestination) as exc:
                 yield f"data: {json.dumps({'error': _supplier_error(exc).detail})}\n\n"
@@ -84,10 +90,12 @@ async def pricing(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_user),
 ):
+    tr = trace.start()
     try:
-        return await service.pricing(session, hotel_id, body)
+        result = await service.pricing(session, hotel_id, body)
     except (TripJackError, TripJackNotConfigured) as exc:
         raise _supplier_error(exc) from exc
+    return {**result, "supplier": await trace.finish(tr)}
 
 
 # ---- staff: catalogue sync ----

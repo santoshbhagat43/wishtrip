@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.modules.flights import pricing
 from app.modules.flights.client import tripjack_flights
 from app.modules.flights.schemas import FareRuleQuery, FlightSearch
+from app.modules.tripjack import trace
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
 
 log = logging.getLogger(__name__)
@@ -19,9 +20,11 @@ async def search(q: FlightSearch) -> dict:
         party = {"ADULT": q.adults, "CHILD": q.children, "INFANT": q.infants}
         routes = [(leg.origin, leg.destination) for leg in q.legs]
         body = await tripjack_flights.search(query)
-        cached = {"flights": pricing.normalise(body, party, routes)}
+        cached = {"flights": pricing.normalise(body, party, routes), "_trace": trace.stamp()}
         if cached["flights"]:
             await cache_set(key, cached, settings.tripjack_flight_cache_seconds)
+    else:
+        trace.note_cache(cached.get("_trace"))
     flights = sorted(cached["flights"], key=pricing.SORTS[q.sort])
     return {"total": len(flights), "flights": flights}
 
@@ -31,5 +34,8 @@ async def fare_rules(q: FareRuleQuery) -> dict:
     cached = await cache_get(key)
     if cached is None:
         cached = pricing.fare_rules(await tripjack_flights.fare_rule(q.price_id))
+        cached["_trace"] = trace.stamp()
         await cache_set(key, cached, settings.tripjack_flight_cache_seconds)
-    return cached
+    else:
+        trace.note_cache(cached.get("_trace"))
+    return {k: v for k, v in cached.items() if k != "_trace"}

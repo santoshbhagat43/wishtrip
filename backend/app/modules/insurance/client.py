@@ -9,8 +9,29 @@ __all__ = ["TripJackInsurance", "TripJackError", "TripJackNotConfigured", "tripj
 
 
 class TripJackInsurance(TripJackHTTP):
+    product = "insurance"
+
     def api_key(self) -> str | None:
         return settings.tripjack_insurance_api_key or settings.tripjack_api_key
+
+    def excerpt(self, url: str, body: Any) -> dict | None:
+        """Each plan's id, insurer and whole-trip premium as TripJack priced it."""
+        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(data, dict) or "productInfo" not in data:
+            return None
+        plans = data.get("productInfo") or []
+        return {
+            "searchId": data.get("searchId"),
+            "count": len(plans),
+            "plans": [
+                {
+                    "productId": p.get("productId"),
+                    "insurer": p.get("insuranceProvider"),
+                    "totalFare": (p.get("fareDetails") or {}).get("totalFare"),
+                }
+                for p in plans[:100]
+            ],
+        }
 
     def read_error(self, body: Any, status_code: int, text: str) -> TripJackError | None:
         """Business errors use {success: false, error: {code, message}}; a bad key is a raw

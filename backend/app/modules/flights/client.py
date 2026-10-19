@@ -9,8 +9,62 @@ __all__ = ["TripJackError", "TripJackFlights", "TripJackNotConfigured", "tripjac
 
 
 class TripJackFlights(TripJackHTTP):
+    product = "flights"
+
     def api_key(self) -> str | None:
         return settings.tripjack_flight_api_key or settings.tripjack_api_key
+
+    def excerpt(self, url: str, body: Any) -> dict | None:
+        """Every fare id with the per-passenger base fare and taxes TripJack quoted."""
+        if not isinstance(body, dict):
+            return None
+        if url.endswith("/fms/v1/air-search-all"):
+            trips = (body.get("searchResult") or {}).get("tripInfos") or {}
+            rows = []
+            for journey, items in trips.items():
+                for t in items or []:
+                    segs = t.get("sI") or []
+                    rows.append(
+                        {
+                            "journey": journey,
+                            "flights": [
+                                f"{((s.get('fD') or {}).get('aI') or {}).get('code', '')}"
+                                f"{(s.get('fD') or {}).get('fN', '')}"
+                                for s in segs
+                            ],
+                            "departs": segs[0].get("dt") if segs else None,
+                            "fares": [
+                                {
+                                    "id": f.get("id"),
+                                    "type": f.get("fareIdentifier"),
+                                    "adult": {
+                                        k: ((f.get("fd") or {}).get("ADULT") or {})
+                                        .get("fC", {})
+                                        .get(k)
+                                        for k in ("BF", "TAF", "TF")
+                                    },
+                                }
+                                for f in t.get("totalPriceList") or []
+                            ],
+                        }
+                    )
+            return {"count": len(rows), "trips": rows[:200]}
+        if url.endswith("/fms/v2/farerule"):
+            rules = body.get("fareRule") or {}
+            return {
+                "sectors": {
+                    sector: {
+                        kind: [
+                            {"st": b.get("st"), "et": b.get("et"), "amount": b.get("amount")}
+                            for b in bands or []
+                        ]
+                        for kind, bands in ((entry or {}).get("tfr") or {}).items()
+                    }
+                    for sector, entry in rules.items()
+                    if isinstance(entry, dict)
+                }
+            }
+        return None
 
     def read_error(self, body: Any, status_code: int, text: str) -> TripJackError | None:
         """Failures carry `status.success: false` and an `errors` list ({errCode, message})."""

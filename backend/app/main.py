@@ -28,6 +28,7 @@ from app.modules.recommendations.router import router as recommendations_router
 from app.modules.reels.router import router as reels_router
 from app.modules.search.router import router as search_router
 from app.modules.support.router import router as support_router
+from app.modules.tripjack.router import router as tripjack_router
 from app.modules.users.router import router as users_router
 
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,7 @@ for router in (
     hotels_router,
     flights_router,
     insurance_router,
+    tripjack_router,
     creators_router,
     creator_router,
     menus_router,
