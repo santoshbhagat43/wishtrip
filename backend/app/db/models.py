@@ -14,7 +14,7 @@ from app.modules.knowledge.models import Location, LocationRelation, Tag, locati
 from app.modules.media.models import Media
 from app.modules.menus.models import MenuGroup, MenuItem
 from app.modules.profiles.models import ProfileEvent, TravelerProfile
-from app.modules.reels.models import CreatorContent, ReelImport
+from app.modules.reels.models import CreatorContent, DownloadRequest, ReelImport
 from app.modules.support.models import (
     AgentRouting,
     SupportMessage,
@@ -42,6 +42,7 @@ __all__ = [
     "MenuGroup",
     "MenuItem",
     "ProfileEvent",
+    "DownloadRequest",
     "ReelImport",
     "SupportMessage",
     "SupportRouting",

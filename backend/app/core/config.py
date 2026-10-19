@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     # Send YouTube downloads through this proxy (e.g. http://user:pass@host:port). YouTube refuses
     # many data-centre addresses outright; a residential proxy needs no YouTube account.
     youtube_proxy: str | None = None
+    # SaveAPI (api.saveapi.org): paid fallback when our own download of a reel/video fails.
+    # Unset = no fallback. Keep the key server-side; every use is recorded in download_requests.
+    saveapi_key: str | None = None
+    saveapi_url: str = "https://api.saveapi.org"
     instagram_username: str | None = None
     instagram_session_file: str | None = None
 

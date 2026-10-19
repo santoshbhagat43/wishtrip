@@ -93,3 +93,19 @@ we'd try them:
    YouTube account needed; the proxy service costs money.
 3. **Cookies** from a throwaway signed-in YouTube account (`YOUTUBE_COOKIES_FILE`, above). Free, but
    it risks that account and the cookies expire.
+
+### SaveAPI: the fallback download
+
+Set `SAVEAPI_KEY` (from saveapi.org; it starts `sk_live_`) in `.env.production` and deploy. Then:
+
+- A reel or video is downloaded with our own tool first (instaloader for Instagram, yt-dlp for
+  YouTube). Only if that is **blocked, fails or times out** is SaveAPI asked; a private, deleted,
+  not-a-video or too-long result is not, since it would fail there too.
+- Cost is about 1.5 credits per Instagram reel, 12 per YouTube video (2 to check its length, 10
+  to get it). A failed lookup costs 0.1.
+- **Every download attempt is recorded** in the `download_requests` table: which tool, whether it
+  worked, how long it took, the error code, bytes, and for SaveAPI the credits spent and the
+  balance left. Admins can read it at `GET /reels/downloads` (latest attempts, plus totals per
+  tool and the last known balance). Failures are kept too.
+- If SaveAPI itself refuses us (bad key, no credits left), the creator sees the original failure
+  and the backend log says `SaveAPI refused us (QUOTA_EXCEEDED…)`. Watch for that line.

@@ -62,3 +62,36 @@ class ReelContentDetail(ReelContentRead):
     transcript: str
     transcript_language: str
     transcript_en: str
+
+
+class DownloadRequestRead(BaseModel):
+    """One download attempt, for staff: which tool, whether it worked, and what it cost."""
+
+    id: uuid.UUID
+    created_at: datetime
+    import_id: uuid.UUID | None
+    provider: str
+    platform: str
+    source_url: str
+    ok: bool
+    error_code: str
+    error_message: str
+    duration_ms: int
+    bytes: int | None
+    credits_spent: float | None
+    credits_remaining: float | None
+
+
+class ProviderTotals(BaseModel):
+    provider: str
+    attempts: int
+    failures: int
+    credits_spent: float
+
+
+class DownloadLog(BaseModel):
+    """The latest attempts, and the totals over all of them."""
+
+    totals: list[ProviderTotals]
+    credits_remaining: float | None
+    requests: list[DownloadRequestRead]

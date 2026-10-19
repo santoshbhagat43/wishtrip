@@ -797,6 +797,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Log
+         * @description Every try at downloading a reel or video, newest first: which tool, whether it worked and,
+         *     for the paid SaveAPI fallback, what it cost and what is left.
+         */
+        get: operations["download_log_reels_downloads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creators/me": {
         parameters: {
             query?: never;
@@ -2168,6 +2189,56 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * DownloadLog
+         * @description The latest attempts, and the totals over all of them.
+         */
+        DownloadLog: {
+            /** Totals */
+            totals: components["schemas"]["ProviderTotals"][];
+            /** Credits Remaining */
+            credits_remaining: number | null;
+            /** Requests */
+            requests: components["schemas"]["DownloadRequestRead"][];
+        };
+        /**
+         * DownloadRequestRead
+         * @description One download attempt, for staff: which tool, whether it worked, and what it cost.
+         */
+        DownloadRequestRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Import Id */
+            import_id: string | null;
+            /** Provider */
+            provider: string;
+            /** Platform */
+            platform: string;
+            /** Source Url */
+            source_url: string;
+            /** Ok */
+            ok: boolean;
+            /** Error Code */
+            error_code: string;
+            /** Error Message */
+            error_message: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Bytes */
+            bytes: number | null;
+            /** Credits Spent */
+            credits_spent: number | null;
+            /** Credits Remaining */
+            credits_remaining: number | null;
+        };
         /** EventCreate */
         EventCreate: {
             /**
@@ -3284,6 +3355,17 @@ export interface components {
             user_id: string;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** ProviderTotals */
+        ProviderTotals: {
+            /** Provider */
+            provider: string;
+            /** Attempts */
+            attempts: number;
+            /** Failures */
+            failures: number;
+            /** Credits Spent */
+            credits_spent: number;
         };
         /** PublicCreator */
         PublicCreator: {
@@ -5928,6 +6010,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReelContentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_log_reels_downloads_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadLog"];
                 };
             };
             /** @description Validation Error */

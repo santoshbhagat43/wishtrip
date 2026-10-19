@@ -1,19 +1,22 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_roles
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
 from app.modules.creators.models import Creator
 from app.modules.media.storage import storage
 from app.modules.reels import service
-from app.modules.reels.models import CreatorContent, ReelImport
+from app.modules.reels.models import CreatorContent, DownloadRequest, ReelImport
 from app.modules.reels.schemas import (
+    DownloadLog,
+    DownloadRequestRead,
+    ProviderTotals,
     ReelContentDetail,
     ReelContentRead,
     ReelImportCreate,
@@ -160,4 +163,39 @@ async def get_content(
         transcript=content.transcript,
         transcript_language=content.transcript_language,
         transcript_en=content.transcript_en,
+    )
+
+
+@router.get("/downloads", response_model=DownloadLog)
+async def download_log(
+    limit: int = 50,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Every try at downloading a reel or video, newest first: which tool, whether it worked and,
+    for the paid SaveAPI fallback, what it cost and what is left."""
+    rows = await session.scalars(
+        select(DownloadRequest).order_by(DownloadRequest.created_at.desc()).limit(min(limit, 200))
+    )
+    totals = await session.execute(
+        select(
+            DownloadRequest.provider,
+            func.count(),
+            func.count(case((DownloadRequest.ok.is_(False), 1))),
+            func.coalesce(func.sum(DownloadRequest.credits_spent), 0.0),
+        ).group_by(DownloadRequest.provider)
+    )
+    latest = await session.scalar(
+        select(DownloadRequest.credits_remaining)
+        .where(DownloadRequest.credits_remaining.is_not(None))
+        .order_by(DownloadRequest.created_at.desc())
+        .limit(1)
+    )
+    return DownloadLog(
+        totals=[
+            ProviderTotals(provider=p, attempts=n, failures=f, credits_spent=float(c))
+            for p, n, f, c in totals.all()
+        ],
+        credits_remaining=latest,
+        requests=[DownloadRequestRead.model_validate(r, from_attributes=True) for r in rows],
     )

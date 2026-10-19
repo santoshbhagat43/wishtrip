@@ -15,9 +15,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from collections import Counter
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -29,15 +32,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.openrouter import AIUnavailableError
 from app.ai.orchestrator import AIOrchestrator
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.modules.chat.models import ChatSession
 from app.modules.chat.pipeline import resolve_destination
 from app.modules.creators import service as creators
 from app.modules.creators import trips as creator_trips
 from app.modules.knowledge.models import Location, LocationStatus, LocationType
 from app.modules.media.storage import storage
-from app.modules.reels import fetch, fetch_youtube, media
+from app.modules.reels import fetch, fetch_youtube, media, saveapi
 from app.modules.reels.models import (
     CreatorContent,
+    DownloadRequest,
     ImportKind,
     ImportStatus,
     ImportStep,
@@ -86,12 +91,138 @@ def upload_shortcode() -> str:
 # Steps ------------------------------------------------------------------------------------
 
 
-def download(shortcode: str, workdir: Path) -> dict[str, Any]:
-    """The reel or video, in its own process, killed if the site makes it wait too long."""
+@dataclass
+class Attempt:
+    """One try at downloading, kept as a `DownloadRequest` whether or not it worked."""
+
+    provider: str  # instaloader | yt-dlp | saveapi
+    platform: str  # instagram | youtube
+    url: str
+    shortcode: str
+    ok: bool = False
+    error_code: str = ""
+    error_message: str = ""
+    duration_ms: int = 0
+    bytes: int | None = None
+    credits_spent: float | None = None
+    credits_remaining: float | None = None
+
+
+# Where `download` leaves its attempts for the caller that will record them, so `download` keeps
+# its plain (shortcode, workdir) shape.
+_attempts: ContextVar[list[Attempt] | None] = ContextVar("download_attempts", default=None)
+# The import being processed, so each download attempt can say which one it was for.
+_current_import: ContextVar[uuid.UUID | None] = ContextVar("current_import", default=None)
+
+# Our own download failing in these ways is worth asking SaveAPI about. Private, deleted, not a
+# video or too long would fail there too (and a failed lookup still costs credits).
+_ASK_SAVEAPI = {fetch.EXIT_BLOCKED, fetch.EXIT_FAILED}
+# SaveAPI problems that are ours to fix, not the creator's: say so in the logs, show the original
+# failure to them.
+_SAVEAPI_OURS = {
+    "MISSING_API_KEY", "INVALID_API_KEY", "KEY_REVOKED", "KEY_EXPIRED", "ACCOUNT_SUSPENDED",
+    "IP_NOT_ALLOWED", "PLATFORM_NOT_ALLOWED", "QUOTA_EXCEEDED",
+}  # fmt: skip
+
+
+def _primary_error(code: int | None, youtube: bool) -> ReelError:
+    """What to tell the creator when our own download failed (`code` None = it timed out)."""
+    site = "YouTube" if youtube else "Instagram"
+    if code is None:
+        return ReelError(f"{site} took too long to send it. Try again in a bit.")
+    if code == fetch.EXIT_NOT_FOUND:
+        return ReelError(
+            "We couldn't open that video. It may be private, age-restricted or removed."
+            if youtube
+            else "We couldn't open that reel. It may be private or deleted."
+        )
+    if code == fetch.EXIT_NOT_VIDEO:
+        return ReelError(
+            "That's a live stream. Paste a link to a finished video."
+            if youtube
+            else "That post has no video. Paste a reel link."
+        )
+    if code == fetch_youtube.EXIT_TOO_LONG:
+        return ReelError(
+            f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
+            "Use a shorter one."
+        )
+    if code == fetch.EXIT_BLOCKED:
+        return ReelError(
+            "YouTube is not letting us read videos right now. Try again later, or upload the "
+            "video instead."
+            if youtube
+            else "Instagram is not letting us read reels right now. Try again later."
+        )
+    return ReelError("We couldn't download that video. Try again in a bit.")
+
+
+def _saveapi_error(exc: saveapi.SaveApiError, youtube: bool) -> ReelError | None:
+    """The creator-facing meaning of a SaveAPI failure, when it says something our own failure
+    did not (the post is private or gone, the video is too long…); else None."""
+    if exc.code in {"PRIVATE_CONTENT", "MEDIA_NOT_FOUND"}:
+        return _primary_error(fetch.EXIT_NOT_FOUND, youtube)
+    if exc.code == "TOO_LONG":
+        return _primary_error(fetch_youtube.EXIT_TOO_LONG, youtube)
+    if exc.code == "FILE_TOO_LARGE":
+        return ReelError(f"That video is over {settings.reel_upload_max_mb} MB. Use a shorter one.")
+    return None
+
+
+def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[Attempt]) -> dict:
+    """Our own download failed: try SaveAPI and record the try. Raises what to tell the creator."""
+    url = canonical_url(shortcode)
+    attempt = Attempt("saveapi", "youtube" if youtube else "instagram", url, shortcode)
+    attempts.append(attempt)
+    started = time.monotonic()
+    try:
+        fetched = (saveapi.fetch_youtube if youtube else saveapi.fetch_instagram)(url, workdir)
+    except saveapi.SaveApiError as exc:
+        attempt.error_code, attempt.error_message = exc.code, exc.message
+        attempt.duration_ms = int((time.monotonic() - started) * 1000)
+        if exc.code in _SAVEAPI_OURS:
+            logger.error(
+                "SaveAPI refused us (%s): %s. Check the key and the credit balance.",
+                exc.code,
+                exc.message,
+            )
+        else:
+            logger.warning("SaveAPI could not fetch %s: %s", shortcode, exc)
+        raise
+    attempt.ok = True
+    attempt.duration_ms = int((time.monotonic() - started) * 1000)
+    attempt.bytes = fetched.bytes
+    attempt.credits_spent, attempt.credits_remaining = (
+        fetched.credits_spent,
+        fetched.credits_remaining,
+    )
+    logger.info("SaveAPI fetched %s (%s credits left)", shortcode, fetched.credits_remaining)
+    return fetched.meta
+
+
+def download(
+    shortcode: str, workdir: Path, attempts: list[Attempt] | None = None
+) -> dict[str, Any]:
+    """The reel or video: with our own tool first, in its own process and killed if the site makes
+    it wait too long; then, if that failed in a way another route might get round, with SaveAPI.
+    Every try is appended to `attempts` (by default the list `produce_content` is keeping)."""
+    if attempts is None:
+        attempts = _attempts.get()
+    if attempts is None:
+        attempts = []
     youtube = shortcode.startswith(YOUTUBE_PREFIX)
     module = "app.modules.reels.fetch_youtube" if youtube else "app.modules.reels.fetch"
     target = canonical_url(shortcode) if youtube else shortcode
-    site = "YouTube" if youtube else "Instagram"
+    attempt = Attempt(
+        "yt-dlp" if youtube else "instaloader",
+        "youtube" if youtube else "instagram",
+        canonical_url(shortcode),
+        shortcode,
+    )
+    attempts.append(attempt)
+    started = time.monotonic()
+    code: int | None = None
+    reason = ""
     try:
         result = subprocess.run(
             [sys.executable, "-m", module, target, str(workdir)],
@@ -99,38 +230,53 @@ def download(shortcode: str, workdir: Path) -> dict[str, Any]:
             text=True,
             timeout=settings.reel_download_timeout_seconds,
         )
-    except subprocess.TimeoutExpired as exc:
-        raise ReelError(f"{site} took too long to send it. Try again in a bit.") from exc
-    reason = (result.stderr.strip().splitlines() or [""])[-1]
-    if result.returncode == fetch.EXIT_NOT_FOUND:
-        raise ReelError(
-            "We couldn't open that video. It may be private, age-restricted or removed."
-            if youtube
-            else "We couldn't open that reel. It may be private or deleted."
-        )
-    if result.returncode == fetch.EXIT_NOT_VIDEO:
-        raise ReelError(
-            "That's a live stream. Paste a link to a finished video."
-            if youtube
-            else "That post has no video. Paste a reel link."
-        )
-    if result.returncode == fetch_youtube.EXIT_TOO_LONG:
-        raise ReelError(
-            f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
-            "Use a shorter one."
-        )
-    if result.returncode == fetch.EXIT_BLOCKED:
-        logger.warning("%s blocked %s: %s", site, shortcode, reason)
-        raise ReelError(
-            "YouTube is not letting us read videos right now. Try again later, or upload the "
-            "video instead."
-            if youtube
-            else "Instagram is not letting us read reels right now. Try again later."
-        )
-    if result.returncode != fetch.EXIT_OK:
-        logger.warning("%s download failed for %s: %s", site, shortcode, reason)
-        raise ReelError("We couldn't download that video. Try again in a bit.")
-    return json.loads((workdir / "meta.json").read_text())
+        code = result.returncode
+        reason = (result.stderr.strip().splitlines() or [""])[-1]
+    except subprocess.TimeoutExpired:
+        reason = "timed out"
+    attempt.duration_ms = int((time.monotonic() - started) * 1000)
+    if code == fetch.EXIT_OK:
+        attempt.ok = True
+        return json.loads((workdir / "meta.json").read_text())
+    attempt.error_code = "TIMEOUT" if code is None else f"EXIT_{code}"
+    attempt.error_message = reason[:500]
+    logger.warning("%s download failed for %s: %s", attempt.provider, shortcode, reason)
+
+    if (code is None or code in _ASK_SAVEAPI) and saveapi.enabled():
+        try:
+            return _ask_saveapi(shortcode, workdir, youtube, attempts)
+        except saveapi.SaveApiError as exc:
+            raise (_saveapi_error(exc, youtube) or _primary_error(code, youtube)) from exc
+    raise _primary_error(code, youtube)
+
+
+async def record_attempts(attempts: list[Attempt]) -> None:
+    """Keep a row per download attempt. Its own short session: a failed import rolls the main
+    one back, and a failure is exactly what we want on record."""
+    if not attempts:
+        return
+    try:
+        async with SessionLocal() as session:
+            session.add_all(
+                DownloadRequest(
+                    import_id=_current_import.get(),
+                    provider=a.provider,
+                    platform=a.platform,
+                    source_url=a.url[:1000],
+                    shortcode=a.shortcode,
+                    ok=a.ok,
+                    error_code=a.error_code,
+                    error_message=a.error_message,
+                    duration_ms=a.duration_ms,
+                    bytes=a.bytes,
+                    credits_spent=a.credits_spent,
+                    credits_remaining=a.credits_remaining,
+                )
+                for a in attempts
+            )
+            await session.commit()
+    except Exception:  # noqa: BLE001 - a missing log row must never sink the import itself
+        logger.exception("Could not record the download attempts")
 
 
 def _first(workdir: Path, stem: str) -> Path | None:
@@ -354,7 +500,13 @@ async def produce_content(
     workdir = Path(tempfile.mkdtemp(prefix=f"reel-{shortcode}-"))
     try:
         await step(ImportStep.DOWNLOADING)
-        meta = download(shortcode, workdir)
+        attempts: list[Attempt] = []
+        token = _attempts.set(attempts)
+        try:
+            meta = download(shortcode, workdir)
+        finally:
+            _attempts.reset(token)
+            await record_attempts(attempts)
         video = _first(workdir, "reel")
         if video is None:
             raise ReelError("We couldn't download that reel. Try again in a bit.")
@@ -409,6 +561,7 @@ async def produce_content_from_upload(
 async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) -> None:
     """Run one import to the end. Errors land on the job for the person to read."""
     job_id = job.id
+    _current_import.set(job_id)
 
     async def step(value: ImportStep) -> None:
         job.status, job.step = ImportStatus.RUNNING, value

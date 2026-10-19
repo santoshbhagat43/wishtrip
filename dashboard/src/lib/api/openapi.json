@@ -2655,6 +2655,55 @@
     }
    }
   },
+  "/reels/downloads": {
+   "get": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Download Log",
+    "description": "Every try at downloading a reel or video, newest first: which tool, whether it worked and,\nfor the paid SaveAPI fallback, what it cost and what is left.",
+    "operationId": "download_log_reels_downloads_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DownloadLog"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/creators/me": {
    "get": {
     "tags": [
@@ -6508,6 +6557,148 @@
     ],
     "title": "DestinationRow"
    },
+   "DownloadLog": {
+    "properties": {
+     "totals": {
+      "items": {
+       "$ref": "#/components/schemas/ProviderTotals"
+      },
+      "type": "array",
+      "title": "Totals"
+     },
+     "credits_remaining": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credits Remaining"
+     },
+     "requests": {
+      "items": {
+       "$ref": "#/components/schemas/DownloadRequestRead"
+      },
+      "type": "array",
+      "title": "Requests"
+     }
+    },
+    "type": "object",
+    "required": [
+     "totals",
+     "credits_remaining",
+     "requests"
+    ],
+    "title": "DownloadLog",
+    "description": "The latest attempts, and the totals over all of them."
+   },
+   "DownloadRequestRead": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "import_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Import Id"
+     },
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "platform": {
+      "type": "string",
+      "title": "Platform"
+     },
+     "source_url": {
+      "type": "string",
+      "title": "Source Url"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "error_code": {
+      "type": "string",
+      "title": "Error Code"
+     },
+     "error_message": {
+      "type": "string",
+      "title": "Error Message"
+     },
+     "duration_ms": {
+      "type": "integer",
+      "title": "Duration Ms"
+     },
+     "bytes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bytes"
+     },
+     "credits_spent": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credits Spent"
+     },
+     "credits_remaining": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Credits Remaining"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "import_id",
+     "provider",
+     "platform",
+     "source_url",
+     "ok",
+     "error_code",
+     "error_message",
+     "duration_ms",
+     "bytes",
+     "credits_spent",
+     "credits_remaining"
+    ],
+    "title": "DownloadRequestRead",
+    "description": "One download attempt, for staff: which tool, whether it worked, and what it cost."
+   },
    "EventCreate": {
     "properties": {
      "location_id": {
@@ -9565,6 +9756,34 @@
      "user_id"
     ],
     "title": "ProfileRead"
+   },
+   "ProviderTotals": {
+    "properties": {
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "failures": {
+      "type": "integer",
+      "title": "Failures"
+     },
+     "credits_spent": {
+      "type": "number",
+      "title": "Credits Spent"
+     }
+    },
+    "type": "object",
+    "required": [
+     "provider",
+     "attempts",
+     "failures",
+     "credits_spent"
+    ],
+    "title": "ProviderTotals"
    },
    "PublicCreator": {
     "properties": {

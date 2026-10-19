@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -93,3 +93,28 @@ class ReelImport(UUIDPrimaryKey, Timestamps, Base):
     step: Mapped[ImportStep] = mapped_column(str_enum(ImportStep), default=ImportStep.QUEUED)
     error: Mapped[str] = mapped_column(Text, default="")
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DownloadRequest(UUIDPrimaryKey, Timestamps, Base):
+    """One attempt to download a reel or video: which tool, whether it worked, how long it took and,
+    for the paid fallback, what it cost. Kept for every attempt, success or not, so spend and
+    failures can be read back later."""
+
+    __tablename__ = "download_requests"
+
+    import_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("reel_imports.id", ondelete="SET NULL", name="fk_download_requests_import"),
+        index=True,
+    )
+    # instaloader and yt-dlp are our own (free); saveapi is the paid fallback.
+    provider: Mapped[str] = mapped_column(String(20))
+    platform: Mapped[str] = mapped_column(String(20))
+    source_url: Mapped[str] = mapped_column(String(1000))
+    shortcode: Mapped[str] = mapped_column(String(64))
+    ok: Mapped[bool] = mapped_column(Boolean)
+    error_code: Mapped[str] = mapped_column(String(40), default="")
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    bytes: Mapped[int | None] = mapped_column(Integer)
+    credits_spent: Mapped[float | None] = mapped_column(Float)
+    credits_remaining: Mapped[float | None] = mapped_column(Float)
