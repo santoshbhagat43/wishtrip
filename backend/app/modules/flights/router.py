@@ -22,7 +22,9 @@ async def search(body: FlightSearch, _: User = Depends(get_current_user)):
     try:
         result = await service.search(body)
     except (TripJackError, TripJackNotConfigured) as exc:
-        raise _supplier_error(exc) from exc
+        failure = _supplier_error(exc)
+        failure.headers = await trace.explain(tr, exc)
+        raise failure from exc
     return {**result, "supplier": await trace.finish(tr)}
 
 
@@ -33,5 +35,7 @@ async def fare_rules(body: FareRuleQuery, _: User = Depends(get_current_user)):
     try:
         result = await service.fare_rules(body)
     except (TripJackError, TripJackNotConfigured) as exc:
-        raise _supplier_error(exc) from exc
+        failure = _supplier_error(exc)
+        failure.headers = await trace.explain(tr, exc)
+        raise failure from exc
     return {**result, "supplier": await trace.finish(tr)}

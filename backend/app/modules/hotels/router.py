@@ -59,7 +59,9 @@ async def search(
     try:
         result = await service.search(session, body)
     except (TripJackError, TripJackNotConfigured, service.NoDestination) as exc:
-        raise _supplier_error(exc) from exc
+        failure = _supplier_error(exc)
+        failure.headers = await trace.explain(tr, exc)
+        raise failure from exc
     return {**result, "supplier": await trace.finish(tr)}
 
 
@@ -78,7 +80,9 @@ async def search_stream(body: HotelSearch, _: User = Depends(get_current_user)):
                         event["supplier"] = await trace.finish(tr)
                     yield f"data: {json.dumps(event)}\n\n"
             except (TripJackError, TripJackNotConfigured, service.NoDestination) as exc:
-                yield f"data: {json.dumps({'error': _supplier_error(exc).detail})}\n\n"
+                failure = {"error": _supplier_error(exc).detail, "trace_id": tr.id}
+                await trace.finish(tr)
+                yield f"data: {json.dumps(failure)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
@@ -94,7 +98,9 @@ async def pricing(
     try:
         result = await service.pricing(session, hotel_id, body)
     except (TripJackError, TripJackNotConfigured) as exc:
-        raise _supplier_error(exc) from exc
+        failure = _supplier_error(exc)
+        failure.headers = await trace.explain(tr, exc)
+        raise failure from exc
     return {**result, "supplier": await trace.finish(tr)}
 
 

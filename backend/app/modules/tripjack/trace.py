@@ -149,3 +149,10 @@ async def load(trace_id: str) -> dict | None:
     except Exception:  # noqa: BLE001
         log.warning("could not read TripJack evidence", exc_info=True)
         return None
+
+
+async def explain(trace: Trace, exc: Exception) -> dict[str, str]:
+    """For a failed request: keep the evidence (the calls, with why they failed) and return the
+    header that points at it, so a failure is never a mystery."""
+    await finish(trace)
+    return {"X-TripJack-Trace": trace.id}

@@ -21,10 +21,14 @@ async def search(body: InsuranceSearch, _: User = Depends(get_current_user)):
             status.HTTP_503_SERVICE_UNAVAILABLE, "Travel insurance is not set up yet"
         ) from exc
     except TripJackError as exc:
+        headers = await trace.explain(tr, exc)
         # 4xx from TripJack are about the request (blocked country, bad dates): say so.
         if exc.code.startswith("4") and exc.code not in {"401", "403", "412"}:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, exc.message) from exc
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, exc.message, headers=headers
+            ) from exc
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "Insurance plans are not available right now"
+            status.HTTP_502_BAD_GATEWAY, "Insurance plans are not available right now",
+            headers=headers,
         ) from exc
     return {**result, "supplier": await trace.finish(tr)}

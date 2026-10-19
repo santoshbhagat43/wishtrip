@@ -11,6 +11,8 @@ const headless = process.env.HEADLESS === "1";
 
 export default defineConfig({
   testDir: "./tests",
+  // The live checks against the deployed server have their own config (playwright.live.config.ts).
+  testIgnore: "**/live/**",
   fullyParallel: false,
   workers: 1,
   timeout: 240_000, // chat turns run a local LLM

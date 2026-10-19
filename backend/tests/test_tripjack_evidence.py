@@ -188,3 +188,26 @@ async def test_evidence_is_for_staff_only_and_expires(client, traveler, admin):
     assert (await client.get("/tripjack/evidence/abc", headers=auth(traveler))).status_code == 403
     missing = await client.get("/tripjack/evidence/abc", headers=auth(admin))
     assert missing.status_code == 404 and "an hour" in missing.json()["detail"]
+
+
+async def test_a_failed_search_leaves_the_reason_behind(client, traveler, admin, monkeypatch):
+    def broken(request):
+        return httpx.Response(
+            502,
+            json={
+                "status": {"success": False},
+                "errors": [{"errCode": "9", "message": "supplier down"}],
+            },
+        )
+
+    upstream(monkeypatch, tripjack_flights, broken)
+    monkeypatch.setattr("app.modules.tripjack.http.BACKOFF_SECONDS", ())  # no waiting in a test
+    r = await client.post("/flights/search", json=flight_search(), headers=auth(traveler))
+    assert r.status_code == 502 and "not available" in r.json()["detail"]
+    # The response says where to look, and the record shows the call and why it failed.
+    ev = await client.get(
+        f"/tripjack/evidence/{r.headers['x-tripjack-trace']}", headers=auth(admin)
+    )
+    assert ev.status_code == 200
+    [call] = ev.json()["calls"]
+    assert call["ok"] is False and call["status"] == 502 and "supplier down" in call["error"]
