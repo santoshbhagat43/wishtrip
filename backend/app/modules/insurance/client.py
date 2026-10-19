@@ -10,6 +10,10 @@ __all__ = ["TripJackInsurance", "TripJackError", "TripJackNotConfigured", "tripj
 
 class TripJackInsurance(TripJackHTTP):
     product = "insurance"
+    # A search takes 0.2 to 0.4 s. TripJack sometimes hangs for 30 s and then answers 401 "invalid
+    # token" for a key that works the next second (seen on the test environment), so a call that
+    # has not answered in 10 s is dropped and retried rather than waited on.
+    timeout_seconds = 10.0
 
     def api_key(self) -> str | None:
         return settings.tripjack_insurance_api_key or settings.tripjack_api_key

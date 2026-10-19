@@ -234,3 +234,28 @@ async def test_every_rate_plan_is_recorded_not_just_the_first_few(monkeypatch):
     options = tr.calls[0].excerpt["hotels"][0]["options"]
     assert [o["optionId"] for o in options] == ["o1", "o2", "o3", "o4", "o5"]
     assert min(o["total"] for o in options) == 500  # the cheapest, which was fifth
+
+
+async def test_a_hung_insurance_call_is_dropped_and_retried(monkeypatch):
+    """TripJack's TripSafe sometimes hangs for 30 s and then says 401 for a key that works the
+    next second. Waiting that out fails the search; dropping the call and retrying does not."""
+    from app.modules.insurance.client import tripjack_insurance
+
+    assert tripjack_insurance.timeout_seconds == 10.0
+    assert tripjack_hotels.timeout_seconds == 60.0  # the others keep their long wait
+
+    attempts = []
+
+    def handler(request):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise httpx.ReadTimeout("hung", request=request)
+        return httpx.Response(
+            200, json={"success": True, "data": {"searchId": "s", "productInfo": []}}
+        )
+
+    upstream(monkeypatch, tripjack_insurance, handler)
+    monkeypatch.setattr("app.modules.tripjack.http.BACKOFF_SECONDS", (0,))
+    tr = trace.start()
+    assert (await tripjack_insurance.search({"x": 1}))["searchId"] == "s"
+    assert len(attempts) == 2 and tr.calls[0].attempts == 2 and tr.calls[0].ok

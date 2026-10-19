@@ -41,6 +41,9 @@ class TripJackHTTP:
 
     # Which product a call belongs to, for the record of calls (see trace.py).
     product = "tripjack"
+    # How long to wait for one answer before giving up and retrying. Set per product from how long
+    # its calls really take.
+    timeout_seconds = 60.0
 
     # -- to override --
     def api_key(self) -> str | None:
@@ -69,7 +72,7 @@ class TripJackHTTP:
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                 },
-                timeout=httpx.Timeout(60.0, connect=5.0),
+                timeout=httpx.Timeout(self.timeout_seconds, connect=5.0),
                 limits=httpx.Limits(max_connections=40, max_keepalive_connections=20),
             )
             self._key_in_use = key

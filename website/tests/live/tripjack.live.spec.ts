@@ -30,7 +30,13 @@ type Supplier = {
 type Call = Supplier["calls"][number] & { excerpt: any };
 type Evidence = { trace_id: string; environment: string; markup_percent: Record<string, number>; calls: Call[] };
 
-const rows: { step: string; wall: number; server: number; upstream: number; source: string; detail: string }[] = [];
+const rows: { step: string; wall: number; server: number; slowest: number; calls: number; source: string; detail: string }[] = [];
+/** What each test checked, for the summary. */
+const checks: string[] = [];
+const note = (type: string, description: string) => {
+  test.info().annotations.push({ type, description });
+  checks.push(`**${type}:** ${description}`);
+};
 
 const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
@@ -75,7 +81,9 @@ function expectFromTripJack(supplier: Supplier, path: RegExp) {
 }
 
 function record(step: string, wall: number, supplier: Supplier, detail: string) {
-  rows.push({ step, wall, server: supplier.server_ms, upstream: supplier.upstream_ms, source: supplier.served_from, detail });
+  // Parallel calls overlap, so the time TripJack made us wait is the slowest one, not the sum.
+  const slowest = Math.max(0, ...supplier.calls.map((c) => c.ms));
+  rows.push({ step, wall, server: supplier.server_ms, slowest, calls: supplier.calls.length, source: supplier.served_from, detail });
 }
 
 test.describe.configure({ mode: "serial" });
@@ -134,12 +142,9 @@ test.describe("TripJack data on the live server", () => {
       if (markup === 0) expect(price.total, `${shown.name}: total is exactly TripJack's`).toBeCloseTo(cheapest.total, 1);
       expect(shown.option.option_id).toBe(cheapest.optionId);
     }
-    test.info().annotations.push({
-      type: "hotels checked",
-      description: `${first.body.hotels.length} hotels: prices equal TripJack's; names equal in ${namesEqual}. Markup ${markup}%.`,
-    });
+    note("Hotels", `${first.body.hotels.length} hotels shown; every price, tax, fee and option id equals TripJack's Listing answer; ${namesEqual} names equal TripJack's exactly. Our markup ${markup}%.`);
     // Names come from TripJack's content catalogue; the Listing name may be spelled differently.
-    if (nameDiffs.length) test.info().annotations.push({ type: "name differences", description: nameDiffs.slice(0, 5).join(" | ") });
+    if (nameDiffs.length) note("Hotel names that differ", nameDiffs.slice(0, 5).join(" | "));
     expect(namesEqual / first.body.hotels.length, `names should match TripJack's:\n${nameDiffs.slice(0, 5).join("\n")}`).toBeGreaterThanOrEqual(0.9);
     expect(call.ms).toBeGreaterThan(0);
 
@@ -203,7 +208,7 @@ test.describe("TripJack data on the live server", () => {
         checked += 1;
       }
     }
-    test.info().annotations.push({ type: "fares checked", description: `${checked} fares across ${Math.min(40, live.body.flights.length)} trips; markup ${markup}%` });
+    note("Flights", `${checked} fares across ${Math.min(40, live.body.flights.length)} trips; each fare id, flight number, fare type, base fare and taxes equals what TripJack quoted. Our markup ${markup}%.`);
 
     // Repeat: from cache.
     const again = await post<{ flights: any[] }>(request, "/flights/search", search);
@@ -251,6 +256,7 @@ test.describe("TripJack data on the live server", () => {
     expect(live.body.search_id).toBe(call.excerpt.searchId);
     const raw = new Map<string, any>(call.excerpt.plans.map((p: any) => [p.productId, p]));
     expect(live.body.plans.length).toBe(call.excerpt.count);
+    note("Insurance", `${live.body.plans.length} plans; every product id, insurer and premium equals TripSafe's. Our markup ${markup}%.`);
     for (const plan of live.body.plans) {
       const r = raw.get(plan.product_id);
       expect(r, `plan ${plan.product_id} should be one TripSafe returned`).toBeTruthy();
@@ -266,14 +272,20 @@ test.describe("TripJack data on the live server", () => {
 
   test("speed summary", async ({}, testInfo) => {
     const ms = (n: number) => `${(n / 1000).toFixed(2)} s`;
-    const header = "| Step | You waited | Our server | TripJack | We add | Served from | Detail |\n| --- | ---: | ---: | ---: | ---: | --- | --- |";
-    const lines = rows.map((r) => `| ${r.step} | ${ms(r.wall)} | ${ms(r.server)} | ${r.upstream ? ms(r.upstream) : "-"} | ${ms(Math.max(0, r.wall - r.upstream))} | ${r.source} | ${r.detail} |`);
+    const header = "| Step | You waited | Our server | TripJack (slowest call) | TripJack calls | We add | Served from | Detail |\n| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |";
+    const lines = rows.map((r) => `| ${r.step} | ${ms(r.wall)} | ${ms(r.server)} | ${r.slowest ? ms(r.slowest) : "-"} | ${r.calls || "-"} | ${ms(Math.max(0, r.wall - r.slowest))} | ${r.source} | ${r.detail} |`);
     const md = [
       "# TripJack on the live server: where the data comes from and how fast",
       "",
       `API: ${process.env.LIVE_API_URL ?? "https://wishtrip-api.listnr.co"} · ${new Date().toISOString()}`,
       "",
-      "*You waited* is the whole round trip from this computer. *TripJack* is the time TripJack itself took (summed over its calls). *We add* is everything else: the network to our server, our database and our reshaping.",
+      "## What was compared with TripJack's own answer",
+      "",
+      ...checks.map((c) => `- ${c}`),
+      "",
+      "## How fast",
+      "",
+      "*You waited* is the whole round trip from this computer. *TripJack (slowest call)* is the longest single call TripJack took (a hotel search makes several at once). *We add* is everything else: the network to our server, our database and our reshaping.",
       "",
       header,
       ...lines,
