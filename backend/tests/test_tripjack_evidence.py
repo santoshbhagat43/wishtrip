@@ -211,3 +211,26 @@ async def test_a_failed_search_leaves_the_reason_behind(client, traveler, admin,
     assert ev.status_code == 200
     [call] = ev.json()["calls"]
     assert call["ok"] is False and call["status"] == 502 and "supplier down" in call["error"]
+
+
+async def test_every_rate_plan_is_recorded_not_just_the_first_few(monkeypatch):
+    """TripJack sends up to five rate plans per hotel and the cheapest need not come first."""
+
+    def plan(i, total):
+        price = {"totalPrice": total, "basePrice": total, "taxes": 0, "currency": "INR"}
+        return {"optionId": f"o{i}", "mealBasis": "Room Only", "roomInfo": [], "pricing": price}
+
+    plans = [plan(1, 900), plan(2, 800), plan(3, 700), plan(4, 600), plan(5, 500)]
+    five = {
+        "status": {"success": True},
+        "hotels": [{"hotelId": "1", "name": "H", "options": plans}],
+    }
+    upstream(monkeypatch, tripjack_hotels, lambda r: httpx.Response(200, json=five))
+    tr = trace.start()
+    await tripjack_hotels.listing(
+        hids=["1"], check_in="2026-12-01", check_out="2026-12-02", rooms=[{"adults": 1}],
+        correlation_id="c1",
+    )  # fmt: skip
+    options = tr.calls[0].excerpt["hotels"][0]["options"]
+    assert [o["optionId"] for o in options] == ["o1", "o2", "o3", "o4", "o5"]
+    assert min(o["total"] for o in options) == 500  # the cheapest, which was fifth

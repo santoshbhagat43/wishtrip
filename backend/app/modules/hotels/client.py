@@ -51,7 +51,8 @@ class TripJackHotels(TripJackHTTP):
                     {
                         "hotelId": h.get("hotelId") or h.get("tjHotelId"),
                         "name": h.get("name"),
-                        "options": [_option_excerpt(o) for o in (h.get("options") or [])[:3]],
+                        # Every rate plan TripJack sent (up to five): the cheapest is not always first.
+                        "options": [_option_excerpt(o) for o in (h.get("options") or [])[:10]],
                     }
                     for h in hotels[:400]
                 ],
