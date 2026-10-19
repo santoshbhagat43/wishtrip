@@ -3,8 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { BACKEND_URL } from "@/lib/server/session";
 import { SSO_URL } from "@/lib/server/sso";
 
-/** A creator asks for a one-time sign-in code by email or WhatsApp. The backend always answers
- *  the same way, so this never reveals whether an address belongs to a creator. */
+/** A creator asks for a one-time sign-in code by email (WhatsApp is not offered yet). The backend
+ *  answers the same way for everyone, so this never reveals whether an address belongs to a
+ *  creator. */
 export async function POST(request: NextRequest) {
   const isForm = !(request.headers.get("content-type") ?? "").includes("application/json");
   const fields = (
@@ -27,7 +28,13 @@ export async function POST(request: NextRequest) {
     next.searchParams.set("for", "creator");
     next.searchParams.set("channel", channel);
     if (ok) next.searchParams.set("sent", channel === "whatsapp" ? (fields.phone ?? "") : (fields.email ?? ""));
-    else next.searchParams.set("error", "code_address");
+    else {
+      // Say what went wrong: nothing configured (503), the provider failed (502), or a bad address.
+      next.searchParams.set(
+        "error",
+        res.status === 503 ? "code_unavailable" : res.status === 502 ? "code_failed" : "code_address",
+      );
+    }
     if (fields.redirect) next.searchParams.set("redirect", fields.redirect);
     return NextResponse.redirect(next, 303);
   }

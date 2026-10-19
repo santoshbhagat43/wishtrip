@@ -9,6 +9,9 @@ os.environ["LLM_PROVIDER"] = "auto"
 os.environ["JWT_SECRET"] = "test-secret-that-is-at-least-32-bytes-long"
 os.environ["OPENROUTER_API_KEY"] = ""
 os.environ["MEDIA_ROOT"] = "/tmp/wishtrip-test-media"
+# Tests sign creators in with a fixed code. That is an explicit, test-only opt-in: there is no
+# hardcoded default in the app, and it is ignored when ENVIRONMENT=production.
+os.environ["CREATOR_DEV_OTP"] = "1234"
 
 import pytest
 from httpx import ASGITransport, AsyncClient

@@ -77,9 +77,17 @@ async def creator_request_otp(
     only go to numbers a creator gave when applying; an email can be new (it signs up a pending
     creator).
     """
-    if data.channel == "whatsapp" and not await creators.whatsapp_is_known(session, data.phone):
-        return {"sent": True}
-    await otp.issue(data.channel, data.identifier)
+    try:
+        otp.ensure_available(data.channel)  # first, and the same for everyone: nothing is revealed
+        if data.channel == "whatsapp" and not await creators.whatsapp_is_known(session, data.phone):
+            return {"sent": True}
+        await otp.issue(data.channel, data.identifier)
+    except otp.OtpUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, exc.message) from exc
+    except otp.OtpDeliveryFailed as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "We couldn't send the code. Please try again in a moment."
+        ) from exc
     return {"sent": True}
 
 

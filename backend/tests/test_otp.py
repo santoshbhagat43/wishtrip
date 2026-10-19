@@ -35,8 +35,8 @@ async def _verify(client, **body):
     return await client.post("/auth/creator/verify", json=body)
 
 
-async def test_without_a_provider_the_fixed_code_still_works(client):
-    # Decided 2026-10-18: keep creators able to sign in until a provider exists.
+async def test_a_developers_opt_in_code_works_where_there_is_no_provider(client):
+    # Only because the test environment opts in (CREATOR_DEV_OTP): the app has no hardcoded code.
     await _request(client, email="fallback@creators.example.com")
     r = await _verify(client, email="fallback@creators.example.com", code=settings.creator_dev_otp)
     assert r.status_code == 200

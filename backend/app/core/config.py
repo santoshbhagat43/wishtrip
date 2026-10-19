@@ -98,12 +98,15 @@ class Settings(BaseSettings):
     # What a creator earns per credited traveller who plans a trip. Staff set it per creator;
     # 0 = nothing agreed yet.
     creator_commission_per_user_paise: int = 0
-    # Creator sign-in codes, by email or WhatsApp (app/modules/auth/otp.py). A channel sends real,
-    # random, single-use codes as soon as its provider is configured. Until then it falls back to
-    # this FIXED code — decided 2026-10-18 to keep creators able to sign in before a provider
-    # exists. While a channel is on the fallback, anyone who knows a creator's email can sign in
-    # as them. Configure SMTP (below) to close it for email.
-    creator_dev_otp: str = "1234"
+    # Creator sign-in codes, by email (and later WhatsApp): app/modules/auth/otp.py. A code is six
+    # random digits, single-use, sent through Trustsignal (below).
+    #
+    # HARDCODED FIXED CODE: DISABLED. It used to be `creator_dev_otp: str = "1234"`, the code every
+    # creator could sign in with while no provider existed (anyone who knew a creator's email could
+    # sign in as them). It is no longer a default. It exists only if a developer sets
+    # CREATOR_DEV_OTP in a local .env, and is ignored whenever ENVIRONMENT=production.
+    # creator_dev_otp: str = "1234"
+    creator_dev_otp: str | None = None
     otp_ttl_seconds: int = 600
     otp_max_attempts: int = 5
     otp_resend_seconds: int = 30
@@ -114,6 +117,19 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_from: str | None = None  # e.g. "WishTrip <login@wishtrip.co>"
     smtp_starttls: bool = True
+
+    # Trustsignal (trustsignal.io): sends the sign-in code by email today, WhatsApp later. Email is
+    # live once the key, the sender and the template are set. The key travels in the request URL
+    # (their API's way), so it is redacted from our logs; keep it server-side.
+    trustsignal_api_key: str | None = None
+    trustsignal_email_url: str = "https://eapi.trustsignal.io"
+    # A sender address verified in the Trustsignal account, e.g. "login@wishtrip.co".
+    trustsignal_email_from: str | None = None
+    # The OTP email template made in the Trustsignal account.
+    trustsignal_email_template_id: str | None = None
+    trustsignal_email_subject: str = "Your WishTrip sign-in code"
+    # The name of the template variable that holds the code ({{otp}} in the template).
+    trustsignal_otp_variable: str = "otp"
 
     # TripJack hotels (v3). The key is per environment and tied to whitelisted server IPs; keep it
     # server-side. Unset = hotel search is off. The defaults are the UAT (test) hosts; production

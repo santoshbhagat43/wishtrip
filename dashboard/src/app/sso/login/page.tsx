@@ -18,7 +18,9 @@ const ERRORS: Record<string, string> = {
   invalid: "Invalid email or password",
   email_taken: "An account with that email already exists. Sign in instead.",
   signup_invalid: "Check your details: a valid email and a password of at least 8 characters.",
-  code_address: "Enter a valid email, or a WhatsApp number with its country code.",
+  code_address: "Enter a valid email address.",
+  code_unavailable: "We can't send sign-in codes right now. Please try again later.",
+  code_failed: "We couldn't send the code. Please try again in a moment.",
   code_wrong: "That code isn't right, or it has expired. Ask for a new one.",
 };
 
@@ -194,7 +196,8 @@ function SsoPanel() {
   );
 }
 
-/** Creators sign in with a one-time code by email or WhatsApp (or with Google). */
+/** Creators sign in with a one-time code by email (or with Google). WhatsApp codes (Trustsignal)
+ *  are not wired yet, so the WhatsApp channel is switched off below; its code is kept, commented. */
 function CodePanel({
   googleHref,
   redirect,
@@ -205,10 +208,12 @@ function CodePanel({
   onUsePassword: () => void;
 }) {
   const params = useSearchParams();
-  const [channel, setChannel] = useState<"email" | "whatsapp">(
-    params.get("channel") === "whatsapp" ? "whatsapp" : "email",
-  );
-  const [email, setEmail] = useState(params.get("channel") === "whatsapp" ? "" : (params.get("sent") ?? ""));
+  // WhatsApp is off for now: always email.
+  // const [channel, setChannel] = useState<"email" | "whatsapp">(
+  //   params.get("channel") === "whatsapp" ? "whatsapp" : "email",
+  // );
+  const [channel] = useState<"email" | "whatsapp">("email");
+  const [email, setEmail] = useState(params.get("sent") ?? "");
   const [country, setCountry] = useState<CountryCode>("IN");
   const [number, setNumber] = useState("");
   // The address the code went to; set once a code is sent (or arriving back from a form post).
@@ -343,6 +348,7 @@ function CodePanel({
         <span className="h-px flex-1 bg-border" /> or get a code <span className="h-px flex-1 bg-border" />
       </div>
 
+      {/* WhatsApp channel: OFF until Trustsignal WhatsApp is wired (email only for now).
       <div role="tablist" aria-label="Where to send the code" className="flex gap-1 rounded-full bg-surface-2 p-1">
         {(
           [
@@ -367,6 +373,7 @@ function CodePanel({
           </button>
         ))}
       </div>
+      */}
 
       <form onSubmit={send} method="post" action="/api/sso/code/request" className="flex flex-col gap-4">
         <input type="hidden" name="channel" value={channel} />

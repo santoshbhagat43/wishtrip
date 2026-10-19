@@ -167,7 +167,7 @@ click one → see the itinerary → **book**, and **customise** if needed.
 
 ### Notes on what we’ve already built (so you can mark “confirmed vs open”)
 
-- Creator **sign-up/sign-in**: email + a 4-digit code (demo code `1234`; no SMTP yet). Dedicated `/creators/join` page.
+- Creator **sign-up/sign-in**: email + a one-time code sent through Trustsignal (the old fixed demo code `1234` is gone). Dedicated `/creators/join` page.
 - **Moderation**: dashboard **Creators** tab — filter pending, approve, set commission (percentage or flat) + handle.
 - **Make a trip**: paste a reel **or upload a video** → extract → itinerary (details → board) → **Save → affiliate link** (`/t/<code>`).
 - **Attribution**: referral cookie, first-touch, 30-day window; commission recorded, **payout not wired** (no bookings/pricing yet).

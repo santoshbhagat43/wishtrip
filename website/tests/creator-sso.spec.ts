@@ -1,7 +1,7 @@
 /**
  * The creator site (creator.<domain>) and creator sign-in through the shared SSO app.
  *
- * Locally no email or WhatsApp provider is configured, so codes use the fixed fallback
+ * Locally no email provider is configured, so codes use the local opt-in fixed code
  * (CREATOR_DEV_OTP, "1234"). With SMTP set, email codes become real and these flows are the same.
  */
 import type { Page } from "@playwright/test";
@@ -53,6 +53,17 @@ test.describe("Creator site", () => {
     expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/creator`);
   });
 
+  test("the sign-in page sends codes by email only (WhatsApp isn't wired yet)", async ({ page }) => {
+    await page.goto(`${CREATOR_URL}/creator`);
+    await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByRole("tab", { name: "WhatsApp" })).toHaveCount(0);
+    await expect(page.getByLabel("WhatsApp number")).toHaveCount(0);
+    // Even a link that asks for the WhatsApp channel lands on email.
+    await page.goto(`${CREATOR_URL}/creator?channel=whatsapp`);
+    await expect(page.getByLabel("Email")).toBeVisible();
+  });
+
   test("a creator signs in with an email code and lands in their portal", async ({ page }) => {
     await page.goto(`${CREATOR_URL}/creator`);
     await expect(page).toHaveURL(SSO_LOGIN);
@@ -70,7 +81,8 @@ test.describe("Creator site", () => {
     await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
   });
 
-  test("a creator who applied with a WhatsApp number can sign in with a WhatsApp code", async ({ page }) => {
+  // WhatsApp sign-in is switched off until Trustsignal WhatsApp is wired (email only for now).
+  test.skip("a creator who applied with a WhatsApp number can sign in with a WhatsApp code", async ({ page }) => {
     const local = String(Date.now()).slice(-8);
     const phone = `+9198${local}`;
     const email = `e2e-wa-${Date.now()}@creators.example.com`;

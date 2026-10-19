@@ -4,9 +4,11 @@ A code is six random digits, stored only as a keyed hash, valid for `otp_ttl_sec
 one sign-in, and burnt after `otp_max_attempts` wrong guesses. A new code can be requested every
 `otp_resend_seconds`.
 
-Each channel is "live" once its provider is configured (email: SMTP settings; WhatsApp: no
-provider is wired yet). A channel that isn't live falls back to the fixed `creator_dev_otp`, so
-creators can still sign in before a provider exists — see the warning on that setting.
+Email is "live" once Trustsignal is configured (key, sender and template; SMTP still works as a
+second provider). WhatsApp is not wired yet: Trustsignal will send it later, and for now only email
+is offered. A channel that is not live sends nothing and says so: there is NO hardcoded fixed code
+any more (it used to be 1234). A developer can opt in to one locally with CREATOR_DEV_OTP; it is
+ignored when ENVIRONMENT=production.
 """
 
 import asyncio
@@ -21,6 +23,7 @@ from email.message import EmailMessage
 from typing import Literal, Protocol
 
 from app.core.config import settings
+from app.modules.auth import trustsignal
 
 logger = logging.getLogger(__name__)
 
@@ -91,13 +94,49 @@ def set_store(store: OtpStore | None) -> None:
 # --- Delivery --------------------------------------------------------------------------------
 
 
+class OtpUnavailable(Exception):
+    """This channel cannot send codes right now (no provider, or not offered yet)."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class OtpDeliveryFailed(Exception):
+    """The provider did not send the code. Nothing was stored, so the person can ask again."""
+
+
+def dev_code() -> str | None:
+    """A fixed sign-in code a developer opted in to locally (CREATOR_DEV_OTP). Never in production.
+
+    HARDCODED FIXED CODE: DISABLED. The old behaviour (every non-live channel accepted
+    `settings.creator_dev_otp`, which defaulted to "1234") let anyone who knew a creator's email
+    sign in as them, so it is commented out here and off by default:
+
+        # if not channel_is_live(channel):
+        #     return hmac.compare_digest(code, settings.creator_dev_otp)   # "1234"
+    """
+    if settings.environment == "production":
+        return None
+    return settings.creator_dev_otp or None
+
+
 def channel_is_live(channel: Channel) -> bool:
-    """Does this channel send real codes? If not, it uses the fixed dev code."""
+    """Does this channel send real codes?"""
     if channel == "email":
-        return bool(settings.smtp_host and settings.smtp_from)
-    # WhatsApp: no provider is wired yet (Meta Cloud API, Twilio and Gupshup each need their own
-    # integration and an approved message template).
+        return trustsignal.email_configured() or bool(settings.smtp_host and settings.smtp_from)
+    # WhatsApp: Trustsignal will send it (it needs an approved WhatsApp template). Not wired yet;
+    # for now creators sign in by email.
     return False
+
+
+def ensure_available(channel: Channel) -> None:
+    """Raises OtpUnavailable, with something the person can read, if no code can be sent."""
+    if channel_is_live(channel) or dev_code():
+        return
+    if channel == "whatsapp":
+        raise OtpUnavailable("WhatsApp codes aren't available yet. Please use your email.")
+    raise OtpUnavailable("We can't send sign-in codes right now. Please try again later.")
 
 
 def _send_email(to: str, code: str) -> None:
@@ -121,7 +160,10 @@ def _send_email(to: str, code: str) -> None:
 
 async def _deliver(channel: Channel, to: str, code: str) -> None:
     if channel == "email":
-        await asyncio.to_thread(_send_email, to, code)
+        if trustsignal.email_configured():
+            await trustsignal.send_otp_email(to, code)
+        else:
+            await asyncio.to_thread(_send_email, to, code)
 
 
 # Swappable for tests, which capture the code instead of sending it.
@@ -143,8 +185,10 @@ def _hash(identifier: str, code: str) -> str:
 
 async def issue(channel: Channel, identifier: str) -> None:
     """Create and send a code. Quietly does nothing inside the resend window."""
+    ensure_available(channel)
     if not channel_is_live(channel):
-        logger.info("Sign-in code for %s via %s: fixed dev code (no provider)", identifier, channel)
+        # Only reachable when a developer opted in to CREATOR_DEV_OTP locally: nothing is sent.
+        logger.info("Sign-in code for %s via %s: the local dev code applies", identifier, channel)
         return
     store = get_store()
     cooldown = f"{_key(channel, identifier)}:cooldown"
@@ -155,14 +199,22 @@ async def issue(channel: Channel, identifier: str) -> None:
     record = {"hash": _hash(identifier, code), "attempts": 0, "expires": expires}
     await store.set(_key(channel, identifier), json.dumps(record), settings.otp_ttl_seconds)
     await store.set(cooldown, "1", settings.otp_resend_seconds)
-    await deliver(channel, identifier, code)
+    try:
+        await deliver(channel, identifier, code)
+    except Exception as exc:  # noqa: BLE001 - whatever the provider did, the person must be able to retry
+        # Nothing arrived, so the code must not exist and the resend wait must not apply.
+        await store.delete(_key(channel, identifier))
+        await store.delete(cooldown)
+        logger.error("Could not send a sign-in code by %s: %s", channel, exc)
+        raise OtpDeliveryFailed from exc
 
 
 async def check(channel: Channel, identifier: str, code: str) -> bool:
     """True once for the right code; wrong guesses count towards burning it."""
     code = code.strip()
     if not channel_is_live(channel):
-        return hmac.compare_digest(code, settings.creator_dev_otp)
+        fixed = dev_code()
+        return bool(fixed) and hmac.compare_digest(code, fixed)
 
     store = get_store()
     key = _key(channel, identifier)

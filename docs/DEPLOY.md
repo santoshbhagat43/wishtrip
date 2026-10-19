@@ -125,3 +125,24 @@ that, no itinerary is made and the creator is told so, rather than shown a thin 
 video costs no download credits (the read video is cached by its link): "Build itinerary" or "Try
 again" completes an itinerary that was made before this existed. `COMPLETE_ITINERARIES=false`
 turns the top-up off.
+
+
+### Sign-in codes by email (Trustsignal)
+
+Creators sign in with a six-digit, single-use code sent to their email through
+[Trustsignal](https://trustsignal.io) (`POST https://eapi.trustsignal.io/v1/otp-email`).
+
+1. In the Trustsignal account: create an **OTP email template** whose body shows the code with a
+   `{{otp}}` variable, and verify the **sender address**.
+2. In `.env.production` set `TRUSTSIGNAL_API_KEY`, `TRUSTSIGNAL_EMAIL_FROM` and
+   `TRUSTSIGNAL_EMAIL_TEMPLATE_ID` (and `TRUSTSIGNAL_OTP_VARIABLE` if the template's variable is
+   not `otp`), then deploy.
+3. If the key is missing or wrong, the creator sees "We couldn't send the code" and the backend log
+   says `Could not send a sign-in code by email: Trustsignal API_KEY_MISSING ...`. The key is
+   redacted from logs (it travels in the URL, which Trustsignal's API requires).
+
+There is **no hardcoded sign-in code**. It used to be `1234` (the default of `CREATOR_DEV_OTP`),
+which let anyone who knew a creator's email sign in as them. Until email is configured, no code is
+sent. WhatsApp codes are not offered yet (Trustsignal WhatsApp comes later), so the sign-in page
+shows email only. A developer can opt in to a fixed code locally with `CREATOR_DEV_OTP` (the dev
+compose file does); it is ignored when `ENVIRONMENT=production`.

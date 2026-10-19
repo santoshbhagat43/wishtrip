@@ -6,6 +6,11 @@ x-backend-env: &backend-env
   MEDIA_ROOT: /data/media
   # Ollama runs on the host machine (local embeddings without an API key).
   OLLAMA_BASE_URL: http://host.docker.internal:11434
+  # DEV ONLY: a fixed sign-in code so local creator sign-in and the browser tests work without
+  # sending anything. The app has no hardcoded code and ignores this when ENVIRONMENT=production;
+  # docker-compose.prod.yml never sets it. Put CREATOR_DEV_OTP= (empty) in .env to switch it off
+  # and sign in with real codes through Trustsignal.
+  CREATOR_DEV_OTP: ${CREATOR_DEV_OTP-1234}
 
 services:
   postgres:
