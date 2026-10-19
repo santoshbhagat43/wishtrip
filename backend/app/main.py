@@ -17,6 +17,9 @@ from app.modules.chat.router import router as chat_router
 from app.modules.creators.creator_router import router as creator_router
 from app.modules.creators.router import router as creators_router
 from app.modules.explore.router import router as explore_router
+from app.modules.flights.router import router as flights_router
+from app.modules.hotels.router import router as hotels_router
+from app.modules.insurance.router import router as insurance_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.media.router import router as media_router
 from app.modules.menus.router import router as menus_router
@@ -50,6 +53,9 @@ for router in (
     explore_router,
     chat_router,
     reels_router,
+    hotels_router,
+    flights_router,
+    insurance_router,
     creators_router,
     creator_router,
     menus_router,

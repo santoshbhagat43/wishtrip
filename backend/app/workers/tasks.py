@@ -7,6 +7,7 @@ from sqlalchemy.pool import NullPool
 from app.ai.indexing import embed_locations
 from app.ai.orchestrator import AIOrchestrator
 from app.core.config import settings
+from app.modules.hotels import sync as hotel_sync
 from app.modules.reels import service as reels
 from app.modules.reels.models import ReelImport
 from app.workers.celery_app import celery_app
@@ -46,3 +47,42 @@ async def _process_reel(import_id: uuid.UUID) -> None:
 @celery_app.task(name="reels.process", soft_time_limit=600, time_limit=660)
 def process_reel_task(import_id: str) -> None:
     asyncio.run(_process_reel(uuid.UUID(import_id)))
+
+
+async def _hotel_sync(job: str, region_id: int | None = None) -> int:
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            if job == "regions":
+                n = await hotel_sync.sync_regions(session)
+                await hotel_sync.link_regions_to_locations(session)
+                return n
+            assert region_id is not None
+            if job == "region":
+                await hotel_sync.sync_region_mapping(session, region_id)
+            return await hotel_sync.sync_region_content(session, region_id)
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(
+    name="hotels.sync_regions", autoretry_for=(Exception,), retry_backoff=True, max_retries=3
+)
+def sync_regions_task() -> int:
+    return asyncio.run(_hotel_sync("regions"))
+
+
+# Hotel ids, then the content of every hotel in one region (100 a call).
+@celery_app.task(
+    name="hotels.sync_region", autoretry_for=(Exception,), retry_backoff=True, max_retries=3
+)
+def sync_region_task(region_id: int) -> int:
+    return asyncio.run(_hotel_sync("region", region_id))
+
+
+# Content only: used after a first search already pulled the ids and the first batch.
+@celery_app.task(
+    name="hotels.sync_region_content", autoretry_for=(Exception,), retry_backoff=True, max_retries=3
+)
+def sync_region_content_task(region_id: int) -> int:
+    return asyncio.run(_hotel_sync("content", region_id))

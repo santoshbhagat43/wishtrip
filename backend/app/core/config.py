@@ -115,6 +115,37 @@ class Settings(BaseSettings):
     smtp_from: str | None = None  # e.g. "WishTrip <login@wishtrip.co>"
     smtp_starttls: bool = True
 
+    # TripJack hotels (v3). The key is per environment and tied to whitelisted server IPs; keep it
+    # server-side. Unset = hotel search is off. The defaults are the UAT (test) hosts; production
+    # uses hms-search.tripjack.com / tripjack.com and needs certification first.
+    tripjack_api_key: str | None = None
+    tripjack_search_url: str = "https://apitest-hms.tripjack.com"
+    tripjack_api_url: str = "https://apitest.tripjack.com"
+    # Our margin on top of TripJack's price, in percent (10 = +10%). Applied to base price only;
+    # taxes, management fee and its tax are passed through as TripJack sends them.
+    tripjack_markup_percent: float = 0.0
+    tripjack_currency: str = "INR"
+    # TripJack countryId of the guest's nationality when the traveller has not said (106 = India).
+    tripjack_nationality: str = "106"
+    tripjack_request_timeout_ms: int = 13000
+    # Repeat searches inside this window are served from Redis. Prices are live, so keep it short.
+    tripjack_listing_cache_seconds: int = 180
+    # Hotels sent to Listing per search, best-first (star rating, photos). Chunks of 100 run in
+    # parallel.
+    tripjack_search_hotels: int = 300
+
+    # TripJack flights (v2) and TripSafe insurance share the apitest.tripjack.com host. Each key is
+    # issued per product in the TripJack portal; unset = falls back to TRIPJACK_API_KEY.
+    tripjack_flight_api_key: str | None = None
+    tripjack_insurance_api_key: str | None = None
+    # Our margin in percent: on the base fare (flights; taxes pass through) and on the total
+    # premium (insurance).
+    tripjack_flight_markup_percent: float = 0.0
+    tripjack_insurance_markup_percent: float = 0.0
+    # Searches repeated inside this window come from Redis. Flight priceIds live 15 minutes.
+    tripjack_flight_cache_seconds: int = 300
+    tripjack_insurance_cache_seconds: int = 600
+
     @property
     def ai_enabled(self) -> bool:
         """An OpenRouter key is configured (online embeddings/LLM available)."""

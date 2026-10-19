@@ -10,6 +10,7 @@ from app.modules.creators.models import (
     CreatorLink,
     CreatorTrip,
 )
+from app.modules.hotels.models import SupplierHotel, SupplierRegion
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
 from app.modules.media.models import Media
 from app.modules.menus.models import MenuGroup, MenuItem
@@ -44,6 +45,8 @@ __all__ = [
     "ProfileEvent",
     "DownloadRequest",
     "ReelImport",
+    "SupplierHotel",
+    "SupplierRegion",
     "SupportMessage",
     "SupportRouting",
     "SupportTicket",
