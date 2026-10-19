@@ -107,11 +107,11 @@ test.describe("Reel links", () => {
     await expect(reel.getByText("Visits").locator("xpath=..").getByText("1", { exact: true })).toBeVisible();
 
     // Neither Instagram nor YouTube → asked for one; nothing to publish yet.
-    await expect(reel.getByRole("button", { name: "Publish" })).toBeDisabled();
-    await reel.getByRole("button", { name: "Save" }).click();
+    await expect(reel.getByRole("button", { name: "Publish", exact: true })).toBeDisabled();
+    await reel.getByRole("button", { name: "Save as draft" }).click();
     await expect(reel.getByText("one of them is needed")).toBeVisible();
     await reel.getByLabel("Instagram reel URL").fill("not an instagram link");
-    await reel.getByRole("button", { name: "Save" }).click();
+    await reel.getByRole("button", { name: "Save and publish" }).click();
     await expect(reel.getByText(/Paste the link to your Instagram reel/)).toBeVisible();
 
     // A real reel link: the server downloads it, reads it and builds the itinerary.
@@ -119,7 +119,8 @@ test.describe("Reel links", () => {
     const shortcode = `Ce2e${Date.now().toString(36)}`;
     seedReel(shortcode);
     await reel.getByLabel("Instagram reel URL").fill(`https://www.instagram.com/reel/${shortcode}/?igsh=xyz`);
-    await reel.getByRole("button", { name: "Save and build itinerary" }).click();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-form.png` });
+    await reel.getByRole("button", { name: "Save as draft" }).click();
     await expect(reel.getByLabel("Instagram reel URL")).toHaveValue(`https://www.instagram.com/reel/${shortcode}/`);
     await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 60_000 });
     await expect(reel.getByRole("button", { name: "Publish", exact: true })).toBeEnabled();
@@ -136,7 +137,7 @@ test.describe("Reel links", () => {
     await expect(sheet.getByText("Fort Aguada", { exact: true })).toBeVisible();
     await expect(sheet.getByText("Old Goa churches", { exact: true })).toBeVisible();
     await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
-    await expect(sheet.getByText("Ready to publish")).toBeVisible();
+    await expect(sheet.getByText("Not published")).toBeVisible();
     // The bookings that come with the board, and sharing it with family.
     await expect(sheet.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
     await expect(sheet.getByText("FLIGHTS")).toBeVisible();
@@ -199,7 +200,7 @@ test.describe("Reel links", () => {
     await sheet.getByRole("button", { name: "Back to reel" }).click();
     await expect(sheet).toHaveCount(0);
     await reel.getByRole("button", { name: "Close" }).click();
-    await expect(card).toContainText("Ready to publish");
+    await expect(card).toContainText("Not published");
 
     expect(pageErrors).toEqual([]);
   });
@@ -217,9 +218,8 @@ test.describe("Reel links", () => {
     const reel = page.getByRole("dialog", { name: "Hampi in a day" });
     const shortcode = `Cauto${Date.now().toString(36)}`;
     seedReel(shortcode);
-    await reel.getByLabel("Publish it automatically once the itinerary is built").check();
     await reel.getByLabel("Instagram reel URL").fill(`instagram.com/reel/${shortcode}/`);
-    await reel.getByRole("button", { name: "Save and build itinerary" }).click();
+    await reel.getByRole("button", { name: "Save and publish" }).click();
     await expect(reel.getByText("This reel is published.")).toBeVisible({ timeout: 60_000 });
     await reel.getByRole("button", { name: "Close" }).click();
     await expect(section.getByRole("button", { name: /Hampi in a day/ })).toContainText("Published");
@@ -239,7 +239,7 @@ test.describe("Reel links", () => {
 
     // A channel link instead of a video is refused.
     await reel.getByLabel("YouTube video URL").fill("https://www.youtube.com/@somechannel");
-    await reel.getByRole("button", { name: "Save" }).click();
+    await reel.getByRole("button", { name: "Save as draft" }).click();
     await expect(reel.getByText(/Paste the link to your YouTube video/)).toBeVisible();
 
     // A video link is downloaded and read just like a reel. (Here the video is already in the
@@ -247,7 +247,7 @@ test.describe("Reel links", () => {
     const id = `E2E${Date.now().toString(36).padEnd(8, "x")}`.slice(0, 11);
     seedReel(`yt-${id}`);
     await reel.getByLabel("YouTube video URL").fill(`https://youtu.be/${id}?si=tracking`);
-    await reel.getByRole("button", { name: "Save and build itinerary" }).click();
+    await reel.getByRole("button", { name: "Save as draft" }).click();
     await expect(reel.getByLabel("YouTube video URL")).toHaveValue(`https://www.youtube.com/watch?v=${id}`);
     await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 60_000 });
     await reel.getByRole("button", { name: "Open itinerary" }).click();
@@ -280,6 +280,10 @@ test.describe("Reel links", () => {
     // What the video says out loud and shows on screen: the places, and where on screen they showed.
     await expect(sheet.getByText(/Uluwatu/).first()).toBeVisible();
     await expect(sheet.getByText(/From the reel · \d+:\d\d/).first()).toBeVisible();
+    // The video names five places and says "4 days": the itinerary is made whole, and says which
+    // stops are the video's and which were added.
+    await expect(sheet.getByText("DAY 4")).toBeVisible();
+    await expect(sheet.getByText("Suggested · not from the reel").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
   });
 

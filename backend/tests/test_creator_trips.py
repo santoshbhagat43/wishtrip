@@ -21,6 +21,12 @@ async def _approved_creator(client, admin, email: str) -> dict[str, str]:
     return headers
 
 
+@pytest.fixture(autouse=True)
+def plain_itineraries(monkeypatch):
+    """These tests are about editing and publishing, with a video that names two places."""
+    monkeypatch.setattr(settings, "complete_itineraries", False)
+
+
 @pytest.fixture
 def fake_reel(monkeypatch):
     """Skip the media pipeline (covered by test_reels): produce a canned CreatorContent."""

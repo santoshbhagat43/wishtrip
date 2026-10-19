@@ -40,6 +40,7 @@ from app.modules.creators import trips as creator_trips
 from app.modules.knowledge.models import Location, LocationStatus, LocationType
 from app.modules.media.storage import storage
 from app.modules.reels import fetch, fetch_youtube, media, saveapi
+from app.modules.reels.complete import IncompleteItinerary
 from app.modules.reels.models import (
     CreatorContent,
     DownloadRequest,
@@ -580,7 +581,7 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
                     "We couldn't find any places in that reel. Does it name them in the caption, "
                     "on screen or out loud?"
                 )
-            await creator_trips.finish_import(session, job, content)
+            await creator_trips.finish_import(session, job, content, ai)
         else:
             await finish(session, job, content)
     except Exception as exc:  # noqa: BLE001 - whatever goes wrong, the job must end, not hang
@@ -593,7 +594,7 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
 
 
 def _message(exc: Exception) -> str:
-    if isinstance(exc, ReelError):
+    if isinstance(exc, ReelError | IncompleteItinerary):
         return str(exc)
     logger.exception("Reel import failed", exc_info=exc)
     return "We couldn't read that reel. Try again in a bit, or tell Arya the places instead."

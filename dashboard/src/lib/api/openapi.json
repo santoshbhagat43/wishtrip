@@ -12623,6 +12623,17 @@
        }
       ],
       "title": "T"
+     },
+     "origin": {
+      "type": "string",
+      "enum": [
+       "reel",
+       "kb",
+       "suggested",
+       "creator"
+      ],
+      "title": "Origin",
+      "default": "reel"
      }
     },
     "type": "object",

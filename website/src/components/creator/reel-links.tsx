@@ -14,15 +14,6 @@ import { reelLink, rupees, withoutScheme } from "@/lib/creator";
 
 type Link = Schemas["CreatorLinkRead"];
 
-/** What happens to a reel once its link is added, in order, as the server reports it. */
-const BUILD_STEPS = [
-  "Downloading your reel",
-  "Reading the text on screen",
-  "Listening to the voice-over",
-  "Finding the places and building your itinerary",
-] as const;
-const STEP_INDEX: Record<string, number> = { queued: 0, downloading: 0, reading_screen: 1, listening: 2, finding_places: 3 };
-
 const STEPS = [
   ["Create a link", "One for each reel you're about to post."],
   ["Use it in your reel", "Put it in the caption or your bio."],
@@ -32,9 +23,9 @@ const STEPS = [
 const STATE: Record<Link["status"], { label: string; tone: Tone }> = {
   waiting: { label: "Waiting for reel", tone: "warn" },
   unread: { label: "No itinerary yet", tone: "neutral" },
-  building: { label: "Building itinerary", tone: "info" },
+  building: { label: "Processing", tone: "info" },
   failed: { label: "Couldn't read it", tone: "danger" },
-  ready: { label: "Ready to publish", tone: "brand" },
+  ready: { label: "Not published", tone: "neutral" },
   published: { label: "Published", tone: "ok" },
 };
 
@@ -266,18 +257,25 @@ function ReelModal({
   const fileRef = useRef<HTMLInputElement>(null);
   const [instagram, setInstagram] = useState(link.instagram_url ?? "");
   const [youtube, setYoutube] = useState(link.youtube_url ?? "");
-  const [auto, setAuto] = useState(link.auto_publish);
   const [problem, setProblem] = useState<string | null>(null);
   const state = STATE[link.status];
   const building = link.status === "building";
+  // No itinerary yet: saving starts one, and the creator says whether it publishes itself.
+  const fresh = ["waiting", "unread", "failed"].includes(link.status);
   const hasItinerary = link.status === "ready" || link.status === "published";
 
   const save = useMutation({
-    mutationFn: async () => {
+    // `publish`: true = publish as soon as it's ready, false = keep it as a draft, undefined =
+    // leave that choice alone (the itinerary is already made).
+    mutationFn: async (publish: boolean | undefined) => {
       if (!instagram.trim() && !youtube.trim()) {
         throw new Error("Add your Instagram or YouTube link — one of them is needed.");
       }
-      return patch.mutateAsync({ instagram_url: instagram.trim(), youtube_url: youtube.trim() });
+      return patch.mutateAsync({
+        instagram_url: instagram.trim(),
+        youtube_url: youtube.trim(),
+        ...(publish === undefined ? {} : { auto_publish: publish }),
+      });
     },
     onMutate: () => setProblem(null),
     onSuccess: (updated) => {
@@ -322,14 +320,14 @@ function ReelModal({
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            save.mutate();
+            // Enter saves the way the first button does.
+            save.mutate(fresh ? true : undefined);
           }}
         >
           <div>
             <h3 className="text-sm font-semibold">Where did you post it?</h3>
             <p className="text-sm text-muted">
-              Add the reel&rsquo;s link from Instagram or YouTube — one is needed, or both. We build your itinerary from
-              it.
+              Add the reel&rsquo;s link from Instagram or YouTube — one is needed, or both. We make your itinerary from it.
             </p>
           </div>
           <label className="flex flex-col gap-1.5 text-sm font-semibold">
@@ -352,50 +350,38 @@ function ReelModal({
               onChange={(e) => setYoutube(e.target.value)}
             />
           </label>
-          <label className="flex items-center gap-2.5 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 accent-brand"
-              checked={auto}
-              onChange={(e) => {
-                setAuto(e.target.checked);
-                patch.mutate({ auto_publish: e.target.checked });
-              }}
-            />
-            Publish it automatically once the itinerary is built
-          </label>
           {problem && <ErrorNote error={problem} />}
-          <Button type="submit" disabled={save.isPending || building}>
-            {save.isPending
-              ? "Saving…"
-              : (instagram.trim() || youtube.trim()) && link.status === "waiting"
-                ? "Save and build itinerary"
-                : "Save"}
-          </Button>
+          {fresh ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button type="submit" disabled={save.isPending || building}>
+                {save.isPending ? "Saving…" : "Save and publish"}
+              </Button>
+              <Button type="button" variant="secondary" disabled={save.isPending || building} onClick={() => save.mutate(false)}>
+                Save as draft
+              </Button>
+              <p className="text-xs text-muted sm:col-span-2">
+                We process the reel in the background. &ldquo;Save and publish&rdquo; publishes it as soon as it&rsquo;s
+                ready; &ldquo;Save as draft&rdquo; keeps it unpublished until you publish it.
+              </p>
+            </div>
+          ) : (
+            <Button type="submit" disabled={save.isPending || building}>
+              {save.isPending ? "Saving…" : "Save"}
+            </Button>
+          )}
         </form>
 
         {building && (
-          <ol aria-label="Building your itinerary" className="flex flex-col gap-2.5 rounded-2xl bg-surface-2 p-4">
-            {BUILD_STEPS.map((label, i) => {
-              const current = STEP_INDEX[link.step ?? "queued"] ?? 0;
-              const done = i < current;
-              const active = i === current;
-              return (
-                <li key={label} className={`flex items-center gap-2.5 text-sm ${done || active ? "" : "text-muted"}`}>
-                  <span className="grid size-5 flex-none place-items-center">
-                    {done ? (
-                      <Check className="size-4 text-ok" />
-                    ) : active ? (
-                      <span className="size-4 animate-spin rounded-full border-2 border-border border-t-brand" />
-                    ) : (
-                      <span className="size-2 rounded-full bg-border" />
-                    )}
-                  </span>
-                  {label}
-                </li>
-              );
-            })}
-          </ol>
+          <div role="status" aria-label="Processing" className="flex items-center gap-3 rounded-2xl bg-surface-2 p-4">
+            <span className="size-5 flex-none animate-spin rounded-full border-2 border-border border-t-brand" />
+            <p className="text-sm">
+              <strong className="block">Processing your reel…</strong>
+              <span className="text-muted">
+                This takes a minute or two. You can close this window: it will show Published or Not published when
+                it&rsquo;s done.
+              </span>
+            </p>
+          </div>
         )}
 
         {link.status === "failed" && (
@@ -416,7 +402,9 @@ function ReelModal({
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-soft p-4">
             <p className="text-sm">
               <strong className="block text-brand">Your itinerary is ready</strong>
-              <span className="text-muted">Made from your reel. Look it over, then publish.</span>
+              <span className="text-muted">
+                {link.status === "published" ? "It's published. Open it to look it over." : "Look it over, then publish."}
+              </span>
             </p>
             <Button type="button" className="flex-none whitespace-nowrap" onClick={onOpenItinerary}>
               Open itinerary

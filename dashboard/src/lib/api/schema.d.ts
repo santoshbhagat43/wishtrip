@@ -4383,6 +4383,12 @@ export interface components {
             verified: boolean;
             /** T */
             t?: number | null;
+            /**
+             * Origin
+             * @default reel
+             * @enum {string}
+             */
+            origin: "reel" | "kb" | "suggested" | "creator";
         };
         /**
          * TripStatus

@@ -18,7 +18,15 @@ import { WEBSITE_URL, withoutScheme } from "@/lib/creator";
 
 type Item = Schemas["TripItem"];
 type Link = Schemas["CreatorLinkRead"];
-export type Stop = { when: string; kind: string; name: string; note: string; at: string | null };
+export type Stop = {
+  when: string;
+  kind: string;
+  name: string;
+  note: string;
+  at: string | null;
+  /** Where it came from: the creator's video, WishTrip's checked places, or a suggestion. */
+  origin: "reel" | "kb" | "suggested" | "creator";
+};
 export type ItineraryDay = { n: number; stops: Stop[] };
 
 const KIND: Record<string, { label: string; Icon: typeof Landmark }> = {
@@ -55,7 +63,14 @@ export function daysFromItems(items: Item[]): ItineraryDay[] {
     const day = days.get(dayOf(i)) ?? [];
     days.set(dayOf(i), [
       ...day,
-      { when: WHEN[day.length % WHEN.length], kind: s.kind, name: s.name, note: noteFor(s), at: reelTime(s.t) },
+      {
+        when: WHEN[day.length % WHEN.length],
+        kind: s.kind,
+        name: s.name,
+        note: noteFor(s),
+        at: s.origin === "reel" ? reelTime(s.t) : null,
+        origin: s.origin ?? "reel",
+      },
     ]);
   });
   return [...days.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));
@@ -180,7 +195,7 @@ export function ItinerarySheet({
             <div className="flex flex-col gap-1">
               <h1 className="font-display m-0 text-[32px] font-medium leading-tight md:text-[44px]">{title}</h1>
               <p className="m-0 text-sm text-[#566E85]">
-                {trip.isLoading ? "Loading…" : `${days.length} ${days.length === 1 ? "day" : "days"} · ${stopCount(days)} stops · made from your reel`}
+                {trip.isLoading ? "Loading…" : `${days.length} days · ${stopCount(days)} stops · ${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from your reel`}
               </p>
             </div>
             <div className="relative">
@@ -278,9 +293,20 @@ export function ItinerarySheet({
                           </span>
                           <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
                           <span className="flex flex-wrap gap-1">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F6F7] px-2 py-0.5 text-[10.5px] font-semibold text-[#0A6B6E]">
-                              <Play className="size-2.5" /> From the reel{s.at ? ` · ${s.at}` : ""}
-                            </span>
+                            {s.origin === "suggested" ? (
+                              <span className="rounded-full bg-[#EFE9DF] px-2 py-0.5 text-[10.5px] font-semibold text-[#6B5F50]">
+                                Suggested · not from the reel
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#D8F6F7] px-2 py-0.5 text-[10.5px] font-semibold text-[#0A6B6E]">
+                                <Play className="size-2.5" />{" "}
+                                {s.origin === "kb"
+                                  ? "Checked by WishTrip"
+                                  : s.origin === "creator"
+                                    ? "Added by you"
+                                    : `From the reel${s.at ? ` · ${s.at}` : ""}`}
+                              </span>
+                            )}
                             {s.note && (
                               <span className="rounded-full bg-[#F4EFE8] px-2 py-0.5 text-[10.5px] font-semibold text-[#566E85]">{s.note}</span>
                             )}
@@ -308,7 +334,7 @@ export function ItinerarySheet({
                   Published
                 </>
               ) : (
-                "Ready to publish"
+                "Not published"
               )}
             </p>
             <p className="m-0 text-[13px] text-[#566E85]">

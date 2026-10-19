@@ -12,7 +12,7 @@ import { api, unwrap, type Schemas } from "@/lib/api/client";
 type Trip = Schemas["CreatorTripRead"];
 type Item = Schemas["TripItem"];
 const KINDS = ["sight", "food", "stay", "experience", "area", "note"];
-const blank = (): Item => ({ id: `new-${crypto.randomUUID()}`, kind: "sight", name: "", note: "", day: null, location_id: null, verified: false });
+const blank = (): Item => ({ id: `new-${crypto.randomUUID()}`, kind: "sight", name: "", note: "", day: null, location_id: null, verified: false, origin: "creator" });
 
 export default function TripEditorPage() {
   const { id } = useParams<{ id: string }>();

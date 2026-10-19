@@ -109,3 +109,19 @@ Set `SAVEAPI_KEY` (from saveapi.org; it starts `sk_live_`) in `.env.production` 
   tool and the last known balance). Failures are kept too.
 - If SaveAPI itself refuses us (bad key, no credits left), the creator sees the original failure
   and the backend log says `SaveAPI refused us (QUOTA_EXCEEDED…)`. Watch for that line.
+
+### Itineraries are always made whole
+
+A video only names what it names (a 12-second short may name three places), so after reading it
+the itinerary is topped up to **at least two days of three stops** (the video's own number of
+days when it says one, up to seven), from:
+
+1. WishTrip's checked knowledge base for the destination ("Checked by WishTrip"), then
+2. the AI's own suggestions of well-known places there, labelled **"Suggested · not from the
+   reel"** wherever they appear. They are not checked and carry no prices or other facts.
+
+The stops are then grouped into days by where they are. If a video names too few places even for
+that, no itinerary is made and the creator is told so, rather than shown a thin one. Re-reading a
+video costs no download credits (the read video is cached by its link): "Build itinerary" or "Try
+again" completes an itinerary that was made before this existed. `COMPLETE_ITINERARIES=false`
+turns the top-up off.

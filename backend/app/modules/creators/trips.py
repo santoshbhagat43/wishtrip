@@ -8,11 +8,15 @@ from datetime import UTC, datetime
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.orchestrator import AIOrchestrator
+from app.core.config import settings
 from app.core.errors import bad_request, not_found
 from app.modules.creators.models import Creator, CreatorLink, CreatorTrip, TripStatus
 from app.modules.media.storage import storage
+from app.modules.reels.complete import Plan, complete, target_days
 
 ITEM_KINDS = {"stay", "food", "sight", "experience", "area", "note"}
+ORIGINS = {"reel", "kb", "suggested", "creator"}
 
 
 def _slug(text: str) -> str:
@@ -40,34 +44,72 @@ def _item_from_place(place: dict) -> dict:
         "verified": bool(place.get("verified")),
         # Where in the reel it was seen, in seconds.
         "t": place.get("t"),
+        # Where the stop came from: "reel" (the creator's video), "kb" (WishTrip's checked
+        # knowledge base) or "suggested" (the AI's suggestion, neither from the video nor checked).
+        "origin": "reel",
     }
 
 
-def assign_days(items: list[dict], days_hint: int | None) -> list[dict]:
-    """Spread a reel's stops over its days, in the order the reel names them.
+def assign_days(items: list[dict], days: int) -> list[dict]:
+    """Spread a trip's stops over its days.
 
-    The creator's own number of days when the reel says one ("4 days in Bali"), else about three
-    stops a day. A stay goes on day 1 (check-in) and is not counted among the day's stops.
+    The places the video named keep the video's order, in chunks, so a day reads as part of the
+    video; the stops added to complete the trip then go to whichever day has the fewest. Every day
+    ends up with about the same, and a stay goes on day 1 (check-in), not counted among the stops.
     """
     stops = [i for i in items if i["kind"] != "stay"]
-    days = min(7, days_hint if days_hint else max(1, -(-len(stops) // 3)))
+    named = [i for i in stops if i.get("origin", "reel") == "reel"]
+    added = [i for i in stops if i.get("origin", "reel") != "reel"]
     days = max(1, min(days, len(stops) or 1))
-    per_day = -(-len(stops) // days)
-    for n, item in enumerate(stops):
-        item["day"] = n // per_day + 1
+    counts = [0] * days
+    base, extra = divmod(len(named), days)
+    n = 0
+    for d in range(days):
+        for _ in range(base + (1 if d < extra else 0)):
+            named[n]["day"] = d + 1
+            counts[d] += 1
+            n += 1
+    for item in added:
+        d = counts.index(min(counts))
+        item["day"] = d + 1
+        counts[d] += 1
     for item in items:
         if item["kind"] == "stay":
             item["day"] = 1
-    # Check in first, then the days in order.
-    return sorted(items, key=lambda i: i["kind"] != "stay")
+    # Check in first, then the days in order (the sort keeps each day's own order).
+    return sorted(items, key=lambda i: (i["kind"] != "stay", i["day"] or 0))
 
 
-async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
-    """Turn a processed reel into a draft trip owned by the creator who imported it."""
+def _stay_first(items: list[dict]) -> list[dict]:
+    """An arrangement that already set every day: check in first, the days in order."""
+    for item in items:
+        if item["kind"] == "stay":
+            item["day"] = 1
+    return sorted(items, key=lambda i: (i["kind"] != "stay", i["day"] or 0))
+
+
+async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator | None = None):
+    """Turn a processed reel into a draft trip owned by the creator who imported it.
+
+    The places the video names are topped up to a whole trip first (see `reels.complete`)."""
     creator = await session.scalar(select(Creator).where(Creator.user_id == job.user_id))
     if creator is None:
         raise not_found("Creator")
     extracted = content.extracted or {}
+    named = [_item_from_place(p) for p in content.places if p.get("kind") != "area"]
+    if settings.complete_itineraries:
+        plan = await complete(
+            session,
+            ai,
+            destination=content.destination_name or extracted.get("destination", ""),
+            destination_id=content.destination_id,
+            summary=extracted.get("summary", ""),
+            items=named,
+            days_hint=extracted.get("days_hint"),
+        )
+    else:
+        stops = [i for i in named if i["kind"] != "stay"]
+        plan = Plan(items=named, days=min(target_days(extracted.get("days_hint")), len(stops) or 1))
     trip = CreatorTrip(
         creator_id=creator.id,
         title=f"{content.destination_name or 'My'} trip",
@@ -75,10 +117,7 @@ async def finish_import(session: AsyncSession, job, content) -> CreatorTrip:
         summary=extracted.get("summary", ""),
         cover_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
-        items=assign_days(
-            [_item_from_place(p) for p in content.places if p.get("kind") != "area"],
-            extracted.get("days_hint"),
-        ),
+        items=_stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days),
     )
     session.add(trip)
     await session.flush()
@@ -163,6 +202,7 @@ def clean_items(items: list) -> list:
                 "location_id": raw.get("location_id"),
                 "verified": bool(raw.get("verified")),
                 "t": raw.get("t") if isinstance(raw.get("t"), int | float) else None,
+                "origin": raw.get("origin") if raw.get("origin") in ORIGINS else "reel",
             }
         )
     return out[:100]

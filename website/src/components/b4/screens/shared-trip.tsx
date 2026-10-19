@@ -150,7 +150,8 @@ export function SharedTripScreen() {
               <Kicker teal>A TRIP BY {who.toUpperCase()}</Kicker>
               <h1 className="font-display mb-0 mt-1.5 text-[32px] font-medium leading-[1.08] md:text-[44px]">{t.title}</h1>
               <p className="mt-1.5 text-[15px] text-[#566E85]">
-                {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops · from {who}’s reel · relaxed pace
+                {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops ·{" "}
+                {days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from {who}’s reel
               </p>
               {t.summary && <p className="mt-2 max-w-[640px] text-[14.5px] text-[#3F5A72]">{t.summary}</p>}
             </div>
@@ -241,7 +242,19 @@ export function SharedTripScreen() {
                           <span className="text-[11.5px] font-semibold text-[#8A7F72]">{s.when}</span>
                           <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
                           <span className="self-start">
-                            <Why>{`From the reel${s.at ? ` · ${s.at}` : ""}`}</Why>
+                            {s.origin === "suggested" ? (
+                              <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EFE9DF] px-[9px] py-0.5 text-[10.5px] font-bold text-[#6B5F50]">
+                                Suggested · not from the reel
+                              </span>
+                            ) : (
+                              <Why>
+                                {s.origin === "kb"
+                                  ? "Checked by WishTrip"
+                                  : s.origin === "creator"
+                                    ? "Added by the creator"
+                                    : `From the reel${s.at ? ` · ${s.at}` : ""}`}
+                              </Why>
+                            )}
                           </span>
                         </span>
                       </div>

@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     reel_max_frames: int = 60
     reel_download_timeout_seconds: int = 240
     reel_imports_per_hour: int = 10
+    # Top a creator's itinerary up to a whole trip (at least two full days) from the knowledge
+    # base and clearly-labelled AI suggestions. Off only for tests of the bare reading.
+    complete_itineraries: bool = True
     reel_upload_max_mb: int = 120
     # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
     # outside MEDIA_ROOT: everything there is served publicly.
