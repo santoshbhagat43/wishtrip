@@ -29,6 +29,16 @@ class TripJackHotels(TripJackHTTP):
         ok = isinstance(body, dict) and (body.get("status") or {}).get("success", True)
         if 200 <= status_code < 300 and ok and not err:
             return None
+        # No rooms for those dates comes back as success:false with an empty `options` list and
+        # no error. That is an answer (nothing available), not a supplier failure.
+        if (
+            200 <= status_code < 300
+            and not err
+            and isinstance(body, dict)
+            and "options" in body
+            and not body["options"]
+        ):
+            return None
         code = str((err or {}).get("code") or status_code)
         message = (err or {}).get("message") or text[:200]
         retry = code in _RETRYABLE or (status_code >= 500 and code not in _NOT_RETRIED)

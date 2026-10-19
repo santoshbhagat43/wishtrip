@@ -101,6 +101,12 @@ async def _candidates(session: AsyncSession, region_id: int) -> list[SupplierHot
     )
 
 
+def _listing_id(item: dict) -> str:
+    """TripJack's documentation says `tjHotelId`, but Listing really answers `hotelId` (the content
+    and mapping APIs do use `tjHotelId`). Accept both."""
+    return str(item.get("hotelId") or item.get("tjHotelId") or "")
+
+
 def _card(hotel: SupplierHotel, listing: dict) -> dict | None:
     """The cheapest bookable option of a Listing hotel, joined with our static data."""
     options = normalise_options(listing.get("options") or [])
@@ -167,7 +173,7 @@ async def search_stream(
             continue
         batch = [
             c for item in listing
-            if (h := by_id.get(str(item.get("tjHotelId")))) and (c := _card(h, item))
+            if (h := by_id.get(_listing_id(item))) and (c := _card(h, item))
         ]
         cards.extend(batch)
         if batch:

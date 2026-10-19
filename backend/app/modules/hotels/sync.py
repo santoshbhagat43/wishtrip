@@ -58,22 +58,33 @@ async def sync_regions(session: AsyncSession, client: TripJackHotels = tripjack_
 
 
 async def link_regions_to_locations(session: AsyncSession) -> int:
-    """Match regions to our knowledge-base cities by name (and country, when we know it)."""
+    """Match regions to our knowledge-base cities by name, and by country when the city has one.
+
+    Names alone are not enough: there is a "Goa" in India and another in the Philippines, and
+    "London" in Canada as well as England. A city we know the country of only links to regions in
+    that country (a country spelled differently by TripJack is left unlinked, not mislinked)."""
     cities = (
-        await session.execute(
-            select(Location).where(Location.type == LocationType.CITY)
-        )
-    ).scalars().all()
+        (await session.execute(select(Location).where(Location.type == LocationType.CITY)))
+        .scalars()
+        .all()
+    )
+    countries = {
+        c.id: c.name.lower()
+        for c in (
+            await session.execute(select(Location).where(Location.type == LocationType.COUNTRY))
+        ).scalars()
+    }
     linked = 0
     for city in cities:
         names = {city.name.lower(), *(a.lower() for a in (city.aliases or []))}
+        where = [
+            func.lower(SupplierRegion.city_name).in_(names),
+            SupplierRegion.location_id.is_(None),
+        ]
+        if country := countries.get(city.parent_id):
+            where.append(func.lower(SupplierRegion.country_name) == country)
         result = await session.execute(
-            update(SupplierRegion)
-            .where(
-                func.lower(SupplierRegion.city_name).in_(names),
-                SupplierRegion.location_id.is_(None),
-            )
-            .values(location_id=city.id)
+            update(SupplierRegion).where(*where).values(location_id=city.id)
         )
         linked += result.rowcount or 0
     await session.commit()
