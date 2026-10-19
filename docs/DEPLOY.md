@@ -80,3 +80,16 @@ media worker). Two things to know:
 
 Videos longer than `REEL_MAX_SECONDS` (3 minutes) are refused with a message; raise it if you
 want longer ones read (the cost is more AI tokens per video).
+
+### If YouTube refuses the server
+
+On a rented server `yt-dlp` often gets "Sign in to confirm you're not a bot" for every video: YouTube
+distrusts data-centre addresses, whichever library is used. Three ways round it, in the order
+we'd try them:
+
+1. **Creators upload the video file** from the reel's popup. Nothing to configure; it never touches
+   YouTube, so it always works.
+2. **A proxy** with a residential address: set `YOUTUBE_PROXY=http://user:pass@host:port`. No
+   YouTube account needed; the proxy service costs money.
+3. **Cookies** from a throwaway signed-in YouTube account (`YOUTUBE_COOKIES_FILE`, above). Free, but
+   it risks that account and the cookies expire.

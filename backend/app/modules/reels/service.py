@@ -122,7 +122,8 @@ def download(shortcode: str, workdir: Path) -> dict[str, Any]:
     if result.returncode == fetch.EXIT_BLOCKED:
         logger.warning("%s blocked %s: %s", site, shortcode, reason)
         raise ReelError(
-            f"{site} is not letting us read videos right now. Try again later."
+            "YouTube is not letting us read videos right now. Try again later, or upload the "
+            "video instead."
             if youtube
             else "Instagram is not letting us read reels right now. Try again later."
         )

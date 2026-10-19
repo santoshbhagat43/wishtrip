@@ -1097,8 +1097,8 @@ export interface paths {
         head?: never;
         /**
          * Change My Link
-         * @description Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into
-         *     an itinerary), choose auto-publishing, or publish / unpublish the itinerary.
+         * @description Add the reel's Instagram or YouTube link once it is posted (it is read into an itinerary,
+         *     Instagram first), choose auto-publishing, or publish / unpublish the itinerary.
          */
         patch: operations["change_my_link_creator_links__link_id__patch"];
         trace?: never;
@@ -1114,10 +1114,33 @@ export interface paths {
         put?: never;
         /**
          * Build My Link
-         * @description Read the link's Instagram reel into an itinerary again (after a failure, or for a link
-         *     made before itineraries existed).
+         * @description Read the link's reel or video into an itinerary again (after a failure, or for a link made
+         *     before itineraries existed).
          */
         post: operations["build_my_link_creator_links__link_id__build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/links/{link_id}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload My Link Video
+         * @description Build the itinerary from a video file the creator uploads, for when a link can't be read
+         *     (YouTube often refuses a server). The raw video is the request body (content-type video/*,
+         *     filename in X-Reel-Filename), so it streams through the website's proxy without a multipart
+         *     hop.
+         */
+        post: operations["upload_my_link_video_creator_links__link_id__upload_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6493,6 +6516,37 @@ export interface operations {
         };
     };
     build_my_link_creator_links__link_id__build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_my_link_video_creator_links__link_id__upload_post: {
         parameters: {
             query?: never;
             header?: never;

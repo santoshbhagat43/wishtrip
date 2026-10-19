@@ -549,3 +549,125 @@ async def test_changing_or_removing_the_reel_takes_the_old_itinerary_down(client
 
     await client.patch(f"/creator/links/{link['id']}", json={"instagram_url": ""}, headers=headers)
     assert (await client.get(f"/trips/{other.json()['share_code']}")).status_code == 404
+
+
+# Uploading a video instead of a link ----------------------------------------------------------
+
+
+@pytest.fixture
+def fake_upload(monkeypatch):
+    """Skip the media pipeline: an uploaded video is read into canned content."""
+
+    async def produce(session, ai, shortcode, upload_key, on_step=None):
+        content = CreatorContent(
+            shortcode=shortcode,
+            url="",
+            destination_name="Goa",
+            thumbnail_key="reels/cover.jpg",
+            extracted={"summary": "A slow Goa trip.", "days_hint": 2},
+            places=[
+                {"name": "Fort Aguada", "kind": "sight", "evidence": "sunset", "source": "voice",
+                 "t": None, "verified": False, "location_id": None, "location_name": None},
+                {"name": "Thalassa", "kind": "food", "evidence": "dinner", "source": "voice",
+                 "t": None, "verified": False, "location_id": None, "location_name": None},
+            ],
+        )  # fmt: skip
+        session.add(content)
+        await session.flush()
+        return content
+
+    monkeypatch.setattr(reels, "produce_content_from_upload", produce)
+    monkeypatch.setattr(settings, "reels_inline", True)
+
+
+def _video(name="trip.mp4", kind="video/mp4"):
+    return {"content-type": kind, "x-reel-filename": name}
+
+
+async def test_an_uploaded_video_becomes_an_itinerary(client, fake_upload):
+    headers = await _creator(client, "uploader@creators.example.com")
+    link = await _make(client, headers)
+    r = await client.post(
+        f"/creator/links/{link['id']}/upload",
+        content=b"not really a video",
+        headers={**headers, **_video()},
+    )
+    assert r.status_code == 200, r.text
+    uploaded = r.json()
+    # No link was needed: the video itself is the source.
+    assert uploaded["instagram_url"] is None and uploaded["youtube_url"] is None
+    assert uploaded["status"] == "ready"
+    trip = (await client.get(f"/creator/trips/{uploaded['trip_id']}", headers=headers)).json()
+    assert [i["name"] for i in trip["items"]] == ["Fort Aguada", "Thalassa"]
+
+    # It can be published like any other.
+    pub = await client.patch(
+        f"/creator/links/{link['id']}", json={"published": True}, headers=headers
+    )
+    assert pub.json()["status"] == "published"
+
+    # Adding a link afterwards doesn't throw the uploaded video's itinerary away.
+    later = await client.patch(
+        f"/creator/links/{link['id']}", json={"youtube_url": "https://youtu.be/dQw4w9WgXcQ"},
+        headers=headers,
+    )  # fmt: skip
+    assert later.json()["trip_id"] == uploaded["trip_id"] and later.json()["status"] == "published"
+
+
+async def test_uploading_again_replaces_the_itinerary_and_takes_the_old_one_down(
+    client, fake_upload
+):
+    headers = await _creator(client, "again@creators.example.com")
+    link = await _make(client, headers)
+    first = await client.post(
+        f"/creator/links/{link['id']}/upload", content=b"one", headers={**headers, **_video()}
+    )
+    await client.patch(f"/creator/links/{link['id']}", json={"published": True}, headers=headers)
+    code = (await client.get("/creator/links", headers=headers)).json()[0]["share_code"]
+    assert (await client.get(f"/trips/{code}")).status_code == 200
+
+    second = await client.post(
+        f"/creator/links/{link['id']}/upload", content=b"two", headers={**headers, **_video()}
+    )
+    assert second.json()["trip_id"] != first.json()["trip_id"]
+    assert (await client.get(f"/trips/{code}")).status_code == 404
+
+
+async def test_an_upload_must_be_a_video_that_fits(client, fake_upload, monkeypatch):
+    headers = await _creator(client, "picky@creators.example.com")
+    link = await _make(client, headers)
+    url = f"/creator/links/{link['id']}/upload"
+
+    not_video = await client.post(
+        url, content=b"x", headers={**headers, **_video(kind="image/png")}
+    )
+    assert not_video.status_code == 400 and "video" in not_video.json()["detail"]
+    empty = await client.post(url, content=b"", headers={**headers, **_video()})
+    assert empty.status_code == 400 and "empty" in empty.json()["detail"]
+
+    monkeypatch.setattr(settings, "reel_upload_max_mb", 0)
+    big = await client.post(url, content=b"x", headers={**headers, **_video()})
+    assert big.status_code == 400 and "over 0 MB" in big.json()["detail"]
+
+
+async def test_only_the_owner_of_an_approved_account_can_upload(client, fake_upload):
+    mine = await _creator(client, "owner2@creators.example.com")
+    theirs = await _creator(client, "intruder2@creators.example.com")
+    waiting = await _creator(client, "waiting2@creators.example.com", active=False)
+    link = await _make(client, mine)
+    url = f"/creator/links/{link['id']}/upload"
+    assert (await client.post(url, content=b"x", headers={**theirs, **_video()})).status_code == 404
+    assert (
+        await client.post(url, content=b"x", headers={**waiting, **_video()})
+    ).status_code == 403
+
+
+async def test_building_again_needs_a_link_not_an_uploaded_video(client, fake_upload):
+    headers = await _creator(client, "rebuild@creators.example.com")
+    link = await _make(client, headers)
+    await client.post(
+        f"/creator/links/{link['id']}/upload", content=b"x", headers={**headers, **_video()}
+    )
+    # The file is gone once read, so there's nothing to read again: say what to do.
+    r = await client.post(f"/creator/links/{link['id']}/build", headers=headers)
+    assert r.status_code == 400 and "upload the video" in r.json()["detail"]

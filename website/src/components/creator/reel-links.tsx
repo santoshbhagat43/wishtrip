@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Play, Plus } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Check, Copy, Play, Plus, Upload } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ItinerarySheet } from "@/components/creator/itinerary-sheet";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -52,7 +52,21 @@ function useLinkActions(link: Link) {
       unwrap(await api.POST("/creator/links/{link_id}/build", { params: { path: { link_id: link.id } } })),
     onSuccess: refresh,
   });
-  return { patch, build };
+  // A video file instead of a link: for when YouTube (or Instagram) can't be read by the server.
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const res = await fetch(`/api/reel-upload?link=${link.id}`, {
+        method: "POST",
+        headers: { "content-type": file.type || "video/mp4", "x-reel-filename": file.name },
+        body: file,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "The upload failed.");
+      return data as Link;
+    },
+    onSuccess: refresh,
+  });
+  return { patch, build, upload };
 }
 
 /** Copy a value, and say so for a moment. */
@@ -248,7 +262,8 @@ function ReelModal({
   onOpenItinerary: () => void;
   onClose: () => void;
 }) {
-  const { patch, build } = useLinkActions(link);
+  const { patch, build, upload } = useLinkActions(link);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [instagram, setInstagram] = useState(link.instagram_url ?? "");
   const [youtube, setYoutube] = useState(link.youtube_url ?? "");
   const [auto, setAuto] = useState(link.auto_publish);
@@ -386,9 +401,14 @@ function ReelModal({
         {link.status === "failed" && (
           <div className="flex flex-col gap-3 rounded-2xl bg-danger-soft p-4">
             <p className="text-sm text-danger">{link.error || "We couldn't read that reel."}</p>
-            <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
-              {build.isPending ? "Starting…" : "Try again"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
+                {build.isPending ? "Starting…" : "Try again"}
+              </Button>
+              <Button type="button" disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
+                <Upload className="size-4" /> Upload the video instead
+              </Button>
+            </div>
           </div>
         )}
 
@@ -412,7 +432,38 @@ function ReelModal({
             </Button>
           </div>
         )}
-        <ErrorNote error={build.error ?? (patch.error && !problem ? patch.error : null)} />
+        {!building && (
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted">
+              {upload.isPending
+                ? "Uploading your video…"
+                : "Can't use a link? Upload the video file and we'll read that instead."}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="flex-none"
+              disabled={upload.isPending}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="size-4" /> Upload video
+            </Button>
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="video/*"
+          aria-label="Upload a video file"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) upload.mutate(file);
+          }}
+        />
+        <ErrorNote error={upload.error ?? build.error ?? (patch.error && !problem ? patch.error : null)} />
 
         <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-sm text-muted">

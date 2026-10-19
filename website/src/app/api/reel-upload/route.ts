@@ -13,8 +13,9 @@ import {
 // straight to the backend instead of buffering/parsing them here.
 export const runtime = "nodejs";
 
-/** Forward an uploaded reel video (raw body) to the backend with the traveller's token.
- *  The /api/wt gateway only forwards JSON, so uploads get their own streaming route. */
+/** Forward an uploaded reel video (raw body) to the backend with the signed-in person's token:
+ *  to a traveller's reel import, or (with ?link=<id>) to a creator's reel link. The /api/wt
+ *  gateway only forwards JSON, so uploads get their own streaming route. */
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.startsWith("video/")) {
@@ -29,7 +30,13 @@ export async function POST(request: NextRequest) {
     token = refreshed?.access_token;
   }
 
-  const upstream = await fetch(`${BACKEND_URL}/reels/uploads`, {
+  const link = request.nextUrl.searchParams.get("link");
+  if (link !== null && !/^[0-9a-f-]{36}$/.test(link)) {
+    return NextResponse.json({ detail: "That link isn't valid." }, { status: 400 });
+  }
+  const target = link ? `/creator/links/${link}/upload` : "/reels/uploads";
+
+  const upstream = await fetch(`${BACKEND_URL}${target}`, {
     method: "POST",
     headers: {
       "content-type": contentType,

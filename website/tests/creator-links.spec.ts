@@ -256,6 +256,33 @@ test.describe("Reel links", () => {
     await expect(sheet.getByText("YouTube", { exact: true })).toBeVisible(); // made from
   });
 
+  test("a video uploaded instead of a link is read for real into an itinerary", async ({ page, request }) => {
+    // The real chain, nothing cached: the worker cuts the video into frames, reads the text on
+    // them, listens to the voice-over, finds the places and builds the itinerary.
+    test.setTimeout(240_000);
+    await approvedCreator(page, request);
+    const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
+    await section.getByRole("button", { name: "Create link" }).click();
+    const dialog = page.getByRole("dialog", { name: "Create referral link" });
+    await dialog.getByLabel("Title").fill("Bali in four days");
+    await dialog.getByRole("button", { name: "Create link" }).click();
+    await dialog.getByRole("button", { name: "Done" }).click();
+
+    await section.getByRole("button", { name: /Bali in four days/ }).click();
+    const reel = page.getByRole("dialog", { name: "Bali in four days" });
+    await expect(reel.getByText(/Can't use a link\? Upload the video file/)).toBeVisible();
+    await reel.getByLabel("Upload a video file").setInputFiles(path.resolve(__dirname, "fixtures/bali-reel.mp4"));
+    await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 200_000 });
+
+    await reel.getByRole("button", { name: "Open itinerary" }).click();
+    const sheet = page.getByRole("dialog", { name: "Itinerary: Bali in four days" });
+    await expect(sheet.getByText("DAY 1")).toBeVisible();
+    // What the video says out loud and shows on screen: the places, and where on screen they showed.
+    await expect(sheet.getByText(/Uluwatu/).first()).toBeVisible();
+    await expect(sheet.getByText(/From the reel · \d+:\d\d/).first()).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
+  });
+
   test("the overall link is shown in full, with a copy button", async ({ page, request }) => {
     const me = await approvedCreator(page, request);
     const card = page.locator("section").filter({ hasText: "Your overall link" });

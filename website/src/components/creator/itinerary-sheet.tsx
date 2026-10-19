@@ -363,6 +363,7 @@ export function ItinerarySheet({
 
           <div className="flex flex-col gap-2 rounded-[22px] border border-[#E8E1D8] bg-white p-5">
             <span className="text-[11.5px] font-bold tracking-wider text-[#566E85]">MADE FROM</span>
+            {sources.length === 0 && <strong className="text-[13.5px]">A video you uploaded</strong>}
             {sources.map((s) => (
               <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 text-[13.5px] hover:underline">
                 <strong>{s.label}</strong>

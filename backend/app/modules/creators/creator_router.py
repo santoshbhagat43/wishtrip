@@ -4,7 +4,7 @@ and publishes shareable affiliate links. Plus the public endpoint those links re
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +37,7 @@ from app.modules.creators.schemas import (
     TripImportStart,
 )
 from app.modules.knowledge.models import Location
+from app.modules.media.storage import storage
 from app.modules.reels import service as reels
 from app.modules.reels.models import CreatorContent, ImportKind, ImportStatus, ReelImport
 from app.modules.reels.schemas import ReelImportRead
@@ -80,14 +81,16 @@ async def _start_import(
     user: User,
     shortcode: str,
     link: CreatorLink | None = None,
+    upload_key: str | None = None,
 ) -> ReelImport:
     """Queue the reel → itinerary job (and run it now when there's no worker), noting it on the
     reel link it was started for."""
     if await reels.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try later.")
     job = ReelImport(
-        url=reels.canonical_url(shortcode),
+        url="" if upload_key else reels.canonical_url(shortcode),
         shortcode=shortcode,
+        upload_key=upload_key,
         user_id=user.id,
         kind=ImportKind.CREATOR_TRIP,
     )
@@ -237,7 +240,9 @@ async def _read_from(session: AsyncSession, link: CreatorLink) -> str | None:
     from if the link still has it, else the best one it has now."""
     sources = _sources(link)
     job = await session.get(ReelImport, link.import_id) if link.import_id else None
-    if job is not None and job.shortcode in sources:
+    # A video the creator uploaded stays the source until they replace it: it has no link to
+    # check it against, and the file itself is gone once it has been read.
+    if job is not None and (job.shortcode in sources or job.shortcode.startswith("upload-")):
         return job.shortcode
     return sources[0] if sources else None
 
@@ -250,7 +255,7 @@ def _gave_up(job: ReelImport) -> bool:
 
 
 def _link_status(link: CreatorLink, job: ReelImport | None, trip: CreatorTrip | None) -> str:
-    if not link.instagram_url and not link.youtube_url:
+    if not link.instagram_url and not link.youtube_url and job is None:
         return "waiting"
     if job is None or (job.status == ImportStatus.DONE and trip is None):
         return "unread"
@@ -422,11 +427,45 @@ async def build_my_link(
     before itineraries existed)."""
     creator = await _active_creator(session, user)
     link = await _own_link(session, creator, link_id)
-    source = await _read_from(session, link)
-    if not source:
-        raise bad_request("Add your Instagram reel or YouTube video link first.")
+    sources = _sources(link)
+    if not sources:
+        raise bad_request(
+            "Add your Instagram reel or YouTube video link first, or upload the video."
+        )
     await _retire_trip(session, link)
-    await _start_import(session, ai, user, source, link)
+    await _start_import(session, ai, user, sources[0], link)
+    await session.refresh(link)
+    return (await _link_read(session, [link]))[0]
+
+
+@router.post("/creator/links/{link_id}/upload", response_model=CreatorLinkRead)
+async def upload_my_link_video(
+    link_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    ai: AIOrchestrator = Depends(get_orchestrator),
+    user: User = Depends(get_current_user),
+):
+    """Build the itinerary from a video file the creator uploads, for when a link can't be read
+    (YouTube often refuses a server). The raw video is the request body (content-type video/*,
+    filename in X-Reel-Filename), so it streams through the website's proxy without a multipart
+    hop."""
+    creator = await _active_creator(session, user)
+    link = await _own_link(session, creator, link_id)
+    if not (request.headers.get("content-type") or "").startswith("video/"):
+        raise bad_request("Upload a video file (mp4 or mov).")
+    if await reels.recent_count(session, user.id) >= settings.reel_imports_per_hour:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try later.")
+    data = await request.body()
+    if not data:
+        raise bad_request("That file is empty.")
+    if len(data) > settings.reel_upload_max_mb * 1024 * 1024:
+        raise bad_request(
+            f"That video is over {settings.reel_upload_max_mb} MB. Try a shorter clip."
+        )
+    key = storage.save(data, request.headers.get("x-reel-filename") or "upload.mp4", "reel-uploads")
+    await _retire_trip(session, link)
+    await _start_import(session, ai, user, reels.upload_shortcode(), link, upload_key=key)
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
 

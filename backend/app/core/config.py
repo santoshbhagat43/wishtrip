@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     # A Netscape-format cookies file from a signed-in YouTube session. Only needed if YouTube asks
     # the server to "confirm you're not a bot"; keep it somewhere private, never under MEDIA_ROOT.
     youtube_cookies_file: str | None = None
+    # Send YouTube downloads through this proxy (e.g. http://user:pass@host:port). YouTube refuses
+    # many data-centre addresses outright; a residential proxy needs no YouTube account.
+    youtube_proxy: str | None = None
     instagram_username: str | None = None
     instagram_session_file: str | None = None
 

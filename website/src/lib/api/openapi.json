@@ -3474,7 +3474,7 @@
      "creator"
     ],
     "summary": "Change My Link",
-    "description": "Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into\nan itinerary), choose auto-publishing, or publish / unpublish the itinerary.",
+    "description": "Add the reel's Instagram or YouTube link once it is posted (it is read into an itinerary,\nInstagram first), choose auto-publishing, or publish / unpublish the itinerary.",
     "operationId": "change_my_link_creator_links__link_id__patch",
     "security": [
      {
@@ -3533,8 +3533,57 @@
      "creator"
     ],
     "summary": "Build My Link",
-    "description": "Read the link's Instagram reel into an itinerary again (after a failure, or for a link\nmade before itineraries existed).",
+    "description": "Read the link's reel or video into an itinerary again (after a failure, or for a link made\nbefore itineraries existed).",
     "operationId": "build_my_link_creator_links__link_id__build_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Link Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorLinkRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/links/{link_id}/upload": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Upload My Link Video",
+    "description": "Build the itinerary from a video file the creator uploads, for when a link can't be read\n(YouTube often refuses a server). The raw video is the request body (content-type video/*,\nfilename in X-Reel-Filename), so it streams through the website's proxy without a multipart\nhop.",
+    "operationId": "upload_my_link_video_creator_links__link_id__upload_post",
     "security": [
      {
       "HTTPBearer": []

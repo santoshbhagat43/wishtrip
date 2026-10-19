@@ -53,6 +53,8 @@ def main(url: str, workdir: str) -> int:
             {"key": "FFmpegThumbnailsConvertor", "format": "jpg", "when": "before_dl"}
         ],
     }
+    if settings.youtube_proxy:
+        options["proxy"] = settings.youtube_proxy
     cookies = settings.youtube_cookies_file
     if cookies and Path(cookies).exists():
         # A signed-in session: the way past "confirm you're not a bot" on a server's address.
