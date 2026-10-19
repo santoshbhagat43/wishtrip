@@ -64,3 +64,19 @@ $C exec postgres pg_dump -U wishtrip wishtrip | gzip > backup-$(date +%F).sql.gz
 
 `.env.production` holds every secret (chmod 600, never committed). Sign-in details for the
 seeded admin are in it.
+
+## YouTube videos
+
+A reel link can be read from a YouTube video as well as an Instagram reel (`yt-dlp`, in the
+media worker). Two things to know:
+
+- The backend image carries Deno. `yt-dlp` needs a JavaScript runtime to solve YouTube's download
+  challenge; without one YouTube answers 403 or throttles the download. Rebuild the image (the
+  deploy script does) after pulling this change.
+- If YouTube still refuses the server ("confirm you're not a bot"), the creator sees "YouTube is
+  not letting us read videos right now". The fix is a cookies file from a signed-in YouTube
+  session: export it in Netscape format, put it in the private `instaloader` volume (never under
+  `MEDIA_ROOT`), and set `YOUTUBE_COOKIES_FILE=/data/instaloader/youtube-cookies.txt`.
+
+Videos longer than `REEL_MAX_SECONDS` (3 minutes) are refused with a message; raise it if you
+want longer ones read (the cost is more AI tokens per video).

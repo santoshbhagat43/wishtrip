@@ -219,6 +219,29 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
 READING_GIVES_UP_AFTER = timedelta(minutes=15)
 
 
+def _sources(link: CreatorLink) -> list[str]:
+    """The reel and the video this link can be read from, best first: Instagram, then YouTube."""
+    video = service.youtube_video_id(link.youtube_url)
+    return [
+        code
+        for code in (
+            link.instagram_shortcode,
+            reels.youtube_shortcode(video) if video else None,
+        )
+        if code
+    ]
+
+
+async def _read_from(session: AsyncSession, link: CreatorLink) -> str | None:
+    """What this link's itinerary is, or should be, read from: the source it was already built
+    from if the link still has it, else the best one it has now."""
+    sources = _sources(link)
+    job = await session.get(ReelImport, link.import_id) if link.import_id else None
+    if job is not None and job.shortcode in sources:
+        return job.shortcode
+    return sources[0] if sources else None
+
+
 def _gave_up(job: ReelImport) -> bool:
     return (
         job.status in (ImportStatus.QUEUED, ImportStatus.RUNNING)
@@ -353,12 +376,12 @@ async def change_my_link(
     ai: AIOrchestrator = Depends(get_orchestrator),
     user: User = Depends(get_current_user),
 ):
-    """Add the reel's Instagram or YouTube link once it is posted (an Instagram reel is read into
-    an itinerary), choose auto-publishing, or publish / unpublish the itinerary."""
+    """Add the reel's Instagram or YouTube link once it is posted (it is read into an itinerary,
+    Instagram first), choose auto-publishing, or publish / unpublish the itinerary."""
     creator = await _active_creator(session, user)
     link = await _own_link(session, creator, link_id)
     sent = data.model_dump(exclude_unset=True)
-    before = link.instagram_shortcode
+    before = await _read_from(session, link)
     await service.update_link(
         session,
         link,
@@ -368,9 +391,11 @@ async def change_my_link(
         youtube_url=data.youtube_url if "youtube_url" in sent else None,
         auto_publish=data.auto_publish,
     )
-    reel_changed = link.instagram_shortcode != before
+    after = await _read_from(session, link)
+    reel_changed = after != before
     if reel_changed:
         await _retire_trip(session, link)  # the old reel's itinerary must not stay public
+        link.import_id = None
     if data.published is not None and not reel_changed:
         trip = await _link_trip(session, link)
         if trip is None:
@@ -379,10 +404,8 @@ async def change_my_link(
             await trips.publish(session, trip)
         else:
             trip.status = TripStatus.DRAFT
-    if "instagram_url" in sent and not link.instagram_shortcode:
-        link.import_id = None  # the reel was removed: so is the itinerary built from it
-    if link.instagram_shortcode and link.instagram_shortcode != before:
-        await _start_import(session, ai, user, link.instagram_shortcode, link)
+    if reel_changed and after:
+        await _start_import(session, ai, user, after, link)
     await session.commit()
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
@@ -395,16 +418,15 @@ async def build_my_link(
     ai: AIOrchestrator = Depends(get_orchestrator),
     user: User = Depends(get_current_user),
 ):
-    """Read the link's Instagram reel into an itinerary again (after a failure, or for a link
-    made before itineraries existed)."""
+    """Read the link's reel or video into an itinerary again (after a failure, or for a link made
+    before itineraries existed)."""
     creator = await _active_creator(session, user)
     link = await _own_link(session, creator, link_id)
-    if not link.instagram_shortcode:
-        raise bad_request(
-            "Add your Instagram reel link first. We can only read Instagram reels for now."
-        )
+    source = await _read_from(session, link)
+    if not source:
+        raise bad_request("Add your Instagram reel or YouTube video link first.")
     await _retire_trip(session, link)
-    await _start_import(session, ai, user, link.instagram_shortcode, link)
+    await _start_import(session, ai, user, source, link)
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
 

@@ -363,18 +363,29 @@ async def test_the_same_reel_link_is_not_read_twice(client, fake_reel):
         assert len(list(await session.scalars(select(ReelImport)))) == 1
 
 
-async def test_a_youtube_video_is_stored_but_not_read_yet(client):
-    headers = await _creator(client, "tuber@creators.example.com")
+async def _youtube_only(client, headers, video="dQw4w9WgXcQ"):
     link = await _make(client, headers)
     r = await client.patch(
         f"/creator/links/{link['id']}",
-        json={"youtube_url": "https://youtu.be/dQw4w9WgXcQ?si=tracking"},
+        json={"youtube_url": f"https://youtu.be/{video}?si=tracking"},
         headers=headers,
     )
     assert r.status_code == 200, r.text
-    assert r.json()["youtube_url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    assert r.json()["status"] == "unread"
+    return r.json()
 
+
+async def test_a_youtube_video_is_read_like_a_reel(client):
+    headers = await _creator(client, "tuber@creators.example.com")
+    link = await _youtube_only(client, headers)
+    # Stored in one form, and queued to be downloaded and read.
+    assert link["youtube_url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert link["status"] == "building"
+    async with SessionLocal() as session:
+        job = await session.scalar(select(ReelImport))
+    assert job.shortcode == "yt-dQw4w9WgXcQ"
+    assert job.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    # A channel link is not a video.
     bad = await client.patch(
         f"/creator/links/{link['id']}",
         json={"youtube_url": "https://www.youtube.com/@somechannel"},
@@ -382,9 +393,63 @@ async def test_a_youtube_video_is_stored_but_not_read_yet(client):
     )
     assert bad.status_code == 400 and "YouTube video" in bad.json()["detail"]
 
-    # There's no Instagram reel to read, so building says what to do.
-    build = await client.post(f"/creator/links/{link['id']}/build", headers=headers)
-    assert build.status_code == 400 and "Instagram" in build.json()["detail"]
+
+async def test_a_youtube_video_becomes_an_itinerary(client, fake_reel):
+    headers = await _creator(client, "tubebuild@creators.example.com")
+    link = await _youtube_only(client, headers)
+    assert link["status"] == "ready"
+    trip = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
+    assert [i["name"] for i in trip["items"]] == ["Fort Aguada", "Thalassa"]
+    # The video's own channel isn't a WishTrip creator to credit.
+    async with SessionLocal() as session:
+        content = await session.scalar(select(CreatorContent))
+    assert content.shortcode == "yt-dQw4w9WgXcQ"
+    assert content.url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+
+async def test_the_itinerary_keeps_its_source_when_the_other_channel_is_added(client, fake_reel):
+    headers = await _creator(client, "both@creators.example.com")
+    link = await _youtube_only(client, headers)  # built from YouTube
+    trip_id = link["trip_id"]
+    both = await client.patch(
+        f"/creator/links/{link['id']}", json={"instagram_url": REEL}, headers=headers
+    )
+    # Adding Instagram afterwards doesn't throw the itinerary away and read it again.
+    assert both.json()["trip_id"] == trip_id and both.json()["status"] == "ready"
+    async with SessionLocal() as session:
+        assert len(list(await session.scalars(select(ReelImport)))) == 1
+
+    # Dropping the source it was built from reads the other one instead.
+    left = (
+        await client.patch(
+            f"/creator/links/{link['id']}", json={"youtube_url": ""}, headers=headers
+        )
+    ).json()
+    assert left["status"] == "ready" and left["trip_id"] != trip_id
+    async with SessionLocal() as session:
+        shortcodes = {j.shortcode for j in await session.scalars(select(ReelImport))}
+    assert shortcodes == {"yt-dQw4w9WgXcQ", "Cabc123xyz"}
+
+
+async def test_instagram_is_read_first_when_a_link_has_both(client):
+    headers = await _creator(client, "first@creators.example.com")
+    link = await _make(client, headers)
+    r = await client.patch(
+        f"/creator/links/{link['id']}",
+        json={"instagram_url": REEL, "youtube_url": "https://youtu.be/dQw4w9WgXcQ"},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    async with SessionLocal() as session:
+        job = await session.scalar(select(ReelImport))
+    assert job.shortcode == "Cabc123xyz"
+
+
+async def test_there_is_nothing_to_build_without_a_reel_or_video(client):
+    headers = await _creator(client, "nothing@creators.example.com")
+    link = await _make(client, headers)
+    r = await client.post(f"/creator/links/{link['id']}/build", headers=headers)
+    assert r.status_code == 400 and "Instagram reel or YouTube video" in r.json()["detail"]
 
 
 async def test_removing_the_reel_drops_its_itinerary(client, fake_reel):

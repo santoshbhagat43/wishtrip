@@ -358,3 +358,64 @@ def test_the_models_own_timestamp_is_ignored():
         [{"t": 3.0, "text": "Nothing about it here"}],
     )  # fmt: skip
     assert reading.places[0]["t"] is None
+
+
+# Downloading ---------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("shortcode", "module", "target", "site"),
+    [
+        ("Cabc123xyz", "app.modules.reels.fetch", "Cabc123xyz", "Instagram"),
+        (
+            "yt-dQw4w9WgXcQ",
+            "app.modules.reels.fetch_youtube",
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "YouTube",
+        ),
+    ],
+)
+def test_the_download_uses_the_tool_for_the_site(
+    monkeypatch, tmp_path, shortcode, module, target, site
+):
+    import subprocess
+
+    calls = []
+
+    def run(cmd, **kw):
+        calls.append(cmd)
+        (tmp_path / "meta.json").write_text('{"caption": "hi"}')
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(service.subprocess, "run", run)
+    assert service.download(shortcode, tmp_path) == {"caption": "hi"}
+    assert calls[0][1:4] == ["-m", module, target]
+
+
+@pytest.mark.parametrize(
+    ("code", "words"),
+    [
+        (2, "private, age-restricted or removed"),
+        (3, "YouTube is not letting us read videos"),
+        (4, "live stream"),
+        (6, "longer than 3 minutes"),
+        (5, "couldn't download that video"),
+    ],
+)
+def test_a_youtube_failure_says_why(monkeypatch, tmp_path, code, words):
+    import subprocess
+
+    monkeypatch.setattr(
+        service.subprocess,
+        "run",
+        lambda cmd, **kw: subprocess.CompletedProcess(cmd, code, "", "boom"),
+    )
+    with pytest.raises(service.ReelError) as err:
+        service.download("yt-dQw4w9WgXcQ", tmp_path)
+    assert words in str(err.value)
+
+
+def test_a_youtube_video_is_cached_under_its_own_id():
+    assert service.youtube_shortcode("dQw4w9WgXcQ") == "yt-dQw4w9WgXcQ"
+    assert service.canonical_url("yt-dQw4w9WgXcQ") == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert service.canonical_url("Cabc123xyz") == "https://www.instagram.com/reel/Cabc123xyz/"

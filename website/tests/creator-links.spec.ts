@@ -225,7 +225,7 @@ test.describe("Reel links", () => {
     await expect(section.getByRole("button", { name: /Hampi in a day/ })).toContainText("Published");
   });
 
-  test("a reel that can't be read says why, and a YouTube link is kept", async ({ page, request }) => {
+  test("a YouTube video is read into an itinerary like a reel", async ({ page, request }) => {
     await approvedCreator(page, request);
     const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
     await section.getByRole("button", { name: "Create link" }).click();
@@ -242,12 +242,18 @@ test.describe("Reel links", () => {
     await reel.getByRole("button", { name: "Save" }).click();
     await expect(reel.getByText(/Paste the link to your YouTube video/)).toBeVisible();
 
-    // A video link is kept, though only Instagram reels are read for now.
-    await reel.getByLabel("YouTube video URL").fill("https://youtu.be/dQw4w9WgXcQ");
-    await reel.getByRole("button", { name: "Save" }).click();
-    await expect(reel.getByText(/can only build an itinerary from an Instagram reel/)).toBeVisible();
-    await expect(reel.getByLabel("YouTube video URL")).toHaveValue("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-    await expect(reel.getByRole("button", { name: "Publish" })).toBeDisabled();
+    // A video link is downloaded and read just like a reel. (Here the video is already in the
+    // cache, so YouTube isn't needed.)
+    const id = `E2E${Date.now().toString(36).padEnd(8, "x")}`.slice(0, 11);
+    seedReel(`yt-${id}`);
+    await reel.getByLabel("YouTube video URL").fill(`https://youtu.be/${id}?si=tracking`);
+    await reel.getByRole("button", { name: "Save and build itinerary" }).click();
+    await expect(reel.getByLabel("YouTube video URL")).toHaveValue(`https://www.youtube.com/watch?v=${id}`);
+    await expect(reel.getByText("Your itinerary is ready")).toBeVisible({ timeout: 60_000 });
+    await reel.getByRole("button", { name: "Open itinerary" }).click();
+    const sheet = page.getByRole("dialog", { name: "Itinerary: Coorg monsoon" });
+    await expect(sheet.getByText("Fort Aguada", { exact: true })).toBeVisible();
+    await expect(sheet.getByText("YouTube", { exact: true })).toBeVisible(); // made from
   });
 
   test("the overall link is shown in full, with a copy button", async ({ page, request }) => {

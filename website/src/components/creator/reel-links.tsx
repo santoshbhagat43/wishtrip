@@ -26,7 +26,7 @@ const STEP_INDEX: Record<string, number> = { queued: 0, downloading: 0, reading_
 const STEPS = [
   ["Create a link", "One for each reel you're about to post."],
   ["Use it in your reel", "Put it in the caption or your bio."],
-  ["Add the reel's URL", "Once it's on Instagram, paste its link. We build the itinerary."],
+  ["Add the reel's URL", "Once it's on Instagram or YouTube, paste its link. We build the itinerary."],
 ] as const;
 
 const STATE: Record<Link["status"], { label: string; tone: Tone }> = {
@@ -314,7 +314,7 @@ function ReelModal({
             <h3 className="text-sm font-semibold">Where did you post it?</h3>
             <p className="text-sm text-muted">
               Add the reel&rsquo;s link from Instagram or YouTube — one is needed, or both. We build your itinerary from
-              the Instagram reel.
+              it.
             </p>
           </div>
           <label className="flex flex-col gap-1.5 text-sm font-semibold">
@@ -351,7 +351,11 @@ function ReelModal({
           </label>
           {problem && <ErrorNote error={problem} />}
           <Button type="submit" disabled={save.isPending || building}>
-            {save.isPending ? "Saving…" : instagram.trim() && link.status === "waiting" ? "Save and build itinerary" : "Save"}
+            {save.isPending
+              ? "Saving…"
+              : (instagram.trim() || youtube.trim()) && link.status === "waiting"
+                ? "Save and build itinerary"
+                : "Save"}
           </Button>
         </form>
 
@@ -402,18 +406,10 @@ function ReelModal({
 
         {link.status === "unread" && (
           <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">
-            {link.instagram_url ? (
-              <>
-                <p className="text-sm text-muted">Your reel is saved, but no itinerary has been built from it yet.</p>
-                <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
-                  {build.isPending ? "Starting…" : "Build itinerary"}
-                </Button>
-              </>
-            ) : (
-              <p className="text-sm text-muted">
-                Your YouTube link is saved. We can only build an itinerary from an Instagram reel for now.
-              </p>
-            )}
+            <p className="text-sm text-muted">Your link is saved, but no itinerary has been built from it yet.</p>
+            <Button type="button" variant="secondary" disabled={build.isPending} onClick={() => build.mutate()}>
+              {build.isPending ? "Starting…" : "Build itinerary"}
+            </Button>
           </div>
         )}
         <ErrorNote error={build.error ?? (patch.error && !problem ? patch.error : null)} />

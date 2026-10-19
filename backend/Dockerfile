@@ -2,6 +2,10 @@ FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /usr/local/bin/uv
 
+# yt-dlp needs a JavaScript runtime to solve YouTube's download challenge. Without one YouTube
+# answers 403 or throttles the download to a crawl.
+COPY --from=denoland/deno:bin-2.9.7 /deno /usr/local/bin/deno
+
 # ffmpeg cuts reels into frames and audio; tesseract reads the text on those frames.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-hin \

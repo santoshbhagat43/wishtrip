@@ -35,7 +35,7 @@ from app.modules.creators import service as creators
 from app.modules.creators import trips as creator_trips
 from app.modules.knowledge.models import Location, LocationStatus, LocationType
 from app.modules.media.storage import storage
-from app.modules.reels import fetch, media
+from app.modules.reels import fetch, fetch_youtube, media
 from app.modules.reels.models import (
     CreatorContent,
     ImportKind,
@@ -64,7 +64,17 @@ def shortcode_from(url: str) -> str | None:
     return match.group(1) if match else None
 
 
+YOUTUBE_PREFIX = "yt-"
+
+
+def youtube_shortcode(video_id: str) -> str:
+    """The id a YouTube video is cached under (never clashes with an Instagram shortcode)."""
+    return YOUTUBE_PREFIX + video_id
+
+
 def canonical_url(shortcode: str) -> str:
+    if shortcode.startswith(YOUTUBE_PREFIX):
+        return f"https://www.youtube.com/watch?v={shortcode[len(YOUTUBE_PREFIX) :]}"
     return f"https://www.instagram.com/reel/{shortcode}/"
 
 
@@ -77,27 +87,48 @@ def upload_shortcode() -> str:
 
 
 def download(shortcode: str, workdir: Path) -> dict[str, Any]:
-    """instaloader in its own process, killed if Instagram makes it wait too long."""
+    """The reel or video, in its own process, killed if the site makes it wait too long."""
+    youtube = shortcode.startswith(YOUTUBE_PREFIX)
+    module = "app.modules.reels.fetch_youtube" if youtube else "app.modules.reels.fetch"
+    target = canonical_url(shortcode) if youtube else shortcode
+    site = "YouTube" if youtube else "Instagram"
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "app.modules.reels.fetch", shortcode, str(workdir)],
+            [sys.executable, "-m", module, target, str(workdir)],
             capture_output=True,
             text=True,
             timeout=settings.reel_download_timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
-        raise ReelError("Instagram took too long to send the reel. Try again in a bit.") from exc
+        raise ReelError(f"{site} took too long to send it. Try again in a bit.") from exc
     reason = (result.stderr.strip().splitlines() or [""])[-1]
     if result.returncode == fetch.EXIT_NOT_FOUND:
-        raise ReelError("We couldn't open that reel. It may be private or deleted.")
+        raise ReelError(
+            "We couldn't open that video. It may be private, age-restricted or removed."
+            if youtube
+            else "We couldn't open that reel. It may be private or deleted."
+        )
     if result.returncode == fetch.EXIT_NOT_VIDEO:
-        raise ReelError("That post has no video. Paste a reel link.")
+        raise ReelError(
+            "That's a live stream. Paste a link to a finished video."
+            if youtube
+            else "That post has no video. Paste a reel link."
+        )
+    if result.returncode == fetch_youtube.EXIT_TOO_LONG:
+        raise ReelError(
+            f"That video is longer than {settings.reel_max_seconds // 60} minutes. "
+            "Use a shorter one."
+        )
     if result.returncode == fetch.EXIT_BLOCKED:
-        logger.warning("Instagram blocked %s: %s", shortcode, reason)
-        raise ReelError("Instagram is not letting us read reels right now. Try again later.")
+        logger.warning("%s blocked %s: %s", site, shortcode, reason)
+        raise ReelError(
+            f"{site} is not letting us read videos right now. Try again later."
+            if youtube
+            else "Instagram is not letting us read reels right now. Try again later."
+        )
     if result.returncode != fetch.EXIT_OK:
-        logger.warning("Reel download failed for %s: %s", shortcode, reason)
-        raise ReelError("We couldn't download that reel. Try again in a bit.")
+        logger.warning("%s download failed for %s: %s", site, shortcode, reason)
+        raise ReelError("We couldn't download that video. Try again in a bit.")
     return json.loads((workdir / "meta.json").read_text())
 
 

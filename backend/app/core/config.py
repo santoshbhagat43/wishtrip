@@ -71,11 +71,14 @@ class Settings(BaseSettings):
     reel_transcribe_model: str = "google/gemini-2.5-flash"
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
-    reel_download_timeout_seconds: int = 120
+    reel_download_timeout_seconds: int = 240
     reel_imports_per_hour: int = 10
     reel_upload_max_mb: int = 120
     # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
     # outside MEDIA_ROOT: everything there is served publicly.
+    # A Netscape-format cookies file from a signed-in YouTube session. Only needed if YouTube asks
+    # the server to "confirm you're not a bot"; keep it somewhere private, never under MEDIA_ROOT.
+    youtube_cookies_file: str | None = None
     instagram_username: str | None = None
     instagram_session_file: str | None = None
 

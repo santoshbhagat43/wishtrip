@@ -135,6 +135,12 @@ _YOUTUBE_VIDEO = re.compile(
 )
 
 
+def youtube_video_id(url: str | None) -> str | None:
+    """The 11-character id in a (canonical) YouTube video link."""
+    match = _YOUTUBE_VIDEO.match((url or "").strip())
+    return match.group(1) if match else None
+
+
 def clean_youtube_video(value: str) -> str:
     """A canonical link to one YouTube video, from a watch, shorts or youtu.be link."""
     match = _YOUTUBE_VIDEO.match(value.strip())
