@@ -287,6 +287,35 @@ test.describe("Reel links", () => {
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
   });
 
+  test("a busy link's activity is paged, not one long list", async ({ page, request }) => {
+    const me = await approvedCreator(page, request);
+    const activity = page.locator("section").filter({ has: page.getByRole("heading", { name: "Activity", exact: true }) });
+    await expect(activity.getByText("No activity yet")).toBeVisible();
+    await expect(activity.getByRole("navigation", { name: "Activity pages" })).toHaveCount(0);
+
+    // Twenty travellers open the creator's link.
+    for (let n = 0; n < 20; n++) {
+      await request.post(`${API_URL}/referrals/${me.referral_code}/visit`, { data: { visitor_id: `visitor-${n}-${Date.now()}` } });
+    }
+    await page.reload();
+
+    const pager = activity.getByRole("navigation", { name: "Activity pages" });
+    await expect(activity.getByText("Someone opened your link")).toHaveCount(8); // a page, not everything
+    await expect(pager.getByText("1–8 of 20")).toBeVisible();
+    await expect(pager.getByText("Page 1 of 3")).toBeVisible();
+    await expect(pager.getByRole("button", { name: "Previous" })).toBeDisabled();
+
+    await pager.getByRole("button", { name: "Next" }).click();
+    await expect(pager.getByText("9–16 of 20")).toBeVisible();
+    await pager.getByRole("button", { name: "Next" }).click();
+    await expect(pager.getByText("17–20 of 20")).toBeVisible();
+    await expect(activity.getByText("Someone opened your link")).toHaveCount(4); // the last, shorter page
+    await expect(pager.getByRole("button", { name: "Next" })).toBeDisabled();
+    await pager.getByRole("button", { name: "Previous" }).click();
+    await expect(pager.getByText("9–16 of 20")).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/activity-paged.png`, fullPage: true });
+  });
+
   test("the overall link is shown in full, with a copy button", async ({ page, request }) => {
     const me = await approvedCreator(page, request);
     const card = page.locator("section").filter({ hasText: "Your overall link" });

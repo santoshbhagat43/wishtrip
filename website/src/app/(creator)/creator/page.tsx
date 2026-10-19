@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -204,18 +204,7 @@ export default function CreatorDashboardPage() {
 
           <Card>
             <CardHeader title="Activity" description="The latest touches between travellers and your link." />
-            {o.activity.length === 0 ? (
-              <Empty title="No activity yet">Share your link to get started.</Empty>
-            ) : (
-              <ul className="divide-y divide-border text-sm">
-                {o.activity.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
-                    <span>{EVENT_LABEL[a.event] ?? titleCase(a.event)}</span>
-                    <span className="whitespace-nowrap text-muted">{relativeTime(a.created_at)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ActivityList items={o.activity} />
           </Card>
         </div>
 
@@ -233,6 +222,59 @@ export default function CreatorDashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+const ACTIVITY_PAGE = 8;
+
+/** The latest activity, a page at a time: a busy link has far too many touches for one list. */
+function ActivityList({ items }: { items: Overview["activity"] }) {
+  const [page, setPage] = useState(0);
+  if (items.length === 0) return <Empty title="No activity yet">Share your link to get started.</Empty>;
+
+  const pages = Math.ceil(items.length / ACTIVITY_PAGE);
+  const current = Math.min(page, pages - 1);
+  const first = current * ACTIVITY_PAGE;
+  const shown = items.slice(first, first + ACTIVITY_PAGE);
+
+  return (
+    <>
+      <ul className="divide-y divide-border text-sm">
+        {shown.map((a) => (
+          <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-2.5">
+            <span>{EVENT_LABEL[a.event] ?? titleCase(a.event)}</span>
+            <span className="whitespace-nowrap text-muted">{relativeTime(a.created_at)}</span>
+          </li>
+        ))}
+      </ul>
+      {pages > 1 && (
+        <nav
+          aria-label="Activity pages"
+          className="flex items-center justify-between gap-3 border-t border-border px-5 py-3 text-sm"
+        >
+          <span className="text-muted" aria-live="polite">
+            {first + 1}–{first + shown.length} of {items.length}
+          </span>
+          <span className="flex items-center gap-2">
+            <Button type="button" variant="secondary" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
+              <ChevronLeft className="size-4" /> Previous
+            </Button>
+            <span className="text-muted">
+              Page {current + 1} of {pages}
+            </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={current >= pages - 1}
+              onClick={() => setPage(current + 1)}
+            >
+              Next <ChevronRight className="size-4" />
+            </Button>
+          </span>
+        </nav>
+      )}
+    </>
   );
 }
 
