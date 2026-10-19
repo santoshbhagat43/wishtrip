@@ -21,3 +21,6 @@ next-env.d.ts
 
 old_client_work/*.env.production
 .deploy-state
+
+
+info.md

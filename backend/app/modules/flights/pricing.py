@@ -159,19 +159,32 @@ SORTS = {
 }
 
 
+def _hours(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def fare_rules(body: dict) -> dict:
-    """CANCELLATION / DATECHANGE / NO_SHOW / SEAT_CHARGEABLE policies by hours before departure."""
-    out: dict[str, list[dict]] = {}
-    for kind, rules in ((body.get("fareRule") or body).get("tfr") or {}).items():
-        out[kind] = [
-            {
-                "from_hours": r.get("st"),
-                "to_hours": r.get("et"),
-                "period": r.get("pp"),
-                "airline_fee": _money(r.get("amount")),
-                "service_fee": _money(r.get("additionalFee")),
-                "note": r.get("policyInfo") or "",
-            }
-            for r in rules or []
-        ]
-    return {"rules": out, "notes": (body.get("fareRule") or body).get("miscInfo")}
+    """Rules by sector (e.g. "DEL-GOI"), each as CANCELLATION / DATECHANGE / NO_SHOW /
+    SEAT_CHARGEABLE bands in hours before departure (TripJack sends the hours as strings)."""
+    sectors: dict[str, dict[str, list[dict]]] = {}
+    for sector, entry in (body.get("fareRule") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        rules: dict[str, list[dict]] = {}
+        for kind, bands in (entry.get("tfr") or {}).items():
+            rules[kind] = [
+                {
+                    "from_hours": _hours(r.get("st")),
+                    "to_hours": _hours(r.get("et")),
+                    "period": r.get("pp"),
+                    "airline_fee": _money(r.get("amount")),
+                    "service_fee": _money(r.get("additionalFee")),
+                    "note": r.get("policyInfo") or "",
+                }
+                for r in bands or []
+            ]
+        sectors[sector] = rules
+    return {"sectors": sectors}

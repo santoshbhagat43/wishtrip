@@ -18,17 +18,30 @@ def _option(total: float, **over) -> dict:
         "roomInfo": [{"id": "1", "name": "Deluxe"}],
         "mealBasis": "Breakfast",
         "inclusions": [],
-        "pricing": {"basePrice": total, "taxes": 100, "mf": 20, "mft": 4, "discount": 0,
-                    "totalPrice": total + 124, "currency": "INR"},
+        "pricing": {
+            "basePrice": total,
+            "taxes": 100,
+            "mf": 20,
+            "mft": 4,
+            "discount": 0,
+            "totalPrice": total + 124,
+            "currency": "INR",
+        },
         "commercial": {"type": "NET"},
         "compliance": {"gstType": "NA", "panRequired": True, "passportRequired": False},
         "cancellation": {
             "isRefundable": True,
             "penalties": [
-                {"from": (now - timedelta(days=1)).isoformat(),
-                 "to": (now + timedelta(days=5)).isoformat(), "amount": 0},
-                {"from": (now + timedelta(days=5)).isoformat(),
-                 "to": (now + timedelta(days=9)).isoformat(), "amount": total},
+                {
+                    "from": (now - timedelta(days=1)).isoformat(),
+                    "to": (now + timedelta(days=5)).isoformat(),
+                    "amount": 0,
+                },
+                {
+                    "from": (now + timedelta(days=5)).isoformat(),
+                    "to": (now + timedelta(days=9)).isoformat(),
+                    "amount": total,
+                },
             ],
         },
     }
@@ -59,20 +72,33 @@ def test_unavailable_options_dropped_and_sorted():
 
 
 def test_hotel_fields_flatten_content():
-    fields = hotel_fields({
-        "tjHotelId": "1", "name": "Pride", "star_rating": "5", "is_active": True,
-        "property_type": {"name": "Hotel"},
-        "locale": {"address": {"fulladdr": "Aerocity", "city": "Delhi", "countryname": "India"},
-                   "coordinates": {"lat": 28.5, "long": 77.1}},
-        "amenities": {"0": {"name": "Pool"}, "1": {"name": "Wifi"}},
-        "images": [{"caption": "x", "links": {"Standard": {"href": "http://a/1.jpg"}}},
-                   {"is_hero_image": True, "links": {"Standard": {"href": "http://a/hero.jpg"}}}],
-        "descriptions": {"headline": "Nice", "default": '{"Overview": "A big hotel"}'},
-        "policies": {"know_before_you_go": '{"Children Policy": "2 to 12"}'},
-    })
-    assert fields["hero_image"] == "http://a/hero.jpg" and fields["images"][0]["url"].endswith("hero.jpg")
+    fields = hotel_fields(
+        {
+            "tjHotelId": "1",
+            "name": "Pride",
+            "star_rating": "5",
+            "is_active": True,
+            "property_type": {"name": "Hotel"},
+            "locale": {
+                "address": {"fulladdr": "Aerocity", "city": "Delhi", "countryname": "India"},
+                "coordinates": {"lat": 28.5, "long": 77.1},
+            },
+            "amenities": {"0": {"name": "Pool"}, "1": {"name": "Wifi"}},
+            "images": [
+                {"caption": "x", "links": {"Standard": {"href": "http://a/1.jpg"}}},
+                {"is_hero_image": True, "links": {"Standard": {"href": "http://a/hero.jpg"}}},
+            ],
+            "descriptions": {"headline": "Nice", "default": '{"Overview": "A big hotel"}'},
+            "policies": {"know_before_you_go": '{"Children Policy": "2 to 12"}'},
+        }
+    )
+    assert fields["hero_image"] == "http://a/hero.jpg" and fields["images"][0]["url"].endswith(
+        "hero.jpg"
+    )
     assert fields["amenities"] == ["Pool", "Wifi"] and fields["star_rating"] == 5
-    assert fields["description"] == "A big hotel" and fields["policies"] == {"Children Policy": "2 to 12"}
+    assert fields["description"] == "A big hotel" and fields["policies"] == {
+        "Children Policy": "2 to 12"
+    }
     assert fields["rank"] > 50
 
 
@@ -84,16 +110,32 @@ class FakeTripJack:
 
     async def listing(self, *, hids, **kw):
         self.calls.append(list(hids))
-        return [{"tjHotelId": h, "name": f"H{h}", "options": [_option(1000 + int(h))]} for h in hids]
+        return [
+            {"tjHotelId": h, "name": f"H{h}", "options": [_option(1000 + int(h))]} for h in hids
+        ]
 
 
 async def _seed(n: int):
     async with SessionLocal() as s:
-        s.add(SupplierRegion(region_id=7, city_name="Goa", country_name="INDIA",
-                             mapping_synced_at=datetime.now(IST), content_synced_at=datetime.now(IST)))
+        s.add(
+            SupplierRegion(
+                region_id=7,
+                city_name="Goa",
+                country_name="INDIA",
+                mapping_synced_at=datetime.now(IST),
+                content_synced_at=datetime.now(IST),
+            )
+        )
         for i in range(n):
-            s.add(SupplierHotel(tj_hotel_id=str(i), region_id=7, name=f"Hotel {i}",
-                                content_synced_at=datetime.now(IST), rank=i))
+            s.add(
+                SupplierHotel(
+                    tj_hotel_id=str(i),
+                    region_id=7,
+                    name=f"Hotel {i}",
+                    content_synced_at=datetime.now(IST),
+                    rank=i,
+                )
+            )
         await s.commit()
 
 
@@ -110,7 +152,11 @@ async def test_search_chunks_in_parallel_and_sorts_cheapest_first(monkeypatch):
         result = await service.search(
             s, HotelSearch(city="goa", check_in=tomorrow, check_out=tomorrow + timedelta(days=2))
         )
-    assert [len(c) for c in fake.calls] == [100, 100, 50] or sorted(len(c) for c in fake.calls) == [50, 100, 100]
+    assert [len(c) for c in fake.calls] == [100, 100, 50] or sorted(len(c) for c in fake.calls) == [
+        50,
+        100,
+        100,
+    ]
     prices = [h["option"]["price"]["total"] for h in result["hotels"]]
     assert prices == sorted(prices) and len(prices) == 250
     assert result["region"]["city"] == "Goa"
@@ -127,13 +173,19 @@ async def test_unknown_city_is_reported():
     async with SessionLocal() as s:
         with pytest.raises(service.NoDestination):
             await service.search(
-                s, HotelSearch(city="nowhere", check_in=tomorrow, check_out=tomorrow + timedelta(days=1))
+                s,
+                HotelSearch(
+                    city="nowhere", check_in=tomorrow, check_out=tomorrow + timedelta(days=1)
+                ),
             )
 
 
 async def test_search_needs_login_and_reports_missing_key(client, traveler, monkeypatch):
-    body = {"city": "goa", "check_in": str(date.today() + timedelta(days=3)),
-            "check_out": str(date.today() + timedelta(days=5))}
+    body = {
+        "city": "goa",
+        "check_in": str(date.today() + timedelta(days=3)),
+        "check_out": str(date.today() + timedelta(days=5)),
+    }
     assert (await client.post("/hotels/search", json=body)).status_code == 401
     r = await client.post("/hotels/search", json=body, headers=auth(traveler))
     assert r.status_code == 404  # no region synced yet
