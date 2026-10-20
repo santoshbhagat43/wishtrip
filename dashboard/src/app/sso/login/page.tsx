@@ -8,6 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 
 import { PhoneField, countryName, toE164 } from "@/components/phone-field";
 import { errorMessage } from "@/lib/api/client";
+import { WHATSAPP_NOT_READY, WHATSAPP_READY } from "@/lib/whatsapp";
 
 const ERRORS: Record<string, string> = {
   google_denied: "Google sign-in was cancelled.",
@@ -16,6 +17,7 @@ const ERRORS: Record<string, string> = {
   code_address: "Enter a valid email address.",
   code_unavailable: "We can't send sign-in codes right now. Please try again later.",
   code_failed: "We couldn't send the code. Please try again in a moment.",
+  code_whatsapp: WHATSAPP_NOT_READY,
   code_wrong: "That code isn't right, or it has expired. Ask for a new one.",
 };
 
@@ -45,8 +47,8 @@ function SsoPanel() {
 }
 
 /** Travellers and creators sign in (or up) with a one-time code by email, or with Google; there
- *  are no passwords. WhatsApp codes (Trustsignal) are not wired yet, so the WhatsApp channel is
- *  switched off below; its code is kept, commented. */
+ *  are no passwords. WhatsApp is shown so the page looks complete; until Trustsignal WhatsApp is
+ *  wired (lib/whatsapp.ts) choosing it says it isn't available yet. */
 function CodePanel({
   googleHref,
   redirect,
@@ -57,11 +59,9 @@ function CodePanel({
   creator: boolean;
 }) {
   const params = useSearchParams();
-  // WhatsApp is off for now: always email.
-  // const [channel, setChannel] = useState<"email" | "whatsapp">(
-  //   params.get("channel") === "whatsapp" ? "whatsapp" : "email",
-  // );
-  const [channel] = useState<"email" | "whatsapp">("email");
+  const [channel, setChannel] = useState<"email" | "whatsapp">(
+    params.get("channel") === "whatsapp" ? "whatsapp" : "email",
+  );
   const [email, setEmail] = useState(params.get("sent") ?? "");
   const [country, setCountry] = useState<CountryCode>("IN");
   const [number, setNumber] = useState("");
@@ -82,6 +82,10 @@ function CodePanel({
   async function send(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     setError(null);
+    if (channel === "whatsapp" && !WHATSAPP_READY) {
+      setError(WHATSAPP_NOT_READY);
+      return;
+    }
     const to = address();
     if (channel === "whatsapp" && !to.phone) {
       setError(`That doesn't look like a valid WhatsApp number for ${countryName(country)}.`);
@@ -198,7 +202,6 @@ function CodePanel({
         <span className="h-px flex-1 bg-border" /> or use a code <span className="h-px flex-1 bg-border" />
       </div>
 
-      {/* WhatsApp channel: OFF until Trustsignal WhatsApp is wired (email only for now).
       <div role="tablist" aria-label="Where to send the code" className="flex gap-1 rounded-full bg-surface-2 p-1">
         {(
           [
@@ -223,7 +226,6 @@ function CodePanel({
           </button>
         ))}
       </div>
-      */}
 
       <form onSubmit={send} method="post" action="/api/sso/code/request" className="flex flex-col gap-4">
         <input type="hidden" name="channel" value={channel} />
@@ -258,7 +260,7 @@ function CodePanel({
               }}
               inputClassName={`${INPUT} flex items-center`}
             />
-            <p className="text-[12.5px] text-muted">The number you gave when you applied.</p>
+            <p className="text-[12.5px] text-muted">{creator ? "The number you gave when you applied." : "WhatsApp codes are coming soon."}</p>
           </div>
         )}
         {errorNote}

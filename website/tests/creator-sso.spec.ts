@@ -53,14 +53,21 @@ test.describe("Creator site", () => {
     expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/creator`);
   });
 
-  test("the sign-in page sends codes by email only (WhatsApp isn't wired yet)", async ({ page }) => {
+  test("the sign-in page offers Email and WhatsApp; WhatsApp says it isn't available yet", async ({ page }) => {
     await page.goto(`${CREATOR_URL}/creator`);
     await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Email" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("Email")).toBeVisible();
-    await expect(page.getByRole("tab", { name: "WhatsApp" })).toHaveCount(0);
-    await expect(page.getByLabel("WhatsApp number")).toHaveCount(0);
-    // Even a link that asks for the WhatsApp channel lands on email.
-    await page.goto(`${CREATOR_URL}/creator?channel=whatsapp`);
+
+    await page.getByRole("tab", { name: "WhatsApp" }).click();
+    await expect(page.getByLabel("Email")).toHaveCount(0);
+    await expect(page.getByText("WhatsApp number")).toBeVisible();
+    await page.getByRole("button", { name: "Send code" }).click();
+    await expect(page.getByText(/WhatsApp codes aren.t available yet/)).toBeVisible();
+    await expect(page.getByLabel("Sign-in code")).toHaveCount(0); // nothing was sent
+
+    // Back to email works as before.
+    await page.getByRole("tab", { name: "Email" }).click();
     await expect(page.getByLabel("Email")).toBeVisible();
   });
 

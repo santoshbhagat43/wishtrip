@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { BACKEND_URL } from "@/lib/server/session";
 import { SSO_URL } from "@/lib/server/sso";
+import { WHATSAPP_NOT_READY, WHATSAPP_READY } from "@/lib/whatsapp";
 
 /** Someone asks for a one-time sign-in code by email (WhatsApp is not offered yet): a traveller
  *  (the default) or, with `for=creator`, a creator. The backend answers the same way for everyone,
@@ -12,8 +13,19 @@ export async function POST(request: NextRequest) {
     isForm ? Object.fromEntries((await request.formData()).entries()) : await request.json()
   ) as Record<string, string | undefined>;
   const creator = fields.for === "creator";
-  // Travellers get email codes only; WhatsApp is a creator channel.
-  const channel = creator && fields.channel === "whatsapp" ? "whatsapp" : "email";
+  const channel = fields.channel === "whatsapp" ? "whatsapp" : "email";
+
+  // The page offers WhatsApp so it looks complete; it isn't wired yet, so say so (even for the
+  // form posted before the page's script loads) rather than ask the backend.
+  if (channel === "whatsapp" && !WHATSAPP_READY) {
+    if (!isForm) return NextResponse.json({ detail: WHATSAPP_NOT_READY }, { status: 503 });
+    const next = new URL(`${SSO_URL || request.nextUrl.origin}/sso/login`);
+    if (creator) next.searchParams.set("for", "creator");
+    next.searchParams.set("channel", "whatsapp");
+    next.searchParams.set("error", "code_whatsapp");
+    if (fields.redirect) next.searchParams.set("redirect", fields.redirect);
+    return NextResponse.redirect(next, 303);
+  }
 
   const res = await fetch(`${BACKEND_URL}${creator ? "/auth/creator/request-otp" : "/auth/otp/request"}`, {
     method: "POST",
