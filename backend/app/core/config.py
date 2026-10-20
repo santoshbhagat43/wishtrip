@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     # CREATOR_DEV_OTP in a local .env, and is ignored whenever ENVIRONMENT=production.
     # creator_dev_otp: str = "1234"
     creator_dev_otp: str | None = None
+    # TEMPORARY, for a test server (UAT) with no email provider yet: let CREATOR_DEV_OTP work even
+    # when ENVIRONMENT=production. It only applies while no email provider is configured: the
+    # moment Trustsignal (or SMTP) is set up, real codes take over and the fixed one stops working.
+    # Anyone who knows an email can sign in as that traveller/creator while it is on.
+    allow_fixed_otp_in_production: bool = False
     otp_ttl_seconds: int = 600
     otp_max_attempts: int = 5
     otp_resend_seconds: int = 30

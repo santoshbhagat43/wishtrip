@@ -222,3 +222,31 @@ async def test_the_fixed_code_is_ignored_in_production(client, monkeypatch):
         json={"channel": "email", "email": "p@creators.example.com", "code": "1234"},
     )
     assert v.status_code == 400
+
+
+async def test_the_fixed_code_works_in_production_only_when_asked_and_only_until_email_is_live(
+    client, monkeypatch
+):
+    """A test server with no provider yet can opt in; real email codes take over once configured."""
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "creator_dev_otp", "1234")
+    monkeypatch.setattr(settings, "allow_fixed_otp_in_production", True)
+    monkeypatch.setattr(settings, "smtp_host", None)
+    monkeypatch.setattr(settings, "trustsignal_api_key", None)
+    assert otp.dev_code() == "1234"
+    sent = await client.post("/auth/otp/request", json={"email": "uat@example.com"})
+    assert sent.status_code == 202
+    ok = await client.post("/auth/otp/verify", json={"email": "uat@example.com", "code": "1234"})
+    assert ok.status_code == 200
+
+    # Email goes live: the fixed code stops working.
+    monkeypatch.setattr(settings, "smtp_host", "smtp.test")
+    monkeypatch.setattr(settings, "smtp_from", "WishTrip <login@wishtrip.test>")
+    otp.set_store(otp.MemoryOtpStore())
+    try:
+        bad = await client.post(
+            "/auth/otp/verify", json={"email": "uat@example.com", "code": "1234"}
+        )
+        assert bad.status_code == 400
+    finally:
+        otp.set_store(None)

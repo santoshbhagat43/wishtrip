@@ -145,4 +145,6 @@ There is **no hardcoded sign-in code**. It used to be `1234` (the default of `CR
 which let anyone who knew a creator's email sign in as them. Until email is configured, no code is
 sent. WhatsApp codes are not offered yet (Trustsignal WhatsApp comes later), so the sign-in page
 shows email only. A developer can opt in to a fixed code locally with `CREATOR_DEV_OTP` (the dev
-compose file does); it is ignored when `ENVIRONMENT=production`.
+compose file does); it is ignored when `ENVIRONMENT=production`, unless a test server with no email
+provider yet also sets `ALLOW_FIXED_OTP_IN_PRODUCTION=true`. Even then it stops working the moment
+Trustsignal (or SMTP) is configured. Remove both settings once real codes are on.

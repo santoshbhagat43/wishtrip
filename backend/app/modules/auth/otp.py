@@ -107,7 +107,9 @@ class OtpDeliveryFailed(Exception):
 
 
 def dev_code() -> str | None:
-    """A fixed sign-in code a developer opted in to locally (CREATOR_DEV_OTP). Never in production.
+    """A fixed sign-in code a developer opted in to (CREATOR_DEV_OTP). Not in production, unless
+    ALLOW_FIXED_OTP_IN_PRODUCTION is also set (a test server with no email provider yet), and then
+    only while no email provider is configured (see check()).
 
     HARDCODED FIXED CODE: DISABLED. The old behaviour (every non-live channel accepted
     `settings.creator_dev_otp`, which defaulted to "1234") let anyone who knew a creator's email
@@ -116,7 +118,7 @@ def dev_code() -> str | None:
         # if not channel_is_live(channel):
         #     return hmac.compare_digest(code, settings.creator_dev_otp)   # "1234"
     """
-    if settings.environment == "production":
+    if settings.environment == "production" and not settings.allow_fixed_otp_in_production:
         return None
     return settings.creator_dev_otp or None
 
