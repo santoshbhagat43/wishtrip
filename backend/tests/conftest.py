@@ -60,6 +60,14 @@ async def _user(role: Role, email: str) -> User:
         return user
 
 
+async def sign_up(client, email: str, **referral):
+    """A traveller signs in with a code (the test-only fixed one). Returns the response."""
+    await client.post("/auth/otp/request", json={"email": email})
+    return await client.post(
+        "/auth/otp/verify", json={"email": email, "code": os.environ["CREATOR_DEV_OTP"], **referral}
+    )
+
+
 def auth(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_token(user.id, user.role, 'access')}"}
 

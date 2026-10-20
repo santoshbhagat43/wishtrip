@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { DEV_CODE, SSO_URL } from "./fixtures";
 
 /**
  * The website's /api/wt gateway is the only way a browser reaches the backend. It must forward
@@ -36,8 +37,9 @@ test.describe("Gateway allowlist", () => {
       ["GET", "/api/wt/health"],
       ["GET", "/api/wt/docs"],
       ["GET", "/api/wt/openapi.json"],
-      ["POST", "/api/wt/auth/login"], // only via /api/auth/login, which sets the cookies
+      ["POST", "/api/wt/auth/login"], // staff sign in on the dashboard, never through the website
       ["POST", "/api/wt/auth/register"],
+      ["POST", "/api/wt/auth/otp/verify"], // codes are checked on the SSO app, which sets the cookies
       // right route, wrong method
       ["DELETE", "/api/wt/profiles/me"],
       ["POST", "/api/wt/explore/destinations"],
@@ -58,11 +60,14 @@ test.describe("Gateway allowlist", () => {
     }
   });
 
-  test("auth endpoints set httpOnly cookies and never return tokens to the browser", async ({ request }) => {
+  test("sign-in sets httpOnly cookies and never returns tokens to the browser", async ({ request }) => {
     const email = `e2e-gw-${Date.now()}@example.com`;
-    const res = await request.post("/api/auth/register", { data: { email, password: "e2e-password-123" } });
-    expect(res.status()).toBe(201);
-    expect(await res.json()).toEqual({ ok: true }); // no access/refresh tokens in the body
+    // Codes are checked on the SSO app, which mints the shared session cookies.
+    const sent = await request.post(`${SSO_URL}/api/sso/code/request`, { data: { email } });
+    expect(sent.status()).toBe(202);
+    const res = await request.post(`${SSO_URL}/api/sso/code/verify`, { data: { email, code: DEV_CODE } });
+    expect(res.status()).toBe(200);
+    expect(Object.keys(await res.json()).sort()).toEqual(["ok", "redirect"]); // no tokens in the body
     const cookies = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie").map((h) => h.value);
     // The shared SSO session names, so this session works on every wishtrip app.
     expect(cookies.some((c) => c.startsWith("wt_session=") && /HttpOnly/i.test(c))).toBe(true);

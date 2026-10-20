@@ -15,13 +15,14 @@ from app.modules.auth.schemas import (
     GoogleExchange,
     LoginRequest,
     RefreshRequest,
-    RegisterRequest,
     TokenPair,
+    TravelerOtpRequest,
+    TravelerOtpVerify,
 )
 from app.modules.creators import service as creators
 from app.modules.users import service as users
 from app.modules.users.models import Role, User
-from app.modules.users.schemas import UserCreate, UserRead
+from app.modules.users.schemas import UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,12 +42,43 @@ async def login(data: LoginRequest, session: AsyncSession = Depends(get_session)
     return _tokens(user)
 
 
-@router.post("/register", response_model=TokenPair, status_code=201)
-async def register(data: RegisterRequest, session: AsyncSession = Depends(get_session)):
-    """Public sign-up always creates a traveler; staff accounts are created by admins."""
-    fields = data.model_dump(exclude={"referral_code", "visitor_id", "link_code"})
-    user = await users.create(session, UserCreate(**fields, role=Role.TRAVELER))
-    await creators.credit_signup(session, user, data.referral_code, data.visitor_id, data.link_code)
+@router.post("/otp/request", status_code=202)
+async def traveler_request_otp(data: TravelerOtpRequest):
+    """Email a traveller a one-time sign-in code. There are no passwords for travellers.
+
+    Always answers the same way, so it can't be used to discover who has an account.
+    """
+    try:
+        await otp.issue("email", str(data.email).lower())
+    except otp.OtpUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, exc.message) from exc
+    except otp.OtpDeliveryFailed as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "We couldn't send the code. Please try again in a moment."
+        ) from exc
+    return {"sent": True}
+
+
+@router.post("/otp/verify", response_model=TokenPair)
+async def traveler_verify(data: TravelerOtpVerify, session: AsyncSession = Depends(get_session)):
+    """Check the code and sign the traveller in; a first sign-in creates their account.
+
+    Staff sign in with a password, not here: a code to an inbox must not open a team account.
+    """
+    email = str(data.email).lower()
+    if not await otp.check("email", email, data.code):
+        raise bad_request("That code isn't right, or it has expired. Ask for a new one.")
+    user, created = await users.get_or_create_passwordless_user(session, email=email)
+    if user.role not in (Role.TRAVELER, Role.CREATOR):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Team accounts sign in with a password, on the dashboard."
+        )
+    if not user.is_active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been disabled.")
+    if created and user.role == Role.TRAVELER:
+        await creators.credit_signup(
+            session, user, data.referral_code, data.visitor_id, data.link_code
+        )
     await session.commit()
     return _tokens(user)
 
@@ -55,7 +87,7 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
 async def google_exchange(data: GoogleExchange, session: AsyncSession = Depends(get_session)):
     """Exchange a Google auth code (from the SSO app) for a wishtrip token pair."""
     claims = await google.exchange_code(data.code, data.redirect_uri)
-    user, created = await users.get_or_create_google_user(
+    user, created = await users.get_or_create_passwordless_user(
         session, email=claims["email"], full_name=claims.get("name", "")
     )
     # Only a new traveller is a referral; a creator signing in for the first time is not.

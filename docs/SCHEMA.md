@@ -136,7 +136,7 @@ migration. `created_at` / `updated_at` are `timestamptz` defaulting to `now()`.
 | role | varchar | no | `admin` (everything), `editor` (knowledge base), `traveler` (profile, chat) |
 | is_active | boolean | no | Disabled users cannot sign in |
 
-Sign-up (`/auth/register`) always creates a `traveler`; staff accounts are created by admins.
+Travellers have no password: they sign in or up with an emailed one-time code (`/auth/otp/request`, `/auth/otp/verify`) or Google, and a first sign-in creates a `traveler`. A traveller who signs in as a creator becomes a `creator` (same account). Staff accounts are created by admins and sign in with a password (`/auth/login`, admin dashboard only); a code never opens a staff account.
 
 ### 3.2 `locations` — the knowledge base
 
@@ -313,7 +313,7 @@ cookies across ports/subdomains of one host.
 
 | Who | Can call |
 |---|---|
-| anonymous | `/health`, `/auth/login`, `/auth/register`, `/auth/refresh` |
+| anonymous | `/health`, `/auth/login`, `/auth/otp/request`, `/auth/otp/verify`, `/auth/refresh` |
 | any signed-in user | `/auth/me`, `/profiles/me*`, `/recommendations`, `/search/semantic`, `/chat/*` |
 | editor + admin | `/admin/*` except users |
 | admin | `/admin/users*` |
@@ -323,7 +323,8 @@ cookies across ports/subdomains of one host.
 |---|---|---|---|
 | GET | /health | DB check, AI on/off, embedder name | — |
 | POST | /auth/login | Email + password → access/refresh tokens | users |
-| POST | /auth/register | Create traveler, return tokens | users |
+| POST | /auth/otp/request | Email a traveller a one-time sign-in code | anonymous |
+| POST | /auth/otp/verify | Check the code; sign in or create a traveler, return tokens | anonymous |
 | POST | /auth/refresh | Refresh token → new pair | users |
 | GET | /auth/me | Current user | users |
 

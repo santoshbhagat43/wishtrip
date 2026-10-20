@@ -258,8 +258,11 @@ async def sign_in_creator(
     email = email.strip().lower()
 
     user = await session.scalar(select(User).where(func.lower(User.email) == email))
-    if user and user.role != Role.CREATOR:
-        raise conflict("This email already has a traveller account. Use a different email.")
+    if user and user.role == Role.TRAVELER:
+        # A traveller who becomes a creator is the same person: keep their account and history.
+        user.role = Role.CREATOR
+    elif user and user.role != Role.CREATOR:
+        raise conflict("This email belongs to a WishTrip team account. Use a different email.")
     if user is None:
         # No password sign-in for creators; a random hash keeps the column non-guessable.
         user = User(

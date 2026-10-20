@@ -3,7 +3,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.modules.creators.models import Creator
-from tests.conftest import auth
+from tests.conftest import auth, sign_up
 
 OTP = settings.creator_dev_otp
 
@@ -49,13 +49,6 @@ async def test_second_login_reuses_the_account(client):
     assert len(creators) == 1
 
 
-async def test_traveler_email_cannot_sign_in_as_creator(client, traveler):
-    r = await client.post("/auth/creator/request-otp", json={"email": traveler.email})
-    assert r.status_code == 202
-    r = await client.post("/auth/creator/verify", json={"email": traveler.email, "code": OTP})
-    assert r.status_code == 409
-
-
 async def test_staff_approve_a_pending_creator(client, admin):
     headers = await _creator_login(client, "pending@creators.example.com")
 
@@ -98,16 +91,13 @@ async def test_creator_overview_shows_their_numbers_but_never_traveller_emails(c
     me = (await client.get("/creators/me", headers=headers)).json()
 
     # A traveller signs up through this creator's link.
-    signup = await client.post(
-        "/auth/register",
-        json={
-            "email": "brought-in@example.com",
-            "password": "password123",
-            "referral_code": me["referral_code"],
-            "visitor_id": "v-overview",
-        },
+    signup = await sign_up(
+        client,
+        "brought-in@example.com",
+        referral_code=me["referral_code"],
+        visitor_id="v-overview",
     )
-    assert signup.status_code == 201
+    assert signup.status_code == 200
 
     r = await client.get("/creators/me/overview", headers=headers)
     assert r.status_code == 200, r.text

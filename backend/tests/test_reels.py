@@ -14,7 +14,7 @@ from app.modules.creators.models import CommissionEntry, Creator
 from app.modules.reels import media, service
 from app.modules.reels.understand import clean_reading
 from app.modules.users.models import User
-from tests.conftest import auth
+from tests.conftest import auth, sign_up
 
 needs_ffmpeg = pytest.mark.skipif(
     not (shutil.which("ffmpeg") and shutil.which("tesseract")), reason="needs ffmpeg + tesseract"
@@ -234,11 +234,7 @@ async def test_referral_signup_then_first_plan_earns_commission(client, admin, l
     visit = await client.post("/referrals/GoaDiaries/visit", json={"visitor_id": "v1"})
     assert visit.status_code == 200 and visit.json()["handle"] == "goadiaries"
 
-    r = await client.post(
-        "/auth/register",
-        json={"email": "new@example.com", "password": "password123",
-              "referral_code": "goadiaries", "visitor_id": "v1"},
-    )  # fmt: skip
+    r = await sign_up(client, "new@example.com", referral_code="goadiaries", visitor_id="v1")
     headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
     chat = (await client.post("/chat/sessions", headers=headers)).json()
     for _ in range(2):  # the commission is booked once, on the first plan

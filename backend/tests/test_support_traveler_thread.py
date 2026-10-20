@@ -1,6 +1,6 @@
 """Traveler ticket thread: ownership, public messages only, follow-ups."""
 
-from tests.conftest import auth
+from tests.conftest import auth, sign_up
 
 
 async def test_traveler_reads_own_thread_without_internal_notes(client, support, traveler):
@@ -49,15 +49,8 @@ async def test_other_traveler_cannot_read_ticket(client, traveler, support):
     assert owner.status_code == 201
     ticket_id = owner.json()["id"]
 
-    other = await client.post(
-        "/auth/register",
-        json={
-            "email": "other-traveler@example.com",
-            "password": "password123",
-            "full_name": "Other Traveler",
-        },
-    )
-    assert other.status_code == 201, other.text
+    other = await sign_up(client, "other-traveler@example.com")
+    assert other.status_code == 200, other.text
     other_h = {"Authorization": f"Bearer {other.json()['access_token']}"}
 
     peek = await client.get(f"/support/tickets/{ticket_id}", headers=other_h)

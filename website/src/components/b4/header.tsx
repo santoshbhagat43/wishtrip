@@ -70,7 +70,7 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
               Create account
             </Link>
           </span>
-          <span className="text-xs text-[#8A7F72]">With your phone number or Google. No passwords.</span>
+          <span className="text-xs text-[#8A7F72]">With an emailed code or Google. No passwords.</span>
         </div>
         <div className="flex flex-col">
           <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">MENU</span>

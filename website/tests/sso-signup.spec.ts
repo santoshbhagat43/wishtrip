@@ -1,5 +1,5 @@
 /**
- * Signing up through the shared SSO app — and keeping the creator who brought the visitor.
+ * Signing up through the shared SSO app, by emailed code — and keeping the creator who brought the visitor.
  *
  * Sign-up moved from the website to the SSO host (sso.<domain>). A creator's /c/<code> link sets
  * referral cookies on the website; these tests prove the SSO app still sees them, so the creator
@@ -7,7 +7,7 @@
  */
 import type { APIRequestContext } from "@playwright/test";
 
-import { API_URL, SSO_URL, createAccountOnSso, expect, test } from "./fixtures";
+import { API_URL, DEV_CODE, SSO_URL, createAccountOnSso, expect, test } from "./fixtures";
 
 const ADMIN = { email: process.env.ADMIN_EMAIL ?? "", password: process.env.ADMIN_PASSWORD ?? "" };
 
@@ -25,31 +25,44 @@ async function adminCreators(request: APIRequestContext) {
 }
 
 test.describe("Sign-up on SSO", () => {
-  test("/signup opens the SSO 'Create account' form and returns the new traveller signed in", async ({ page, baseURL }) => {
+  test("/signup opens the SSO code form and returns the new traveller signed in", async ({ page, baseURL }) => {
     await page.goto("/signup");
     await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
-    await expect(page.getByRole("heading", { level: 1, name: "Create your account" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    // No password anywhere: an email and a code are the whole sign-in.
+    await expect(page.getByLabel("Password")).toHaveCount(0);
 
-    await page.getByLabel("Your name").fill("E2E Traveler");
     await page.getByLabel("Email").fill(`e2e-sso-${Date.now()}@example.com`);
-    await page.getByLabel("Password").fill("e2e-password-123");
-    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Send code" }).click();
+    await page.getByLabel("Sign-in code").fill(DEV_CODE);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
     await expect(page).toHaveURL(`${baseURL}/plan`);
     expect((await page.request.get("/api/wt/auth/me")).status()).toBe(200);
   });
 
-  test("an email that already has an account gets a clear message", async ({ page }) => {
-    const email = `e2e-dup-${Date.now()}@example.com`;
-    const first = await page.request.post(`${API_URL}/auth/register`, {
-      data: { email, password: "e2e-password-123" },
-    });
-    expect(first.status()).toBe(201);
+  test("a wrong code is refused and signs nobody in", async ({ page }) => {
+    await page.goto("/profile");
+    await page.getByLabel("Email").fill(`e2e-bad-${Date.now()}@example.com`);
+    await page.getByRole("button", { name: "Send code" }).click();
+    await page.getByLabel("Sign-in code").fill(DEV_CODE === "9999" ? "8888" : "9999");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByText(/isn.t right, or it has expired/)).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
+  });
 
+  test("an email that already has an account signs back in to the same account", async ({ page }) => {
+    const email = `e2e-dup-${Date.now()}@example.com`;
     await page.goto("/profile");
     await createAccountOnSso(page, email);
-    await expect(page.getByText("already registered")).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
+    await expect(page.getByRole("heading", { name: "How you travel" })).toBeVisible({ timeout: 30_000 });
+    const first = await (await page.request.get("/api/wt/auth/me")).json();
+
+    await page.context().clearCookies();
+    await page.goto("/profile");
+    await createAccountOnSso(page, email);
+    await expect(page.getByRole("heading", { name: "How you travel" })).toBeVisible({ timeout: 30_000 });
+    expect((await (await page.request.get("/api/wt/auth/me")).json()).id).toBe(first.id);
   });
 
   test("a creator's link is still credited when the visitor signs up on SSO", async ({ page, request, context }) => {

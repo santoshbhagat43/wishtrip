@@ -73,8 +73,11 @@ export const test = base.extend<Fixtures>({
   traveler: async ({ request }, use) => {
     // A fresh traveler per test keeps profile/behaviour tests isolated.
     const email = `e2e-traveler-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@example.com`;
-    const res = await request.post("/auth/register", { data: { email, password: "e2e-password-123", full_name: "E2E Traveler" } });
-    expect(res.status()).toBe(201);
+    // Travellers have no password: they sign in (and up) with an emailed code. Locally that is
+    // the opt-in fixed code (CREATOR_DEV_OTP).
+    expect((await request.post("/auth/otp/request", { data: { email } })).status()).toBe(202);
+    const res = await request.post("/auth/otp/verify", { data: { email, code: process.env.CREATOR_DEV_OTP ?? "1234" } });
+    expect(res.status()).toBe(200);
     await use(Object.assign(new Api(request, (await res.json()).access_token, "traveler"), { email }));
   },
 });

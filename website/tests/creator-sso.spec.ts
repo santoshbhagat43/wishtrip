@@ -6,7 +6,7 @@
  */
 import type { Page } from "@playwright/test";
 
-import { API_URL, CREATOR_URL, SSO_URL, expect, test } from "./fixtures";
+import { API_URL, CREATOR_URL, SSO_URL, createAccountOnSso, expect, test } from "./fixtures";
 
 const DEV_CODE = process.env.CREATOR_DEV_OTP ?? "1234";
 const SSO_LOGIN = new RegExp(`^${SSO_URL}/sso/login`);
@@ -113,15 +113,24 @@ test.describe("Creator site", () => {
     await expect(page).toHaveURL(SSO_LOGIN);
   });
 
-  test("a traveller's email can't be used as a creator sign-in", async ({ page }) => {
+  test("a traveller who signs in as a creator becomes one, keeping their account", async ({ page }) => {
     const email = `e2e-trav-${Date.now()}@example.com`;
-    const reg = await page.request.post(`${API_URL}/auth/register`, { data: { email, password: "e2e-password-123" } });
-    expect(reg.status()).toBe(201);
+    // They are a traveller first: they signed up by code on the traveller site.
+    await page.goto("/profile");
+    await createAccountOnSso(page, email);
+    await expect(page.getByRole("heading", { name: "How you travel" })).toBeVisible({ timeout: 30_000 });
+    const traveller = await (await page.request.get("/api/wt/auth/me")).json();
+    await page.context().clearCookies();
 
     await page.goto(`${CREATOR_URL}/creator`);
     await page.getByLabel("Email").fill(email);
     await page.getByRole("button", { name: "Send code" }).click();
     await signInWithCode(page, DEV_CODE);
-    await expect(page.getByText(/already has a traveller account/)).toBeVisible();
+    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page.getByText("Waiting for approval").first()).toBeVisible();
+    await expect(page.getByText(/already has a traveller account/)).toHaveCount(0);
+    const me = await (await page.request.get(`${CREATOR_URL}/api/wt/auth/me`)).json();
+    expect(me.id).toBe(traveller.id);
+    expect(me.role).toBe("creator");
   });
 });

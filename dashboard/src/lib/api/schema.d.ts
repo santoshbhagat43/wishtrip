@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/register": {
+    "/auth/otp/request": {
         parameters: {
             query?: never;
             header?: never;
@@ -31,10 +31,34 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Register
-         * @description Public sign-up always creates a traveler; staff accounts are created by admins.
+         * Traveler Request Otp
+         * @description Email a traveller a one-time sign-in code. There are no passwords for travellers.
+         *
+         *     Always answers the same way, so it can't be used to discover who has an account.
          */
-        post: operations["register_auth_register_post"];
+        post: operations["traveler_request_otp_auth_otp_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Traveler Verify
+         * @description Check the code and sign the traveller in; a first sign-in creates their account.
+         *
+         *     Staff sign in with a password, not here: a code to an inbox must not open a team account.
+         */
+        post: operations["traveler_verify_auth_otp_verify_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -810,6 +834,195 @@ export interface paths {
          *     for the paid SaveAPI fallback, what it cost and what is left.
          */
         get: operations["download_log_reels_downloads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Destinations
+         * @description City regions matching a name, biggest first. Pass a `region_id` to /hotels/search.
+         */
+        get: operations["destinations_hotels_destinations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_hotels_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/search/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search Stream
+         * @description Server-sent events: one `data:` line per chunk of hotels as TripJack answers, so the first
+         *     cards show in about a second instead of after the slowest chunk.
+         */
+        post: operations["search_stream_hotels_search_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/{hotel_id}/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pricing */
+        post: operations["pricing_hotels__hotel_id__pricing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/admin/sync/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Regions Now */
+        post: operations["sync_regions_now_hotels_admin_sync_regions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotels/admin/sync/regions/{region_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Region Now */
+        post: operations["sync_region_now_hotels_admin_sync_regions__region_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_flights_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/fare-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fare Rules
+         * @description Cancellation, date-change and no-show charges for a fare, by hours before departure.
+         */
+        post: operations["fare_rules_flights_fare_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insurance/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search
+         * @description Travel-insurance plans (TripSafe) for a trip, cheapest first.
+         */
+        post: operations["search_insurance_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tripjack/evidence/{trace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Evidence
+         * @description What TripJack really returned for the request that carried this `supplier.trace_id`:
+         *     each call (host, status, timing) and a compact copy of the values it sent (hotel ids, names,
+         *     prices, fare ids). For checking that what we show is what TripJack said. Kept for an hour;
+         *     the API key is never recorded.
+         */
+        get: operations["evidence_tripjack_evidence__trace_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2099,7 +2312,17 @@ export interface components {
             notes?: string | null;
         };
         /** Destination */
-        Destination: {
+        "Destination-Input": {
+            /** Key */
+            key: string;
+            /**
+             * Type
+             * @default COUNTRY
+             */
+            type: string;
+        };
+        /** Destination */
+        "Destination-Output": {
             /**
              * Id
              * Format: uuid
@@ -2126,7 +2349,7 @@ export interface components {
         };
         /** DestinationDetail */
         DestinationDetail: {
-            destination: components["schemas"]["Destination"];
+            destination: components["schemas"]["Destination-Output"];
             /** Places */
             places: components["schemas"]["PublicLocation"][];
         };
@@ -2272,6 +2495,11 @@ export interface components {
          * @enum {string}
          */
         EventType: "viewed" | "selected" | "added" | "booked" | "skipped" | "removed";
+        /** FareRuleQuery */
+        FareRuleQuery: {
+            /** Price Id */
+            price_id: string;
+        };
         /** Feasibility */
         Feasibility: {
             /** Status */
@@ -2293,6 +2521,43 @@ export interface components {
             day: number | null;
             /** Name */
             name: string | null;
+        };
+        /** FlightSearch */
+        FlightSearch: {
+            /** Legs */
+            legs: components["schemas"]["Leg"][];
+            /**
+             * Adults
+             * @default 1
+             */
+            adults: number;
+            /**
+             * Children
+             * @default 0
+             */
+            children: number;
+            /**
+             * Infants
+             * @default 0
+             */
+            infants: number;
+            /**
+             * Cabin
+             * @default ECONOMY
+             */
+            cabin: string;
+            /**
+             * Direct Only
+             * @default false
+             */
+            direct_only: boolean;
+            /** Airlines */
+            airlines?: string[];
+            /**
+             * Sort
+             * @default price
+             */
+            sort: string;
         };
         /**
          * FollowUp
@@ -2333,6 +2598,53 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HotelPricing */
+        HotelPricing: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Rooms */
+            rooms?: components["schemas"]["Room"][];
+            /** Nationality */
+            nationality?: string | null;
+            /** Correlation Id */
+            correlation_id?: string | null;
+        };
+        /** HotelSearch */
+        HotelSearch: {
+            /**
+             * Check In
+             * Format: date
+             */
+            check_in: string;
+            /**
+             * Check Out
+             * Format: date
+             */
+            check_out: string;
+            /** Rooms */
+            rooms?: components["schemas"]["Room"][];
+            /** Nationality */
+            nationality?: string | null;
+            /** Region Id */
+            region_id?: number | null;
+            /** City */
+            city?: string | null;
+            /** Location Id */
+            location_id?: string | null;
+            /**
+             * Sort
+             * @default price
+             */
+            sort: string;
+        };
         /**
          * ImportStatus
          * @enum {string}
@@ -2369,6 +2681,24 @@ export interface components {
             waiting_customer: number;
             /** Resolved */
             resolved: number;
+        };
+        /** InsuranceSearch */
+        InsuranceSearch: {
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Traveller Dobs */
+            traveller_dobs: string[];
+            /** Destinations */
+            destinations: components["schemas"]["Destination-Input"][];
+            /** Plan Type */
+            plan_type?: string | null;
+            /** Coverage Duration */
+            coverage_duration?: number | null;
         };
         /** ItineraryDay */
         ItineraryDay: {
@@ -2412,6 +2742,21 @@ export interface components {
             relations: number;
             /** Tags */
             tags: number;
+        };
+        /** Leg */
+        Leg: {
+            /**
+             * Origin
+             * @description IATA airport or city code
+             */
+            origin: string;
+            /** Destination */
+            destination: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
         };
         /** LinkDestination */
         LinkDestination: {
@@ -3660,30 +4005,6 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
-        /** RegisterRequest */
-        RegisterRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /** Password */
-            password: string;
-            /**
-             * Full Name
-             * @default
-             */
-            full_name: string;
-            /** Referral Code */
-            referral_code?: string | null;
-            /**
-             * Visitor Id
-             * @default
-             */
-            visitor_id: string;
-            /** Link Code */
-            link_code?: string | null;
-        };
         /** RelationCreate */
         RelationCreate: {
             /**
@@ -3815,6 +4136,16 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "editor" | "support" | "traveler" | "creator";
+        /** Room */
+        Room: {
+            /**
+             * Adults
+             * @default 2
+             */
+            adults: number;
+            /** Child Ages */
+            child_ages?: number[];
+        };
         /**
          * RoutingAgent
          * @description An agent as the routing screen shows them.
@@ -4279,6 +4610,36 @@ export interface components {
             /** Body */
             body: string;
         };
+        /**
+         * TravelerOtpRequest
+         * @description A traveller asks for a sign-in code by email. There are no passwords for travellers.
+         */
+        TravelerOtpRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /** TravelerOtpVerify */
+        TravelerOtpVerify: {
+            /** Referral Code */
+            referral_code?: string | null;
+            /**
+             * Visitor Id
+             * @default
+             */
+            visitor_id: string;
+            /** Link Code */
+            link_code?: string | null;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Code */
+            code: string;
+        };
         /** TravelerSummary */
         TravelerSummary: {
             /**
@@ -4497,7 +4858,7 @@ export interface operations {
             };
         };
     };
-    register_auth_register_post: {
+    traveler_request_otp_auth_otp_request_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4506,12 +4867,45 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RegisterRequest"];
+                "application/json": components["schemas"]["TravelerOtpRequest"];
             };
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    traveler_verify_auth_otp_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TravelerOtpVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5690,7 +6084,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Destination"][];
+                    "application/json": components["schemas"]["Destination-Output"][];
                 };
             };
         };
@@ -6047,6 +6441,320 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadLog"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    destinations_hotels_destinations_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_hotels_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotelSearch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_stream_hotels_search_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotelSearch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pricing_hotels__hotel_id__pricing_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hotel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotelPricing"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_regions_now_hotels_admin_sync_regions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    sync_region_now_hotels_admin_sync_regions__region_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                region_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_flights_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlightSearch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fare_rules_flights_fare_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FareRuleQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_insurance_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InsuranceSearch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evidence_tripjack_evidence__trace_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

@@ -16,6 +16,7 @@ from app.modules.creators.models import Creator, CreatorStatus
 from app.modules.reels import service as reels
 from app.modules.reels.models import CreatorContent, ReelImport
 from app.modules.users.models import User
+from tests.conftest import sign_up
 
 OTP = settings.creator_dev_otp
 REEL = "https://www.instagram.com/reel/Cabc123xyz/"
@@ -204,17 +205,14 @@ async def test_each_link_keeps_its_own_numbers(client):
     visit = (
         await client.post(f"/referrals/links/{works['code']}/visit", json={"visitor_id": "v1"})
     ).json()
-    signup = await client.post(
-        "/auth/register",
-        json={
-            "email": "via-works@example.com",
-            "password": "password123",
-            "referral_code": visit["referral_code"],
-            "visitor_id": "v1",
-            "link_code": visit["link_code"],
-        },
+    signup = await sign_up(
+        client,
+        "via-works@example.com",
+        referral_code=visit["referral_code"],
+        visitor_id="v1",
+        link_code=visit["link_code"],
     )
-    assert signup.status_code == 201
+    assert signup.status_code == 200
 
     # Their first trip plan books the creator's commission against that same link.
     async with SessionLocal() as session:
@@ -251,16 +249,10 @@ async def test_a_link_from_a_different_creator_is_ignored_at_sign_up(client):
     two_code = (await client.get("/creators/me", headers=two)).json()["referral_code"]
 
     # A forged pairing: creator two's code with creator one's link.
-    r = await client.post(
-        "/auth/register",
-        json={
-            "email": "forged@example.com",
-            "password": "password123",
-            "referral_code": two_code,
-            "link_code": one_link["code"],
-        },
+    r = await sign_up(
+        client, "forged@example.com", referral_code=two_code, link_code=one_link["code"]
     )
-    assert r.status_code == 201
+    assert r.status_code == 200
     assert (await client.get("/creator/links", headers=one)).json()[0]["stats"]["signups"] == 0
     # Creator two still gets the sign-up; the link just isn't credited.
     assert (await client.get("/creators/me/overview", headers=two)).json()["stats"][

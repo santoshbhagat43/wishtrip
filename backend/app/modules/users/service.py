@@ -35,14 +35,15 @@ async def create(session: AsyncSession, data: UserCreate) -> User:
     return user
 
 
-async def get_or_create_google_user(
+async def get_or_create_passwordless_user(
     session: AsyncSession, email: str, full_name: str = ""
 ) -> tuple[User, bool]:
-    """Find the user who owns this Google email, or create a traveler for them.
+    """Find the user who owns this email, or create a traveler for them.
 
-    Returns the user and whether they were just created (a new sign-up, which a creator's
-    referral link may be credited for). Google sign-in has no password, so (like creator OTP)
-    we store a random hash to keep the column non-guessable. The caller commits.
+    Used by Google sign-in and by emailed one-time codes, which have no password. Returns the
+    user and whether they were just created (a new sign-up, which a creator's referral link may be
+    credited for). We store a random hash to keep the password column non-guessable. The caller
+    commits.
     """
     from app.modules.creators.models import Creator  # local: creators imports users
 

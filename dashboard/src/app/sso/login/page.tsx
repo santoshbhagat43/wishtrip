@@ -9,15 +9,10 @@ import { Suspense, useEffect, useState } from "react";
 import { PhoneField, countryName, toE164 } from "@/components/phone-field";
 import { errorMessage } from "@/lib/api/client";
 
-type Mode = "signin" | "signup" | "code";
-
 const ERRORS: Record<string, string> = {
   google_denied: "Google sign-in was cancelled.",
   google_state: "Google sign-in expired. Please try again.",
   google_exchange: "We couldn't complete Google sign-in. Please try again.",
-  invalid: "Invalid email or password",
-  email_taken: "An account with that email already exists. Sign in instead.",
-  signup_invalid: "Check your details: a valid email and a password of at least 8 characters.",
   code_address: "Enter a valid email address.",
   code_unavailable: "We can't send sign-in codes right now. Please try again later.",
   code_failed: "We couldn't send the code. Please try again in a moment.",
@@ -30,182 +25,36 @@ const INPUT =
 function SsoPanel() {
   const params = useSearchParams();
   const redirect = params.get("redirect") ?? "";
-  const [mode, setMode] = useState<Mode>(
-    params.get("for") === "creator" ? "code" : params.get("mode") === "signup" ? "signup" : "signin",
-  );
-  const [error, setError] = useState<string | null>(ERRORS[params.get("error") ?? ""] ?? null);
-  const [busy, setBusy] = useState(false);
-  const signup = mode === "signup";
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const form = new FormData(event.currentTarget);
-    const res = await fetch(signup ? "/api/sso/register" : "/api/sso/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        full_name: form.get("full_name") ?? undefined,
-        email: form.get("email"),
-        password: form.get("password"),
-        redirect,
-      }),
-    });
-    if (res.ok) {
-      const { redirect: dest } = (await res.json()) as { redirect: string };
-      // Full navigation so the destination subdomain reads the shared session cookie.
-      window.location.href = dest;
-    } else {
-      setError(errorMessage(await res.json().catch(() => ({}))));
-      setBusy(false);
-    }
-  }
-
+  const creator = params.get("for") === "creator";
   const googleHref = `/api/sso/google/start${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`;
 
   return (
     <div className="flex flex-col gap-7">
       <div className="flex flex-col gap-2.5">
         <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-muted">WishTrip account</p>
-        <h1 className="text-[40px] leading-[1.08]">
-          {mode === "code" ? "Creator sign-in" : signup ? "Create your account" : "Sign in"}
-        </h1>
+        <h1 className="text-[40px] leading-[1.08]">{creator ? "Creator sign-in" : "Sign in"}</h1>
         <p className="text-[15px] leading-normal text-muted">
-          One account for WishTrip — planning trips and the creator portal.
+          {creator
+            ? "One account for WishTrip: planning trips and the creator portal."
+            : "New here? Enter your email and we'll create your account. No password to remember."}
         </p>
       </div>
-
-      {mode === "code" ? (
-        <CodePanel googleHref={googleHref} redirect={redirect} onUsePassword={() => setMode("signin")} />
-      ) : (
-      <>
-      <div role="tablist" aria-label="Sign in or create an account" className="flex gap-1 rounded-full bg-surface-2 p-1">
-        {(
-          [
-            ["signin", "Sign in"],
-            ["signup", "Create account"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={mode === value}
-            onClick={() => {
-              setMode(value);
-              setError(null);
-            }}
-            className={`h-[42px] flex-1 rounded-full text-sm font-bold transition-colors ${
-              mode === value ? "bg-surface text-brand shadow-card" : "text-muted hover:text-text"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <a
-          href={googleHref}
-          className="flex h-[52px] items-center justify-center gap-2.5 rounded-full border-[1.5px] border-border bg-surface text-[15px] font-semibold transition-colors hover:border-brand"
-        >
-          <GoogleMark />
-          Continue with Google
-        </a>
-
-        <div className="flex items-center gap-3 text-[12px] text-muted">
-          <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
-        </div>
-
-        {/* A real POST target: if the form is submitted before the page hydrates, the browser posts
-            it to the API instead of doing a GET that would put the password in the URL. */}
-        <form
-          key={mode}
-          onSubmit={submit}
-          method="post"
-          action={signup ? "/api/sso/register" : "/api/sso/login"}
-          className="flex flex-col gap-4"
-        >
-          <input type="hidden" name="redirect" value={redirect} />
-          {signup && (
-            <div className="flex flex-col gap-2">
-              <label htmlFor="full_name" className="text-sm font-semibold">
-                Your name
-              </label>
-              <input id="full_name" name="full_name" autoComplete="name" required className={INPUT} />
-            </div>
-          )}
-          <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-sm font-semibold">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete={signup ? "email" : "username"}
-              required
-              autoFocus={!signup}
-              placeholder="you@example.com"
-              className={INPUT}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="password" className="text-sm font-semibold">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete={signup ? "new-password" : "current-password"}
-              required
-              minLength={signup ? 8 : undefined}
-              className={INPUT}
-            />
-            {signup && <p className="text-[12.5px] text-muted">At least 8 characters.</p>}
-          </div>
-
-          {error && <p className="rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={busy}
-            className="flex h-[52px] items-center justify-center gap-2.5 rounded-full bg-brand text-[15px] font-bold text-on-brand shadow-raised transition-colors hover:bg-brand-strong disabled:opacity-60"
-          >
-            {busy ? (signup ? "Creating account…" : "Signing in…") : signup ? "Create account" : "Sign in"}
-            {!busy && <ArrowRight className="size-4" />}
-          </button>
-        </form>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          setMode("code");
-          setError(null);
-        }}
-        className="self-start text-sm font-semibold text-brand hover:underline"
-      >
-        Creator? Sign in with a one-time code
-      </button>
-      </>
-      )}
+      <CodePanel googleHref={googleHref} redirect={redirect} creator={creator} />
     </div>
   );
 }
 
-/** Creators sign in with a one-time code by email (or with Google). WhatsApp codes (Trustsignal)
- *  are not wired yet, so the WhatsApp channel is switched off below; its code is kept, commented. */
+/** Travellers and creators sign in (or up) with a one-time code by email, or with Google; there
+ *  are no passwords. WhatsApp codes (Trustsignal) are not wired yet, so the WhatsApp channel is
+ *  switched off below; its code is kept, commented. */
 function CodePanel({
   googleHref,
   redirect,
-  onUsePassword,
+  creator,
 }: {
   googleHref: string;
   redirect: string;
-  onUsePassword: () => void;
+  creator: boolean;
 }) {
   const params = useSearchParams();
   // WhatsApp is off for now: always email.
@@ -242,7 +91,7 @@ function CodePanel({
     const res = await fetch("/api/sso/code/request", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ channel, ...to }),
+      body: JSON.stringify({ channel, ...to, for: creator ? "creator" : "" }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -262,7 +111,7 @@ function CodePanel({
     const res = await fetch("/api/sso/code/verify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ channel, ...to, code, redirect }),
+      body: JSON.stringify({ channel, ...to, code, redirect, for: creator ? "creator" : "" }),
     });
     if (res.ok) {
       const { redirect: dest } = (await res.json()) as { redirect: string };
@@ -281,6 +130,7 @@ function CodePanel({
         <input type="hidden" name="channel" value={channel} />
         <input type="hidden" name={channel === "email" ? "email" : "phone"} value={sentTo} />
         <input type="hidden" name="redirect" value={redirect} />
+        <input type="hidden" name="for" value={creator ? "creator" : ""} />
         <p className="text-[15px] text-muted">
           Enter the code we sent {channel === "email" ? "to" : "on WhatsApp to"}{" "}
           <span className="font-semibold text-text">{sentTo}</span>.
@@ -345,7 +195,7 @@ function CodePanel({
       </a>
 
       <div className="flex items-center gap-3 text-[12px] text-muted">
-        <span className="h-px flex-1 bg-border" /> or get a code <span className="h-px flex-1 bg-border" />
+        <span className="h-px flex-1 bg-border" /> or use a code <span className="h-px flex-1 bg-border" />
       </div>
 
       {/* WhatsApp channel: OFF until Trustsignal WhatsApp is wired (email only for now).
@@ -378,6 +228,7 @@ function CodePanel({
       <form onSubmit={send} method="post" action="/api/sso/code/request" className="flex flex-col gap-4">
         <input type="hidden" name="channel" value={channel} />
         <input type="hidden" name="redirect" value={redirect} />
+        <input type="hidden" name="for" value={creator ? "creator" : ""} />
         {channel === "email" ? (
           <div className="flex flex-col gap-2">
             <label htmlFor="code-email" className="text-sm font-semibold">
@@ -420,10 +271,6 @@ function CodePanel({
           {!busy && <ArrowRight className="size-4" />}
         </button>
       </form>
-
-      <button type="button" onClick={onUsePassword} className="self-start text-sm font-semibold text-brand hover:underline">
-        Use a password instead
-      </button>
     </div>
   );
 }

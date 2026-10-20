@@ -10,15 +10,22 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8)
-    full_name: str = ""
+class Referral(BaseModel):
     # A creator's referral code (from their /c/<code> link) and the visitor id that opened it.
     referral_code: str | None = Field(default=None, max_length=64)
     visitor_id: str = Field(default="", max_length=64)
     # The specific reel link they came through, so that link's numbers can count them.
     link_code: str | None = Field(default=None, max_length=40)
+
+
+class TravelerOtpRequest(BaseModel):
+    """A traveller asks for a sign-in code by email. There are no passwords for travellers."""
+
+    email: EmailStr
+
+
+class TravelerOtpVerify(TravelerOtpRequest, Referral):
+    code: str = Field(min_length=4, max_length=8)
 
 
 class RefreshRequest(BaseModel):

@@ -48,32 +48,32 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
-/** Fill in the SSO login the browser has been sent to; it returns the visitor where they were. */
-export async function signInOnSso(page: Page, email: string, password: string) {
+/** The local, opt-in fixed sign-in code (CREATOR_DEV_OTP): the app has no hardcoded one. */
+export const DEV_CODE = process.env.CREATOR_DEV_OTP ?? "1234";
+
+/**
+ * Sign in (or up: the first sign-in makes the account) on the SSO page the browser has been sent
+ * to, with an emailed one-time code. There are no passwords for travellers.
+ */
+export async function signInOnSso(page: Page, email: string) {
   await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Send code" }).click();
+  await page.getByLabel("Sign-in code").fill(DEV_CODE);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Fill in the SSO page's "Create account" form the browser has been sent to. */
-export async function createAccountOnSso(page: Page, email: string, password = "e2e-password-123") {
-  await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
-  await page.getByRole("tab", { name: "Create account" }).click();
-  await page.getByLabel("Your name").fill("E2E Traveler");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Create account" }).last().click();
-}
+/** Same page, same flow: a new email simply gets a new account. */
+export const createAccountOnSso = signInOnSso;
 
 /**
- * A brand-new traveller, signed up through the real SSO "Create account" form, landing back on
+ * A brand-new traveller, signed up through the real SSO code form, landing back on
  * the profile — where a new traveller starts.
  */
 export async function signUp(page: Page) {
   const email = `e2e-site-${Date.now()}@example.com`;
   await page.goto("/profile");
-  await createAccountOnSso(page, email);
+  await signInOnSso(page, email);
   await expect(page.getByRole("heading", { name: "How you travel" })).toBeVisible({ timeout: 30_000 });
   return email;
 }

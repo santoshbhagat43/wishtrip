@@ -6,6 +6,14 @@ import { expect, test } from "../fixtures/test";
 const ADMIN_LOGIN = new RegExp(`^${DASHBOARD_URL}/login`);
 const SSO_LOGIN = new RegExp(`^${SSO_URL}/sso/login`);
 
+/** The SSO page's code flow: an email, then the emailed code (locally the opt-in fixed one). */
+async function signInWithCode(page: Page, email: string) {
+  await page.getByLabel("Email").fill(email);
+  await page.getByRole("button", { name: "Send code" }).click();
+  await page.getByLabel("Sign-in code").fill(process.env.CREATOR_DEV_OTP ?? "1234");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+}
+
 async function fillAndSubmit(page: Page, email: string, password: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
@@ -51,10 +59,10 @@ test.describe("Admin dashboard sign-in (its own, not SSO)", () => {
     await expect(page).toHaveURL(ADMIN_LOGIN);
   });
 
-  test("an SSO session grants nothing in the admin dashboard — even an admin's", async ({ page, context }) => {
-    // Sign in on the shared SSO app with the admin account itself.
+  test("an SSO session grants nothing in the admin dashboard", async ({ page, context }) => {
+    // Sign in on the shared SSO app (staff can't: a code to an inbox never opens a team account).
     await page.goto(`${SSO_URL}/sso/login`);
-    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
+    await signInWithCode(page, `e2e-sso-${Date.now()}@example.com`);
     await expect
       .poll(async () => (await context.cookies(SSO_URL)).map((c) => c.name))
       .toContain("wt_refresh");
@@ -108,7 +116,7 @@ test.describe("SSO app (travellers and creators)", () => {
   test("a redirect to a foreign site is refused after sign-in", async ({ page, context }) => {
     const evil = "https://evil.example.com/steal";
     await page.goto(`${SSO_URL}/sso/login?redirect=${encodeURIComponent(evil)}`);
-    await fillAndSubmit(page, ADMIN.email, ADMIN.password);
+    await signInWithCode(page, `e2e-evil-${Date.now()}@example.com`);
     // The login page itself carries the evil URL in its query, so wait for the navigation away.
     await expect(page).not.toHaveURL(/evil\.example\.com/);
     expect(new URL(page.url()).hostname).toMatch(/\.lvh\.me$/);
@@ -118,12 +126,23 @@ test.describe("SSO app (travellers and creators)", () => {
   test.describe("before the page has hydrated", () => {
     test.use({ javaScriptEnabled: false });
 
-    test("the SSO form never puts the password in a URL", async ({ page }) => {
+    test("signing in with a code works as a plain form, and the code never appears in a URL", async ({ page, context }) => {
       await page.goto(`${SSO_URL}/sso/login`);
-      await fillAndSubmit(page, ADMIN.email, "not-the-password");
+      await signInWithCode(page, `e2e-nojs-${Date.now()}@example.com`);
+      // Without script the forms post natively, and the answer is a redirect, not a URL with secrets.
+      await expect(page).not.toHaveURL(SSO_LOGIN);
+      expect((await context.cookies(SSO_URL)).map((c) => c.name)).toContain("wt_refresh");
+    });
+
+    test("a wrong code comes back as a message, not as the code in the URL", async ({ page }) => {
+      await page.goto(`${SSO_URL}/sso/login`);
+      await page.getByLabel("Email").fill(`e2e-nojs-bad-${Date.now()}@example.com`);
+      await page.getByRole("button", { name: "Send code" }).click();
+      await page.getByLabel("Sign-in code").fill("999999");
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
       await expect(page).toHaveURL(SSO_LOGIN);
-      expect(page.url()).toContain("error=invalid");
-      expect(page.url()).not.toContain("password");
+      expect(page.url()).toContain("error=code_wrong");
+      expect(page.url()).not.toContain("999999");
     });
   });
 });

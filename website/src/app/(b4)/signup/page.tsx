@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { ssoLoginUrl } from "@/lib/server/sso";
 
-/** Sign-up is handled on the shared SSO app, opened on its "Create account" form. */
+/** Sign-up is handled on the shared SSO app, opened on its sign-in form (an emailed code or Google; the first sign-in creates the account). */
 export default async function SignupPage() {
   const h = await headers();
   const host = h.get("host");
