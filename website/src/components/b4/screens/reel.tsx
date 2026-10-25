@@ -146,7 +146,7 @@ function PasteForm({ error = "" }: { error?: string }) {
           onChange={(e) => setUrl(e.target.value)}
           inputMode="url"
           placeholder="instagram.com/reel/…"
-          className="min-w-0 flex-1 rounded-[14px] border-[1.5px] border-[#E3DCD2] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
+          className="min-w-0 flex-1 rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
         />
         <button type="submit" className="cursor-pointer whitespace-nowrap rounded-full border-0 bg-[#072338] px-6 py-3.5 text-base font-semibold text-white">
           Get the trip →
@@ -174,7 +174,7 @@ function PasteForm({ error = "" }: { error?: string }) {
         type="button"
         disabled={uploading}
         onClick={() => fileRef.current?.click()}
-        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[18px] border-[1.5px] border-dashed border-[#CBBfB0] bg-white px-4 py-7 text-center disabled:opacity-70"
+        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[18px] border-[1.5px] border-dashed border-[#CFD8E0] bg-white px-4 py-7 text-center disabled:opacity-70"
       >
         <span className="text-[15px] font-semibold text-[#0D2436]">
           {uploading ? "Uploading your video…" : "Browse a video from your device"}
@@ -210,7 +210,7 @@ function Working({ job }: { job: ReelImport | null }) {
             <li key={step} className={`flex items-center gap-3 text-[15px] ${done ? "text-[#0B7A57]" : now ? "font-semibold text-[#0D2436]" : "text-[#5F6B78]"}`}>
               <span
                 aria-hidden="true"
-                className={`grid size-6 flex-none place-items-center rounded-full ${done ? "bg-[#E3F5EE]" : now ? "border-2 border-[#22DDE0]" : "border-[1.5px] border-[#E3DCD2]"}`}
+                className={`grid size-6 flex-none place-items-center rounded-full ${done ? "bg-[#E3F5EE]" : now ? "border-2 border-[#22DDE0]" : "border-[1.5px] border-[#E3E8EE]"}`}
               >
                 {done && <Path d={CHECK} size={12} stroke="#0B7A57" width={2.6} />}
                 {now && <span className="size-2 animate-pulse rounded-full bg-[#22DDE0]" />}

@@ -160,7 +160,7 @@ export function SharedTripScreen() {
                 type="button"
                 aria-expanded={sharing}
                 onClick={() => setSharing((open) => !open)}
-                className="rounded-full border-[1.5px] border-[#E3DCD2] bg-white px-4 py-2.5 text-sm font-semibold text-[#0D2436]"
+                className="rounded-full border-[1.5px] border-[#E3E8EE] bg-white px-4 py-2.5 text-sm font-semibold text-[#0D2436]"
               >
                 Share with family
               </button>
@@ -187,7 +187,7 @@ export function SharedTripScreen() {
                       href={`https://wa.me/?text=${encodeURIComponent(`${t.title} — ${here}`)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex-1 rounded-full border-[1.5px] border-[#E3DCD2] px-3.5 py-2 text-center text-[13px] font-semibold text-[#0D2436] no-underline"
+                      className="flex-1 rounded-full border-[1.5px] border-[#E3E8EE] px-3.5 py-2 text-center text-[13px] font-semibold text-[#0D2436] no-underline"
                     >
                       WhatsApp
                     </a>

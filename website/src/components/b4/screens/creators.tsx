@@ -141,13 +141,13 @@ export function CreatorsScreen({ signInHref }: { signInHref: string }) {
 }
 
 const INPUT =
-  "rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white p-3 text-[15px] text-[#0D2436] outline-none focus:border-[#0A7C80]";
+  "rounded-[11px] border-[1.5px] border-[#E3E8EE] bg-white p-3 text-[15px] text-[#0D2436] outline-none focus:border-[#0A7C80]";
 const FLABEL = "flex flex-col gap-1.5 text-[11px] font-bold tracking-[.12em] text-[#5F6B78]";
 const FOLLOWERS = ["Under 10k", "10k to 50k", "50k to 200k", "200k+"];
 
 /** A channel input: the platform's mark, then the field. Looks like one of the form's inputs. */
 const CHANNEL_ROW =
-  "flex items-center gap-2.5 rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white px-3 focus-within:border-[#0A7C80]";
+  "flex items-center gap-2.5 rounded-[11px] border-[1.5px] border-[#E3E8EE] bg-white px-3 focus-within:border-[#0A7C80]";
 const CHANNEL_INPUT = "min-w-0 flex-1 bg-transparent py-3 text-[15px] text-[#0D2436] outline-none";
 
 function InstagramMark() {
@@ -273,7 +273,7 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
         WHERE HAVE YOU POSTED TRIPS FROM?
         <span className="flex flex-wrap gap-1.5">
           {POSTED.map((o) => (
-            <button key={o} type="button" onClick={() => set("posted_from", o)} className={`rounded-full border-[1.5px] px-3 py-1.5 text-[13px] font-semibold ${form.posted_from === o ? "border-[#072338] bg-[#072338] text-white" : "border-[#E3DCD2] bg-white text-[#3F5A72]"}`}>{o}</button>
+            <button key={o} type="button" onClick={() => set("posted_from", o)} className={`rounded-full border-[1.5px] px-3 py-1.5 text-[13px] font-semibold ${form.posted_from === o ? "border-[#072338] bg-[#072338] text-white" : "border-[#E3E8EE] bg-white text-[#3F5A72]"}`}>{o}</button>
           ))}
         </span>
       </div>

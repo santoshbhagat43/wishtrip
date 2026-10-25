@@ -78,7 +78,7 @@ function StartPanel({ onClose }: { onClose: () => void }) {
             id="b4-desc"
             rows={3}
             placeholder="e.g. Goa in December with my parents. Mum can’t walk much. Under ₹50k."
-            className="resize-none rounded-[14px] border-[1.5px] border-[#E3DCD2] px-3.5 py-3 text-base leading-[1.45] text-[#0D2436] outline-none focus:border-[#0A7C80]"
+            className="resize-none rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-3 text-base leading-[1.45] text-[#0D2436] outline-none focus:border-[#0A7C80]"
           />
           <div className="rail flex gap-1.5 overflow-x-auto">
             {START_IDEAS.map((idea) => (
@@ -113,7 +113,7 @@ function StartPanel({ onClose }: { onClose: () => void }) {
               onChange={(e) => setReelUrl(e.target.value)}
               inputMode="url"
               placeholder="instagram.com/reel/…"
-              className="rounded-[14px] border-[1.5px] border-[#E3DCD2] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
+              className="rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
             />
             <span className="text-xs text-[#5F6B78]">Works with public Instagram reels.</span>
             <button type="submit" className="cursor-pointer rounded-full border-0 bg-[#072338] p-3.5 text-center text-base font-semibold text-white">

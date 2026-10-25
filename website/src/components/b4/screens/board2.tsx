@@ -32,7 +32,7 @@ export function Board2Screen() {
         <section className="flex flex-col">
           <Kicker teal>YOUR TRIP, DAY BY DAY</Kicker>
           <h1 className="font-display mb-5 mt-1.5 text-[34px] font-medium leading-tight md:text-[44px]">Asha&rsquo;s Goa trip</h1>
-          <div className="relative flex flex-col gap-6 border-l-2 border-[#E3DCD2] pl-6">
+          <div className="relative flex flex-col gap-6 border-l-2 border-[#E3E8EE] pl-6">
             {days.map((d) => (
               <div key={d.n} className="relative">
                 <span className="absolute -left-[31px] grid size-6 place-items-center rounded-full bg-[#072338] text-[11px] font-bold text-white">{d.n}</span>

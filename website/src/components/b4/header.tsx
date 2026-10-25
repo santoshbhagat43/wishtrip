@@ -21,7 +21,7 @@ export function RoundButton({ label, d, onClick }: { label: string; d: string; o
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-[#E3DCD2] bg-white"
+      className="grid size-11 flex-none cursor-pointer place-items-center rounded-full border border-[#E3E8EE] bg-white"
     >
       <Path d={d} size={22} stroke="#0D2436" />
     </button>
@@ -116,7 +116,7 @@ export function B4Header({ solid = false }: { solid?: boolean }) {
     NAV.map((n) => ({ label: n.label, url: n.href, opens_in_new_tab: false }));
   return (
     <>
-      <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(251,248,244,0.97)] border-b border-[#E8EDF2] backdrop-blur" : ""}`}>
+      <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(255,255,255,0.97)] border-b border-[#E8EDF2] backdrop-blur" : ""}`}>
         <Link href={LINKS.home} aria-label="wishtrip home" className="flex">
           <Image src={IMG.logo} alt="wishtrip" width={138} height={38} priority className="h-[31px] w-auto md:h-[38px]" />
         </Link>

@@ -76,7 +76,7 @@ export function AryaScreen() {
                   key={id}
                   type="button"
                   onClick={() => setChoice(id)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-2xl bg-white px-3.5 py-3 text-left ${choice === id ? "border-2 border-[#0A7C80] shadow-[0_0_0_3px_#DCF8F9]" : "border-[1.5px] border-[#E3DCD2]"}`}
+                  className={`flex cursor-pointer items-center gap-3 rounded-2xl bg-white px-3.5 py-3 text-left ${choice === id ? "border-2 border-[#0A7C80] shadow-[0_0_0_3px_#DCF8F9]" : "border-[1.5px] border-[#E3E8EE]"}`}
                 >
                   <span className="grid size-9 flex-none place-items-center rounded-xl bg-[#E6F7F7]">
                     <Path d={icon} size={18} stroke="#0A7C80" width={1.9} />
@@ -125,7 +125,7 @@ export function AryaScreen() {
               <Kicker>WHAT ARYA KNOWS</Kicker>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {BOARD_KNOWS.map((k) => (
-                  <span key={k} className="rounded-full bg-[#F1EAE0] px-2.5 py-1 text-[12px] font-medium text-[#3F5A72]">{k}</span>
+                  <span key={k} className="rounded-full bg-[#EEF2F6] px-2.5 py-1 text-[12px] font-medium text-[#3F5A72]">{k}</span>
                 ))}
               </div>
             </div>

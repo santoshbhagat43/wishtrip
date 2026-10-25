@@ -12,7 +12,7 @@ import { useReelImport } from "../trip-journey";
 
 type Count = "adults" | "kids" | "seniors";
 const FIELD =
-  "rounded-xl border-[1.5px] border-[#E3DCD2] bg-white px-3.5 py-[13px] text-[15.5px] font-medium tracking-normal text-[#0D2436] outline-none focus:border-[#0A7C80]";
+  "rounded-xl border-[1.5px] border-[#E3E8EE] bg-white px-3.5 py-[13px] text-[15.5px] font-medium tracking-normal text-[#0D2436] outline-none focus:border-[#0A7C80]";
 const LABEL = "flex flex-col gap-2 text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]";
 
 /** Step 2a: who's coming, when, how many days and pace — from the reel you just imported. */
@@ -78,9 +78,9 @@ export function DetailsScreen() {
                 <span className="text-xs text-[#566E85]">{p.hint}</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <button type="button" aria-label={`Fewer ${p.label}`} onClick={() => bump(p.key, -1)} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3DCD2] bg-white text-lg">−</button>
+                <button type="button" aria-label={`Fewer ${p.label}`} onClick={() => bump(p.key, -1)} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">−</button>
                 <span className="min-w-[18px] text-center font-bold tabular-nums">{count[p.key]}</span>
-                <button type="button" aria-label={`More ${p.label}`} onClick={() => bump(p.key, 1)} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3DCD2] bg-white text-lg">+</button>
+                <button type="button" aria-label={`More ${p.label}`} onClick={() => bump(p.key, 1)} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
               </span>
             </div>
           ))}
@@ -95,9 +95,9 @@ export function DetailsScreen() {
         <div className={LABEL}>
           HOW MANY DAYS
           <div className="flex items-center gap-1.5">
-            <button type="button" aria-label="Fewer days" onClick={() => setDays((d) => Math.max(1, d - 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3DCD2] bg-white text-lg">−</button>
-            <span className="min-w-[70px] rounded-xl border-[1.5px] border-[#E3DCD2] bg-white py-[11px] text-center text-[15.5px] font-semibold">{days} days</span>
-            <button type="button" aria-label="More days" onClick={() => setDays((d) => Math.min(7, d + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3DCD2] bg-white text-lg">+</button>
+            <button type="button" aria-label="Fewer days" onClick={() => setDays((d) => Math.max(1, d - 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">−</button>
+            <span className="min-w-[70px] rounded-xl border-[1.5px] border-[#E3E8EE] bg-white py-[11px] text-center text-[15.5px] font-semibold">{days} days</span>
+            <button type="button" aria-label="More days" onClick={() => setDays((d) => Math.min(7, d + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
           </div>
         </div>
       </div>
