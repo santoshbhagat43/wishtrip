@@ -45,14 +45,14 @@ function Message({ m, booked }: { m: AryaStep; booked: boolean }) {
         <FromArya>
           <span className="flex max-w-[86%] flex-1 flex-col overflow-hidden rounded-[18px_18px_18px_4px] bg-white text-[#0D2436]">
             <span className="relative block h-28 w-full">
-              <Image src={IMG.heritageHouse} alt="Old Goan villa with a garden" fill sizes="360px" className="object-cover" />
+              <Image src="/b4/px-bali-resort.webp" alt="A pool resort in Kuta" fill sizes="360px" className="object-cover" />
             </span>
             <span className="flex flex-col gap-0.5 px-3 py-2.5">
-              <strong className="text-[15.5px]">Slow North Goa · 12–16 Dec</strong>
-              <span className="text-[12.5px] text-[#566E85]">Flights, villa, transfers, 3 days planned</span>
+              <strong className="text-[15.5px]">Bali for two · 8–14 May</strong>
+              <span className="text-[12.5px] text-[#566E85]">Flights, resort, a private car, 5 experiences</span>
               <span className="mt-1.5 flex items-center justify-between">
                 <strong className="num text-[17px]">
-                  ₹46,200 <span className="text-xs font-medium text-[#566E85]">for 3, all-in</span>
+                  ₹1,42,800 <span className="text-xs font-medium text-[#566E85]">for 2, all-in</span>
                 </strong>
                 <span className="rounded-full bg-[#E3F5EE] px-[9px] py-[3px] text-xs font-bold text-[#0B7A57]">Under budget</span>
               </span>
@@ -96,7 +96,7 @@ function Message({ m, booked }: { m: AryaStep; booked: boolean }) {
               Booked. All 7 pieces confirmed.
             </span>
             <span className="flex flex-col gap-1.5 px-3 py-2.5 text-[12.5px] text-[#3F5A72]">
-              {["Flights · BLR → GOI, 3 seats", "Villa in Assagao · 4 nights", "Cabs + river cruise + 2 tours"].map((line) => (
+              {["Flights · BLR → DPS, 2 seats", "Kuta pool resort · 6 nights", "Car + sunset cruise + 4 experiences"].map((line) => (
                 <span key={line} className="flex justify-between">
                   <span>{line}</span>
                   <span className="font-semibold text-[#0B7A57]">Confirmed</span>
@@ -104,7 +104,7 @@ function Message({ m, booked }: { m: AryaStep; booked: boolean }) {
               ))}
               <span className="flex items-baseline justify-between border-t border-[#E8EEF4] pt-2 text-[#0D2436]">
                 <strong>Paid</strong>
-                <strong className="num text-base">₹49,600</strong>
+                <strong className="num text-base">₹1,49,000</strong>
               </span>
               <span className="text-[11.5px] text-[#566E85]">PNR and hotel refs unlock 6 days before you fly.</span>
             </span>
@@ -204,7 +204,7 @@ export function AryaSection() {
             <span className="hidden md:block">
               <AryaMark size={44} fontSize={24} />
             </span>
-            <span className="text-[11px] font-bold tracking-[.16em] text-[#6BEDEF] md:text-[12.5px]">MEET ARYA</span>
+            <span className="text-[13px] font-semibold text-[#6BEDEF] md:text-[14px]">Meet Arya</span>
           </span>
           <h2 id="b4-arya-h" className="font-display m-0 text-[30px] font-medium leading-[1.1] tracking-[-0.015em] text-white md:text-[46px]">
             One chat. Your whole trip.
@@ -323,6 +323,7 @@ export function AryaSection() {
               <Path d="M12 19V5M5 12l7-7 7 7" size={15} stroke="#072338" width={2.4} />
             </span>
           </div>
+          <span className="text-center text-[11.5px] text-[#7C90A3]">Example conversation · an illustration of how Arya works</span>
         </div>
       </div>
     </section>

@@ -1,45 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { CREATOR_DASHBOARD, CREATOR_STEPS, DESTINATIONS, IMG, LINKS, TRUST } from "./data";
+import { CREATOR_DASHBOARD, CREATOR_STEPS, IMG, LINKS, TRUST } from "./data";
 import { Path } from "./icons";
-import { SectionHead } from "./section-head";
 import { SiteFooter } from "./footer";
-
-/** Destination tiles: Goa leads (full width on phones, a 2×2 block on desktop). */
-export function Destinations() {
-  return (
-    <section id="b4-dest" className="bg-white px-4 py-11 md:px-10 md:py-[104px]">
-      <div className="mx-auto max-w-[1200px]">
-        <SectionHead
-          eyebrow="KNOW WHERE YOU WANT TO GO?"
-          title="Start with a destination"
-          lead="Every creator trip, local tip and real itinerary for a place, on one page."
-          link={{ href: LINKS.destinations, label: "All destinations →" }}
-        />
-        <div className="grid auto-rows-[150px] grid-cols-2 gap-2.5 md:auto-rows-[220px] md:grid-cols-4 md:gap-[18px]">
-          {DESTINATIONS.map((d, i) => (
-            <Link
-              key={d.name}
-              href={LINKS.destination}
-              className={`relative block overflow-hidden rounded-[22px] bg-[#124A72] text-white no-underline ${i === 0 ? "col-span-2 md:row-span-2" : ""}`}
-            >
-              <Image src={d.img} alt={d.alt} fill sizes={i === 0 ? "(min-width: 768px) 600px, 100vw" : "(min-width: 768px) 300px, 50vw"} className="object-cover" />
-              <span className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(6,28,46,0) 35%,rgba(6,28,46,.88) 100%)" }} />
-              <span className="absolute inset-x-3 bottom-3 flex flex-col gap-[3px] md:inset-x-[18px] md:bottom-4">
-                <span className="text-[10px] font-bold tracking-[.14em] text-[#6BEDEF]">{d.region}</span>
-                <strong className={`font-display font-medium ${i === 0 ? "text-[26px] md:text-[40px]" : "text-xl md:text-2xl"}`}>{d.name}</strong>
-                <span className="text-[11.5px] text-[#C9DAE6] md:text-[13px]">
-                  {d.trips} trips · from {d.price}
-                </span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 /** For creators: how it works, and an example dashboard card. */
 export function Creators() {
@@ -47,7 +11,7 @@ export function Creators() {
     <section id="b4-creators" aria-labelledby="b4-creators-h" className="bg-[#072338] px-4 py-11 text-white md:px-10 md:py-[104px]">
       <div className="mx-auto grid max-w-[1200px] items-center gap-[26px] md:grid-cols-[1.1fr_.9fr] md:gap-[72px]">
         <div className="flex flex-col gap-3.5 md:gap-[18px]">
-          <span className="text-[11px] font-bold tracking-[.16em] text-[#6BEDEF] md:text-[12.5px]">FOR CREATORS · EARN WITH WISHTRIP</span>
+          <span className="text-[13px] font-semibold text-[#6BEDEF] md:text-[14px]">For creators · earn with Wishtrip</span>
           <h2 id="b4-creators-h" className="font-display m-0 text-[30px] font-medium leading-[1.1] tracking-[-0.015em] md:text-[46px]">
             Your trip becomes a source of earning
           </h2>
@@ -108,7 +72,7 @@ export function Trust() {
     <section id="b4-trust" className="border-t border-[#E8EEF4] bg-white px-4 py-10 md:px-10 md:py-[88px]">
       <div className="mx-auto max-w-[1200px]">
         <div className="mb-5 flex flex-col gap-1.5 md:mb-9 md:gap-2.5">
-          <span className="text-[11px] font-bold tracking-[.16em] text-[#0A7C80] md:text-[12.5px]">WHY IT’S SAFE TO SAY YES</span>
+          <span className="text-[13px] font-semibold text-[#0A7C80] md:text-[14px]">Why it’s safe to say yes</span>
           <h2 className="font-display m-0 text-[30px] font-medium leading-[1.1] tracking-[-0.015em] text-[#0D2436] md:text-[46px]">An agent you can trust with the booking</h2>
         </div>
         <div className="flex flex-col gap-[18px] md:grid md:grid-cols-4 md:gap-8">

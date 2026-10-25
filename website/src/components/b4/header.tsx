@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { IMG, LINKS, MENU as MENU_GROUPS } from "./data";
 import { ARROW, CLOSE, MENU, Path } from "./icons";
+import { HeaderSearch, type SearchEntry } from "./header-search";
 import { menuBySlug, useMenus } from "./menus";
 
 export const NAV = [
@@ -28,7 +29,7 @@ export function RoundButton({ label, d, onClick }: { label: string; d: string; o
   );
 }
 
-export function MenuDrawer({ onClose }: { onClose: () => void }) {
+export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: () => void; search?: SearchEntry[]; focusSearch?: boolean }) {
   const drawerMenus = useMenus("mobile");
   const drawerLinks =
     menuBySlug(drawerMenus.data, "b4-drawer")?.items ??
@@ -56,6 +57,11 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
           <Image src={IMG.logo} alt="wishtrip" width={95} height={26} className="h-[26px] w-auto" />
           <RoundButton label="Close menu" d={CLOSE} onClick={onClose} />
         </div>
+        {search && (
+          <div className="mb-3.5 md:hidden">
+            <HeaderSearch index={search} drawer autoFocus={focusSearch} onNavigate={onClose} />
+          </div>
+        )}
         <div className="flex flex-col gap-2.5 rounded-[18px] border border-[#E3E8EE] bg-white p-4">
           <strong className="text-base">Sign in to wishtrip</strong>
           <span className="text-[13.5px] leading-[1.45] text-[#566E85]">See your trip boards, saved reels and bookings on any device.</span>
@@ -108,8 +114,8 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
 }
 
 /** The top bar of the B4 pages: logo, main links on desktop, Sign in, and the menu drawer. */
-export function B4Header({ solid = false }: { solid?: boolean }) {
-  const [open, setOpen] = useState(false);
+export function B4Header({ solid = false, search }: { solid?: boolean; search?: SearchEntry[] }) {
+  const [open, setOpen] = useState<false | "menu" | "search">(false);
   const headerMenus = useMenus("header");
   const nav =
     menuBySlug(headerMenus.data, "b4-primary")?.items ??
@@ -133,12 +139,20 @@ export function B4Header({ solid = false }: { solid?: boolean }) {
             </Link>
           ))}
         </nav>
+        {search && <HeaderSearch index={search} />}
         <Link href={LINKS.signIn} className="hidden px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline md:block">
           Sign in
         </Link>
-        <RoundButton label="Open menu" d={MENU} onClick={() => setOpen(true)} />
+        <span className="flex items-center gap-2">
+          {search && (
+            <span className="md:hidden">
+              <RoundButton label="Search" d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" onClick={() => setOpen("search")} />
+            </span>
+          )}
+          <RoundButton label="Open menu" d={MENU} onClick={() => setOpen("menu")} />
+        </span>
       </header>
-      {open && <MenuDrawer onClose={() => setOpen(false)} />}
+      {open && <MenuDrawer onClose={() => setOpen(false)} search={search} focusSearch={open === "search"} />}
     </>
   );
 }

@@ -17,6 +17,7 @@ import {
   type StoryLayout,
 } from "./data";
 import { B4Header } from "./header";
+import type { SearchEntry } from "./header-search";
 import { ARROW, CLOSE, Path, Play } from "./icons";
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
@@ -34,7 +35,13 @@ const V = {
 function StartPanel({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<"describe" | "reel">("describe");
   const [reelUrl, setReelUrl] = useState("");
+  const [text, setText] = useState("");
   const router = useRouter();
+  const content = text.trim();
+  /** Only a trip that has been described goes to Arya, and it goes with the words typed. */
+  const planIt = () => {
+    if (content) router.push(`${LINKS.arya}?prompt=${encodeURIComponent(content)}`);
+  };
   return (
     <div
       role="dialog"
@@ -77,23 +84,35 @@ function StartPanel({ onClose }: { onClose: () => void }) {
           <textarea
             id="b4-desc"
             rows={3}
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                planIt();
+              }
+            }}
             placeholder="e.g. Goa in December with my parents. Mum can’t walk much. Under ₹50k."
             className="resize-none rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-3 text-base leading-[1.45] text-[#0D2436] outline-none focus:border-[#0A7C80]"
           />
           <div className="rail flex gap-1.5 overflow-x-auto">
             {START_IDEAS.map((idea) => (
-              <Link
+              <button
                 key={idea}
-                href={LINKS.arya}
-                className="flex-none whitespace-nowrap rounded-full border border-[#BDEFF0] bg-white px-[11px] py-[7px] text-[12.5px] font-semibold text-[#0A7C80] no-underline"
+                type="button"
+                onClick={() => setText(idea)}
+                className="flex-none cursor-pointer whitespace-nowrap rounded-full border border-[#BDEFF0] bg-white px-[11px] py-[7px] text-[12.5px] font-semibold text-[#0A7C80]"
               >
                 {idea}
-              </Link>
+              </button>
             ))}
           </div>
-          <Link href={LINKS.arya} className="rounded-full bg-[#072338] p-3.5 text-center text-base font-semibold text-white no-underline">
-            Plan it with Arya →
-          </Link>
+          {content && (
+            <button type="button" onClick={planIt} className="cursor-pointer rounded-full border-0 bg-[#072338] p-3.5 text-center text-base font-semibold text-white">
+              Plan it with Arya →
+            </button>
+          )}
         </>
       ) : (
         <>
@@ -132,7 +151,7 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
   const [startOpen, setStartOpen] = useState(false);
   const phase = p < 0.15 ? 0 : p < 0.82 ? 1 : 2;
   const [eyebrow, h1a, pill, h1b, subline] = STORY_COPY[phase];
-  const phaseColor = phase === 0 ? "#C43B58" : "#0A7C80";
+  const phaseColor = phase === 0 ? "#9A5B00" : "#0A7C80";
   const bp = ease(clamp((p - 0.08) / 0.4));
   const board = layout.board;
   const mobile = variant === "mobile";
@@ -140,22 +159,22 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
   return (
     <>
       <div
-        className="absolute z-20 flex flex-col items-center text-center"
+        className={`absolute flex flex-col items-center text-center ${startOpen ? "z-40" : "z-20"}`}
         style={{ left: mobile ? 16 : 0, right: mobile ? 16 : 0, top: v.textTop, gap: v.gap }}
       >
         <span className="font-bold tracking-[.16em]" style={{ fontSize: v.eyebrow, color: phaseColor }}>
           {eyebrow}
         </span>
         <h1
-          className="font-display m-0 font-medium tracking-[-0.02em]"
+          className={`m-0 tracking-[-0.02em] ${mobile ? "font-sans! font-bold" : "font-display font-medium"}`}
           style={{ fontSize: v.h1, lineHeight: v.h1Line, maxWidth: v.h1Max, minHeight: v.h1Min }}
         >
           <span className="relative z-[1]">{h1a}</span>{" "}
           <span
             className="whitespace-nowrap rounded-full italic"
             style={{
-              color: phase === 0 ? "#C43B58" : "#0A7C80",
-              background: phase === 0 ? "#FCE9ED" : "#DCF8F9",
+              color: phase === 0 ? "#9A5B00" : "#0A7C80",
+              background: phase === 0 ? "#FBF1DC" : "#DCF8F9",
               padding: "0 .12em 0 .16em",
               margin: "0 -.14em 0 -.04em",
             }}
@@ -194,24 +213,35 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
           transformOrigin: "50% 0",
         }}
       >
-        <div className={`flex items-center border-b border-[#E8EEF4] ${mobile ? "gap-2 px-3.5 py-3" : "gap-3.5 px-[22px] py-4"}`}>
-          <Image src={IMG.mark} alt="" width={30} height={30} className={mobile ? "size-6 flex-none" : "size-[30px] flex-none"} />
-          <strong className={`flex-1 truncate ${mobile ? "text-[13px]" : "text-[15px]"}`}>Slow North Goa, made yours</strong>
-          <span className={`whitespace-nowrap text-[#566E85] ${mobile ? "text-[11px]" : "text-[13px]"}`}>12–16 Dec · 3 travellers</span>
+        <div className={`flex items-center border-b border-[#E8EEF4] ${mobile ? "gap-2.5 px-3.5 py-3" : "gap-3.5 px-[22px] py-4"}`}>
+          <Image src={IMG.mark} alt="" width={30} height={30} className={mobile ? "size-6 flex-none" : "size-[34px] flex-none"} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <strong className={`font-display truncate font-medium leading-tight ${mobile ? "text-[21px]" : "text-[26px]"}`}>
+              {mobile ? "Bali, 7 days for two" : "Bali for two, made yours"}
+            </strong>
+            <span className={`truncate text-[#566E85] ${mobile ? "text-[13px]" : "text-[13.5px]"}`}>
+              {mobile ? "8–14 May · 2 adults · anniversary trip" : "Built from your reel, your apps and your chats"}
+            </span>
+          </span>
+          {(mobile ? [] : ["8–14 May", "6 nights", "2 adults"]).map((chip) => (
+            <span key={chip} className={`whitespace-nowrap rounded-full bg-[#F3F6F9] font-semibold text-[#0D2436] ${mobile ? "px-2.5 py-1 text-[11px]" : "px-3.5 py-2 text-[13px]"}`}>
+              {chip}
+            </span>
+          ))}
         </div>
         <div
           className={`absolute flex items-center gap-2.5 rounded-[14px] bg-[#072338] text-white ${mobile ? "inset-x-3 bottom-3 px-3 py-2.5" : "inset-x-[22px] bottom-[18px] px-4 py-3"}`}
           style={{ opacity: clamp((p - 0.78) / 0.15) }}
         >
           <span className="flex flex-1 flex-col">
-            <strong className={mobile ? "text-[17px]" : "text-[19px]"}>₹46,200</strong>
-            <span className="text-[12.5px] text-[#A9C2D4]">for 3, all-in · one checkout</span>
+            <strong className={mobile ? "text-[17px]" : "text-[22px]"}>₹1,42,800</strong>
+            <span className="text-[12.5px] text-[#A9C2D4]">{mobile ? "Example trip · for 2, all-in" : "Example trip · for 2, all-in, one checkout"}</span>
           </span>
           <Link
-            href={LINKS.checkout}
+            href={LINKS.start}
             className={`rounded-full bg-[#22DDE0] font-bold text-[#072338] no-underline ${mobile ? "px-3.5 py-2.5 text-[13px]" : "px-5 py-3 text-[14.5px]"}`}
           >
-            Book in one go
+            Plan my trip →
           </Link>
         </div>
       </div>
@@ -222,6 +252,9 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
         const b = layout.b[c.id];
         const done = t > 0.85;
         const reel = c.id === "reel";
+        const tall = reel && !done;
+        const pic = reel ? (done ? c.thumb : c.img) : c.img;
+        const size = mobile ? 36 : 44;
         return (
           <div
             key={c.id}
@@ -235,45 +268,86 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
             }}
           >
             <div
-              className="relative flex gap-2.5 rounded-2xl border bg-white p-2"
+              className="relative flex rounded-2xl border bg-white"
               style={{
-                flexDirection: reel ? "column" : "row",
-                alignItems: reel ? "stretch" : "center",
+                flexDirection: tall ? "column" : "row",
+                alignItems: tall ? "stretch" : "center",
+                gap: done ? (mobile ? 10 : 14) : 10,
+                padding: done ? (mobile ? 12 : "16px 18px") : 8,
+                height: done ? layout.cardH : undefined,
                 borderColor: done ? "#BDEFF0" : "#DFE7EE",
                 boxShadow: done ? "0 2px 8px rgba(13,36,54,.06)" : "0 18px 40px rgba(13,36,54,.16)",
               }}
             >
-              {reel && (
+              {tall && (
                 <span className="relative block w-full overflow-hidden rounded-[11px]" style={{ height: Math.round(lerp(layout.imgHs, layout.imgH, t)) }}>
-                  <Image src={c.img!} alt="Saved reel from a Goa beach" fill sizes="200px" className="object-cover" />
+                  <Image src={c.img!} alt="A saved reel: 7 days in Bali" fill sizes="200px" className="object-cover" />
                   <span className="absolute left-1/2 top-1/2 grid size-[34px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90">
                     <Play />
                   </span>
                 </span>
               )}
-              {!reel && c.img && <Image src={c.img} alt="" width={40} height={40} className="size-10 flex-none rounded-[10px] object-cover" />}
-              {!reel && c.icon && (
-                <span className="grid size-10 flex-none place-items-center rounded-[10px]" style={{ background: c.iconBg }}>
-                  <Path d={STORY_ICONS[c.icon]} stroke="#0D2436" width={1.8} />
+              {done && mobile ? (
+                <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                  <span className="flex items-center gap-2">
+                    {pic ? (
+                      <Image src={pic} alt="" width={28} height={28} className="flex-none rounded-lg object-cover" style={{ width: 28, height: 28 }} />
+                    ) : (
+                      c.icon && (
+                        <span className="grid flex-none place-items-center rounded-lg" style={{ background: c.iconBg, width: 28, height: 28 }}>
+                          <Path d={STORY_ICONS[c.icon]} size={15} stroke="#0D2436" width={1.8} />
+                        </span>
+                      )
+                    )}
+                    <span className="truncate text-[10px] font-bold tracking-[.05em]" style={{ color: c.sc }}>
+                      {c.cat}
+                    </span>
+                  </span>
+                  <strong className="truncate text-[15px] leading-tight">{c.bt}</strong>
+                  <span className="truncate text-[12.5px] leading-tight text-[#566E85]">{c.bs}</span>
+                  <span className="flex items-center gap-1 text-[12px] font-semibold leading-tight text-[#0A7C80]">
+                    <Path d="M12 3v4M12 17v4M3 12h4M17 12h4" size={10} stroke="#0A7C80" width={2.6} />
+                    <span className="truncate">{c.why}</span>
+                  </span>
+                </span>
+              ) : (
+                <>
+                  {!tall && pic && (
+                    <Image src={pic} alt="" width={size} height={size} className="flex-none rounded-[10px] object-cover" style={{ width: size, height: size }} />
+                  )}
+                  {!tall && !pic && c.icon && (
+                    <span className="grid flex-none place-items-center rounded-[10px]" style={{ background: c.iconBg, width: size, height: size }}>
+                      <Path d={STORY_ICONS[c.icon]} stroke="#0D2436" width={1.8} />
+                    </span>
+                  )}
+                  {done ? (
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[11px] font-bold tracking-[.1em]" style={{ color: c.sc }}>
+                        {c.cat}
+                      </span>
+                      <strong className="truncate text-[18px] leading-tight">{c.bt}</strong>
+                      <span className="truncate text-[14px] text-[#566E85]">{c.bs}</span>
+                      <span className="mt-1 inline-flex w-fit max-w-full items-center gap-1 rounded-full bg-[#DCF8F9] px-2.5 py-[3px] text-[12px] font-bold text-[#0A7C80]">
+                        <Path d="M12 3v4M12 17v4M3 12h4M17 12h4" size={10} stroke="#0A7C80" width={2.6} />
+                        <span className="truncate">{c.why}</span>
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 pr-0.5">
+                      <strong className="truncate text-sm leading-tight">{c.title}</strong>
+                      <span className="truncate text-[12.5px] text-[#566E85]">{c.sub}</span>
+                    </span>
+                  )}
+                </>
+              )}
+              {!done && (
+                <span
+                  className="absolute -top-[9px] right-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                  style={{ background: c.sc, opacity: 1 - t }}
+                >
+                  {c.src}
                 </span>
               )}
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 pr-0.5">
-                <strong className="truncate text-sm leading-tight">{done ? c.bt : c.title}</strong>
-                <span className="truncate text-[12.5px] text-[#566E85]">{done ? c.bs : c.sub}</span>
-              </span>
-              <span
-                className="absolute -top-[9px] right-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
-                style={{ background: c.sc, opacity: 1 - t }}
-              >
-                {c.src}
-              </span>
-              <span
-                className="absolute -top-2.5 right-2 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[#22DDE0] py-0.5 pl-1.5 pr-2 text-[11px] font-bold text-[#072338] shadow-[0_4px_10px_rgba(18,201,206,.35)]"
-                style={{ opacity: done ? 1 : 0 }}
-              >
-                <Path d="M12 3v4M12 17v4M3 12h4M17 12h4" size={10} stroke="#072338" width={2.6} />
-                {c.why}
-              </span>
             </div>
           </div>
         );
@@ -281,13 +355,21 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
 
       <span
         className="pointer-events-none absolute inset-x-0 z-[25] flex justify-center"
-        style={{ bottom: mobile ? 18 : 22, opacity: 1 - Math.min(1, p * 4) }}
+        style={{
+          ...(mobile ? { bottom: 18 } : { top: 520 }),
+          // The hint steps aside while the Start planning panel is open.
+          opacity: startOpen ? 0 : 1 - Math.min(1, p * 4),
+        }}
       >
         <span
-          className={`inline-flex items-center gap-2 rounded-full border-[1.5px] border-[#F6C9D3] bg-white font-bold text-[#C43B58] shadow-[0_8px_24px_rgba(196,59,88,.18)] ${
-            mobile ? "px-4 py-2 text-[14.5px]" : "px-5 py-2.5 text-base"
+          className={`inline-flex items-center gap-2.5 rounded-full bg-white/70 font-semibold text-[#3F5A72] shadow-[0_8px_24px_rgba(13,36,54,.08)] backdrop-blur ${
+            mobile ? "px-4 py-2 text-[14.5px]" : "px-5 py-2.5 text-[17px]"
           }`}
         >
+          <svg width="16" height="22" viewBox="0 0 16 22" fill="none" stroke="#566E85" strokeWidth="1.6" aria-hidden="true">
+            <rect x="1" y="1" width="14" height="20" rx="7" />
+            <path d="M8 5v4" strokeLinecap="round" />
+          </svg>
           Scroll to bring it together
           <span className="cue-arrow inline-block" aria-hidden="true">
             ↓
@@ -302,7 +384,7 @@ function Stage({ layout, variant, p }: { layout: StoryLayout; variant: Variant; 
  * The opening scroll story: six scattered apps assemble into one trip board as you scroll.
  * Both designed stages render; CSS shows the right one, so there's no layout flash on load.
  */
-function StoryVariant({ variant }: { variant: Variant }) {
+function StoryVariant({ variant, search }: { variant: Variant; search?: SearchEntry[] }) {
   const layout = variant === "mobile" ? STORY_MOBILE : STORY_DESKTOP;
   const section = useRef<HTMLDivElement>(null);
   const [p, setP] = useState(0);
@@ -339,8 +421,8 @@ function StoryVariant({ variant }: { variant: Variant }) {
 
   return (
     <div ref={section} className={`relative ${variant === "mobile" ? "h-[2244px] md:hidden" : "hidden h-[2400px] md:block"}`}>
-      <div className="sticky top-0 h-[100svh] overflow-hidden" style={{ background: "radial-gradient(120% 70% at 50% 0%, #FDEBDD 0%, #FFFFFF 55%)" }}>
-        <B4Header />
+      <div className="sticky top-0 h-[100svh] overflow-hidden" style={{ background: "radial-gradient(120% 70% at 50% 0%, #E6FAFB 0%, #FFFFFF 55%)" }}>
+        <B4Header search={search} />
         <div
           className="absolute left-1/2 top-0"
           style={{ width: w, height: h, marginLeft: -w / 2, transform: `translateY(${offsetY}px) scale(${scale})`, transformOrigin: "50% 0" }}
@@ -352,11 +434,11 @@ function StoryVariant({ variant }: { variant: Variant }) {
   );
 }
 
-export function ScrollStory() {
+export function ScrollStory({ search }: { search?: SearchEntry[] }) {
   return (
     <>
-      <StoryVariant variant="mobile" />
-      <StoryVariant variant="desktop" />
+      <StoryVariant variant="mobile" search={search} />
+      <StoryVariant variant="desktop" search={search} />
     </>
   );
 }

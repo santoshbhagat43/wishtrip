@@ -37,18 +37,20 @@ export const LINKS = {
 
 export type StoryCard = {
   id: "reel" | "flight" | "stay" | "ai" | "maps" | "wa";
-  why: string;
+  /** Scattered: how it looks in its own app (and the app's name and colour). */
   img?: string;
   icon?: keyof typeof STORY_ICONS;
   iconBg?: string;
-  /** Scattered: how it looks in its own app. */
   title: string;
   sub: string;
-  /** On the board: what wishtrip made of it. */
-  bt: string;
-  bs: string;
   src: string;
   sc: string;
+  /** On the board: a label, what wishtrip made of it, and the one thing it got right. */
+  thumb?: string;
+  cat: string;
+  bt: string;
+  bs: string;
+  why: string;
 };
 
 export const STORY_ICONS = {
@@ -59,12 +61,12 @@ export const STORY_ICONS = {
 };
 
 export const STORY_CARDS: StoryCard[] = [
-  { id: "reel", why: "Where it started", img: A("goa-hero-beach-9x16.webp"), title: "@ananyawanders", sub: "Saved reel · 0:42", bt: "The reel you saved", bs: "6 places pulled out", src: "Instagram", sc: "#C43B58" },
-  { id: "flight", why: "Cheapest, seats together", icon: "plane", iconBg: "#E8EEF4", title: "BLR → GOI · 8:10 am", sub: "IndiGo · ₹6,600 each", bt: "Flights · 3 seats together", bs: "12 Dec 8:10 am · 16 Dec 6:30 pm", src: "Flight app", sc: "#1A6094" },
-  { id: "stay", why: "Ground floor for Mum", img: A("goa-stay-north-anjuna.webp"), title: "Assagao villa · 4 nights", sub: "Ground floor? Not listed", bt: "Stay · Assagao villa", bs: "2 ground-floor rooms, 4 nights", src: "Hotel site", sc: "#7A4E9A" },
-  { id: "ai", why: "Locals’ pick", icon: "spark", iconBg: "#F2EEFB", title: "“Best fish thali in Anjuna?”", sub: "AI chat · 14 tabs open", bt: "Day 2 · fish thali, 1 pm", bs: "Table for 3, booked", src: "AI chat", sc: "#566E85" },
-  { id: "maps", why: "Short drives only", icon: "pin", iconBg: "#E3F5EE", title: "Fort Aguada → Anjuna", sub: "35 min drive", bt: "Route checked", bs: "Nothing more than 25 min apart", src: "Maps", sc: "#0B7A57" },
-  { id: "wa", why: "Remembered", icon: "chat", iconBg: "#DCF8DD", title: "Mum: “I can’t do long walks”", sub: "Family group · 3 new", bt: "Noted for every day", bs: "Easy pace, step-free entries", src: "WhatsApp", sc: "#1F8A4C" },
+  { id: "reel", img: A("px-bali-reel-poster.webp"), thumb: A("px-bali-temple2.webp"), title: "@globetrottervoyage", sub: "Saved reel · 0:53", src: "Instagram", sc: "#C43B58", cat: "YOUR REEL", bt: "Bali in 7 days", bs: "@globetrottervoyage", why: "Where it started" },
+  { id: "flight", icon: "plane", iconBg: "#E8EEF4", title: "BLR → Bali", sub: "Thai Airways · ₹38,900", src: "Flight app", sc: "#1A6094", cat: "FLIGHTS", bt: "BLR → Bali (DPS)", bs: "Thai Airways, 1 stop", why: "Seats together" },
+  { id: "stay", img: A("px-bali-resort.webp"), title: "Kuta pool resort", sub: "Couples? Not listed", src: "Hotel site", sc: "#7A4E9A", cat: "STAY · 6 NIGHTS", bt: "Kuta pool resort", bs: "4-star, with breakfast", why: "Quiet room for two" },
+  { id: "ai", icon: "spark", iconBg: "#F2EEFB", title: "“Tanah Lot, sunset?”", sub: "AI chat · 11 tabs", src: "AI chat", sc: "#566E85", cat: "DAY 5 · SUNSET", bt: "Tanah Lot temple", bs: "After the lake temple", why: "Best light, 6 pm" },
+  { id: "maps", icon: "pin", iconBg: "#E3F5EE", title: "Kuta → Kintamani", sub: "2 hr drive", src: "Maps", sc: "#0B7A57", cat: "GETTING AROUND", bt: "Private car daily", bs: "Door to door", why: "Checked on Maps" },
+  { id: "wa", icon: "chat", iconBg: "#DCF8DD", title: "Rohan: “Anniversary!”", sub: "Chat · 2 new", src: "WhatsApp", sc: "#1F8A4C", cat: "DAY 2 · DINNER", bt: "Sunset cruise", bs: "Benoa Harbour, 6 pm", why: "For your anniversary" },
 ];
 
 /** [x, y, rotation°, width] in the design's stage, scattered (s) and on the board (b). */
@@ -78,36 +80,40 @@ export type StoryLayout = {
   board: { x: number; y: number; w: number; h: number };
   imgH: number;
   imgHs: number;
+  /** Height of a card once it has settled on the board. */
+  cardH: number;
 };
 
 export const STORY_DESKTOP: StoryLayout = {
   stage: { w: 1200, h: 900 },
   travel: 1500,
   s: { reel: [40, 304, -8, 196], flight: [930, 364, 6, 300], stay: [70, 724, 5, 300], ai: [860, 644, -4, 330], maps: [450, 764, 7, 270], wa: [930, 484, -7, 290] },
-  b: { reel: [112, 400, 0, 190], flight: [330, 400, 0, 360], stay: [330, 476, 0, 360], maps: [330, 552, 0, 360], ai: [720, 400, 0, 368], wa: [720, 476, 0, 368] },
+  b: { reel: [102, 444, 0, 321], flight: [439, 444, 0, 321], stay: [776, 444, 0, 321], ai: [102, 592, 0, 321], maps: [439, 592, 0, 321], wa: [776, 592, 0, 321] },
   board: { x: 80, y: 344, w: 1040, h: 520 },
   imgH: 250,
   imgHs: 270,
+  cardH: 132,
 };
 
 export const STORY_MOBILE: StoryLayout = {
   stage: { w: 390, h: 844 },
   travel: 1400,
-  s: { reel: [-18, 338, -9, 126], flight: [180, 344, 6, 220], stay: [198, 502, -5, 214], ai: [-26, 592, 4, 236], maps: [222, 666, 8, 176], wa: [8, 756, -6, 226] },
-  b: { reel: [24, 364, 0, 104], flight: [138, 364, 0, 228], stay: [138, 428, 0, 228], ai: [138, 492, 0, 228], maps: [138, 556, 0, 228], wa: [24, 624, 0, 342] },
-  board: { x: 12, y: 320, w: 366, h: 440 },
+  s: { reel: [14, 326, -4, 168], flight: [178, 332, 5, 204], stay: [186, 462, -4, 196], ai: [10, 640, 4, 222], maps: [184, 704, 6, 198], wa: [16, 772, -5, 222] },
+  b: { reel: [24, 394, 0, 166], flight: [200, 394, 0, 166], stay: [24, 510, 0, 166], ai: [200, 510, 0, 166], maps: [24, 626, 0, 166], wa: [200, 626, 0, 166] },
+  board: { x: 12, y: 320, w: 366, h: 496 },
   imgH: 148,
   imgHs: 180,
+  cardH: 106,
 };
 
 /** The three headline phases: [eyebrow, before pill, pill, after pill, subline]. */
 export const STORY_COPY = [
-  ["THE OLD WAY", "Your trip is", "scattered", "across 6 apps.", "A reel on Instagram. Flights on one app, stays on another. Questions in an AI chat. Mum’s needs in the family WhatsApp."],
-  ["WITH WISHTRIP", "Now it’s all", "in one place", "", "wishtrip’s AI travel agent reads your reel, finds the flights and stays, and remembers that Mum can’t walk far."],
-  ["ONE BOARD, ONE PRICE", "Your whole trip,", "booked", "in one go.", "Everything from the reel to the room, checked, priced and ready to book. Want a change? Just ask."],
+  ["SOUND FAMILIAR?", "Your trip lives in", "6 different", "apps.", "A reel, a flight app, a hotel site, your chats."],
+  ["WITH WISHTRIP", "Now it’s all", "in one place", "", "Arya turns them into one plan."],
+  ["ONE BOARD, ONE PRICE", "Your whole trip,", "booked", "in one go.", "Checked, priced and ready. Want a change? Just ask."],
 ] as const;
 
-export const START_IDEAS = ["Goa with my parents, December", "A long weekend under ₹40k", "First trip abroad, Thailand"];
+export const START_IDEAS = ["Goa with a toddler, December", "A couple’s weekend under ₹40k", "Bali for two, 7 days"];
 
 // ---- Arya --------------------------------------------------------------------------------------
 
@@ -120,23 +126,23 @@ export type AryaStep =
   | { st: number; who: "arya"; kind: "alert"; title: string; text: string; hold?: number };
 
 export const ARYA_SCRIPT: AryaStep[] = [
-  { st: 0, who: "me", text: "Goa in December with my parents. Mum can’t walk much." },
-  { st: 0, who: "arya", kind: "text", text: "Lovely. North Goa, 4 nights, ground-floor rooms and nothing more than 25 minutes apart. I’ll start from the reel you saved." },
+  { st: 0, who: "me", text: "Bali for 7 days, just the two of us. Under ₹1.5L." },
+  { st: 0, who: "arya", kind: "text", text: "Lovely. 6 nights at a Kuta pool resort, a private car every day, and the 5 experiences from the reel you saved." },
   { st: 0, who: "arya", kind: "trip" },
-  { st: 0, who: "me", text: "Can we add a sunset river cruise?" },
-  { st: 0, who: "arya", kind: "text", text: "Added on Day 3, 5:30 pm on the Mandovi. Step-free boarding, so Mum’s fine.", note: "Trip board updated · +₹3,400 · now ₹49,600" },
+  { st: 0, who: "me", text: "Day 2 is our anniversary. Something special?" },
+  { st: 0, who: "arya", kind: "text", text: "Added a sunset dinner cruise from Benoa Harbour on Day 2, with a table for two by the rail.", note: "Trip board updated · +₹6,200 · now ₹1,49,000" },
   { st: 1, who: "me", text: "Perfect. Let’s book it." },
-  { st: 1, who: "arya", kind: "choice", text: "Asha, Ramesh and Sunita’s details are filled in. How do you want to go ahead?" },
+  { st: 1, who: "arya", kind: "choice", text: "Nisha and Rohan’s passport details are filled in. How do you want to go ahead?" },
   { st: 1, who: "me", text: "Book now" },
   { st: 1, who: "arya", kind: "receipt", hold: 3200 },
-  { st: 2, who: "sep", text: "11 Dec · the day before you fly" },
-  { st: 2, who: "arya", kind: "alert", title: "You’re checked in. Seats 14A–C, together.", text: "IndiGo 6E 2135 is on time. A cab will wait at Arrivals, Gate 2.", hold: 2800 },
-  { st: 2, who: "sep", text: "14 Dec · on the trip" },
-  { st: 2, who: "me", text: "Mum’s tired today. Can we skip the Fontainhas walk?" },
-  { st: 2, who: "arya", kind: "text", text: "Done. Swapped for a slow lunch at the villa, same price. I’ve told the driver to come at 1 pm.", note: "Day 3 updated" },
-  { st: 2, who: "arya", kind: "human", text: "Hi Asha, I’m keeping an eye on today. Message me here anytime." },
-  { st: 2, who: "sep", text: "16 Dec · back home" },
-  { st: 2, who: "arya", kind: "text", text: "Welcome home! Share your trip so the next family can book it? Ananya, whose reel you started from, gets credited too.", hold: 4200 },
+  { st: 2, who: "sep", text: "7 May · the day before you fly" },
+  { st: 2, who: "arya", kind: "alert", title: "You’re checked in. Seats 22A and 22B, together.", text: "Your Thai Airways flight is on time. Your driver will wait at Bali Arrivals with your names on a board.", hold: 2800 },
+  { st: 2, who: "sep", text: "11 May · on the trip" },
+  { st: 2, who: "me", text: "It’s pouring in Kintamani. Can we swap today?" },
+  { st: 2, who: "arya", kind: "text", text: "Done. The volcano trip moves to Thursday, and today is a couples’ spa at the resort, same price. The driver now comes at 3.", note: "Day 4 updated" },
+  { st: 2, who: "arya", kind: "human", text: "Hi Nisha, I’m keeping an eye on today. Message me here anytime." },
+  { st: 2, who: "sep", text: "14 May · back home" },
+  { st: 2, who: "arya", kind: "text", text: "Welcome home, and happy anniversary! Share your trip so the next couple can book it? Prateek, whose reel you started from, gets credited too.", hold: 4200 },
 ];
 
 export const ARYA_STAGES = [
@@ -149,8 +155,8 @@ export const ARYA_STARTS = [0, 5, 9];
 export const ARYA_ENDS = [5, 9, ARYA_SCRIPT.length];
 
 export const ARYA_OPTIONS: [string, string][] = [
-  ["Book now", "₹49,600"],
-  ["Hold for 72 hours", "₹5,000"],
+  ["Book now", "₹1,49,000"],
+  ["Hold for 72 hours", "₹10,000"],
   ["Talk to a person", "Free"],
 ];
 
