@@ -2,6 +2,9 @@
  * The Destinations page (/destinations): the places in WishTrip's checked knowledge, with the
  * creator trips that went there. Real data only; the header's Destinations link leads here.
  */
+import { execSync } from "node:child_process";
+import path from "node:path";
+
 import { API_URL, expect, test } from "./fixtures";
 
 type Destination = { id: string; name: string; country: string | null; creator_trips: number; top_creator: { handle: string | null; display_name: string } | null };
@@ -70,5 +73,47 @@ test.describe("Destinations", () => {
     const form = page.locator("form[action='/arya']");
     await expect(form).toHaveAttribute("method", /get/i);
     await expect(ask).toHaveAttribute("name", "prompt");
+  });
+});
+
+/** A TripJack city and one hotel with a photo, put in the database for this test. */
+function withHotelPhoto(place: string, country: string, photo: string, hotel: string, work: () => Promise<void>) {
+  const psql = (sql: string) =>
+    execSync(`docker compose exec -T postgres psql -U wishtrip -d wishtrip -c "${sql}"`, {
+      cwd: path.resolve(__dirname, "../.."),
+      stdio: "ignore",
+    });
+  return (async () => {
+    psql(`delete from supplier_regions where region_id = 9990001`);
+    psql(
+      `insert into supplier_regions (id, region_id, city_name, country_name, full_name, hotel_count, location_id) select gen_random_uuid(), 9990001, upper('${place}'), upper('${country}'), '', 1, id from locations where name = '${place}' and type = 'city' and status = 'published' limit 1`,
+    );
+    psql(
+      `insert into supplier_hotels (id, tj_hotel_id, unica_id, region_id, name, is_active, property_type, address, city, country, hero_image, images, amenities, headline, description, policies, rank) values (gen_random_uuid(), '9990001001', '', 9990001, '${hotel}', true, '', '', '', '', '${photo}', '[]', '[]', '', '', '{}', 50)`,
+    );
+    try {
+      await work();
+    } finally {
+      psql(`delete from supplier_hotels where tj_hotel_id = '9990001001'`);
+      psql(`delete from supplier_regions where region_id = 9990001`);
+    }
+  })();
+}
+
+test.describe("Destination photos", () => {
+  test("a place with no creator trip uses a credited hotel photo from TripJack", async ({ page, request }) => {
+    const kyoto = (await destinations(request)).find((d) => d.name === "Kyoto");
+    test.skip(!kyoto || kyoto.creator_trips > 0, "needs a published Kyoto with no creator trip");
+    await withHotelPhoto("Kyoto", "Japan", "/b4/px-bali-resort.webp", "Test Garden Hotel", async () => {
+      await page.goto("/destinations");
+      const card = page.locator(`main a[href="/explore/${kyoto!.id}"]`);
+      await expect(card.locator("img").first()).toHaveAttribute("src", "/b4/px-bali-resort.webp");
+      await expect(card).toContainText("Photo: Test Garden Hotel");
+    });
+    // Without it, the card goes back to a plain brand card: nothing invented.
+    await page.goto("/destinations");
+    const card = page.locator(`main a[href="/explore/${kyoto!.id}"]`);
+    await expect(card.locator("img")).toHaveCount(0);
+    await expect(card).not.toContainText("Photo:");
   });
 });

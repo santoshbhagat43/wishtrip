@@ -6,7 +6,7 @@ import { START_IDEAS } from "../data";
 import { SiteFooter } from "../footer";
 import { B4Header } from "../header";
 import { DestinationGrid } from "./destination-grid";
-import { describe, Photo, placesLabel, tripsLabel } from "./destination-parts";
+import { describe, Photo, PhotoCredit, placesLabel, tripsLabel } from "./destination-parts";
 
 const plan = (prompt: string) => `/arya?prompt=${encodeURIComponent(prompt)}`;
 
@@ -23,7 +23,8 @@ function Tile({ d, big = false }: { d: DestinationCard; big?: boolean }) {
       <span className="absolute left-3 top-3 rounded-full bg-white/20 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
         {d.country ?? d.region}
       </span>
-      <span className="absolute inset-x-4 bottom-4 flex flex-col gap-1">
+      <PhotoCredit d={d} />
+      <span className="absolute inset-x-4 bottom-8 flex flex-col gap-1">
         <strong className={`font-display font-medium leading-tight ${big ? "text-[44px]" : "text-[26px]"}`}>{d.name}</strong>
         {line && <span className={`${big ? "text-[14px]" : "line-clamp-2 text-[12.5px]"} text-white/90`}>{line}</span>}
         <span className="text-[12px] font-semibold text-white/90">

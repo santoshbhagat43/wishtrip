@@ -117,6 +117,17 @@ async def sync_regions_now(_: User = Depends(require_staff)):
     return {"queued": "regions"}
 
 
+@router.post("/admin/sync/destinations", status_code=status.HTTP_202_ACCEPTED)
+async def sync_destination_photos_now(_: User = Depends(require_staff)):
+    """Fetch hotel photos for the published destinations (they show on the Destinations page)."""
+    from app.workers.tasks import sync_destination_photos_task
+
+    if not tripjack_hotels.configured:
+        raise _supplier_error(TripJackNotConfigured())
+    sync_destination_photos_task.delay()
+    return {"queued": "destination photos"}
+
+
 @router.post("/admin/sync/regions/{region_id}", status_code=status.HTTP_202_ACCEPTED)
 async def sync_region_now(region_id: int, _: User = Depends(require_staff)):
     from app.workers.tasks import sync_region_task

@@ -57,6 +57,8 @@ async def _hotel_sync(job: str, region_id: int | None = None) -> int:
                 n = await hotel_sync.sync_regions(session)
                 await hotel_sync.link_regions_to_locations(session)
                 return n
+            if job == "destinations":
+                return len(await hotel_sync.sync_destination_photos(session))
             assert region_id is not None
             if job == "region":
                 await hotel_sync.sync_region_mapping(session, region_id)
@@ -86,3 +88,14 @@ def sync_region_task(region_id: int) -> int:
 )
 def sync_region_content_task(region_id: int) -> int:
     return asyncio.run(_hotel_sync("content", region_id))
+
+
+# A few hotel photos for every published destination (the Destinations page's pictures).
+@celery_app.task(
+    name="hotels.sync_destination_photos",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=2,
+)
+def sync_destination_photos_task() -> int:
+    return asyncio.run(_hotel_sync("destinations"))

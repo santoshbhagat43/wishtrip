@@ -2968,6 +2968,31 @@
     ]
    }
   },
+  "/hotels/admin/sync/destinations": {
+   "post": {
+    "tags": [
+     "hotels"
+    ],
+    "summary": "Sync Destination Photos Now",
+    "description": "Fetch hotel photos for the published destinations (they show on the Destinations page).",
+    "operationId": "sync_destination_photos_now_hotels_admin_sync_destinations_post",
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/hotels/admin/sync/regions/{region_id}": {
    "post": {
     "tags": [
@@ -7624,6 +7649,32 @@
        }
       ],
       "title": "Cover Image Url"
+     },
+     "cover_source": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "creator",
+         "hotel"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Source"
+     },
+     "cover_credit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Credit"
      },
      "top_creator": {
       "anyOf": [

@@ -1,17 +1,21 @@
 """Read-only traveler view of the knowledge base: published data only, no internal fields."""
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import not_found
 from app.db.session import get_session
 from app.modules.creators import public as creator_public
 from app.modules.creators import trips as creator_trips
 from app.modules.creators.models import Creator, CreatorTrip
+from app.modules.hotels.models import SupplierHotel, SupplierRegion
 from app.modules.knowledge.models import (
     CONTAINER_TYPES,
     Location,
@@ -50,7 +54,11 @@ class Destination(BaseModel):
     # Real published creator trips to this place (matched by name), the cover of the newest one,
     # and the creator who made it. Zero/null when no creator has been there yet.
     creator_trips: int = 0
+    # A picture of the place: the cover of a creator's trip there, else a hotel photo from
+    # TripJack (credited), else none (the website then draws a plain card; we hold no photos).
     cover_image_url: str | None = None
+    cover_source: Literal["creator", "hotel"] | None = None
+    cover_credit: str | None = None
     top_creator: TopCreator | None = None
 
 
@@ -87,19 +95,50 @@ class PlaceDetail(PublicLocation):
     nearby: list[Nearby] = []
 
 
-def _creator_trips(found: list[tuple[Creator, CreatorTrip]]) -> dict:
-    if not found:
+def _creator_trips(
+    found: list[tuple[Creator, CreatorTrip]], photo: tuple[str, str] | None
+) -> dict:
+    """The destination's creator-trip numbers and its picture: a creator's cover first, then a
+    hotel photo (with the hotel's name as credit)."""
+    out: dict = {}
+    if found:
+        creator, newest = found[0]
+        out = {
+            "creator_trips": len(found),
+            "top_creator": TopCreator(
+                slug=(creator.handle or "").lstrip("@") or creator.referral_code,
+                handle=(creator.handle or "").lstrip("@") or None,
+                display_name=creator.display_name or "",
+            ),
+        }
+        if cover := creator_trips.cover_url(newest):
+            return {**out, "cover_image_url": cover, "cover_source": "creator"}
+    if photo:
+        out |= {"cover_image_url": photo[0], "cover_source": "hotel", "cover_credit": photo[1]}
+    return out
+
+
+async def _hotel_photos(
+    session: AsyncSession, city_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, tuple[str, str]]:
+    """The best-presented hotel photo (and the hotel's name) for each destination that has a
+    TripJack city with hotel content stored."""
+    if not settings.destination_hotel_photos:
         return {}
-    creator, newest = found[0]
-    return {
-        "creator_trips": len(found),
-        "cover_image_url": creator_trips.cover_url(newest),
-        "top_creator": TopCreator(
-            slug=(creator.handle or "").lstrip("@") or creator.referral_code,
-            handle=(creator.handle or "").lstrip("@") or None,
-            display_name=creator.display_name or "",
-        ),
-    }
+    rows = (
+        await session.execute(
+            select(SupplierRegion.location_id, SupplierHotel.hero_image, SupplierHotel.name)
+            .ext(distinct_on(SupplierRegion.location_id))
+            .join(SupplierHotel, SupplierHotel.region_id == SupplierRegion.region_id)
+            .where(
+                SupplierRegion.location_id.in_(city_ids),
+                SupplierHotel.hero_image.is_not(None),
+                SupplierHotel.is_active.is_(True),
+            )
+            .order_by(SupplierRegion.location_id, SupplierHotel.rank.desc())
+        )
+    ).all()
+    return {loc: (image, name) for loc, image, name in rows}
 
 
 async def _destinations(
@@ -137,6 +176,7 @@ async def _destinations(
     by_place: dict[str, list[tuple[Creator, CreatorTrip]]] = {}
     for creator, trip in await creator_public.eligible(session):
         by_place.setdefault(trip.destination_name.strip().lower(), []).append((creator, trip))
+    photos = await _hotel_photos(session, ids)
     return [
         Destination(
             id=c.id,
@@ -149,7 +189,7 @@ async def _destinations(
             longitude=c.longitude,
             place_count=counts.get(c.id, 0),
             highlights=highlights.get(c.id, [])[:3],
-            **_creator_trips(by_place.get(c.name.strip().lower(), [])),
+            **_creator_trips(by_place.get(c.name.strip().lower(), []), photos.get(c.id)),
         )
         for c in cities
         if counts.get(c.id, 0) > 0

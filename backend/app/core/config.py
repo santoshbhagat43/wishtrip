@@ -159,6 +159,9 @@ class Settings(BaseSettings):
     # Hotels sent to Listing per search, best-first (star rating, photos). Chunks of 100 run in
     # parallel.
     tripjack_search_hotels: int = 300
+    # Use TripJack hotel photos as the picture of a destination that has no creator trip cover.
+    # They are credited by hotel name; turn this off if the photo terms don't allow it.
+    destination_hotel_photos: bool = True
 
     # TripJack flights (v2) and TripSafe insurance share the apitest.tripjack.com host. Each key is
     # issued per product in the TripJack portal; unset = falls back to TRIPJACK_API_KEY.

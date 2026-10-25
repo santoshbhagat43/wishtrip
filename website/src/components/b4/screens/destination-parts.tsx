@@ -43,3 +43,13 @@ export function Photo({ d, className = "" }: { d: DestinationCard; className?: s
     />
   );
 }
+
+/** Says whose picture it is when the photo is a hotel's (TripJack), not a creator's own cover. */
+export function PhotoCredit({ d }: { d: DestinationCard }) {
+  if (d.cover_source !== "hotel" || !d.cover_credit) return null;
+  return (
+    <span className="absolute bottom-2 right-2 max-w-[70%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur">
+      Photo: {d.cover_credit}
+    </span>
+  );
+}

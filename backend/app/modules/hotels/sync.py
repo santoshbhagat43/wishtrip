@@ -57,6 +57,30 @@ async def sync_regions(session: AsyncSession, client: TripJackHotels = tripjack_
             return total
 
 
+# Words our destination names add to the place itself ("Munnar tea hills", "Varkala cliff").
+_DESCRIPTORS = {
+    "backwaters", "hills", "cliff", "beach", "valley", "tea", "coast", "island", "islands"
+}  # fmt: skip
+
+
+def name_candidates(name: str, aliases: list[str] | None = None) -> set[str]:
+    """The names TripJack might know a destination by: ours, the part before " · " or "(", with the
+    trailing descriptor words dropped ("Fuji · Hakone" → "fuji"; "Munnar tea hills" → "munnar"),
+    and the aliases staff have added."""
+    out: set[str] = set()
+    for raw in (name, *(aliases or [])):
+        base = raw.lower().strip()
+        out.add(base)
+        for sep in (" · ", " (", " - "):
+            if sep in base:
+                out.add(base.split(sep)[0].strip())
+        words = base.split()
+        while len(words) > 1 and words[-1] in _DESCRIPTORS:
+            words.pop()
+            out.add(" ".join(words))
+    return {n for n in out if n}
+
+
 async def link_regions_to_locations(session: AsyncSession) -> int:
     """Match regions to our knowledge-base cities by name, and by country when the city has one.
 
@@ -76,7 +100,7 @@ async def link_regions_to_locations(session: AsyncSession) -> int:
     }
     linked = 0
     for city in cities:
-        names = {city.name.lower(), *(a.lower() for a in (city.aliases or []))}
+        names = name_candidates(city.name, city.aliases)
         where = [
             func.lower(SupplierRegion.city_name).in_(names),
             SupplierRegion.location_id.is_(None),
@@ -250,3 +274,63 @@ async def sync_region_content(
         )
         await session.commit()
     return done
+
+
+PHOTOS_PER_DESTINATION = 300
+
+
+async def sync_destination_photos(
+    session: AsyncSession,
+    client: TripJackHotels = tripjack_hotels,
+    per_destination: int = PHOTOS_PER_DESTINATION,
+) -> dict[str, str]:
+    """Give every published destination a few hotel photos to draw on: link its TripJack city, then
+    fetch the content of some of that city's hotels (the photos come with it). Returns what each
+    destination ended up with. Needs the TripJack key; safe to run again."""
+    await link_regions_to_locations(session)
+    cities = (
+        (await session.execute(select(Location).where(Location.type == LocationType.CITY)))
+        .scalars()
+        .unique()
+        .all()
+    )
+    result: dict[str, str] = {}
+    for city in cities:
+        regions = (
+            (
+                await session.execute(
+                    select(SupplierRegion)
+                    .where(SupplierRegion.location_id == city.id)
+                    .order_by(SupplierRegion.region_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not regions:
+            result[city.name] = "no matching TripJack city"
+            continue
+        region = regions[0]
+        have = await session.scalar(
+            select(func.count())
+            .select_from(SupplierHotel)
+            .where(
+                SupplierHotel.region_id == region.region_id,
+                SupplierHotel.hero_image.is_not(None),
+            )
+        )
+        if have:
+            result[city.name] = f"{have} photos already"
+            continue
+        try:
+            if region.mapping_synced_at is None:
+                await sync_region_mapping(session, region.region_id, client)
+            fetched = await sync_region_content(
+                session, region.region_id, client, limit=per_destination
+            )
+            result[city.name] = f"fetched {fetched} hotels from {region.city_name.title()}"
+        except Exception as exc:  # one city failing must not stop the rest
+            log.warning("destination photos for %s failed: %s", city.name, exc)
+            result[city.name] = f"failed: {exc}"
+            await session.rollback()
+    return result

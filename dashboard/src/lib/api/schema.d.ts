@@ -934,6 +934,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotels/admin/sync/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Destination Photos Now
+         * @description Fetch hotel photos for the published destinations (they show on the Destinations page).
+         */
+        post: operations["sync_destination_photos_now_hotels_admin_sync_destinations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/admin/sync/regions/{region_id}": {
         parameters: {
             query?: never;
@@ -2581,6 +2601,10 @@ export interface components {
             creator_trips: number;
             /** Cover Image Url */
             cover_image_url?: string | null;
+            /** Cover Source */
+            cover_source?: ("creator" | "hotel") | null;
+            /** Cover Credit */
+            cover_credit?: string | null;
             top_creator?: components["schemas"]["TopCreator"] | null;
         };
         /** DestinationDetail */
@@ -6922,6 +6946,26 @@ export interface operations {
         };
     };
     sync_regions_now_hotels_admin_sync_regions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    sync_destination_photos_now_hotels_admin_sync_destinations_post: {
         parameters: {
             query?: never;
             header?: never;

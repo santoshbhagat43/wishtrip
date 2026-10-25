@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.modules.hotels import service
@@ -249,3 +250,107 @@ async def test_a_city_links_only_to_the_region_in_its_own_country(london):
         }
     assert str(linked[1]) == london["city"]["id"]  # London, UK: the knowledge base's London
     assert linked[2] is None and linked[3] is None  # London, Canada: not ours
+
+
+# ---- destination photos ---------------------------------------------------------------------
+
+
+def test_our_place_names_are_matched_to_the_names_tripjack_uses():
+    from app.modules.hotels.sync import name_candidates
+
+    assert {"fuji · hakone", "fuji"} <= name_candidates("Fuji · Hakone")
+    assert {"munnar tea hills", "munnar"} <= name_candidates("Munnar tea hills")
+    assert {"krabi (ao nang)", "krabi"} <= name_candidates("Krabi (Ao Nang)")
+    assert "alleppey" in name_candidates("Alleppey backwaters")
+    assert name_candidates("Goa") == {"goa"}
+    assert "calangute" in name_candidates("North Goa", ["Calangute"])  # staff aliases count too
+
+
+async def _destination(client, admin, name: str, country: str) -> dict:
+    staff = auth(admin)
+    parent = (
+        await client.post("/admin/locations", json={"type": "country", "name": country, "status": "published"}, headers=staff)
+    ).json()
+    city = (
+        await client.post(
+            "/admin/locations",
+            json={"type": "city", "name": name, "parent_id": parent["id"], "status": "published"},
+            headers=staff,
+        )
+    ).json()
+    await client.post(
+        "/admin/locations",
+        json={"type": "attraction", "name": f"{name} sight", "parent_id": city["id"], "status": "published"},
+        headers=staff,
+    )
+    return city
+
+
+async def test_a_destination_without_creator_trips_borrows_a_credited_hotel_photo(client, admin, monkeypatch):
+    from app.core.config import settings
+    from app.modules.hotels.sync import link_regions_to_locations
+
+    await _destination(client, admin, "Krabi (Ao Nang)", "Thailand")
+    async with SessionLocal() as s:
+        s.add(SupplierRegion(region_id=11, city_name="KRABI", country_name="THAILAND"))
+        s.add(SupplierRegion(region_id=12, city_name="KRABI", country_name="BANGLADESH"))  # not that one
+        s.add(SupplierHotel(tj_hotel_id="1", region_id=11, name="Plain Inn", hero_image="https://img/plain.jpg", rank=3))
+        s.add(SupplierHotel(tj_hotel_id="2", region_id=11, name="Cliff Resort", hero_image="https://img/cliff.jpg", rank=60))
+        s.add(SupplierHotel(tj_hotel_id="3", region_id=11, name="No Photo", hero_image=None, rank=99))
+        s.add(SupplierHotel(tj_hotel_id="4", region_id=12, name="Wrong Country", hero_image="https://img/wrong.jpg", rank=99))
+        await s.commit()
+        assert await link_regions_to_locations(s) == 1  # only the Thai Krabi
+
+    krabi = [d for d in (await client.get("/explore/destinations")).json() if d["name"].startswith("Krabi")][0]
+    assert krabi["cover_image_url"] == "https://img/cliff.jpg"  # the best-presented hotel
+    assert krabi["cover_source"] == "hotel" and krabi["cover_credit"] == "Cliff Resort"
+
+    monkeypatch.setattr(settings, "destination_hotel_photos", False)
+    off = [d for d in (await client.get("/explore/destinations")).json() if d["name"].startswith("Krabi")][0]
+    assert off["cover_image_url"] is None and off["cover_source"] is None
+
+
+async def test_the_photo_job_fetches_hotels_for_destinations_that_have_none(client, admin):
+    from app.modules.hotels import sync
+
+    await _destination(client, admin, "Kyoto", "Japan")
+    await _destination(client, admin, "Nowhereville", "Japan")
+
+    class FakeTripJack:
+        def __init__(self):
+            self.mapping_calls = 0
+
+        async def hotel_mapping(self, **_):
+            self.mapping_calls += 1
+            return {
+                "hotels": [{"tjHotelId": str(i), "unicaId": "u"} for i in range(1, 4)],
+                "pageable": {"totalPages": 1},
+            }
+
+        async def hotel_content(self, ids):
+            return [
+                {
+                    "tjHotelId": i,
+                    "name": f"Kyoto Hotel {i}",
+                    "star_rating": "4",
+                    "images": [{"is_hero_image": True, "links": {"Standard": {"href": f"https://img/{i}.jpg"}}}],
+                }
+                for i in ids
+            ]
+
+    async with SessionLocal() as s:
+        s.add(SupplierRegion(region_id=21, city_name="KYOTO", country_name="JAPAN"))
+        await s.commit()
+        fake = FakeTripJack()
+        done = await sync.sync_destination_photos(s, fake, per_destination=2)
+        assert done["Kyoto"].startswith("fetched 2 hotels")
+        assert done["Nowhereville"] == "no matching TripJack city"
+        stored = (await s.execute(select(SupplierHotel).where(SupplierHotel.hero_image.is_not(None)))).scalars().all()
+        assert len(stored) == 2 and all(h.hero_image.startswith("https://img/") for h in stored)
+
+        # Run again: it already has photos, so TripJack isn't asked again.
+        again = await sync.sync_destination_photos(s, fake, per_destination=2)
+        assert again["Kyoto"] == "2 photos already" and fake.mapping_calls == 1
+
+    kyoto = [d for d in (await client.get("/explore/destinations")).json() if d["name"] == "Kyoto"][0]
+    assert kyoto["cover_source"] == "hotel" and kyoto["cover_credit"].startswith("Kyoto Hotel")

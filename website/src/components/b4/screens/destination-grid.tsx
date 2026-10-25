@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import type { DestinationCard } from "@/lib/server/destinations";
 
-import { isIndia, Photo, placesLabel, tripsLabel, where } from "./destination-parts";
+import { isIndia, Photo, PhotoCredit, placesLabel, tripsLabel, where } from "./destination-parts";
 
 type Filter = "all" | "india" | "abroad";
 
@@ -48,7 +48,8 @@ export function DestinationGrid({ destinations }: { destinations: DestinationCar
                     {tripsLabel(d.creator_trips)}
                   </span>
                 )}
-                <span className="font-display absolute inset-x-4 bottom-3 text-[26px] font-medium leading-tight text-white">{d.name}</span>
+                <span className="font-display absolute inset-x-4 bottom-8 text-[26px] font-medium leading-tight text-white">{d.name}</span>
+                <PhotoCredit d={d} />
               </span>
               <span className="flex flex-col gap-0.5 px-1 text-[13px] leading-snug text-[#566E85]">
                 <span>
