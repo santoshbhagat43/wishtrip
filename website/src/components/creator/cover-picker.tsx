@@ -95,7 +95,8 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
             <p className="m-0 mt-1 text-[13px] text-muted">
               {video.length > 0
                 ? "Frames from your video. Pick the one that makes people want to open the trip."
-                : "Pick the reel's cover, or upload an image of your own."}
+                : "Pick the reel's cover, or upload an image of your own."}{" "}
+              Shown as a 3:4 thumbnail on your dashboard, and as the banner on the itinerary.
             </p>
           </div>
           <button
@@ -129,7 +130,7 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
                   } disabled:opacity-60`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- backend media */}
-                  <img src={o.url} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
+                  <img src={o.url} alt="" className="aspect-[3/4] w-full object-cover" loading="lazy" />
                   <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-navy/80 to-transparent px-3 pb-2 pt-6 text-[11.5px] font-semibold text-white">
                     <span>{o.t != null ? `At ${mmss(o.t)}` : SOURCE[o.source]}</span>
                     {o.current && (
