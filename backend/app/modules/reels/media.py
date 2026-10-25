@@ -75,6 +75,17 @@ def frames(video: Path, outdir: Path, max_frames: int, duration: float = 0) -> l
     return [Frame(t=times[i] if i < len(times) else 0.0, path=p) for i, p in enumerate(files)]
 
 
+def spread(frame_list: list[Frame], count: int) -> list[Frame]:
+    """`count` frames spread evenly over the video, in time order (all of them if fewer)."""
+    if count <= 0 or not frame_list:
+        return []
+    if len(frame_list) <= count:
+        return list(frame_list)
+    last = len(frame_list) - 1
+    picks = sorted({round(i * last / (count - 1)) for i in range(count)}) if count > 1 else [0]
+    return [frame_list[i] for i in picks]
+
+
 def audio(video: Path, out: Path) -> Path:
     """Mono 16 kHz mp3: small enough to send whole, enough for speech."""
     _run(

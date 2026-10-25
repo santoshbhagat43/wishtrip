@@ -217,5 +217,65 @@ async def publish(session: AsyncSession, trip: CreatorTrip) -> CreatorTrip:
     return trip
 
 
+COVER_UPLOAD_MAX_BYTES = 4 * 1024 * 1024
+COVER_UPLOAD_TYPES = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def _upload_prefix(trip: CreatorTrip) -> str:
+    return f"creator-covers/{trip.id}/"
+
+
+async def cover_options(session: AsyncSession, trip: CreatorTrip) -> list[dict]:
+    """The images the creator can pick as the trip's cover: frames from the video, the reel's own
+    cover, and anything they uploaded for this trip. The current one is flagged."""
+    from app.modules.reels.models import CreatorContent
+
+    content = (
+        await session.scalar(
+            select(CreatorContent).where(CreatorContent.shortcode == trip.source_shortcode)
+        )
+        if trip.source_shortcode
+        else None
+    )
+    options: list[dict] = []
+    if content is not None:
+        options += [
+            {"key": f["key"], "t": f.get("t"), "source": "video"} for f in content.frames or []
+        ]
+        if content.thumbnail_key:
+            options.append({"key": content.thumbnail_key, "t": None, "source": "reel_cover"})
+    if trip.cover_image_key and all(o["key"] != trip.cover_image_key for o in options):
+        # An image they uploaded earlier, or a cover from before frames were kept.
+        options.append({"key": trip.cover_image_key, "t": None, "source": "upload"})
+    return [
+        {**o, "url": storage.url(o["key"]), "current": o["key"] == trip.cover_image_key}
+        for o in options
+    ]
+
+
+async def set_cover(session: AsyncSession, trip: CreatorTrip, key: str) -> None:
+    allowed = {o["key"] for o in await cover_options(session, trip)}
+    if key not in allowed and not key.startswith(_upload_prefix(trip)):
+        raise bad_request("Pick one of the images offered for this trip.")
+    trip.cover_image_key = key
+
+
+def save_cover_upload(trip: CreatorTrip, filename: str, data_base64: str) -> str:
+    import base64
+    import binascii
+    from pathlib import Path
+
+    suffix = Path(filename).suffix.lower()
+    if suffix not in COVER_UPLOAD_TYPES:
+        raise bad_request("Upload a JPG, PNG or WebP image.")
+    try:
+        data = base64.b64decode(data_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise bad_request("That image couldn't be read.") from None
+    if not data or len(data) > COVER_UPLOAD_MAX_BYTES:
+        raise bad_request("Use an image under 4 MB.")
+    return storage.save(data, f"cover{suffix}", _upload_prefix(trip).rstrip("/"))
+
+
 def cover_url(trip: CreatorTrip) -> str | None:
     return storage.url(trip.cover_image_key) if trip.cover_image_key else None

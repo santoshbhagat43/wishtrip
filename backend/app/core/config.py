@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     reel_transcribe_model: str = "google/gemini-2.5-flash"
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
+    # Frames kept from each video for the creator to choose a cover from (0 = keep none).
+    reel_cover_frames: int = 12
     # Frames read by OCR at the same time. 0 = one per CPU. Tesseract is single-threaded per
     # frame here (OMP_THREAD_LIMIT=1), so this is what uses the machine's cores.
     reel_ocr_workers: int = 0

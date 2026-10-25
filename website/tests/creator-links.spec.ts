@@ -161,11 +161,10 @@ test.describe("Reel links", () => {
     await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
     await sheet.getByRole("tab", { name: /Day 1/ }).click();
     await expect(sheet.getByText("Not published")).toBeVisible();
-    // The bookings that come with the board, and sharing it with family.
-    await expect(sheet.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
-    await expect(sheet.getByText("FLIGHTS")).toBeVisible();
-    await expect(sheet.getByText("STAY", { exact: true })).toBeVisible();
-    await expect(sheet.getByText("TRANSFERS")).toBeVisible();
+    // A creator doesn't see sample bookings: that strip is for travellers.
+    await expect(sheet.getByText("BOOKINGS ON YOUR BOARD")).toHaveCount(0);
+    await expect(page.getByText(/bookings below are samples/i)).toHaveCount(0);
+    // …and can share it with family.
     await sheet.getByRole("button", { name: "Share with family" }).click();
     const share = sheet.getByRole("group", { name: "Share with family" });
     await expect(share.getByText("Publish the itinerary first")).toBeVisible();
@@ -313,6 +312,34 @@ test.describe("Reel links", () => {
     await openDayWith(sheet, "Suggested · not from the reel");
     await expect(sheet.getByText("Suggested · not from the reel").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
+
+    // Choose the cover from frames of the uploaded video.
+    const hero = sheet.locator("img").first();
+    const before = await hero.getAttribute("src");
+    await sheet.getByRole("button", { name: "Change cover" }).click();
+    const picker = page.getByRole("dialog", { name: "Choose a cover image" });
+    await expect(picker.getByText(/^At \d+:\d\d$/).first()).toBeVisible();
+    expect(await picker.getByText(/^At \d+:\d\d$/).count()).toBeGreaterThan(1);
+    if (SHOT) await page.screenshot({ path: `${SHOT}/cover-picker.png` });
+    await picker.locator('button[aria-pressed="false"]').first().click();
+    await expect(picker).toHaveCount(0);
+    await expect.poll(async () => hero.getAttribute("src")).not.toBe(before);
+
+    // The trip editor: same cover, the stops by day, and edits that save.
+    const tripId = page.url().match(/\/creator\/([0-9a-f-]{36})$/)![1];
+    await page.goto(`${CREATOR_URL}/creator/trips/${tripId}`);
+    await expect(page.getByText("Edit your trip")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Day 1" })).toBeVisible();
+    await expect(page.getByText("All changes saved")).toBeVisible();
+    await page.getByLabel("Title").fill("Bali, my way");
+    await expect(page.getByText("Unsaved changes")).toBeVisible();
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByText("All changes saved")).toBeVisible();
+    await page.getByRole("button", { name: "Change cover" }).click();
+    await expect(page.getByRole("dialog", { name: "Choose a cover image" })).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/editor-cover.png` });
+    await page.keyboard.press("Escape");
+    if (SHOT) await page.screenshot({ path: `${SHOT}/editor.png`, fullPage: true });
   });
 
   test("a busy link's activity is paged, not one long list", async ({ page, request }) => {

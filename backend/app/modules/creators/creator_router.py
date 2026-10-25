@@ -22,6 +22,8 @@ from app.modules.creators.models import (
     TripStatus,
 )
 from app.modules.creators.schemas import (
+    CoverOption,
+    CoverUpload,
     CreatorLinkCreate,
     CreatorLinkRead,
     CreatorLinkUpdate,
@@ -154,8 +156,40 @@ async def update_trip(
         trip.summary = data.summary.strip()
     if data.items is not None:
         trip.items = trips.clean_items([i.model_dump() for i in data.items])
+    if data.cover_image_key is not None:
+        await trips.set_cover(session, trip, data.cover_image_key)
     if data.publish:
         await trips.publish(session, trip)
+    await session.commit()
+    await session.refresh(trip)
+    return trip_read(trip)
+
+
+@router.get("/creator/trips/{trip_id}/cover-options", response_model=list[CoverOption])
+async def trip_cover_options(
+    trip_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Frames from the creator's video (and the reel's cover, and their own uploads) to choose
+    the trip's cover image from."""
+    creator = await trips.require_creator(session, user.id)
+    trip = await trips.owned(session, trip_id, creator.id)
+    return await trips.cover_options(session, trip)
+
+
+@router.post("/creator/trips/{trip_id}/cover", response_model=CreatorTripRead)
+async def upload_trip_cover(
+    trip_id: uuid.UUID,
+    data: CoverUpload,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Use an image the creator uploads as the trip's cover (for reels read before frames were
+    kept, or when none of the frames suit)."""
+    creator = await trips.require_creator(session, user.id)
+    trip = await trips.owned(session, trip_id, creator.id)
+    trip.cover_image_key = trips.save_cover_upload(trip, data.filename, data.data_base64)
     await session.commit()
     await session.refresh(trip)
     return trip_read(trip)

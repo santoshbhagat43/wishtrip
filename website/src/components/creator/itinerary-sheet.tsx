@@ -8,6 +8,7 @@ import {
   Copy,
   Landmark,
   MessageCircle,
+  ImagePlus,
   Pencil,
   Play,
   Share2,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { CoverPicker } from "@/components/creator/cover-picker";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -91,36 +94,7 @@ export function daysFromItems(items: Item[]): ItineraryDay[] {
 
 export const stopCount = (days: ItineraryDay[]) => days.reduce((n, d) => n + d.stops.length, 0);
 
-type Booking = { kind: string; price: string; title: string; detail: string; chip: string; swap?: string };
-
-/** What travellers can book with the itinerary. Sample details and prices, as in the prototype. */
-const BOOKINGS: Booking[] = [
-  {
-    kind: "FLIGHTS",
-    price: "₹19,800",
-    title: "BLR ⇄ GOI · IndiGo",
-    detail: "12 Dec 8:10 am · 16 Dec 6:30 pm · 3 seats",
-    chip: "Cheapest, seats together",
-  },
-  {
-    kind: "STAY",
-    price: "₹14,400",
-    title: "Assagao heritage villa",
-    detail: "2 ground-floor rooms · 4 nights",
-    chip: "Ground floor for Mum",
-    swap: "Swap for Siolim (−₹6,200)",
-  },
-  {
-    kind: "TRANSFERS",
-    price: "₹3,200",
-    title: "Private SUV, same driver",
-    detail: "Airport both ways + 3 day trips",
-    chip: "Short drives only",
-  },
-];
-
 const CARD = "rounded-[22px] border border-border bg-surface";
-const KICKER = "text-[11.5px] font-bold uppercase tracking-wider text-muted";
 
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label: string }) {
   return (
@@ -210,6 +184,7 @@ export function ItinerarySheet({
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [picked, setPicked] = useState(0);
+  const [choosingCover, setChoosingCover] = useState(false);
   const day = days[Math.min(picked, days.length - 1)];
 
   useEffect(() => {
@@ -240,7 +215,7 @@ export function ItinerarySheet({
           <ArrowLeft className="size-4" /> Back to reel
         </button>
         <Steps published={published} />
-        <span className="hidden text-sm text-muted lg:block">Bookings below are samples</span>
+        <span className="hidden w-[120px] lg:block" aria-hidden />
       </header>
 
       <main className="mx-auto max-w-[1240px] px-4 pb-16 pt-5 md:px-10 md:pt-6">
@@ -309,12 +284,21 @@ export function ItinerarySheet({
                     : `${days.length} days · ${stopCount(days)} stops · ${fromReel} from your reel`}
                 </p>
                 {link.trip_id && (
-                  <Link
-                    href={`/creator/trips/${link.trip_id}`}
-                    className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
-                  >
-                    <Pencil className="size-3.5" /> Edit trip
-                  </Link>
+                  <span className="mt-1 flex flex-wrap gap-2">
+                    <Link
+                      href={`/creator/trips/${link.trip_id}`}
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
+                    >
+                      <Pencil className="size-3.5" /> Edit trip
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setChoosingCover(true)}
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
+                    >
+                      <ImagePlus className="size-3.5" /> Change cover
+                    </button>
+                  </span>
                 )}
               </div>
               {sources[0] ? (
@@ -425,26 +409,6 @@ export function ItinerarySheet({
                   </div>
                 )}
 
-                <div className="mt-4 flex flex-col gap-2.5">
-                  <p className={`m-0 ${KICKER}`}>Bookings on your board</p>
-                  <p className="m-0 -mt-1 text-xs text-muted">Sample details and prices. Real ones come at checkout.</p>
-                  <div className="grid gap-2.5 sm:grid-cols-3">
-                    {BOOKINGS.map((b) => (
-                      <div key={b.kind} className="flex flex-col gap-1 rounded-[18px] border border-border bg-surface p-3.5">
-                        <span className="flex items-baseline justify-between gap-2">
-                          <span className="text-[11px] font-bold tracking-wider text-muted">{b.kind}</span>
-                          <strong className="text-[15px]">{b.price}</strong>
-                        </span>
-                        <strong className="text-[14px] leading-snug">{b.title}</strong>
-                        <span className="text-[12.5px] text-muted">{b.detail}</span>
-                        <span className="mt-1 flex flex-col items-start gap-1">
-                          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10.5px] font-semibold text-brand">{b.chip}</span>
-                          {b.swap && <span className="text-[12px] font-semibold text-brand">{b.swap}</span>}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </>
             )}
           </section>
@@ -524,6 +488,7 @@ export function ItinerarySheet({
           </aside>
         </div>
       </main>
+      {choosingCover && link.trip_id && <CoverPicker tripId={link.trip_id} onClose={() => setChoosingCover(false)} />}
     </div>
   );
 }

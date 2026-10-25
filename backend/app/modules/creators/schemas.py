@@ -190,6 +190,23 @@ class CreatorTripUpdate(BaseModel):
     summary: str | None = Field(default=None, max_length=2000)
     items: list[TripItem] | None = None
     publish: bool | None = None
+    # One of the keys from /creator/trips/{id}/cover-options.
+    cover_image_key: str | None = Field(default=None, max_length=500)
+
+
+class CoverOption(BaseModel):
+    key: str
+    url: str
+    # Seconds into the video; null for the reel's own cover and for uploaded images.
+    t: float | None = None
+    source: Literal["video", "reel_cover", "upload"]
+    current: bool = False
+
+
+class CoverUpload(BaseModel):
+    filename: str = Field(max_length=200)
+    # The image file, base64-encoded (the website gateway forwards JSON only).
+    data_base64: str
 
 
 class SaveFromReel(BaseModel):

@@ -1252,6 +1252,48 @@ export interface paths {
         patch: operations["update_trip_creator_trips__trip_id__patch"];
         trace?: never;
     };
+    "/creator/trips/{trip_id}/cover-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trip Cover Options
+         * @description Frames from the creator's video (and the reel's cover, and their own uploads) to choose
+         *     the trip's cover image from.
+         */
+        get: operations["trip_cover_options_creator_trips__trip_id__cover_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Trip Cover
+         * @description Use an image the creator uploads as the trip's cover (for reels read before frames were
+         *     kept, or when none of the frames suit).
+         */
+        post: operations["upload_trip_cover_creator_trips__trip_id__cover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creator/trips/from-reel": {
         parameters: {
             query?: never;
@@ -1882,6 +1924,32 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /** CoverOption */
+        CoverOption: {
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+            /** T */
+            t?: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "video" | "reel_cover" | "upload";
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+        };
+        /** CoverUpload */
+        CoverUpload: {
+            /** Filename */
+            filename: string;
+            /** Data Base64 */
+            data_base64: string;
+        };
         /**
          * CreatorApplication
          * @description The apply form. A creator gives an Instagram handle, a YouTube channel, or both.
@@ -2295,6 +2363,8 @@ export interface components {
             items?: components["schemas"]["TripItem"][] | null;
             /** Publish */
             publish?: boolean | null;
+            /** Cover Image Key */
+            cover_image_key?: string | null;
         };
         /** CreatorUpdate */
         CreatorUpdate: {
@@ -7167,6 +7237,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreatorTripUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trip_cover_options_creator_trips__trip_id__cover_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_trip_cover_creator_trips__trip_id__cover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverUpload"];
             };
         };
         responses: {

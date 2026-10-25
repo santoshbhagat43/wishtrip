@@ -153,3 +153,82 @@ async def test_unpublished_trip_has_no_public_link(client, admin, fake_reel):
     headers = await _approved_creator(client, admin, "draft@creators.example.com")
     await _make_trip(client, headers)
     assert (await client.get("/trips/nope-123456")).status_code == 404
+
+
+async def test_pick_a_cover_from_the_videos_frames(client, admin, fake_reel):
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+
+    headers = await _approved_creator(client, admin, "cover@creators.example.com")
+    trip = await _make_trip(client, headers)
+    async with SessionLocal() as session:
+        content = await session.scalar(select(CreatorContent))
+        content.frames = [{"t": 2.0, "key": "reels/frames/a.jpg"}, {"t": 9.5, "key": "reels/frames/b.jpg"}]
+        content.thumbnail_key = "reels/cover.jpg"
+        await session.commit()
+
+    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    assert [(o["source"], o["key"]) for o in options] == [
+        ("video", "reels/frames/a.jpg"),
+        ("video", "reels/frames/b.jpg"),
+        ("reel_cover", "reels/cover.jpg"),
+    ]
+    assert options[1]["t"] == 9.5 and options[1]["url"].endswith("reels/frames/b.jpg")
+
+    r = await client.patch(
+        f"/creator/trips/{trip['id']}", json={"cover_image_key": "reels/frames/b.jpg"}, headers=headers
+    )
+    assert r.status_code == 200 and r.json()["cover_image_url"].endswith("reels/frames/b.jpg")
+    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    assert [o["key"] for o in options if o["current"]] == ["reels/frames/b.jpg"]
+
+    # Only the images offered for this trip: not someone else's file, not an arbitrary path.
+    for bad in ("reels/frames/other.jpg", "../../etc/passwd", "creator-covers/someone-else/x.png"):
+        r = await client.patch(f"/creator/trips/{trip['id']}", json={"cover_image_key": bad}, headers=headers)
+        assert r.status_code == 400, bad
+
+
+async def test_upload_an_image_as_the_cover(client, admin, fake_reel):
+    import base64
+
+    headers = await _approved_creator(client, admin, "upload@creators.example.com")
+    trip = await _make_trip(client, headers)
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
+
+    r = await client.post(
+        f"/creator/trips/{trip['id']}/cover",
+        json={"filename": "my cover.PNG", "data_base64": png},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    assert f"creator-covers/{trip['id']}/" in r.json()["cover_image_url"]
+    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    assert any(o["source"] == "upload" and o["current"] for o in options)
+
+    for body in (
+        {"filename": "notes.pdf", "data_base64": png},
+        {"filename": "a.png", "data_base64": "not base64!!"},
+        {"filename": "a.png", "data_base64": ""},
+    ):
+        r = await client.post(f"/creator/trips/{trip['id']}/cover", json=body, headers=headers)
+        assert r.status_code == 400, body
+
+    other = await _approved_creator(client, admin, "other@creators.example.com")
+    r = await client.post(
+        f"/creator/trips/{trip['id']}/cover", json={"filename": "a.png", "data_base64": png}, headers=other
+    )
+    assert r.status_code == 404
+
+
+def test_frames_are_spread_over_the_whole_video():
+    from pathlib import Path
+
+    from app.modules.reels import media
+
+    frames = [media.Frame(t=float(i), path=Path(f"f{i}.jpg")) for i in range(40)]
+    picked = media.spread(frames, 6)
+    assert len(picked) == 6 and picked[0].t == 0 and picked[-1].t == 39
+    assert [f.t for f in picked] == sorted(f.t for f in picked)
+    assert media.spread(frames[:4], 6) == frames[:4]
+    assert media.spread(frames, 0) == [] and media.spread([], 5) == []

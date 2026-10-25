@@ -419,6 +419,10 @@ UPLOAD_META = {
 }
 
 
+# Where the frames kept for cover choice live in storage.
+FRAMES = "reels/frames"
+
+
 def _read_screen(
     video: Path, workdir: Path, duration: float
 ) -> tuple[list[media.Frame], list[dict]]:
@@ -485,6 +489,7 @@ async def _read_into_content(
         await creators.upsert(session, owner, meta.get("owner_full_name", "")) if owner else None
     )
     cover = thumb or (frame_list[0].path if frame_list else None)
+    kept = media.spread(frame_list, settings.reel_cover_frames)
     content = CreatorContent(
         creator_id=creator.id if creator else None,
         shortcode=shortcode,
@@ -494,6 +499,10 @@ async def _read_into_content(
         posted_at=datetime.fromisoformat(meta["posted_at"]) if meta.get("posted_at") else None,
         duration_seconds=info.duration,
         thumbnail_key=storage.save(cover.read_bytes(), cover.name, "reels") if cover else None,
+        frames=[
+            {"t": round(f.t, 1), "key": storage.save(f.path.read_bytes(), f.path.name, FRAMES)}
+            for f in kept
+        ],
         ocr_lines=ocr_lines,
         transcript=transcript.text,
         transcript_language=transcript.language,

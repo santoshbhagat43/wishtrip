@@ -3840,6 +3840,118 @@
     }
    }
   },
+  "/creator/trips/{trip_id}/cover-options": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Trip Cover Options",
+    "description": "Frames from the creator's video (and the reel's cover, and their own uploads) to choose\nthe trip's cover image from.",
+    "operationId": "trip_cover_options_creator_trips__trip_id__cover_options_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/CoverOption"
+         },
+         "title": "Response Trip Cover Options Creator Trips  Trip Id  Cover Options Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips/{trip_id}/cover": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Upload Trip Cover",
+    "description": "Use an image the creator uploads as the trip's cover (for reels read before frames were\nkept, or when none of the frames suit).",
+    "operationId": "upload_trip_cover_creator_trips__trip_id__cover_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CoverUpload"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/creator/trips/from-reel": {
    "post": {
     "tags": [
@@ -5705,6 +5817,69 @@
     ],
     "title": "Companions"
    },
+   "CoverOption": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "t": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "T"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "video",
+       "reel_cover",
+       "upload"
+      ],
+      "title": "Source"
+     },
+     "current": {
+      "type": "boolean",
+      "title": "Current",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "url",
+     "source"
+    ],
+    "title": "CoverOption"
+   },
+   "CoverUpload": {
+    "properties": {
+     "filename": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Filename"
+     },
+     "data_base64": {
+      "type": "string",
+      "title": "Data Base64"
+     }
+    },
+    "type": "object",
+    "required": [
+     "filename",
+     "data_base64"
+    ],
+    "title": "CoverUpload"
+   },
    "CreatorApplication": {
     "properties": {
      "email": {
@@ -6745,6 +6920,18 @@
        }
       ],
       "title": "Publish"
+     },
+     "cover_image_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Key"
      }
     },
     "type": "object",

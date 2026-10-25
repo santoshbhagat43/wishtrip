@@ -27,6 +27,9 @@ class CreatorContent(UUIDPrimaryKey, Timestamps, Base):
     duration_seconds: Mapped[float | None] = mapped_column(Float)
     # Only the cover image is kept; the video, audio and frames are deleted after reading.
     thumbnail_key: Mapped[str | None] = mapped_column(String(500))
+    # A few frames kept from the video, for the creator to pick a cover from:
+    # [{"t": seconds, "key": storage key}]. Empty for reels read before this existed.
+    frames: Mapped[list] = mapped_column(JSONB, default=list)
     # [{"t": seconds, "text": "..."}] — text read off the frames, first time each line appeared.
     ocr_lines: Mapped[list] = mapped_column(JSONB, default=list)
     transcript: Mapped[str] = mapped_column(Text, default="")

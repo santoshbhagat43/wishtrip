@@ -80,6 +80,8 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["PATCH", /^creator\/links\/[0-9a-f-]{36}$/],
   ["POST", /^creator\/links\/[0-9a-f-]{36}\/build$/],
   ["PATCH", /^creator\/trips\/[0-9a-f-]{36}$/],
+  ["GET", /^creator\/trips\/[0-9a-f-]{36}\/cover-options$/],
+  ["POST", /^creator\/trips\/[0-9a-f-]{36}\/cover$/],
   ["GET", /^trips\/[\w-]{3,64}$/],
   ["GET", /^reels\/imports\/[0-9a-f-]{36}$/],
   ["GET", /^explore\/(destinations|tags|menus)$/],
