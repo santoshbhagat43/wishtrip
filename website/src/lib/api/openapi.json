@@ -3249,7 +3249,7 @@
      "creators"
     ],
     "summary": "Update My Profile",
-    "description": "A creator changes the name shown on their public page and on their trips.",
+    "description": "A creator changes the name on their public page and trips, and their Instagram and YouTube\nlinks. (Their handle, the address of their page, stays with staff.)",
     "operationId": "update_my_profile_creators_me_patch",
     "requestBody": {
      "content": {
@@ -6723,6 +6723,11 @@
       "type": "string",
       "title": "Display Name"
      },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url",
+      "default": ""
+     },
      "youtube_url": {
       "anyOf": [
        {
@@ -6904,6 +6909,11 @@
       "type": "string",
       "title": "Display Name"
      },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url",
+      "default": ""
+     },
      "youtube_url": {
       "anyOf": [
        {
@@ -6950,11 +6960,6 @@
        }
       ],
       "title": "Cover Url"
-     },
-     "profile_url": {
-      "type": "string",
-      "title": "Profile Url",
-      "default": ""
      },
      "created_at": {
       "type": "string",
@@ -7026,16 +7031,44 @@
    "CreatorProfileUpdate": {
     "properties": {
      "display_name": {
-      "type": "string",
-      "maxLength": 80,
-      "minLength": 2,
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80,
+        "minLength": 2
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Display Name"
+     },
+     "instagram_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instagram Url"
+     },
+     "youtube_url": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Youtube Url"
      }
     },
     "type": "object",
-    "required": [
-     "display_name"
-    ],
     "title": "CreatorProfileUpdate",
     "description": "What a creator can change about their own page. The handle is staff's to set: it is\ntheir address and their identity with us."
    },

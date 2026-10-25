@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { WEBSITE_URL, withoutScheme } from "@/lib/creator";
+import { copyText } from "@/lib/clipboard";
 
 /**
  * The itinerary made from a creator's reel, laid out like the trip board in the B4 prototype: one
@@ -194,7 +195,7 @@ export function ItinerarySheet({
   }, [onClose]);
 
   const copy = () => {
-    navigator.clipboard.writeText(short);
+    copyText(short);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

@@ -18,9 +18,16 @@ async function signInWithCode(page: Page, code: string) {
 }
 
 test.describe("Creator site", () => {
-  test("the creator site's front door is the creator programme", async ({ page }) => {
+  test("the creator site's front door is the creator programme, on the traveller website", async ({ page, baseURL }) => {
+    const site = new URL(baseURL!).origin;
     await page.goto(`${CREATOR_URL}/`);
-    await expect(page).toHaveURL(`${CREATOR_URL}/creators`);
+    await expect(page).toHaveURL(`${site}/creators`);
+  });
+
+  test("someone who isn't signed in at the creator site's #apply is taken to the website's #apply", async ({ page, baseURL }) => {
+    const site = new URL(baseURL!).origin;
+    await page.goto(`${CREATOR_URL}/creators#apply`);
+    await expect(page).toHaveURL(`${site}/creators#apply`);
   });
 
   test("'Already applied? Sign in' goes straight to SSO, without stopping on /creators/join", async ({ page }) => {

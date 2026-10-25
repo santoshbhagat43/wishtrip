@@ -10,6 +10,7 @@ import { CoverPicker } from "@/components/creator/cover-picker";
 import { Spinner } from "@/components/ui/card";
 import { api, errorMessage, unwrap, type Schemas } from "@/lib/api/client";
 import { withoutScheme } from "@/lib/creator";
+import { copyText } from "@/lib/clipboard";
 
 type Trip = Schemas["CreatorTripRead"];
 type Item = Schemas["TripItem"];
@@ -366,7 +367,7 @@ export default function TripEditorPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(shareUrl);
+                    copyText(shareUrl);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}

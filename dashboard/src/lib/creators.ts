@@ -9,7 +9,7 @@ export const reelLink = (code: string) => `${WEBSITE_URL}/r/${code}`;
 /** A link as it reads on screen: without the scheme, so it fits and looks like a short link. */
 export const withoutScheme = (url: string) => url.replace(/^https?:\/\//, "");
 
-export const referralLink = (code: string) => `${WEBSITE_URL}/c/${code}`;
+export const referralLink = (code: string) => `${WEBSITE_URL}/creator/${code}`;
 
 export const CREATOR_STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Pending approval", tone: "warn" },

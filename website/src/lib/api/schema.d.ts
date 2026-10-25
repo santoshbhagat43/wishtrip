@@ -1070,7 +1070,8 @@ export interface paths {
         head?: never;
         /**
          * Update My Profile
-         * @description A creator changes the name shown on their public page and on their trips.
+         * @description A creator changes the name on their public page and trips, and their Instagram and YouTube
+         *     links. (Their handle, the address of their page, stays with staff.)
          */
         patch: operations["update_my_profile_creators_me_patch"];
         trace?: never;
@@ -2261,6 +2262,11 @@ export interface components {
             handle?: string | null;
             /** Display Name */
             display_name: string;
+            /**
+             * Profile Url
+             * @default
+             */
+            profile_url: string;
             /** Youtube Url */
             youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
@@ -2322,6 +2328,11 @@ export interface components {
             handle?: string | null;
             /** Display Name */
             display_name: string;
+            /**
+             * Profile Url
+             * @default
+             */
+            profile_url: string;
             /** Youtube Url */
             youtube_url?: string | null;
             status: components["schemas"]["CreatorStatus"];
@@ -2334,11 +2345,6 @@ export interface components {
             avatar_url?: string | null;
             /** Cover Url */
             cover_url?: string | null;
-            /**
-             * Profile Url
-             * @default
-             */
-            profile_url: string;
             /**
              * Created At
              * Format: date-time
@@ -2365,7 +2371,11 @@ export interface components {
          */
         CreatorProfileUpdate: {
             /** Display Name */
-            display_name: string;
+            display_name?: string | null;
+            /** Instagram Url */
+            instagram_url?: string | null;
+            /** Youtube Url */
+            youtube_url?: string | null;
         };
         /** CreatorRead */
         CreatorRead: {

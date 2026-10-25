@@ -91,8 +91,8 @@ test.describe("Reels added by staff", () => {
     if (SHOT) await page.screenshot({ path: `${SHOT}/staff-creator-page.png`, fullPage: true });
 
     // Pick a cover for it, as the creator could.
+    // The card opens the itinerary itself.
     await page.getByRole("button", { name: /Goa beach weekend/ }).click();
-    await page.getByRole("dialog", { name: "Goa beach weekend" }).getByRole("button", { name: "Open itinerary" }).click();
     await sheet.getByRole("button", { name: "Change cover" }).click();
     await expect(page.getByRole("dialog", { name: "Choose a cover image" })).toBeVisible();
     await page.keyboard.press("Escape");

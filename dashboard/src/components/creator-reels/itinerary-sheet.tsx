@@ -23,6 +23,7 @@ import { WEBSITE_URL, withoutScheme } from "@/lib/creators";
 
 import { useActing } from "./acting";
 import { CoverPicker } from "./cover-picker";
+import { copyText } from "@/lib/clipboard";
 
 /**
  * The itinerary made from a creator's reel, laid out like the trip board in the B4 prototype: one
@@ -195,7 +196,7 @@ export function ItinerarySheet({
   }, [onClose]);
 
   const copy = () => {
-    navigator.clipboard.writeText(short);
+    copyText(short);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

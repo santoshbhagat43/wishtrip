@@ -23,6 +23,10 @@ export function publicOrigin(request: NextRequest): string {
  *  Served by this same app; the host decides which site a request is for. */
 export const CREATOR_URL = process.env.CREATOR_URL ?? "";
 
+/** The traveller website's public origin, e.g. http://app.lvh.me:3002 or https://wishtrip.listnr.co.
+ *  Where the creator site sends visitors who aren't signed in (the creator programme lives there). */
+export const SITE_URL = process.env.SITE_URL ?? "";
+
 /** Is this request for the creator site (vs the traveller website)? */
 export function isCreatorHost(host: string | null | undefined): boolean {
   if (!host) return false;

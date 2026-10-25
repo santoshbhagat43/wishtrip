@@ -10,6 +10,7 @@ import { useMe } from "@/lib/session";
 import { LINKS } from "../data";
 import { CARD, FlowHeader, Kicker, Why } from "../flow";
 import { buildDays, kindLabel, useReelImport } from "../trip-journey";
+import { copyText } from "@/lib/clipboard";
 
 /** Step 3: the trip board built from the reel's places, day by day. Travellers book it;
  *  creators save it and get an affiliate link to promote. */
@@ -66,7 +67,7 @@ export function BoardScreen() {
             <strong className="text-[14px] text-[#0B7A57]">Saved — share this link</strong>
             <span className="flex gap-2">
               <input readOnly value={shareUrl} className="min-w-0 flex-1 rounded-lg border border-[#BDEFF0] bg-white px-2.5 py-2 text-[12.5px]" />
-              <button onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); }} className="rounded-full bg-[#072338] px-3.5 text-[13px] font-semibold text-white">{copied ? "Copied" : "Copy"}</button>
+              <button onClick={() => { copyText(shareUrl); setCopied(true); }} className="rounded-full bg-[#072338] px-3.5 text-[13px] font-semibold text-white">{copied ? "Copied" : "Copy"}</button>
             </span>
             <span className="text-[12px] text-[#0B7A57]">Every booking through it earns your commission.</span>
           </div>

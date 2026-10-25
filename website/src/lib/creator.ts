@@ -4,7 +4,7 @@
 export const WEBSITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL ?? "https://wishtrip.listnr.co";
 
 /** The creator's overall link: credits them whichever page the visitor lands on. */
-export const overallLink = (referralCode: string) => `${WEBSITE_URL}/c/${referralCode}`;
+export const overallLink = (referralCode: string) => `${WEBSITE_URL}/creator/${referralCode}`;
 
 /** A short link for one reel; opening it lands the traveller on the destination the creator chose. */
 export const reelLink = (code: string) => `${WEBSITE_URL}/r/${code}`;

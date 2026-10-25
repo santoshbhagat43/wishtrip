@@ -127,12 +127,19 @@ async def update_my_profile(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(get_current_user),
 ):
-    """A creator changes the name shown on their public page and on their trips."""
+    """A creator changes the name on their public page and trips, and their Instagram and YouTube
+    links. (Their handle, the address of their page, stays with staff.)"""
     creator = await _my_creator(session, user)
-    name = " ".join(data.display_name.split())
-    if len(name) < 2:
-        raise bad_request("Enter the name you'd like to show.")
-    creator.display_name = name
+    if data.display_name is not None:
+        name = " ".join(data.display_name.split())
+        if len(name) < 2:
+            raise bad_request("Enter the name you'd like to show.")
+        creator.display_name = name
+    if data.instagram_url is not None:
+        handle = service.clean_instagram(data.instagram_url)
+        creator.profile_url = f"https://www.instagram.com/{handle}/" if handle else ""
+    if data.youtube_url is not None:
+        creator.youtube_url = service.clean_youtube(data.youtube_url)
     await session.commit()
     return _me(creator)
 

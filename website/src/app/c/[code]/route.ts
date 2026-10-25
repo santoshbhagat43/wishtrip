@@ -8,7 +8,11 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ code: s
   const { code } = await ctx.params;
   const visitor = request.cookies.get(VISITOR_COOKIE)?.value ?? crypto.randomUUID();
   // Relative redirect: behind the proxy, request.url is the container's own address.
-  const response = new NextResponse(null, { status: 307, headers: { Location: "/" } });
+  // From a creator's page (/creator/<code>): count the visit and set the cookies, show nothing.
+  const quiet = request.nextUrl.searchParams.has("beacon");
+  const response = quiet
+    ? new NextResponse(null, { status: 204 })
+    : new NextResponse(null, { status: 307, headers: { Location: "/" } });
 
   const res = await fetch(`${BACKEND_URL}/referrals/${encodeURIComponent(code)}/visit`, {
     method: "POST",

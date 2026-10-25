@@ -71,7 +71,10 @@ class CreatorProfileUpdate(BaseModel):
     """What a creator can change about their own page. The handle is staff's to set: it is
     their address and their identity with us."""
 
-    display_name: str = Field(min_length=2, max_length=80)
+    display_name: str | None = Field(default=None, min_length=2, max_length=80)
+    # Their Instagram and YouTube links. An empty string removes one; leaving it out keeps it.
+    instagram_url: str | None = Field(default=None, max_length=300)
+    youtube_url: str | None = Field(default=None, max_length=300)
 
 
 class CreatorMe(BaseModel):
@@ -83,6 +86,7 @@ class CreatorMe(BaseModel):
     email: str | None = None
     handle: str | None = None
     display_name: str
+    profile_url: str = ""
     youtube_url: str | None = None
     status: CreatorStatus
     referral_code: str

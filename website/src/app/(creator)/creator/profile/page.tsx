@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
+import { ChannelsForm } from "@/components/creator/channels-form";
 import { PageProfile } from "@/components/creator/page-profile";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,14 +61,14 @@ export default function CreatorProfilePage() {
 
       <PageProfile overview={o} />
 
+      <ChannelsForm overview={o} />
+
       <Card>
         <CardHeader title="Your account" description="These are managed by the WishTrip team." />
         <dl className="m-0 grid gap-4 px-5 pb-5 pt-4 text-sm sm:grid-cols-2">
           {(
             [
               ["Email", o.email ?? "Not set"],
-              ["Instagram", o.handle ? `@${o.handle}` : "Not added"],
-              ["YouTube", o.youtube_url ? o.youtube_url.replace(/^https:\/\/www\.youtube\.com\//, "") : "Not added"],
             ] as const
           ).map(([label, value]) => (
             <div key={label}>

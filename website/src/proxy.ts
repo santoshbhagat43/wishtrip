@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { GATE_COOKIE, gateEnabled, gateToken } from "@/lib/server/gate";
 import { ACCESS_COOKIE, REFRESH_COOKIE, roleFromToken } from "@/lib/server/session";
-import { CREATOR_URL, creatorSsoUrl, isCreatorHost, publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
+import { CREATOR_URL, SITE_URL, creatorSsoUrl, isCreatorHost, publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
 
 const PRIVATE = ["/arya", "/profile", "/saved", "/help", "/creator"];
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -79,13 +79,17 @@ export async function proxy(request: NextRequest) {
     if (pathname === "/creator" && !signedIn) return NextResponse.redirect(creatorSsoUrl(portal));
     const clean = cleanPortalPath(pathname);
     if (clean !== null) return NextResponse.redirect(new URL(`${clean}${search}`, request.url), 308);
+    // The creator programme (and its apply form) lives on the traveller website: someone who
+    // isn't signed in is taken there. The #apply in the address survives the redirect.
+    if (pathname === "/creators" && !signedIn && SITE_URL) {
+      return NextResponse.redirect(new URL(`/creators${search}`, SITE_URL));
+    }
     if (pathname === "/") {
       // Signed-in creators see their dashboard here; everyone else sees the creator programme.
       const role = roleFromToken(request.cookies.get(ACCESS_COOKIE)?.value);
       const creator = signedIn && (role === "creator" || role === null);
-      return creator
-        ? NextResponse.rewrite(new URL("/creator", request.url))
-        : NextResponse.redirect(new URL("/creators", request.url));
+      if (creator) return NextResponse.rewrite(new URL("/creator", request.url));
+      return NextResponse.redirect(new URL(`/creators`, SITE_URL || request.url));
     }
     const target = portalTarget(pathname);
     if (target !== null) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Play, Plus, Upload } from "lucide-react";
+import { Check, Copy, Eye, Pencil, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { reelLink, rupees, withoutScheme } from "@/lib/creators";
 
 import { useActing } from "./acting";
 import { ItinerarySheet } from "./itinerary-sheet";
+import { copyText } from "@/lib/clipboard";
 
 type Link = Schemas["CreatorLinkRead"];
 
@@ -66,7 +67,7 @@ function CopyButton({ value, label = "Copy" }: { value: string; label?: string }
       variant="secondary"
       size="sm"
       onClick={() => {
-        navigator.clipboard.writeText(value);
+        copyText(value);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
@@ -184,11 +185,11 @@ function CreateLinkModal({ onClose }: { onClose: () => void }) {
 }
 
 /** One reel, as a tall card: its title, where it stands, and how many people opened its link. */
-function ReelCard({ link, onOpen }: { link: Link; onOpen: () => void }) {
+function ReelCard({ link, onOpen, onEdit }: { link: Link; onOpen: () => void; onEdit: () => void }) {
   const state = STATE[link.status];
   const cover = link.cover_image_url;
   return (
-    <li>
+    <li className="relative">
       <button
         type="button"
         onClick={onOpen}
@@ -203,17 +204,27 @@ function ReelCard({ link, onOpen }: { link: Link; onOpen: () => void }) {
         )}
         <span className="relative flex items-start justify-between gap-2">
           <Badge tone={state.tone}>{state.label}</Badge>
-          <span className="flex size-8 flex-none items-center justify-center rounded-full bg-surface/85 text-brand">
-            <Play className="size-4" />
-          </span>
+          <span className="size-8 flex-none" />
         </span>
         <span className="relative flex flex-col gap-1">
           <strong className={`line-clamp-3 text-base leading-snug ${cover ? "text-white" : ""}`}>{link.label}</strong>
-          <span className={`text-xs ${cover ? "text-white/85" : "text-muted"}`}>
-            {link.stats.visits} {link.stats.visits === 1 ? "visit" : "visits"} · {link.stats.signups}{" "}
-            {link.stats.signups === 1 ? "sign-up" : "sign-ups"}
+          <span
+            className={`flex items-center gap-1 text-xs ${cover ? "text-white/85" : "text-muted"}`}
+            title={`${link.stats.visits} ${link.stats.visits === 1 ? "visit" : "visits"}`}
+          >
+            <Eye className="size-3.5" aria-hidden="true" /> {link.stats.visits}
+            <span className="sr-only">{link.stats.visits === 1 ? "visit" : "visits"}</span>
           </span>
         </span>
+      </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label="Edit reel"
+        title="Edit reel"
+        className="absolute right-3.5 top-3.5 flex size-8 items-center justify-center rounded-full bg-surface/85 text-brand transition hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand"
+      >
+        <Pencil className="size-4" />
       </button>
     </li>
   );
@@ -537,7 +548,13 @@ export function ReelsCard({
         {items.length > 0 && (
           <ul className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-3 xl:grid-cols-4">
             {items.map((link) => (
-              <ReelCard key={link.id} link={link} onOpen={() => setOpenId(link.id)} />
+              <ReelCard
+                key={link.id}
+                link={link}
+                // A reel with an itinerary opens it; one without has nothing to open yet, so its card opens the editor.
+                onOpen={() => (link.status === "ready" || link.status === "published" ? setSheetId(link.id) : setOpenId(link.id))}
+                onEdit={() => setOpenId(link.id)}
+              />
             ))}
           </ul>
         )}

@@ -12,7 +12,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -222,7 +222,16 @@ async def apply_as_creator(
 
 
 async def by_code(session: AsyncSession, code: str) -> Creator | None:
-    return await session.scalar(select(Creator).where(Creator.referral_code == code.lower()))
+    """A creator by their referral code, or by their handle: their link is /creator/<either>."""
+    wanted = code.strip().lstrip("@").lower()
+    return await session.scalar(
+        select(Creator).where(
+            or_(Creator.referral_code == wanted, func.lower(Creator.handle) == wanted)
+        )
+        # A referral code beats a handle that happens to read the same.
+        .order_by((Creator.referral_code != wanted).asc())
+        .limit(1)
+    )
 
 
 async def for_user(session: AsyncSession, user_id: uuid.UUID) -> Creator | None:

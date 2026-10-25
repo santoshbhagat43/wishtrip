@@ -75,9 +75,9 @@ test.describe("Reel links", () => {
     page.on("pageerror", (e) => pageErrors.push(e.message));
     await approvedCreator(page, request);
 
-    // The three steps sit beside the other tools; the Reels card has no reels yet.
+    // The how-it-works steps are hidden for now; the Reels card has no reels yet.
     const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
-    await expect(page.getByText("How reel links work")).toBeVisible();
+    await expect(page.getByText("How reel links work")).toHaveCount(0);
     await expect(section.getByText("No reels yet")).toBeVisible();
 
     // 1. "Create link" asks for a title; the link shows below once it's made.
@@ -373,7 +373,7 @@ test.describe("Reel links", () => {
     const me = await approvedCreator(page, request);
     const card = page.locator("section").filter({ hasText: "Your overall link" });
     const link = card.getByLabel("Your overall referral link");
-    await expect(link).toHaveText(new RegExp(`/c/${me.referral_code}$`));
+    await expect(link).toHaveText(new RegExp(`/creator/${me.referral_code}$`));
     // Not clipped: its text is wholly on screen.
     const box = (await link.boundingBox())!;
     const parent = (await card.boundingBox())!;
@@ -433,6 +433,27 @@ test.describe("Reel links", () => {
     // With both photos on, the nudge is gone.
     await expect(page.getByText("Make your page yours")).toHaveCount(0);
 
+    // Instagram and YouTube: a bare @handle is kept as a full link, and can be changed or removed.
+    await page.goto(`${CREATOR_URL}/profile`);
+    const instagram = page.getByLabel("Instagram");
+    const youtube = page.getByLabel("YouTube");
+    await expect(page.getByRole("button", { name: "Save channels" })).toBeDisabled();
+    await instagram.fill("@Meera.Kamat");
+    await youtube.fill("@meerakamat");
+    await page.getByRole("button", { name: "Save channels" }).click();
+    await expect(instagram).toHaveValue("https://www.instagram.com/meera.kamat/");
+    await expect(youtube).toHaveValue("https://www.youtube.com/@meerakamat");
+    await page.reload();
+    await expect(instagram).toHaveValue("https://www.instagram.com/meera.kamat/");
+    await youtube.fill("");
+    await page.getByRole("button", { name: "Save channels" }).click();
+    await expect(page.getByRole("button", { name: "Save channels" })).toBeDisabled();
+    await page.reload();
+    await expect(youtube).toHaveValue("");
+    await instagram.fill("https://example.com/nope");
+    await page.getByRole("button", { name: "Save channels" }).click();
+    await expect(page.getByText("Instagram handle")).toBeVisible();
+
     // Photos can be taken off again.
     await page.goto(`${CREATOR_URL}/profile`);
     await page.getByRole("button", { name: "Remove cover photo" }).click();
@@ -443,7 +464,8 @@ test.describe("Reel links", () => {
     // Signing out is in the menu.
     await page.getByRole("button", { name: "Account menu" }).click();
     await menu.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(`${CREATOR_URL}/creators`);
+    // Signed out, the creator programme is on the traveller website.
+    await expect(page).toHaveURL(`${WEBSITE}/creators`);
   });
 
   test("a creator who isn't approved yet sees why they can't make links", async ({ page }) => {

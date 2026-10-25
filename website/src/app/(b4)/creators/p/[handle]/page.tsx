@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ReferralBeacon } from "@/components/b4/referral-beacon";
 import { CreatorProfileScreen } from "@/components/b4/screens/creator-profile";
 import { fetchCreator } from "@/lib/server/creators";
 
@@ -21,5 +22,10 @@ export default async function Page({ params }: Props) {
   const { handle } = await params;
   const data = await fetchCreator(decodeURIComponent(handle));
   if (!data) notFound();
-  return <CreatorProfileScreen data={data} />;
+  return (
+    <>
+      <ReferralBeacon code={data.creator.slug} />
+      <CreatorProfileScreen data={data} />
+    </>
+  );
 }

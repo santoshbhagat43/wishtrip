@@ -3,7 +3,9 @@
 import pytest
 
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.modules.creators import service as creators
+from app.modules.creators.models import Creator
 from app.modules.reels import service as reels
 from app.modules.reels.models import CreatorContent
 from tests.conftest import auth
@@ -403,6 +405,32 @@ async def test_creator_edits_the_name_on_their_page(client, admin, fake_reel):
     assert (await client.patch("/creators/me", json={"display_name": "No Login"})).status_code == 401
 
 
+async def test_creator_adds_and_updates_their_channels(client, admin):
+    headers = await _approved_creator(client, admin, "channels@creators.example.com")
+    r = await client.patch(
+        "/creators/me",
+        json={"instagram_url": "@Meera.Kamat", "youtube_url": "youtube.com/@meerakamat"},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["profile_url"] == "https://www.instagram.com/meera.kamat/"
+    assert r.json()["youtube_url"] == "https://www.youtube.com/@meerakamat"
+
+    r = await client.patch(
+        "/creators/me", json={"instagram_url": "https://instagram.com/meera/?hl=en"}, headers=headers
+    )
+    assert r.json()["profile_url"] == "https://www.instagram.com/meera/"
+    assert r.json()["youtube_url"] == "https://www.youtube.com/@meerakamat"  # not sent: kept
+
+    for bad in ("https://example.com/meera", "not a link"):
+        r = await client.patch("/creators/me", json={"instagram_url": bad}, headers=headers)
+        assert r.status_code == 400
+    assert (await client.patch("/creators/me", json={"youtube_url": "https://x.com/y"}, headers=headers)).status_code == 400
+
+    r = await client.patch("/creators/me", json={"instagram_url": "", "youtube_url": ""}, headers=headers)
+    assert r.json()["profile_url"] == "" and r.json()["youtube_url"] is None
+
+
 async def test_destinations_show_the_creator_trips_that_went_there(client, admin, fake_reel):
     staff = auth(admin)
     country = (
@@ -551,3 +579,12 @@ async def test_staff_cannot_work_for_an_unapproved_creator_or_one_with_no_accoun
         ghost_id = str(ghost.id)
     r = await client.get("/creator/links", headers={**staff, "X-Act-As-Creator": ghost_id})
     assert r.status_code == 400 and "hasn't signed in" in r.json()["detail"]
+
+
+async def test_a_creators_page_address_credits_them_by_handle_or_code(client):
+    async with SessionLocal() as session:
+        session.add(Creator(handle="pagelink", referral_code="code-pagelink"))
+        await session.commit()
+    for address in ("pagelink", "@PageLink", "code-pagelink"):
+        r = await client.post(f"/referrals/{address}/visit", json={"visitor_id": "v1"})
+        assert r.status_code == 200 and r.json()["referral_code"] == "code-pagelink"

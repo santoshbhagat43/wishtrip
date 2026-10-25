@@ -106,6 +106,8 @@ services:
       SSO_URL: ${SSO_URL}
       # The creator portal's own host, served by this same app (CREATOR_DOMAIN is Caddy's).
       CREATOR_URL: https://${CREATOR_DOMAIN}
+      # The traveller website's own address: the creator site sends visitors who aren't signed in there.
+      SITE_URL: https://${WEBSITE_DOMAIN}
       # Private preview: /gate asks for these. The gate stays on until SITE_PUBLIC=true (launch).
       SITE_USER: ${SITE_USER}
       SITE_PASSWORD: ${SITE_PASSWORD}

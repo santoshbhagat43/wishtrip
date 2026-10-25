@@ -12,6 +12,7 @@ import { useMe } from "@/lib/session";
 
 import { LINKS } from "../data";
 import { FlowHeader, Kicker, Why } from "../flow";
+import { copyText } from "@/lib/clipboard";
 
 const KIND_ICON: Record<string, typeof Landmark> = {
   sight: Landmark,
@@ -175,7 +176,7 @@ export function SharedTripScreen() {
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(here);
+                        copyText(here);
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       }}

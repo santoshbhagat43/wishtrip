@@ -5,8 +5,7 @@ import { Check, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { ReelLinkSteps, ReelsCard } from "@/components/creator/reel-links";
-import { TripTools } from "@/components/creator/trip-tools";
+import { ReelsCard } from "@/components/creator/reel-links";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, Empty, ErrorNote, Spinner } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { overallLink, rupees, withoutScheme } from "@/lib/creator";
 import { relativeTime, titleCase } from "@/lib/format";
 import { useMe } from "@/lib/session";
+import { copyText } from "@/lib/clipboard";
 
 type Overview = Schemas["CreatorOverview"];
 
@@ -226,15 +226,6 @@ export default function CreatorDashboardPage() {
 
         <div className="flex min-w-0 flex-col gap-5">
           <Affiliate overview={o} />
-          <ReelLinkSteps />
-          {o.status === "active" && (
-            <Card className="h-fit">
-              <CardHeader title="Your trips" description="Turn a reel into a trip travellers can follow and book." />
-              <div className="px-5 pb-5 pt-4">
-                <TripTools />
-              </div>
-            </Card>
-          )}
         </div>
       </div>
     </div>
@@ -315,7 +306,7 @@ function Affiliate({ overview: o }: { overview: Overview }) {
             type="button"
             variant="secondary"
             onClick={() => {
-              navigator.clipboard.writeText(link);
+              copyText(link);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}

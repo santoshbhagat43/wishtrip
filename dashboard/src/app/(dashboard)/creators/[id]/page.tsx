@@ -15,6 +15,7 @@ import { Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { CREATOR_STATUS, referralLink, rupees } from "@/lib/creators";
 import { relativeTime, titleCase } from "@/lib/format";
+import { copyText } from "@/lib/clipboard";
 
 type Creator = Schemas["CreatorDetail"];
 type Status = Creator["status"];
@@ -201,7 +202,7 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
               variant="secondary"
               size="sm"
               onClick={() => {
-                navigator.clipboard.writeText(link);
+                copyText(link);
                 setCopied(true);
               }}
             >
