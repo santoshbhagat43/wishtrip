@@ -16,7 +16,7 @@ const STEPS = [
 /** Home, editorial variant: a calm serif hero, three steps, and a destinations grid. */
 export function HomeAltScreen() {
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <B4Header />
 
       <section className="mx-auto max-w-[900px] px-4 pb-10 pt-[108px] text-center md:pt-[150px]">

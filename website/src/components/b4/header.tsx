@@ -50,13 +50,13 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
       <nav
         role="dialog"
         aria-label="Menu"
-        className="fixed inset-y-0 right-0 z-[90] flex w-full flex-col overflow-y-auto bg-[#FBF8F4] px-4 pb-6 pt-3.5 shadow-[-20px_0_60px_rgba(7,35,56,.2)] md:w-[400px] md:px-[26px] md:pt-[22px]"
+        className="fixed inset-y-0 right-0 z-[90] flex w-full flex-col overflow-y-auto bg-[#FFFFFF] px-4 pb-6 pt-3.5 shadow-[-20px_0_60px_rgba(7,35,56,.2)] md:w-[400px] md:px-[26px] md:pt-[22px]"
       >
         <div className="mb-3.5 flex items-center justify-between">
           <Image src={IMG.logo} alt="wishtrip" width={95} height={26} className="h-[26px] w-auto" />
           <RoundButton label="Close menu" d={CLOSE} onClick={onClose} />
         </div>
-        <div className="flex flex-col gap-2.5 rounded-[18px] border border-[#E8E1D8] bg-white p-4">
+        <div className="flex flex-col gap-2.5 rounded-[18px] border border-[#E3E8EE] bg-white p-4">
           <strong className="text-base">Sign in to wishtrip</strong>
           <span className="text-[13.5px] leading-[1.45] text-[#566E85]">See your trip boards, saved reels and bookings on any device.</span>
           <span className="flex gap-2">
@@ -70,10 +70,10 @@ export function MenuDrawer({ onClose }: { onClose: () => void }) {
               Create account
             </Link>
           </span>
-          <span className="text-xs text-[#8A7F72]">With an emailed code or Google. No passwords.</span>
+          <span className="text-xs text-[#5F6B78]">With an emailed code or Google. No passwords.</span>
         </div>
         <div className="flex flex-col">
-          <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">MENU</span>
+          <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]">MENU</span>
           {drawerLinks.map((item) => (
             <Link
               key={item.label}
@@ -116,7 +116,7 @@ export function B4Header({ solid = false }: { solid?: boolean }) {
     NAV.map((n) => ({ label: n.label, url: n.href, opens_in_new_tab: false }));
   return (
     <>
-      <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(251,248,244,0.97)] border-b border-[#EDE6DC] backdrop-blur" : ""}`}>
+      <header className={`absolute inset-x-0 top-0 z-30 flex h-[60px] items-center justify-between gap-7 px-4 md:h-[76px] md:justify-start md:px-10 ${solid ? "bg-[rgba(251,248,244,0.97)] border-b border-[#E8EDF2] backdrop-blur" : ""}`}>
         <Link href={LINKS.home} aria-label="wishtrip home" className="flex">
           <Image src={IMG.logo} alt="wishtrip" width={138} height={38} priority className="h-[31px] w-auto md:h-[38px]" />
         </Link>

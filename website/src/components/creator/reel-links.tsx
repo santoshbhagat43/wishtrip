@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Play, Plus, Upload } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { ItinerarySheet } from "@/components/creator/itinerary-sheet";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -480,8 +481,9 @@ function ReelModal({
   );
 }
 
-/** The itinerary sheet for one link, with its publishing wired to the server. */
-function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
+/** The itinerary sheet for one link, with its publishing wired to the server. It lives at
+ *  /creator/<itinerary id>, so it has its own address you can reload, share and go back from. */
+export function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
   const { patch } = useLinkActions(link);
   return (
     <ItinerarySheet
@@ -494,6 +496,23 @@ function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
   );
 }
 
+/** Coming back from an itinerary lands on /creator?reel=<id>: that reel opens again, which is
+ *  what "Back to reel" promises. */
+function ReelFromUrl({ links }: { links: Link[] }) {
+  const router = useRouter();
+  const id = useSearchParams().get("reel");
+  const link = links.find((l) => l.id === id);
+  if (!link) return null;
+  return (
+    <ReelModal
+      key={link.id}
+      link={link}
+      onOpenItinerary={() => link.trip_id && router.push(`/creator/${link.trip_id}`)}
+      onClose={() => router.replace("/creator")}
+    />
+  );
+}
+
 /**
  * The Reels card: a "Create link" button, a card for each reel the creator has made a link for
  * (click one for its link, numbers, channels and itinerary), then whatever the page puts below —
@@ -502,7 +521,7 @@ function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
 export function ReelsCard({ approved, children }: { approved: boolean; children?: ReactNode }) {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [sheetId, setSheetId] = useState<string | null>(null);
+  const router = useRouter();
   const links = useQuery({
     queryKey: ["creator-links"],
     queryFn: async () => unwrap(await api.GET("/creator/links")),
@@ -512,7 +531,6 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
 
   const items = links.data ?? [];
   const open = items.find((l) => l.id === openId) ?? null;
-  const sheet = items.find((l) => l.id === sheetId) ?? null;
 
   return (
     <>
@@ -551,10 +569,17 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
       </Card>
 
       {creating && <CreateLinkModal onClose={() => setCreating(false)} />}
-      {open && !sheet && (
-        <ReelModal key={open.id} link={open} onOpenItinerary={() => setSheetId(open.id)} onClose={() => setOpenId(null)} />
+      {open && (
+        <ReelModal
+          key={open.id}
+          link={open}
+          onOpenItinerary={() => open.trip_id && router.push(`/creator/${open.trip_id}`)}
+          onClose={() => setOpenId(null)}
+        />
       )}
-      {sheet && <SheetFor link={sheet} onClose={() => setSheetId(null)} />}
+      <Suspense fallback={null}>
+        <ReelFromUrl links={items} />
+      </Suspense>
     </>
   );
 }

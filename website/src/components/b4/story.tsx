@@ -39,15 +39,15 @@ function StartPanel({ onClose }: { onClose: () => void }) {
     <div
       role="dialog"
       aria-label="Start planning"
-      className="relative z-[45] mt-1 flex w-[560px] max-w-full flex-col gap-3 rounded-3xl border border-[#E8E1D8] bg-white p-[18px] text-left shadow-[0_30px_70px_rgba(7,35,56,.22)]"
+      className="relative z-[45] mt-1 flex w-[560px] max-w-full flex-col gap-3 rounded-3xl border border-[#E3E8EE] bg-white p-[18px] text-left shadow-[0_30px_70px_rgba(7,35,56,.22)]"
     >
       <div className="flex items-center justify-between">
         <strong className="text-[17px]">How do you want to start?</strong>
-        <button type="button" onClick={onClose} aria-label="Close" className="grid size-9 cursor-pointer place-items-center rounded-full bg-[#F4EFE8]">
+        <button type="button" onClick={onClose} aria-label="Close" className="grid size-9 cursor-pointer place-items-center rounded-full bg-[#F3F6F9]">
           <Path d={CLOSE} size={20} stroke="#0D2436" />
         </button>
       </div>
-      <div role="radiogroup" aria-label="Start with" className="grid grid-cols-2 gap-1.5 rounded-[14px] bg-[#F4EFE8] p-1">
+      <div role="radiogroup" aria-label="Start with" className="grid grid-cols-2 gap-1.5 rounded-[14px] bg-[#F3F6F9] p-1">
         {(
           [
             ["describe", "Describe it", "M4 6h16M4 12h10M4 18h7"],
@@ -115,7 +115,7 @@ function StartPanel({ onClose }: { onClose: () => void }) {
               placeholder="instagram.com/reel/…"
               className="rounded-[14px] border-[1.5px] border-[#E3DCD2] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
             />
-            <span className="text-xs text-[#8A7F72]">Works with public Instagram reels.</span>
+            <span className="text-xs text-[#5F6B78]">Works with public Instagram reels.</span>
             <button type="submit" className="cursor-pointer rounded-full border-0 bg-[#072338] p-3.5 text-center text-base font-semibold text-white">
               Get the trip from this reel →
             </button>
@@ -339,7 +339,7 @@ function StoryVariant({ variant }: { variant: Variant }) {
 
   return (
     <div ref={section} className={`relative ${variant === "mobile" ? "h-[2244px] md:hidden" : "hidden h-[2400px] md:block"}`}>
-      <div className="sticky top-0 h-[100svh] overflow-hidden" style={{ background: "radial-gradient(120% 70% at 50% 0%, #FDEBDD 0%, #FBF8F4 55%)" }}>
+      <div className="sticky top-0 h-[100svh] overflow-hidden" style={{ background: "radial-gradient(120% 70% at 50% 0%, #FDEBDD 0%, #FFFFFF 55%)" }}>
         <B4Header />
         <div
           className="absolute left-1/2 top-0"

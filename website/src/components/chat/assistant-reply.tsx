@@ -137,7 +137,7 @@ export function AssistantReply({
         )}
         {inlinePlan && (
           <div>
-            <button onClick={() => setBookingOpen(true)} className="inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-strong">
+            <button onClick={() => setBookingOpen(true)} className="inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-navy hover:bg-accent-strong">
               <Ticket className="size-4" /> Book this trip
             </button>
             {bookingOpen && (

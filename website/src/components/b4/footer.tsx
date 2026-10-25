@@ -26,7 +26,7 @@ export function SiteFooter() {
       <div className="flex flex-wrap gap-x-12 gap-y-6">
         {cols.map((g) => (
           <div key={g.slug} className="flex min-w-[120px] flex-col gap-2">
-            <span className="text-[11px] font-bold tracking-[.14em] text-[#8A7F72]">{g.name.toUpperCase()}</span>
+            <span className="text-[11px] font-bold tracking-[.14em] text-[#5F6B78]">{g.name.toUpperCase()}</span>
             {g.items.map((i) => (
               <Link
                 key={i.label}
@@ -41,7 +41,7 @@ export function SiteFooter() {
           </div>
         ))}
       </div>
-      <span className="text-[12.5px] text-[#8A7F72]">© wishtrip · Travel your way</span>
+      <span className="text-[12.5px] text-[#5F6B78]">© wishtrip · Travel your way</span>
     </footer>
   );
 }

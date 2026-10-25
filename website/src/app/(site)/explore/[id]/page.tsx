@@ -47,7 +47,7 @@ export default function DestinationPage() {
           <h1 className="mt-3 text-[44px] leading-tight">{d.name}</h1>
           <p className="text-white/85">{[d.region, d.country].filter(Boolean).join(" · ")} · {d.place_count} places</p>
           {d.summary && <p className="mt-2 max-w-2xl text-white/90">{d.summary}</p>}
-          <Link href={me ? `/plan?prompt=${encodeURIComponent(`Plan a trip to ${d.name}`)}` : "/signup"} className="mt-6 inline-block rounded-full bg-accent px-6 py-3 font-semibold text-white hover:bg-accent-strong">
+          <Link href={me ? `/plan?prompt=${encodeURIComponent(`Plan a trip to ${d.name}`)}` : "/signup"} className="mt-6 inline-block rounded-full bg-accent px-6 py-3 font-semibold text-navy hover:bg-accent-strong">
             Plan a trip to {d.name}
           </Link>
         </div>

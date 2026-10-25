@@ -79,7 +79,7 @@ export function ReelScreen() {
   else body = <Working job={job} />;
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader step={1} title="Reel to trip" subtitle="Step 1 of 3" back={LINKS.home} />
       {body}
     </div>
@@ -153,10 +153,10 @@ function PasteForm({ error = "" }: { error?: string }) {
         </button>
       </form>
 
-      <div className="flex items-center gap-3 text-[13px] text-[#8A7F72]">
-        <span className="h-px flex-1 bg-[#E8E1D8]" />
+      <div className="flex items-center gap-3 text-[13px] text-[#5F6B78]">
+        <span className="h-px flex-1 bg-[#E3E8EE]" />
         or
-        <span className="h-px flex-1 bg-[#E8E1D8]" />
+        <span className="h-px flex-1 bg-[#E3E8EE]" />
       </div>
 
       <input
@@ -179,7 +179,7 @@ function PasteForm({ error = "" }: { error?: string }) {
         <span className="text-[15px] font-semibold text-[#0D2436]">
           {uploading ? "Uploading your video…" : "Browse a video from your device"}
         </span>
-        <span className="text-[13px] text-[#8A7F72]">
+        <span className="text-[13px] text-[#5F6B78]">
           {uploading ? "Hang on a moment" : "MP4 or MOV from your phone or computer"}
         </span>
       </button>
@@ -207,7 +207,7 @@ function Working({ job }: { job: ReelImport | null }) {
           const done = i < current;
           const now = i === current || (current === -1 && i === 0);
           return (
-            <li key={step} className={`flex items-center gap-3 text-[15px] ${done ? "text-[#0B7A57]" : now ? "font-semibold text-[#0D2436]" : "text-[#8A7F72]"}`}>
+            <li key={step} className={`flex items-center gap-3 text-[15px] ${done ? "text-[#0B7A57]" : now ? "font-semibold text-[#0D2436]" : "text-[#5F6B78]"}`}>
               <span
                 aria-hidden="true"
                 className={`grid size-6 flex-none place-items-center rounded-full ${done ? "bg-[#E3F5EE]" : now ? "border-2 border-[#22DDE0]" : "border-[1.5px] border-[#E3DCD2]"}`}
@@ -264,7 +264,7 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
         <label
           key={p.name}
           className="flex cursor-pointer items-center gap-3 rounded-2xl border bg-white px-3 py-2.5 transition-opacity"
-          style={{ borderColor: on ? "#BDEFF0" : "#E8E1D8", opacity: on ? 1 : 0.5 }}
+          style={{ borderColor: on ? "#BDEFF0" : "#E3E8EE", opacity: on ? 1 : 0.5 }}
         >
           <input type="checkbox" checked={on} onChange={() => setOff({ ...off, [p.name]: on })} className="size-[22px] flex-none accent-[#0A7C80]" />
           <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
@@ -286,7 +286,7 @@ function ReelResult({ job, content }: { job: ReelImport; content: ReelContent })
       );
     })
   ) : (
-    <p className="m-0 rounded-2xl bg-[#F4EFE8] p-4 text-sm text-[#3F5A72]">
+    <p className="m-0 rounded-2xl bg-[#F3F6F9] p-4 text-sm text-[#3F5A72]">
       We couldn’t find named places in this reel. Tell Arya what caught your eye and she’ll plan around it.
     </p>
   );

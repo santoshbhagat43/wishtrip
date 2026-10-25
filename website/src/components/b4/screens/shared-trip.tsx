@@ -31,7 +31,7 @@ const PRICE_ROWS = [
   ["Taxes & fees", "₹3,400"],
 ] as const;
 
-const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E8E1D8] bg-white p-3.5";
+const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E3E8EE] bg-white p-3.5";
 
 /** What the board says about each booking. The wording follows the prototype; the destination
  *  is the trip's own, and the prices are samples. */
@@ -99,7 +99,7 @@ export function SharedTripScreen() {
 
   if (trip.isLoading) {
     return (
-      <div className="min-h-dvh bg-[#FBF8F4]">
+      <div className="min-h-dvh bg-[#FFFFFF]">
         {header("Trip board", "Loading")}
         <p className="p-10 text-center text-[#566E85]">Loading the trip board…</p>
       </div>
@@ -107,7 +107,7 @@ export function SharedTripScreen() {
   }
   if (!trip.data) {
     return (
-      <div className="min-h-dvh bg-[#FBF8F4]">
+      <div className="min-h-dvh bg-[#FFFFFF]">
         {header("Trip board", "Not available")}
         <main className="mx-auto max-w-[640px] px-6 py-16">
           <h1 className="font-display text-[32px] font-medium leading-tight">This trip isn’t available</h1>
@@ -132,7 +132,7 @@ export function SharedTripScreen() {
   const here = typeof window === "undefined" ? "" : window.location.href;
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4] text-[#0D2436]">
+    <div className="min-h-dvh bg-[#FFFFFF] text-[#0D2436]">
       {header(t.title, `${days.length} ${days.length === 1 ? "day" : "days"} · by ${who}`)}
 
       <main className="mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-7 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pb-[72px] md:pt-8">
@@ -168,7 +168,7 @@ export function SharedTripScreen() {
                 <div
                   role="group"
                   aria-label="Share with family"
-                  className="absolute right-0 top-[calc(100%+8px)] z-10 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E8E1D8] bg-white p-4 shadow-lg"
+                  className="absolute right-0 top-[calc(100%+8px)] z-10 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E3E8EE] bg-white p-4 shadow-lg"
                 >
                   <strong className="text-sm">Send it to the people coming with you</strong>
                   <div className="flex gap-2">
@@ -221,7 +221,7 @@ export function SharedTripScreen() {
             <Kicker>DAY BY DAY</Kicker>
             <div className="grid auto-cols-[236px] grid-flow-col gap-2.5 overflow-x-auto pb-1.5">
               {days.map((d: ItineraryDay) => (
-                <div key={d.n} className="flex min-w-0 flex-col gap-2 rounded-[20px] bg-[#F4EFE8] p-3">
+                <div key={d.n} className="flex min-w-0 flex-col gap-2 rounded-[20px] bg-[#F3F6F9] p-3">
                   <span className="flex flex-col gap-px px-1 pb-1.5 pt-0.5">
                     <span className="text-[11.5px] font-bold text-[#0A7C80]">DAY {d.n}</span>
                     <strong className="font-display line-clamp-2 text-lg font-medium leading-[1.2]">
@@ -234,16 +234,16 @@ export function SharedTripScreen() {
                   {d.stops.map((s, i) => {
                     const Icon = KIND_ICON[s.kind] ?? Landmark;
                     return (
-                      <div key={`${s.name}-${i}`} className="flex items-center gap-2.5 rounded-[14px] border border-[#E8E1D8] bg-white p-2.5">
-                        <span aria-hidden="true" className="grid size-11 flex-none place-items-center rounded-[10px] bg-[#F4EFE8] text-[#3F5A72]">
+                      <div key={`${s.name}-${i}`} className="flex items-center gap-2.5 rounded-[14px] border border-[#E3E8EE] bg-white p-2.5">
+                        <span aria-hidden="true" className="grid size-11 flex-none place-items-center rounded-[10px] bg-[#F3F6F9] text-[#3F5A72]">
                           <Icon className="size-[18px]" strokeWidth={1.8} />
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                          <span className="text-[11.5px] font-semibold text-[#8A7F72]">{s.when}</span>
+                          <span className="text-[11.5px] font-semibold text-[#5F6B78]">{s.when}</span>
                           <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
                           <span className="self-start">
                             {s.origin === "suggested" ? (
-                              <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EFE9DF] px-[9px] py-0.5 text-[10.5px] font-bold text-[#6B5F50]">
+                              <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EEF2F6] px-[9px] py-0.5 text-[10.5px] font-bold text-[#3F5A72]">
                                 Suggested · not from the reel
                               </span>
                             ) : (
@@ -263,14 +263,14 @@ export function SharedTripScreen() {
                 </div>
               ))}
             </div>
-            <span className="text-[12.5px] text-[#8A7F72]">
+            <span className="text-[12.5px] text-[#5F6B78]">
               Scroll sideways for all {days.length} {days.length === 1 ? "day" : "days"}
             </span>
           </div>
         </section>
 
         <aside className="flex flex-col gap-3.5 md:sticky md:top-[100px]">
-          <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E8E1D8] bg-white p-5">
+          <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-5">
             <Kicker>ONE PRICE, EVERYTHING IN</Kicker>
             {PRICE_ROWS.map(([label, price]) => (
               <span key={label} className="flex justify-between text-[13.5px] text-[#3F5A72]">
@@ -278,7 +278,7 @@ export function SharedTripScreen() {
                 <span className="font-semibold tabular-nums text-[#0D2436]">{price}</span>
               </span>
             ))}
-            <span className="mt-0.5 flex items-baseline justify-between border-t border-[#EDE6DC] pt-3">
+            <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
               <strong className="text-[15px]">Total for 3</strong>
               <strong className="text-[30px] tabular-nums">₹46,200</strong>
             </span>
@@ -289,10 +289,10 @@ export function SharedTripScreen() {
               Book in one go
             </Link>
             <span className="text-center text-xs text-[#566E85]">Nothing is charged until you choose at checkout</span>
-            <span className="text-center text-[11px] text-[#8A7F72]">Sample prices while bookings are being set up.</span>
+            <span className="text-center text-[11px] text-[#5F6B78]">Sample prices while bookings are being set up.</span>
           </div>
 
-          <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E8E1D8] bg-white p-4">
+          <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-4">
             <span className="flex items-center gap-2.5">
               <span
                 aria-hidden="true"

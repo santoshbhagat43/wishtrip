@@ -52,7 +52,7 @@ export function FlowHeader({
   return (
     <>
       {/* Desktop */}
-      <header className="sticky top-0 z-20 hidden border-b border-[#EDE6DC] bg-[rgba(251,248,244,.96)] md:block">
+      <header className="sticky top-0 z-20 hidden border-b border-[#E8EDF2] bg-[rgba(251,248,244,.96)] md:block">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-5 px-10 py-3.5">
           <Link href={LINKS.home} aria-label="wishtrip home" className="flex">
             <Image src={IMG.logo} alt="wishtrip" width={116} height={32} className="h-8 w-auto" />
@@ -74,7 +74,7 @@ export function FlowHeader({
                 return (
                   <Fragment key={label}>
                     {i > 0 && <li aria-hidden="true" className="h-[1.5px] w-7 bg-[#E3DCD2]" />}
-                    <li aria-current={current ? "step" : undefined} className="flex items-center gap-2" style={{ color: done ? "#0B7A57" : current ? "#0D2436" : "#8A7F72" }}>
+                    <li aria-current={current ? "step" : undefined} className="flex items-center gap-2" style={{ color: done ? "#0B7A57" : current ? "#0D2436" : "#5F6B78" }}>
                       {done ? (
                         <span className="grid size-6 place-items-center rounded-full bg-[#E3F5EE]">
                           <Path d={CHECK} size={13} stroke="#0B7A57" width={2.6} />
@@ -110,7 +110,7 @@ export function FlowHeader({
       </header>
 
       {/* Mobile */}
-      <header className="relative z-[5] flex-none border-b border-[#EDE6DC] bg-[#FBF8F4] md:hidden">
+      <header className="relative z-[5] flex-none border-b border-[#E8EDF2] bg-[#FFFFFF] md:hidden">
         <div className="flex items-center gap-1.5 pb-2 pl-1 pr-3 pt-2.5">
           {back ? (
             <Link href={back} aria-label="Back" className="grid size-11 flex-none place-items-center text-[#0D2436]">
@@ -123,7 +123,7 @@ export function FlowHeader({
           )}
           <span className="flex min-w-0 flex-1 flex-col">
             <strong className="truncate text-base font-semibold">{title}</strong>
-            <span className="text-[11.5px] text-[#8A7F72]">{subtitle}</span>
+            <span className="text-[11.5px] text-[#5F6B78]">{subtitle}</span>
           </span>
           <RoundButton label="Open menu" d={MENU} onClick={() => setMenu(true)} />
         </div>
@@ -134,7 +134,7 @@ export function FlowHeader({
               const done = n < step;
               const current = n === step;
               return (
-                <li key={label} aria-current={current ? "step" : undefined} className="flex flex-col gap-[5px]" style={{ color: done ? "#0B7A57" : current ? "#0D2436" : "#8A7F72" }}>
+                <li key={label} aria-current={current ? "step" : undefined} className="flex flex-col gap-[5px]" style={{ color: done ? "#0B7A57" : current ? "#0D2436" : "#5F6B78" }}>
                   <span className="h-1 rounded-full" style={{ background: done ? "#0B7A57" : current ? "#22DDE0" : "#E3DCD2" }} />
                   {label}
                 </li>
@@ -150,7 +150,7 @@ export function FlowHeader({
 
 /** Small caps label above a block ("WHO'S COMING", "DAY BY DAY"…). */
 export function Kicker({ children, teal = false, className = "" }: { children: React.ReactNode; teal?: boolean; className?: string }) {
-  return <span className={`text-[11px] font-bold tracking-[.14em] ${teal ? "text-[#0A7C80]" : "text-[#8A7F72]"} ${className}`}>{children}</span>;
+  return <span className={`text-[11px] font-bold tracking-[.14em] ${teal ? "text-[#0A7C80]" : "text-[#5F6B78]"} ${className}`}>{children}</span>;
 }
 
 /** The cyan "why it's on your board" tag. */
@@ -180,6 +180,6 @@ export function MobileBar({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const CARD = "rounded-[20px] border border-[#E8E1D8] bg-white";
+export const CARD = "rounded-[20px] border border-[#E3E8EE] bg-white";
 export const SELECTED = "border-2 border-[#072338] shadow-[0_0_0_3px_#DCF8F9]";
 export const UNSELECTED = "border-[1.5px] border-[#E3DCD2]";

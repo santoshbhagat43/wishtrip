@@ -31,7 +31,7 @@ const STATS = [
 /** A creator's published trip: the reel it came from, the route, and the day-by-day. */
 export function TripScreen() {
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <B4Header />
 
       <main className="mx-auto grid max-w-[1240px] grid-cols-1 items-start gap-10 px-4 pb-16 pt-[84px] md:grid-cols-[300px_1fr] md:px-10 md:pt-[116px] lg:grid-cols-[300px_1fr_300px]">
@@ -96,7 +96,7 @@ export function TripScreen() {
                   <span className="text-[11.5px] font-bold tracking-[.1em] text-[#0A7C80]">DAY {d.n} · {d.place}</span>
                   <strong className="font-display text-[19px] font-medium leading-tight">{d.title}</strong>
                   <span className="text-[13.5px] text-[#566E85]">{d.body}</span>
-                  <span className="text-[12.5px] font-semibold text-[#8A7F72]">▶ In the reel at {d.t}</span>
+                  <span className="text-[12.5px] font-semibold text-[#5F6B78]">▶ In the reel at {d.t}</span>
                 </span>
               </div>
             ))}

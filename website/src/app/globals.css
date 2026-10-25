@@ -1,63 +1,69 @@
 @import "tailwindcss";
 
-/* WishTrip Design Tokens v1.0 (client design system: client_work/brand-tokens.css).
-   Teal is the single interaction voice; coral is for commit + delight only. */
+/* WishTrip palette: the "Option B4 · final · white" prototype. White ground, ink-navy text, one
+   teal interaction voice, a cyan commit button, and a few quiet signal colours. */
 :root {
-  --bg: #fbf8f2;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f6f1e8;
-  --border: #e9e1d4;
-  --text: #16211e;
-  --muted: #57635e;
-  --brand: #0e5e52;
-  --brand-strong: #147a6b;
-  --brand-soft: #e9f3f0;
+  --surface-2: #f3f6f9;
+  --border: #e3e8ee;
+  --text: #0d2436;
+  --muted: #566e85;
+  --brand: #0a7c80;
+  --brand-strong: #086a6d;
+  --brand-soft: #dcf8f9;
   --on-brand: #ffffff;
-  --accent: #e8663d;
-  --accent-strong: #c6522e;
-  --accent-soft: #fbe7dc;
-  --accent-text: #c6522e;
-  --value: #efa23f;
-  --value-soft: #f7ebd3;
-  --ok: #1e7a5a;
-  --ok-soft: #e4f2ec;
-  --warn: #b87814;
-  --warn-soft: #f7ebd3;
-  --danger: #c0492b;
-  --danger-soft: #fae6df;
-  --info: #147a6b;
-  --info-soft: #e9f3f0;
-  --shadow-sm: 0 1px 3px rgba(22, 33, 30, 0.07);
-  --shadow-md: 0 8px 22px rgba(22, 33, 30, 0.1);
+  --accent: #22dde0;
+  --accent-strong: #14c9cc;
+  --accent-soft: #dcf8f9;
+  --accent-text: #0a6b6e;
+  --navy: #072338;
+  --value: #e8a93b;
+  --value-soft: #fdf1d6;
+  --ok: #0b7a57;
+  --ok-soft: #e3f5ee;
+  --warn: #b86e00;
+  --warn-soft: #fdf1d6;
+  --danger: #c43b58;
+  --danger-soft: #fbe6eb;
+  --info: #1a6094;
+  --info-soft: #e8f0fe;
+  --ai: #7a4e9a;
+  --ai-soft: #f4f0fa;
+  --shadow-sm: 0 1px 3px rgba(13, 36, 54, 0.07);
+  --shadow-md: 0 8px 22px rgba(13, 36, 54, 0.1);
 }
 
-/* Dark theme: warm pine-ink, never cold slate. */
+/* Dark theme: the prototype's deep navy ground. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1513;
-    --surface: #131d1a;
-    --surface-2: #1a2622;
-    --border: #24322d;
-    --text: #edefe9;
-    --muted: #a3afa8;
-    --brand: #2e9b87;
-    --brand-strong: #57b8a3;
-    --brand-soft: #12332d;
-    --on-brand: #08221e;
-    --accent: #e8663d;
-    --accent-strong: #f2916e;
-    --accent-soft: #3a2119;
-    --accent-text: #f2916e;
-    --value: #efa23f;
+    --bg: #0b1620;
+    --surface: #121f2b;
+    --surface-2: #172a3a;
+    --border: #24384a;
+    --text: #e6eef4;
+    --muted: #97abbd;
+    --brand: #3fd6d9;
+    --brand-strong: #6be3e5;
+    --brand-soft: #123a44;
+    --on-brand: #062230;
+    --accent: #22dde0;
+    --accent-strong: #5be8ea;
+    --accent-soft: #123a44;
+    --accent-text: #5be8ea;
+    --navy: #e6eef4;
+    --value: #e8a93b;
     --value-soft: #332711;
     --ok: #37a57e;
     --ok-soft: #143026;
     --warn: #d69a3c;
     --warn-soft: #332711;
-    --danger: #e06842;
-    --danger-soft: #3a1f16;
-    --info: #57b8a3;
-    --info-soft: #12332d;
+    --danger: #ea6a85;
+    --danger-soft: #3a1b25;
+    --info: #6fa8dc;
+    --info-soft: #16293b;
+    --ai: #b79be0;
+    --ai-soft: #231b30;
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.45);
   }
@@ -88,6 +94,9 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-navy: var(--navy);
+  --color-ai: var(--ai);
+  --color-ai-soft: var(--ai-soft);
   --font-sans: var(--font-ui);
   --font-display: var(--font-display-serif);
   --font-mono: var(--font-geist-mono);

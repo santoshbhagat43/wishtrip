@@ -14,7 +14,7 @@ export function BookedScreen() {
   const where = imp.data?.content?.destination_name || "your trip";
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader title="Booked" subtitle={`Your ${where} trip`} signedIn nav />
       <main className="mx-auto flex max-w-[620px] flex-col gap-4 px-4 py-16 text-center">
         <span className="self-center"><DonePill size={13}>Trip confirmed</DonePill></span>

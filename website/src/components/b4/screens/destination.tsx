@@ -43,7 +43,7 @@ const TIPS = [
 /** A destination showcase (Goa): the place, how to split it, creator reels, and local tips. */
 export function DestinationScreen() {
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <B4Header />
 
       {/* Hero */}

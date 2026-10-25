@@ -13,7 +13,7 @@ import { useReelImport } from "../trip-journey";
 type Count = "adults" | "kids" | "seniors";
 const FIELD =
   "rounded-xl border-[1.5px] border-[#E3DCD2] bg-white px-3.5 py-[13px] text-[15.5px] font-medium tracking-normal text-[#0D2436] outline-none focus:border-[#0A7C80]";
-const LABEL = "flex flex-col gap-2 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]";
+const LABEL = "flex flex-col gap-2 text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]";
 
 /** Step 2a: who's coming, when, how many days and pace — from the reel you just imported. */
 export function DetailsScreen() {
@@ -48,7 +48,7 @@ export function DetailsScreen() {
   const form = (
     <div className={`${CARD} flex flex-col gap-[22px] rounded-3xl p-4 md:p-[26px]`}>
       <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
-        <legend className="mb-2.5 p-0 text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">WHO’S COMING</legend>
+        <legend className="mb-2.5 p-0 text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]">WHO’S COMING</legend>
         <div role="radiogroup" aria-label="Who’s coming" className="grid grid-cols-5 gap-1.5 md:gap-2.5">
           {GROUPS.map((g) => (
             <button
@@ -72,7 +72,7 @@ export function DetailsScreen() {
         </div>
         <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-3">
           {PEOPLE.map((p) => (
-            <div key={p.key} className="flex items-center justify-between gap-2 rounded-[14px] border border-[#E8E1D8] bg-white py-1.5 pl-3.5 pr-1.5">
+            <div key={p.key} className="flex items-center justify-between gap-2 rounded-[14px] border border-[#E3E8EE] bg-white py-1.5 pl-3.5 pr-1.5">
               <span className="flex flex-col">
                 <strong className="text-sm font-semibold">{p.label}</strong>
                 <span className="text-xs text-[#566E85]">{p.hint}</span>
@@ -103,7 +103,7 @@ export function DetailsScreen() {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        <span className="text-[10.5px] font-bold tracking-[.14em] text-[#8A7F72]">PACE</span>
+        <span className="text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]">PACE</span>
         <div role="radiogroup" aria-label="Pace" className="grid grid-cols-3 gap-2">
           {PACES.map((p) => (
             <button
@@ -124,7 +124,7 @@ export function DetailsScreen() {
   );
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader step={2} title={`Your ${where} trip`} subtitle="Your details" back={LINKS.reel} signedIn />
       {imp.isLoading ? (
         <p className="p-10 text-center text-[#566E85]">Loading your reel…</p>
@@ -162,7 +162,7 @@ export function DetailsScreen() {
               <button onClick={next} className="rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white">
                 Build my board →
               </button>
-              <span className="text-center text-xs text-[#8A7F72]">{days} days · {travellers.toLowerCase()}</span>
+              <span className="text-center text-xs text-[#5F6B78]">{days} days · {travellers.toLowerCase()}</span>
             </aside>
           </main>
         </>

@@ -73,7 +73,7 @@ export function PhoneField({
           {flag(country)}
         </span>
         <span aria-hidden className="font-semibold tracking-normal">+{current?.dial}</span>
-        <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 text-[#8A7F72]" fill="none" stroke="currentColor" strokeWidth={2.4}>
+        <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 text-[#5F6B78]" fill="none" stroke="currentColor" strokeWidth={2.4}>
           <path d="M6 9l6 6 6-6" />
         </svg>
         <select

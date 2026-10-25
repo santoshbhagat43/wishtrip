@@ -16,7 +16,7 @@ export function CreatorReels() {
   const [sort, setSort] = useState<SortId>("booked");
   const reels = [...REELS].sort((a, b) => b[sort] - a[sort]);
   return (
-    <section id="b4-reels" className="bg-[#FBF8F4] px-4 py-11 md:px-10 md:py-[104px]">
+    <section id="b4-reels" className="bg-[#FFFFFF] px-4 py-11 md:px-10 md:py-[104px]">
       <div className="mx-auto max-w-[1200px]">
         <SectionHead
           eyebrow="CREATOR TRIPS"
@@ -81,7 +81,7 @@ export function TravellerTrips() {
   const [filter, setFilter] = useState<FilterId>("all");
   const trips = TRAVELLER_TRIPS.filter((t) => filter === "all" || t.type === filter);
   return (
-    <section id="b4-travellers" className="bg-[#FBF8F4] px-4 py-11 md:px-10 md:py-[104px]">
+    <section id="b4-travellers" className="bg-[#FFFFFF] px-4 py-11 md:px-10 md:py-[104px]">
       <div className="mx-auto max-w-[1200px]">
         <SectionHead
           eyebrow="REAL TRIPS, REAL TRAVELLERS"

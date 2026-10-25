@@ -58,6 +58,15 @@ async function approvedCreator(page: Page, request: import("@playwright/test").A
   return me;
 }
 
+/** The itinerary shows one day at a time: open the first day that has this stop. */
+async function openDayWith(sheet: import("@playwright/test").Locator, what: string | RegExp) {
+  for (const tab of await sheet.getByRole("tab").all()) {
+    await tab.click();
+    if (await sheet.getByText(what, typeof what === "string" ? { exact: true } : {}).count()) return;
+  }
+  throw new Error(`No day has ${what}`);
+}
+
 test.describe("Reel links", () => {
   test("a creator makes a link, adds the reel, gets an itinerary, and publishes it", async ({
     page,
@@ -132,11 +141,25 @@ test.describe("Reel links", () => {
     // 5. Open the itinerary: the stops that were read, in days, each traced back to the reel.
     await reel.getByRole("button", { name: "Open itinerary" }).click();
     const sheet = page.getByRole("dialog", { name: "Itinerary: Goa beach weekend" });
-    await expect(sheet.getByText("DAY 1")).toBeVisible();
+    await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
+    // The itinerary has its own address, /creator/<itinerary id>: it survives a reload, and
+    // Back returns to the reel it was opened from.
+    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/creator/[0-9a-f-]{36}$`));
+    await page.reload();
+    await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(sheet).toHaveCount(0);
+    await page.goForward();
+    await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
     await expect(sheet.getByText("From your reel", { exact: true })).toBeVisible();
+    await openDayWith(sheet, "Fort Aguada");
     await expect(sheet.getByText("Fort Aguada", { exact: true })).toBeVisible();
+    await openDayWith(sheet, "Old Goa churches");
     await expect(sheet.getByText("Old Goa churches", { exact: true })).toBeVisible();
+    await openDayWith(sheet, /From the reel · 0:04/);
     await expect(sheet.getByText(/From the reel · 0:04/)).toBeVisible();
+    await sheet.getByRole("tab", { name: /Day 1/ }).click();
     await expect(sheet.getByText("Not published")).toBeVisible();
     // The bookings that come with the board, and sharing it with family.
     await expect(sheet.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
@@ -199,7 +222,9 @@ test.describe("Reel links", () => {
     await visitor.close();
     await sheet.getByRole("button", { name: "Back to reel" }).click();
     await expect(sheet).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/creator\\?reel=`));
     await reel.getByRole("button", { name: "Close" }).click();
+    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
     await expect(card).toContainText("Not published");
 
     expect(pageErrors).toEqual([]);
@@ -276,13 +301,16 @@ test.describe("Reel links", () => {
 
     await reel.getByRole("button", { name: "Open itinerary" }).click();
     const sheet = page.getByRole("dialog", { name: "Itinerary: Bali in four days" });
-    await expect(sheet.getByText("DAY 1")).toBeVisible();
+    await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
     // What the video says out loud and shows on screen: the places, and where on screen they showed.
+    await openDayWith(sheet, /Uluwatu/);
     await expect(sheet.getByText(/Uluwatu/).first()).toBeVisible();
+    await openDayWith(sheet, /From the reel · \d+:\d\d/);
     await expect(sheet.getByText(/From the reel · \d+:\d\d/).first()).toBeVisible();
     // The video names five places and says "4 days": the itinerary is made whole, and says which
     // stops are the video's and which were added.
-    await expect(sheet.getByText("DAY 4")).toBeVisible();
+    await expect(sheet.getByRole("tab", { name: /Day 4/ })).toBeVisible();
+    await openDayWith(sheet, "Suggested · not from the reel");
     await expect(sheet.getByText("Suggested · not from the reel").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
   });

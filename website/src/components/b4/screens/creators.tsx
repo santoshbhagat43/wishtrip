@@ -45,7 +45,7 @@ const DASH: [label: string, value: string, accent?: boolean][] = [
 /** The creator program landing: how earning works, what you get, and a way in. */
 export function CreatorsScreen({ signInHref }: { signInHref: string }) {
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <B4Header solid />
 
       {/* Hero (dark) */}
@@ -92,13 +92,13 @@ export function CreatorsScreen({ signInHref }: { signInHref: string }) {
             </div>
             <div className="mt-3 flex flex-col">
               {DASH.map(([k, v, accent], i) => (
-                <span key={k} className={`flex items-center justify-between py-3 text-[13.5px] ${i < DASH.length - 1 ? "border-b border-[#EDE6DC]" : ""}`}>
+                <span key={k} className={`flex items-center justify-between py-3 text-[13.5px] ${i < DASH.length - 1 ? "border-b border-[#E8EDF2]" : ""}`}>
                   <span className="text-[#566E85]">{k}</span>
                   <strong className={accent ? "text-[#0B7A57]" : "text-[#0D2436]"}>{v}</strong>
                 </span>
               ))}
             </div>
-            <p className="mt-3 text-[12px] text-[#8A7F72]">Paid to your bank on the 5th of every month.</p>
+            <p className="mt-3 text-[12px] text-[#5F6B78]">Paid to your bank on the 5th of every month.</p>
           </div>
         </div>
       </section>
@@ -124,7 +124,7 @@ export function CreatorsScreen({ signInHref }: { signInHref: string }) {
               <Kicker>QUESTIONS</Kicker>
               <dl className="mt-3 flex flex-col">
                 {FAQ.map(([q, a]) => (
-                  <div key={q} className="border-b border-[#EDE6DC] py-4">
+                  <div key={q} className="border-b border-[#E8EDF2] py-4">
                     <dt className="text-[16px] font-semibold">{q}</dt>
                     <dd className="m-0 mt-1 text-[14.5px] text-[#566E85]">{a}</dd>
                   </div>
@@ -142,7 +142,7 @@ export function CreatorsScreen({ signInHref }: { signInHref: string }) {
 
 const INPUT =
   "rounded-[11px] border-[1.5px] border-[#E3DCD2] bg-white p-3 text-[15px] text-[#0D2436] outline-none focus:border-[#0A7C80]";
-const FLABEL = "flex flex-col gap-1.5 text-[11px] font-bold tracking-[.12em] text-[#8A7F72]";
+const FLABEL = "flex flex-col gap-1.5 text-[11px] font-bold tracking-[.12em] text-[#5F6B78]";
 const FOLLOWERS = ["Under 10k", "10k to 50k", "50k to 200k", "200k+"];
 
 /** A channel input: the platform's mark, then the field. Looks like one of the form's inputs. */
@@ -231,7 +231,7 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
       <label className={FLABEL}>EMAIL<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@example.com" className={INPUT} /></label>
       <div role="group" aria-labelledby="channels-label" className={FLABEL}>
         <span id="channels-label">YOUR CHANNELS</span>
-        <span className="text-[12px] font-normal normal-case tracking-normal text-[#8A7F72]">
+        <span className="text-[12px] font-normal normal-case tracking-normal text-[#5F6B78]">
           Add Instagram, YouTube, or both.
         </span>
         <label className={CHANNEL_ROW}>
@@ -282,8 +282,8 @@ function ApplyForm({ signInHref }: { signInHref: string }) {
       <button type="submit" disabled={busy} className="cursor-pointer rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white disabled:opacity-60">
         {busy ? "Sending…" : "Apply to join"}
       </button>
-      <p className="m-0 text-xs text-[#8A7F72]">Free to join. You keep the rights to your content.</p>
-      <span className="text-center text-xs text-[#8A7F72]">
+      <p className="m-0 text-xs text-[#5F6B78]">Free to join. You keep the rights to your content.</p>
+      <span className="text-center text-xs text-[#5F6B78]">
         Already applied? <a href={signInHref} className="font-semibold text-[#0A7C80]">Sign in</a>
       </span>
     </form>

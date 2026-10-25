@@ -35,7 +35,7 @@ export function AryaScreen() {
       {m.from === "arya" && <AryaMark size={26} fontSize={14} />}
       <span
         className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[14.5px] leading-[1.45] ${
-          m.from === "me" ? "bg-[#072338] text-white" : "bg-white text-[#0D2436] ring-1 ring-[#E8E1D8]"
+          m.from === "me" ? "bg-[#072338] text-white" : "bg-white text-[#0D2436] ring-1 ring-[#E3E8EE]"
         }`}
       >
         {m.text}
@@ -44,7 +44,7 @@ export function AryaScreen() {
   ));
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader step={1} title="Plan with Arya" subtitle="Your AI travel agent" back={LINKS.home} signedIn />
 
       <main className="mx-auto grid max-w-[1240px] grid-cols-1 items-start gap-6 px-4 pb-10 pt-6 md:grid-cols-[1fr_380px] md:px-10 md:pt-8">
@@ -134,7 +134,7 @@ export function AryaScreen() {
               <Kicker>COMING UP ON YOUR BOARD</Kicker>
               <div className="mt-1.5 flex flex-col gap-2">
                 {COMING.map((c) => (
-                  <div key={c.k} className="rounded-[14px] border border-[#E8E1D8] bg-white p-2.5">
+                  <div key={c.k} className="rounded-[14px] border border-[#E3E8EE] bg-white p-2.5">
                     <span className="flex items-center justify-between">
                       <Kicker>{c.k}</Kicker>
                       <span className="rounded-full bg-[#FDF3E1] px-2 py-0.5 text-[10.5px] font-bold text-[#9A6412]">Just added</span>
@@ -150,7 +150,7 @@ export function AryaScreen() {
               <Kicker>DAY BY DAY</Kicker>
               <div className="mt-1.5 flex flex-col gap-1.5">
                 {DAYS.map((d) => (
-                  <div key={d.n} className="rounded-[12px] bg-[#F4EFE8] px-3 py-2">
+                  <div key={d.n} className="rounded-[12px] bg-[#F3F6F9] px-3 py-2">
                     <span className="text-[11.5px] font-bold text-[#0A7C80]">DAY {d.n}</span>
                     <strong className="ml-2 text-[13.5px]">{d.title}</strong>
                     <span className="block text-[12.5px] text-[#566E85]">{d.items}</span>

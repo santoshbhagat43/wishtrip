@@ -24,7 +24,7 @@ export function Board2Screen() {
   ];
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader step={2} title="Asha’s Goa trip" subtitle="12–16 Dec · 3 travellers · timeline view" back={LINKS.details} signedIn />
 
       <main className="mx-auto grid max-w-[1100px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-6 md:grid-cols-[1fr_320px] md:px-10 md:pt-8">
@@ -44,10 +44,10 @@ export function Board2Screen() {
                       {it.img ? (
                         <Image src={it.img} alt="" width={44} height={44} className="size-11 flex-none rounded-[10px] object-cover" />
                       ) : (
-                        <span className="grid size-11 flex-none place-items-center rounded-[10px] bg-[#F4EFE8]"><Path d={PLANE} size={18} stroke="#3F5A72" width={1.8} /></span>
+                        <span className="grid size-11 flex-none place-items-center rounded-[10px] bg-[#F3F6F9]"><Path d={PLANE} size={18} stroke="#3F5A72" width={1.8} /></span>
                       )}
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-[11.5px] font-semibold text-[#8A7F72]">{it.t}</span>
+                        <span className="text-[11.5px] font-semibold text-[#5F6B78]">{it.t}</span>
                         <strong className="text-[14px] leading-tight">{it.name}</strong>
                         <span className="self-start"><Why>{it.why}</Why></span>
                       </span>
@@ -68,7 +68,7 @@ export function Board2Screen() {
                 <span>{k}</span><span className="num font-semibold! text-[#0D2436]">{v}</span>
               </span>
             ))}
-            <span className="mt-0.5 flex items-baseline justify-between border-t border-[#EDE6DC] pt-3">
+            <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
               <strong className="text-[15px]">Total for 3</strong><strong className="num text-[28px]">{total}</strong>
             </span>
             <Link href={LINKS.checkout} className="rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] no-underline">Book in one go</Link>

@@ -18,7 +18,7 @@ export function CheckoutScreen() {
   const kept = content?.places.filter((p) => p.kind !== "area") ?? [];
 
   return (
-    <div className="min-h-dvh bg-[#FBF8F4]">
+    <div className="min-h-dvh bg-[#FFFFFF]">
       <FlowHeader step={3} title={`Your ${where} trip`} subtitle="Book it in one go" back={`${LINKS.board}?id=${id}`} signedIn />
       <main className="mx-auto grid max-w-[1100px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-8 md:grid-cols-[1fr_360px] md:px-10">
         <section className="flex flex-col gap-4">
@@ -34,7 +34,7 @@ export function CheckoutScreen() {
             {kept.slice(0, 8).map((p) => (
               <span key={p.name} className="flex items-center justify-between gap-3 text-[13.5px]">
                 <span className="font-semibold">{p.location_name ?? p.name}</span>
-                <span className="text-[#8A7F72]">{kindLabel(p.kind)}</span>
+                <span className="text-[#5F6B78]">{kindLabel(p.kind)}</span>
               </span>
             ))}
           </div>
