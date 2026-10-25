@@ -19,6 +19,39 @@ const readAsBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+const MAX_BYTES = 4 * 1024 * 1024;
+// The smallest pictures the page looks good with (the server checks the same).
+const MIN_SIZE: Record<Photo, [number, number]> = { cover: [1200, 400], avatar: [200, 200] };
+const WHAT: Record<Photo, string> = { cover: "cover photo", avatar: "profile photo" };
+
+const imageSize = (file: File) =>
+  new Promise<[number, number]>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve([img.naturalWidth, img.naturalHeight]);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("That image couldn't be read."));
+    };
+    img.src = url;
+  });
+
+/** Say what is wrong with a picture before it is uploaded, or null when it is fine. */
+async function photoProblem(photo: Photo, file: File): Promise<string | null> {
+  if (file.size > MAX_BYTES) return `Your ${WHAT[photo]} is ${(file.size / 1048576).toFixed(1)} MB. Use one under 4 MB.`;
+  try {
+    const [w, h] = await imageSize(file);
+    const [minW, minH] = MIN_SIZE[photo];
+    if (w < minW || h < minH) return `Your ${WHAT[photo]} is ${w}×${h}px. Use one at least ${minW}×${minH}px.`;
+  } catch (e) {
+    return e instanceof Error ? e.message : "That image couldn't be read.";
+  }
+  return null;
+}
+
 /** "Your page": the profile photo, cover photo and name travellers see on the creator's public
  *  page (/creator/<handle>) and on the Creator trips page. */
 export function PageProfile({ overview: o }: { overview: Overview }) {
@@ -27,6 +60,7 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
   const coverInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(o.display_name);
   const [saved, setSaved] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   // The dashboard's numbers and the header's avatar and name both show these.
   const refresh = () =>
     Promise.all([
@@ -61,10 +95,13 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
   const problem = upload.error ?? remove.error ?? rename.error;
   const clean = name.trim().replace(/\s+/g, " ");
   const changed = clean !== o.display_name && clean.length >= 2;
-  const pick = (photo: Photo) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const pick = (photo: Photo) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) upload.mutate({ photo, file });
+    if (!file) return;
+    const bad = await photoProblem(photo, file);
+    setPhotoError(bad);
+    if (!bad) upload.mutate({ photo, file });
   };
   const pageUrl = o.handle ? `${WEBSITE_URL}/creator/${o.handle}` : null;
 
@@ -88,7 +125,7 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
       />
       <div className="flex flex-col gap-5 px-5 pb-5 pt-4">
         <div className="relative">
-          <div className="relative h-[150px] overflow-hidden rounded-[20px] bg-gradient-to-br from-navy to-brand md:h-[190px]">
+          <div className="relative h-[150px] overflow-hidden rounded-[20px] bg-gradient-to-br from-[#072338] to-brand md:h-[190px]">
             {o.cover_url && (
               // eslint-disable-next-line @next/next/no-img-element -- backend media
               <img src={o.cover_url} alt="Your cover photo" className="absolute inset-0 size-full object-cover" />
@@ -99,7 +136,7 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
                 type="button"
                 disabled={busy}
                 onClick={() => coverInput.current?.click()}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[13px] font-semibold text-navy shadow disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[13px] font-semibold text-black shadow disabled:opacity-60"
               >
                 <ImagePlus className="size-4" /> {o.cover_url ? "Change cover photo" : "Add a cover photo"}
               </button>
@@ -109,7 +146,7 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
                   disabled={busy}
                   onClick={() => remove.mutate("cover")}
                   aria-label="Remove cover photo"
-                  className="grid size-9 place-items-center rounded-full bg-white text-navy shadow disabled:opacity-60"
+                  className="grid size-9 place-items-center rounded-full bg-white text-black shadow disabled:opacity-60"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -118,7 +155,7 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
           </div>
 
           <div className="absolute -bottom-10 left-5 flex items-end gap-3">
-            <span className="relative size-[92px] overflow-hidden rounded-full border-4 border-surface bg-gradient-to-br from-brand to-navy shadow-md">
+            <span className="relative size-[92px] overflow-hidden rounded-full border-4 border-surface bg-gradient-to-br from-brand to-[#072338] shadow-md">
               {o.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element -- backend media
                 <img src={o.avatar_url} alt="Your profile photo" className="size-full object-cover" />
@@ -182,9 +219,13 @@ export function PageProfile({ overview: o }: { overview: Overview }) {
             {o.handle
               ? `Your page address is ${WEBSITE_URL.replace(/^https?:\/\//, "")}/creator/${o.handle}. The WishTrip team sets it.`
               : "Your page address is set by the WishTrip team when they approve your account."}{" "}
-            Your page shows once you have a published trip. Photos: JPG, PNG or WebP, up to 4 MB.
+            Your page shows once you have a published trip. Photos: JPG, PNG or WebP, up to 4 MB. Cover photo at least 1200×400px, profile photo at least 200×200px.
           </p>
-          {problem && <p className="m-0 text-[13px] text-danger">{errorMessage(problem)}</p>}
+          {(photoError || problem) && (
+            <p data-testid="photo-problem" className="m-0 text-[13px] text-danger">
+              {photoError ?? errorMessage(problem)}
+            </p>
+          )}
         </form>
       </div>
     </Card>

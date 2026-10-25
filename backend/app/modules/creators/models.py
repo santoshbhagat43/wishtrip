@@ -189,7 +189,10 @@ class CreatorTrip(UUIDPrimaryKey, Timestamps, Base):
     title: Mapped[str] = mapped_column(String(255), default="")
     destination_name: Mapped[str] = mapped_column(String(255), default="")
     summary: Mapped[str] = mapped_column(Text, default="")
+    # The banner on the itinerary and the public page.
     cover_image_key: Mapped[str | None] = mapped_column(String(500))
+    # The reel's thumbnail: the tall 3:4 card on the creator's dashboard.
+    thumbnail_image_key: Mapped[str | None] = mapped_column(String(500))
     source_shortcode: Mapped[str | None] = mapped_column(String(64))
     # [{id, kind, name, note, day, location_id, verified}] — the editable stops.
     items: Mapped[list] = mapped_column(JSONB, default=list)

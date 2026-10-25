@@ -187,6 +187,7 @@ class CreatorTripRead(BaseModel):
     destination_name: str
     summary: str
     cover_image_url: str | None = None
+    thumbnail_image_url: str | None = None
     source_shortcode: str | None = None
     items: list[TripItem]
     status: TripStatus
@@ -206,6 +207,8 @@ class CreatorTripUpdate(BaseModel):
     publish: bool | None = None
     # One of the keys from /creator/trips/{id}/cover-options.
     cover_image_key: str | None = Field(default=None, max_length=500)
+    # Likewise, for the reel's thumbnail.
+    thumbnail_image_key: str | None = Field(default=None, max_length=500)
 
 
 class CoverOption(BaseModel):
@@ -214,7 +217,9 @@ class CoverOption(BaseModel):
     # Seconds into the video; null for the reel's own cover and for uploaded images.
     t: float | None = None
     source: Literal["video", "reel_cover", "upload"]
+    # Is it the trip's cover (the banner)? Is it the reel's thumbnail?
     current: bool = False
+    thumbnail_current: bool = False
 
 
 class CoverUpload(BaseModel):
@@ -277,8 +282,9 @@ class CreatorLinkRead(BaseModel):
     error: str = ""
     trip_id: uuid.UUID | None = None
     share_code: str | None = None
-    # A picture from the reel, for the card and the itinerary.
+    # The itinerary's banner, and the reel's own thumbnail for the card.
     cover_image_url: str | None = None
+    thumbnail_image_url: str | None = None
     created_at: datetime
     stats: LinkStats
 

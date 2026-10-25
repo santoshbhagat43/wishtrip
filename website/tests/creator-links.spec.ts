@@ -323,6 +323,19 @@ test.describe("Reel links", () => {
     await expect(picker).toHaveCount(0);
     await expect.poll(async () => hero.getAttribute("src")).not.toBe(before);
 
+    // The reel's thumbnail is a separate image: choosing it leaves the banner alone.
+    const banner = await hero.getAttribute("src");
+    await sheet.getByRole("button", { name: "Change thumbnail" }).click();
+    const thumbs = page.getByRole("dialog", { name: "Choose a reel thumbnail" });
+    await expect(thumbs.getByText(/tall 3:4 card/)).toBeVisible();
+    await expect(thumbs.locator('button[aria-pressed="true"]')).toHaveCount(1);
+    await thumbs.locator('button[aria-pressed="false"]').first().click();
+    await expect(thumbs).toHaveCount(0);
+    expect(await hero.getAttribute("src")).toBe(banner);
+    await sheet.getByRole("button", { name: "Change thumbnail" }).click();
+    await expect(page.getByRole("dialog", { name: "Choose a reel thumbnail" }).locator('button[aria-pressed="true"]')).toHaveCount(1);
+    await page.getByRole("dialog", { name: "Choose a reel thumbnail" }).getByRole("button", { name: "Close" }).click();
+
     // The trip editor: same cover, the stops by day, and edits that save.
     const tripId = page.url().match(/\/([0-9a-f-]{36})$/)![1];
     await page.goto(`${CREATOR_URL}/trips/${tripId}`);
@@ -400,17 +413,25 @@ test.describe("Reel links", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Your profile" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your page", exact: true })).toBeVisible();
     await expect(page.getByText(/Your page shows once you have a published trip/)).toBeVisible();
-    const photo = path.resolve(__dirname, "fixtures/photo.png");
+    const avatarFile = path.resolve(__dirname, "fixtures/avatar.png");
+    const coverFile = path.resolve(__dirname, "fixtures/cover.png");
 
-    await page.getByLabel("Upload a profile photo").setInputFiles(photo);
+    // A picture that's too small is refused with its size, before anything is uploaded.
+    await page.getByLabel("Upload a cover photo").setInputFiles(path.resolve(__dirname, "fixtures/cover-small.png"));
+    await expect(page.getByTestId("photo-problem")).toContainText("800×300px");
+    await expect(page.getByTestId("photo-problem")).toContainText("1200×400px");
+    await expect(page.getByAltText("Your cover photo")).toHaveCount(0);
+
+    await page.getByLabel("Upload a profile photo").setInputFiles(avatarFile);
     const avatar = page.getByAltText("Your profile photo");
     await expect(avatar).toBeVisible();
     await expect.poll(() => avatar.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
     // …and the photo is the picture in the header's avatar too.
     await expect(page.getByRole("button", { name: "Account menu" }).locator("img")).toBeVisible();
 
-    await page.getByLabel("Upload a cover photo").setInputFiles(photo);
+    await page.getByLabel("Upload a cover photo").setInputFiles(coverFile);
     await expect(page.getByAltText("Your cover photo")).toBeVisible();
+    await expect(page.getByTestId("photo-problem")).toHaveCount(0); // the earlier message is gone
     await expect(page.getByRole("button", { name: "Change cover photo" })).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/profile-page.png`, fullPage: true });
 

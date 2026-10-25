@@ -18,7 +18,17 @@ const SOURCE: Record<Option["source"], string> = {
 
 /** Pick the trip's cover image: a frame from the creator's own video, the reel's cover, or an
  *  image they upload. Used on the itinerary page and in the trip editor. */
-export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () => void }) {
+export function CoverPicker({
+  tripId,
+  kind = "cover",
+  onClose,
+}: {
+  tripId: string;
+  /** Which of the trip's two images is being chosen: the itinerary's banner, or the reel's thumbnail. */
+  kind?: "cover" | "thumbnail";
+  onClose: () => void;
+}) {
+  const thumb = kind === "thumbnail";
   const queryClient = useQueryClient();
   const file = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -48,7 +58,7 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
       unwrap(
         await api.PATCH("/creator/trips/{trip_id}", {
           params: { path: { trip_id: tripId } },
-          body: { cover_image_key: key },
+          body: thumb ? { thumbnail_image_key: key } : { cover_image_key: key },
         }),
       ),
     onSuccess: done,
@@ -64,7 +74,7 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
         reader.readAsDataURL(image);
       });
       return unwrap(
-        await api.POST("/creator/trips/{trip_id}/cover", {
+        await api.POST(thumb ? "/creator/trips/{trip_id}/thumbnail" : "/creator/trips/{trip_id}/cover", {
           params: { path: { trip_id: tripId } },
           body: { filename: image.name, data_base64: data },
         }),
@@ -74,29 +84,32 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
     onError: (e) => setProblem(errorMessage(e)),
   });
 
+  const isCurrent = (o: Option) => (thumb ? o.thumbnail_current : o.current);
   const busy = choose.isPending || upload.isPending;
   const list = options.data ?? [];
   const video = list.filter((o) => o.source === "video");
 
   return (
     <div
-      className="fixed inset-0 z-[80] grid place-items-center bg-navy/50 p-4"
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/50 p-4"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Choose a cover image"
+        aria-label={thumb ? "Choose a reel thumbnail" : "Choose a cover image"}
         className="flex max-h-[90dvh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] bg-surface text-text shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div>
-            <h2 className="font-sans! m-0 text-[22px] font-bold tracking-tight">Choose a cover image</h2>
+            <h2 className="font-sans! m-0 text-[22px] font-bold tracking-tight">{thumb ? "Choose a reel thumbnail" : "Choose a cover image"}</h2>
             <p className="m-0 mt-1 text-[13px] text-muted">
               {video.length > 0
                 ? "Frames from your video. Pick the one that makes people want to open the trip."
                 : "Pick the reel's cover, or upload an image of your own."}{" "}
-              Shown as a 3:4 thumbnail on your dashboard, and as the banner on the itinerary.
+              {thumb
+                ? "Shown as the tall 3:4 card for this reel on your dashboard."
+                : "Shown as the wide banner at the top of the itinerary and on your public page."}
             </p>
           </div>
           <button
@@ -123,17 +136,17 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => (o.current ? onClose() : choose.mutate(o.key))}
-                  aria-pressed={o.current}
+                  onClick={() => (isCurrent(o) ? onClose() : choose.mutate(o.key))}
+                  aria-pressed={isCurrent(o)}
                   className={`group relative block w-full overflow-hidden rounded-[18px] bg-surface-2 text-left transition ${
-                    o.current ? "ring-[3px] ring-brand" : "ring-1 ring-border hover:ring-2 hover:ring-brand"
+                    isCurrent(o) ? "ring-[3px] ring-brand" : "ring-1 ring-border hover:ring-2 hover:ring-brand"
                   } disabled:opacity-60`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- backend media */}
                   <img src={o.url} alt="" className="aspect-[3/4] w-full object-cover" loading="lazy" />
-                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-navy/80 to-transparent px-3 pb-2 pt-6 text-[11.5px] font-semibold text-white">
+                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-6 text-[11.5px] font-semibold text-white">
                     <span>{o.t != null ? `At ${mmss(o.t)}` : SOURCE[o.source]}</span>
-                    {o.current && (
+                    {isCurrent(o) && (
                       <span className="grid size-5 place-items-center rounded-full bg-brand text-white">
                         <Check className="size-3" />
                       </span>
@@ -151,7 +164,7 @@ export function CoverPicker({ tripId, onClose }: { tripId: string; onClose: () =
             ref={file}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            aria-label="Upload a cover image"
+            aria-label={thumb ? "Upload a thumbnail image" : "Upload a cover image"}
             className="sr-only"
             onChange={(e) => {
               const picked = e.target.files?.[0];

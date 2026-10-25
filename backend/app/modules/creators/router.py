@@ -110,7 +110,13 @@ async def _set_photo(
     creator = await _my_creator(session, user)
     old = getattr(creator, field)
     new = (
-        trips.save_image_upload(data.filename, data.data_base64, f"creator-pages/{creator.id}")
+        trips.save_image_upload(
+            data.filename,
+            data.data_base64,
+            f"creator-pages/{creator.id}",
+            minimum=trips.PAGE_COVER_MIN if field == "cover_key" else trips.PAGE_AVATAR_MIN,
+            what="cover photo" if field == "cover_key" else "profile photo",
+        )
         if data
         else None
     )

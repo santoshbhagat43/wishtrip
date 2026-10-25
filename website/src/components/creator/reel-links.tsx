@@ -212,7 +212,7 @@ function CreateLinkModal({ onClose }: { onClose: () => void }) {
 /** One reel, as a tall card: its title, where it stands, and how many people opened its link. */
 function ReelCard({ link, onOpen, onEdit }: { link: Link; onOpen: () => void; onEdit: () => void }) {
   const state = STATE[link.status];
-  const cover = link.cover_image_url;
+  const cover = link.thumbnail_image_url ?? link.cover_image_url;
   return (
     <li className="relative">
       <button
@@ -308,9 +308,9 @@ function ReelModal({
     <Modal title={link.label} onClose={onClose}>
       <div className="flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          {link.cover_image_url && (
+          {(link.thumbnail_image_url ?? link.cover_image_url) && (
             // eslint-disable-next-line @next/next/no-img-element -- backend media
-            <img src={link.cover_image_url} alt="" className="h-16 w-12 flex-none rounded-lg object-cover" />
+            <img src={(link.thumbnail_image_url ?? link.cover_image_url)!} alt="" className="h-16 w-12 flex-none rounded-lg object-cover" />
           )}
           <h2 className="flex flex-wrap items-center gap-2 text-xl">
             {link.label} <Badge tone={state.tone}>{state.label}</Badge>

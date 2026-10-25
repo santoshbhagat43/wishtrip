@@ -116,6 +116,7 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
         destination_name=content.destination_name or extracted.get("destination", ""),
         summary=extracted.get("summary", ""),
         cover_image_key=content.thumbnail_key,
+        thumbnail_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
         items=_stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days),
     )
@@ -152,6 +153,7 @@ async def create_from_content(
         destination_name=content.destination_name or extracted.get("destination", ""),
         summary=extracted.get("summary", ""),
         cover_image_key=content.thumbnail_key,
+        thumbnail_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
         items=clean_items(items) if items else [_item_from_place(p) for p in content.places],
     )
@@ -244,24 +246,64 @@ async def cover_options(session: AsyncSession, trip: CreatorTrip) -> list[dict]:
         ]
         if content.thumbnail_key:
             options.append({"key": content.thumbnail_key, "t": None, "source": "reel_cover"})
-    if trip.cover_image_key and all(o["key"] != trip.cover_image_key for o in options):
-        # An image they uploaded earlier, or a cover from before frames were kept.
-        options.append({"key": trip.cover_image_key, "t": None, "source": "upload"})
+    for held in (trip.cover_image_key, trip.thumbnail_image_key):
+        if held and all(o["key"] != held for o in options):
+            # An image they uploaded earlier, or one from before frames were kept.
+            options.append({"key": held, "t": None, "source": "upload"})
     return [
-        {**o, "url": storage.url(o["key"]), "current": o["key"] == trip.cover_image_key}
+        {
+            **o,
+            "url": storage.url(o["key"]),
+            "current": o["key"] == trip.cover_image_key,
+            "thumbnail_current": o["key"] == (trip.thumbnail_image_key or trip.cover_image_key),
+        }
         for o in options
     ]
 
 
-async def set_cover(session: AsyncSession, trip: CreatorTrip, key: str) -> None:
+async def set_image(session: AsyncSession, trip: CreatorTrip, field: str, key: str) -> None:
+    """Choose the trip's cover (`cover_image_key`) or reel thumbnail (`thumbnail_image_key`)."""
     allowed = {o["key"] for o in await cover_options(session, trip)}
     if key not in allowed and not key.startswith(_upload_prefix(trip)):
         raise bad_request("Pick one of the images offered for this trip.")
-    trip.cover_image_key = key
+    setattr(trip, field, key)
 
 
-def save_image_upload(filename: str, data_base64: str, folder: str) -> str:
-    """Store an uploaded image (JPG, PNG or WebP, up to 4 MB) and return its storage key."""
+# The smallest pictures a creator's page looks good with, and the largest we will decode.
+PAGE_COVER_MIN = (1200, 400)
+PAGE_AVATAR_MIN = (200, 200)
+IMAGE_MAX_SIDE = 12_000
+
+
+def check_image_size(data: bytes, minimum: tuple[int, int], what: str) -> None:
+    """Reject a picture that can't be read, is too small to look good, or is absurdly large."""
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            width, height = image.size
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        raise bad_request("That image couldn't be read.") from None
+    if width < minimum[0] or height < minimum[1]:
+        raise bad_request(
+            f"Your {what} is {width}×{height}px. Use one at least {minimum[0]}×{minimum[1]}px."
+        )
+    if max(width, height) > IMAGE_MAX_SIDE:
+        raise bad_request(f"Your {what} is too large. Use one under {IMAGE_MAX_SIDE}px on its longest side.")
+
+
+def save_image_upload(
+    filename: str,
+    data_base64: str,
+    folder: str,
+    *,
+    minimum: tuple[int, int] | None = None,
+    what: str = "image",
+) -> str:
+    """Store an uploaded image (JPG, PNG or WebP, up to 4 MB) and return its storage key. With a
+    `minimum` size, a smaller picture is refused."""
     import base64
     import binascii
     from pathlib import Path
@@ -275,6 +317,8 @@ def save_image_upload(filename: str, data_base64: str, folder: str) -> str:
         raise bad_request("That image couldn't be read.") from None
     if not data or len(data) > COVER_UPLOAD_MAX_BYTES:
         raise bad_request("Use an image under 4 MB.")
+    if minimum:
+        check_image_size(data, minimum, what)
     return storage.save(data, f"image{suffix}", folder)
 
 
@@ -284,3 +328,9 @@ def save_cover_upload(trip: CreatorTrip, filename: str, data_base64: str) -> str
 
 def cover_url(trip: CreatorTrip) -> str | None:
     return storage.url(trip.cover_image_key) if trip.cover_image_key else None
+
+
+def thumbnail_url(trip: CreatorTrip) -> str | None:
+    """The reel's thumbnail; the cover until one is chosen."""
+    key = trip.thumbnail_image_key or trip.cover_image_key
+    return storage.url(key) if key else None

@@ -1423,10 +1423,30 @@ export interface paths {
         put?: never;
         /**
          * Upload Trip Cover
-         * @description Use an image the creator uploads as the trip's cover (for reels read before frames were
-         *     kept, or when none of the frames suit).
+         * @description Use an image the creator uploads as the trip's cover, the banner (for reels read before
+         *     frames were kept, or when none of the frames suit).
          */
         post: operations["upload_trip_cover_creator_trips__trip_id__cover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Trip Thumbnail
+         * @description Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard.
+         */
+        post: operations["upload_trip_thumbnail_creator_trips__trip_id__thumbnail_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2081,6 +2101,11 @@ export interface components {
              * @default false
              */
             current: boolean;
+            /**
+             * Thumbnail Current
+             * @default false
+             */
+            thumbnail_current: boolean;
         };
         /** CoverUpload */
         CoverUpload: {
@@ -2226,6 +2251,8 @@ export interface components {
             share_code?: string | null;
             /** Cover Image Url */
             cover_image_url?: string | null;
+            /** Thumbnail Image Url */
+            thumbnail_image_url?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2506,6 +2533,8 @@ export interface components {
             summary: string;
             /** Cover Image Url */
             cover_image_url?: string | null;
+            /** Thumbnail Image Url */
+            thumbnail_image_url?: string | null;
             /** Source Shortcode */
             source_shortcode?: string | null;
             /** Items */
@@ -2536,6 +2565,8 @@ export interface components {
             publish?: boolean | null;
             /** Cover Image Key */
             cover_image_key?: string | null;
+            /** Thumbnail Image Key */
+            thumbnail_image_key?: string | null;
         };
         /** CreatorUpdate */
         CreatorUpdate: {
@@ -7858,6 +7889,41 @@ export interface operations {
         };
     };
     upload_trip_cover_creator_trips__trip_id__cover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_trip_thumbnail_creator_trips__trip_id__thumbnail_post: {
         parameters: {
             query?: never;
             header?: never;

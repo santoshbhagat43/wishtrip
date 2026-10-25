@@ -4295,8 +4295,67 @@
      "creator"
     ],
     "summary": "Upload Trip Cover",
-    "description": "Use an image the creator uploads as the trip's cover (for reels read before frames were\nkept, or when none of the frames suit).",
+    "description": "Use an image the creator uploads as the trip's cover, the banner (for reels read before\nframes were kept, or when none of the frames suit).",
     "operationId": "upload_trip_cover_creator_trips__trip_id__cover_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CoverUpload"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creator/trips/{trip_id}/thumbnail": {
+   "post": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Upload Trip Thumbnail",
+    "description": "Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard.",
+    "operationId": "upload_trip_thumbnail_creator_trips__trip_id__thumbnail_post",
     "security": [
      {
       "HTTPBearer": []
@@ -6247,6 +6306,11 @@
       "type": "boolean",
       "title": "Current",
       "default": false
+     },
+     "thumbnail_current": {
+      "type": "boolean",
+      "title": "Thumbnail Current",
+      "default": false
      }
     },
     "type": "object",
@@ -6599,6 +6663,17 @@
        }
       ],
       "title": "Cover Image Url"
+     },
+     "thumbnail_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Image Url"
      },
      "created_at": {
       "type": "string",
@@ -7323,6 +7398,17 @@
       ],
       "title": "Cover Image Url"
      },
+     "thumbnail_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Image Url"
+     },
      "source_shortcode": {
       "anyOf": [
        {
@@ -7441,6 +7527,18 @@
        }
       ],
       "title": "Cover Image Key"
+     },
+     "thumbnail_image_key": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Image Key"
      }
     },
     "type": "object",

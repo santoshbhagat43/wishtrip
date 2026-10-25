@@ -51,6 +51,7 @@ router = APIRouter(tags=["creator"])
 def trip_read(trip: CreatorTrip) -> CreatorTripRead:
     data = CreatorTripRead.model_validate(trip)
     data.cover_image_url = trips.cover_url(trip)
+    data.thumbnail_image_url = trips.thumbnail_url(trip)
     return data
 
 
@@ -157,7 +158,9 @@ async def update_trip(
     if data.items is not None:
         trip.items = trips.clean_items([i.model_dump() for i in data.items])
     if data.cover_image_key is not None:
-        await trips.set_cover(session, trip, data.cover_image_key)
+        await trips.set_image(session, trip, "cover_image_key", data.cover_image_key)
+    if data.thumbnail_image_key is not None:
+        await trips.set_image(session, trip, "thumbnail_image_key", data.thumbnail_image_key)
     if data.publish:
         await trips.publish(session, trip)
     await session.commit()
@@ -178,6 +181,16 @@ async def trip_cover_options(
     return await trips.cover_options(session, trip)
 
 
+async def _upload_trip_image(
+    field: str, trip_id: uuid.UUID, data: CoverUpload, session: AsyncSession, acting: Acting
+) -> CreatorTripRead:
+    trip = await trips.owned(session, trip_id, acting.creator.id)
+    setattr(trip, field, trips.save_cover_upload(trip, data.filename, data.data_base64))
+    await session.commit()
+    await session.refresh(trip)
+    return trip_read(trip)
+
+
 @router.post("/creator/trips/{trip_id}/cover", response_model=CreatorTripRead)
 async def upload_trip_cover(
     trip_id: uuid.UUID,
@@ -185,14 +198,20 @@ async def upload_trip_cover(
     session: AsyncSession = Depends(get_session),
     acting: Acting = Depends(acting_as),
 ):
-    """Use an image the creator uploads as the trip's cover (for reels read before frames were
-    kept, or when none of the frames suit)."""
-    creator = acting.creator
-    trip = await trips.owned(session, trip_id, creator.id)
-    trip.cover_image_key = trips.save_cover_upload(trip, data.filename, data.data_base64)
-    await session.commit()
-    await session.refresh(trip)
-    return trip_read(trip)
+    """Use an image the creator uploads as the trip's cover, the banner (for reels read before
+    frames were kept, or when none of the frames suit)."""
+    return await _upload_trip_image("cover_image_key", trip_id, data, session, acting)
+
+
+@router.post("/creator/trips/{trip_id}/thumbnail", response_model=CreatorTripRead)
+async def upload_trip_thumbnail(
+    trip_id: uuid.UUID,
+    data: CoverUpload,
+    session: AsyncSession = Depends(get_session),
+    acting: Acting = Depends(acting_as),
+):
+    """Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard."""
+    return await _upload_trip_image("thumbnail_image_key", trip_id, data, session, acting)
 
 
 @router.post("/creator/trips/from-reel", response_model=CreatorTripRead, status_code=201)
@@ -363,6 +382,7 @@ async def _link_read(session: AsyncSession, links: list[CreatorLink]) -> list[Cr
                 trip_id=trip.id if trip else None,
                 share_code=trip.share_code if trip and state == "published" else None,
                 cover_image_url=trips.cover_url(trip) if trip else None,
+                thumbnail_image_url=trips.thumbnail_url(trip) if trip else None,
                 created_at=link.created_at,
                 stats=LinkStats(**stats[link.id]),
             )

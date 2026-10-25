@@ -70,6 +70,7 @@ export default function TripEditorPage() {
   const [copied, setCopied] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [choosingCover, setChoosingCover] = useState(false);
+  const [choosingThumbnail, setChoosingThumbnail] = useState(false);
 
   // Fill the form from the loaded trip once (adjust-state-while-rendering, not an effect).
   if (trip.data && loadedId !== trip.data.id) {
@@ -159,30 +160,39 @@ export default function TripEditorPage() {
         </span>
       </div>
 
-      <section className="relative isolate mt-4 min-h-[190px] overflow-hidden rounded-[28px] bg-navy text-white md:min-h-[220px]">
+      <section className="relative isolate mt-4 min-h-[190px] overflow-hidden rounded-[28px] bg-white text-black md:min-h-[220px]">
         {trip.data.cover_image_url ? (
           // eslint-disable-next-line @next/next/no-img-element -- backend media
           <img src={trip.data.cover_image_url} alt="" className="absolute inset-0 -z-20 size-full object-cover" />
         ) : (
-          <span className="absolute inset-0 -z-20 bg-gradient-to-br from-navy to-brand" />
+          <span className="absolute inset-0 -z-20 bg-gradient-to-br from-white to-brand" />
         )}
-        <span className="absolute inset-0 -z-10 bg-gradient-to-r from-navy/85 via-navy/45 to-navy/10" />
+        <span className="absolute inset-0 -z-10 bg-gradient-to-r from-white/70 via-white/30 to-transparent" />
         <div className="flex min-h-[190px] flex-col justify-between gap-5 p-5 md:min-h-[220px] md:p-8">
           <div className="flex items-start justify-between gap-3">
-            <span className="text-[13px] font-bold text-accent">Edit your trip</span>
-            <button
-              type="button"
-              onClick={() => setChoosingCover(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy"
-            >
-              <ImagePlus className="size-4" /> Change cover
-            </button>
+            <span className="text-[13px] font-bold text-black">Edit your trip</span>
+            <span className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setChoosingCover(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black"
+              >
+                <ImagePlus className="size-4" /> Change cover
+              </button>
+              <button
+                type="button"
+                onClick={() => setChoosingThumbnail(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black"
+              >
+                <ImagePlus className="size-4" /> Change thumbnail
+              </button>
+            </span>
           </div>
           <div className="flex flex-col gap-1.5">
             <h1 className="font-sans! m-0 text-[30px] font-bold leading-[1.05] tracking-tight md:text-[44px]">
               {title.trim() || "Untitled trip"}
             </h1>
-            <p className="m-0 text-[14px] text-white/90">
+            <p className="m-0 text-[14px] text-black/80">
               {trip.data.destination_name ? `${trip.data.destination_name} · ` : ""}
               {days.length} {days.length === 1 ? "day" : "days"} · {items.filter((i) => i.name.trim()).length} stops
             </p>
@@ -342,7 +352,7 @@ export default function TripEditorPage() {
               type="button"
               onClick={() => save.mutate(true)}
               disabled={save.isPending || !filled}
-              className="rounded-full bg-accent p-[14px] text-base font-bold text-navy hover:bg-accent-strong disabled:opacity-60"
+              className="rounded-full bg-accent p-[14px] text-base font-bold text-[#072338] hover:bg-accent-strong disabled:opacity-60"
             >
               {published ? "Update & keep live" : "Publish & get link"}
             </button>
@@ -371,7 +381,7 @@ export default function TripEditorPage() {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3.5 py-2 text-[13px] font-semibold text-white"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
                 >
                   {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                   {copied ? "Copied" : "Copy"}
@@ -384,6 +394,7 @@ export default function TripEditorPage() {
       </div>
 
       {choosingCover && <CoverPicker tripId={id} onClose={() => setChoosingCover(false)} />}
+      {choosingThumbnail && <CoverPicker tripId={id} kind="thumbnail" onClose={() => setChoosingThumbnail(false)} />}
     </div>
   );
 }

@@ -223,6 +223,42 @@ async def test_upload_an_image_as_the_cover(client, admin, fake_reel):
     assert r.status_code == 404
 
 
+async def test_a_trip_has_a_cover_and_a_separate_reel_thumbnail(client, admin, fake_reel):
+    import base64
+
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+
+    headers = await _approved_creator(client, admin, "thumb@creators.example.com")
+    trip = await _make_trip(client, headers)
+    async with SessionLocal() as session:
+        content = await session.scalar(select(CreatorContent))
+        content.frames = [{"t": 2.0, "key": "reels/frames/a.jpg"}, {"t": 9.5, "key": "reels/frames/b.jpg"}]
+        await session.commit()
+    path = f"/creator/trips/{trip['id']}"
+
+    # Both start as the reel's own picture; choosing one leaves the other alone.
+    r = await client.patch(path, json={"cover_image_key": "reels/frames/a.jpg"}, headers=headers)
+    assert r.json()["cover_image_url"].endswith("a.jpg")
+    before = r.json()["thumbnail_image_url"]
+    r = await client.patch(path, json={"thumbnail_image_key": "reels/frames/b.jpg"}, headers=headers)
+    assert r.json()["thumbnail_image_url"].endswith("b.jpg") and r.json()["cover_image_url"].endswith("a.jpg")
+    assert r.json()["thumbnail_image_url"] != before
+
+    options = (await client.get(f"{path}/cover-options", headers=headers)).json()
+    assert [o["key"] for o in options if o["current"]] == ["reels/frames/a.jpg"]
+    assert [o["key"] for o in options if o["thumbnail_current"]] == ["reels/frames/b.jpg"]
+
+    # Uploading a thumbnail doesn't touch the cover.
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
+    r = await client.post(f"{path}/thumbnail", json={"filename": "t.png", "data_base64": png}, headers=headers)
+    assert r.status_code == 200 and f"creator-covers/{trip['id']}/" in r.json()["thumbnail_image_url"]
+    assert r.json()["cover_image_url"].endswith("a.jpg")
+    r = await client.patch(path, json={"thumbnail_image_key": "reels/frames/other.jpg"}, headers=headers)
+    assert r.status_code == 400
+
+
 def test_frames_are_spread_over_the_whole_video():
     from pathlib import Path
 
@@ -343,13 +379,25 @@ async def test_only_published_trips_by_approved_creators_can_be_featured(client,
     assert (await client.put(f"/spotlight/trips/{missing}", json={"on": True}, headers=staff)).status_code == 404
 
 
+def _image(width: int, height: int) -> str:
+    """A real PNG of this size, base64 (a plain colour, so it is tiny)."""
+    import base64
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (width, height), (30, 90, 140)).save(out, "PNG")
+    return base64.b64encode(out.getvalue()).decode()
+
+
 async def test_creator_adds_a_profile_photo_and_a_cover_photo(client, admin, fake_reel):
     import base64
 
     headers = await _approved_creator(client, admin, "photos@creators.example.com")
     me = (await client.get("/creators/me", headers=headers)).json()
     assert me["avatar_url"] is None and me["cover_url"] is None
-    png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
+    png = _image(1600, 600)  # big enough for a cover photo (and so for a profile photo)
 
     r = await client.post("/creators/me/avatar", json={"filename": "me.png", "data_base64": png}, headers=headers)
     assert r.status_code == 200 and f"creator-pages/{me['id']}/" in r.json()["avatar_url"]
@@ -368,6 +416,17 @@ async def test_creator_adds_a_profile_photo_and_a_cover_photo(client, admin, fak
         {"filename": "a.png", "data_base64": ""},
     ):
         assert (await client.post("/creators/me/avatar", json=body, headers=headers)).status_code == 400
+
+    # Sizes: a cover photo needs 1200×400, a profile photo 200×200; the fake "PNG" can't be read.
+    small = _image(800, 300)
+    r = await client.post("/creators/me/cover", json={"filename": "s.png", "data_base64": small}, headers=headers)
+    assert r.status_code == 400 and "800×300px" in r.json()["detail"] and "1200×400px" in r.json()["detail"]
+    tiny = _image(100, 100)
+    r = await client.post("/creators/me/avatar", json={"filename": "t.png", "data_base64": tiny}, headers=headers)
+    assert r.status_code == 400 and "200×200px" in r.json()["detail"]
+    fake = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
+    assert (await client.post("/creators/me/cover", json={"filename": "f.png", "data_base64": fake}, headers=headers)).status_code == 400
+    assert (await client.post("/creators/me/avatar", json={"filename": "ok.png", "data_base64": _image(200, 200)}, headers=headers)).status_code == 200
 
     # Their photos show on their public page, once they have a published trip.
     staff = auth(admin)

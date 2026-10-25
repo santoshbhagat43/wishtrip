@@ -121,7 +121,7 @@ function Steps({ published }: { published: boolean }) {
           state === "done"
             ? "bg-brand-soft text-brand"
             : state === "now"
-              ? "bg-navy text-white"
+              ? "bg-[#072338] text-white"
               : "border border-border text-muted"
         }`}
       >
@@ -186,6 +186,7 @@ export function ItinerarySheet({
   const [sharing, setSharing] = useState(false);
   const [picked, setPicked] = useState(0);
   const [choosingCover, setChoosingCover] = useState(false);
+  const [choosingThumbnail, setChoosingThumbnail] = useState(false);
   const day = days[Math.min(picked, days.length - 1)];
 
   useEffect(() => {
@@ -220,23 +221,23 @@ export function ItinerarySheet({
       </header>
 
       <main className="mx-auto max-w-[1240px] px-4 pb-16 pt-5 md:px-10 md:pt-6">
-        <section className="relative isolate min-h-[230px] overflow-hidden rounded-[28px] bg-navy text-white md:min-h-[250px]">
+        <section className="relative isolate min-h-[230px] overflow-hidden rounded-[28px] bg-white text-black md:min-h-[250px]">
           {link.cover_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- backend media
             <img src={link.cover_image_url} alt="" className="absolute inset-0 -z-20 size-full object-cover" />
           ) : (
-            <span className="absolute inset-0 -z-20 bg-gradient-to-br from-navy to-brand" />
+            <span className="absolute inset-0 -z-20 bg-gradient-to-br from-white to-brand" />
           )}
-          <span className="absolute inset-0 -z-10 bg-gradient-to-r from-navy/85 via-navy/45 to-navy/10" />
-          <div className="flex min-h-[230px] flex-col justify-between gap-6 p-5 md:min-h-[250px] md:p-8">
+          <span className="absolute inset-0 -z-10 bg-gradient-to-r from-white/70 via-white/30 to-transparent" />
+        <div className="flex min-h-[230px] flex-col justify-between gap-6 p-5 md:min-h-[250px] md:p-8">
             <div className="flex items-start justify-between gap-3">
-              <span className="text-[13px] font-bold text-accent">Your itinerary</span>
+              <span className="text-[13px] font-bold text-black">Your itinerary</span>
               <div className="relative">
                 <button
                   type="button"
                   aria-expanded={sharing}
                   onClick={() => setSharing((open) => !open)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-navy"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black"
                 >
                   <Share2 className="size-4" /> Share with family
                 </button>
@@ -255,7 +256,7 @@ export function ItinerarySheet({
                         type="button"
                         disabled={!short}
                         onClick={copy}
-                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-navy px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
                       >
                         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                         {copied ? "Copied" : "Copy link"}
@@ -279,7 +280,7 @@ export function ItinerarySheet({
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="flex min-w-0 flex-col gap-2">
                 <h1 className="font-sans! m-0 text-[34px] font-bold leading-[1.02] tracking-tight md:text-[52px]">{title}</h1>
-                <p className="m-0 text-[14px] text-white/90">
+                <p className="m-0 text-[14px] text-black/80">
                   {trip.isLoading
                     ? "Loading…"
                     : `${days.length} days · ${stopCount(days)} stops · ${fromReel} from your reel`}
@@ -288,16 +289,23 @@ export function ItinerarySheet({
                   <span className="mt-1 flex flex-wrap gap-2">
                     <Link
                       href={`/trips/${link.trip_id}`}
-                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-black/60 px-4 py-2 text-[13px] font-semibold text-black hover:bg-black/5"
                     >
                       <Pencil className="size-3.5" /> Edit trip
                     </Link>
                     <button
                       type="button"
                       onClick={() => setChoosingCover(true)}
-                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-black/60 px-4 py-2 text-[13px] font-semibold text-black hover:bg-black/5"
                     >
                       <ImagePlus className="size-3.5" /> Change cover
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChoosingThumbnail(true)}
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-black/60 px-4 py-2 text-[13px] font-semibold text-black hover:bg-black/5"
+                    >
+                      <ImagePlus className="size-3.5" /> Change thumbnail
                     </button>
                   </span>
                 )}
@@ -307,18 +315,18 @@ export function ItinerarySheet({
                   href={sources[0].url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-3 rounded-full bg-white/95 py-2 pl-2 pr-6 text-navy shadow-lg"
+                  className="flex items-center gap-3 rounded-full bg-white/95 py-2 pl-2 pr-6 text-black shadow-lg"
                 >
-                  <span className="grid size-11 place-items-center rounded-full bg-navy text-white">
+                  <span className="grid size-11 place-items-center rounded-full bg-black/10 text-black">
                     <Play className="size-4 fill-current" />
                   </span>
                   <span className="flex flex-col text-left leading-tight">
                     <strong className="text-[15px]">Watch the reel</strong>
-                    <span className="text-xs text-muted">From your reel</span>
+                    <span className="text-xs text-black/70">From your reel</span>
                   </span>
                 </a>
               ) : (
-                <span className="rounded-full bg-white/95 px-5 py-3 text-xs font-semibold text-navy">From your video</span>
+                <span className="rounded-full bg-white/95 px-5 py-3 text-xs font-semibold text-black">From your video</span>
               )}
             </div>
           </div>
@@ -377,7 +385,7 @@ export function ItinerarySheet({
                         <article key={`${s.name}-${i}`} className={`${CARD} flex overflow-hidden`}>
                           <div className="relative grid w-[96px] flex-none place-items-center bg-gradient-to-br from-surface-2 to-brand-soft text-brand md:w-[180px]">
                             <Icon className="size-9 md:size-12" strokeWidth={1.5} />
-                            <span className="absolute left-3 top-3 rounded-full bg-navy px-2.5 py-1 text-[11px] font-bold text-white">
+                            <span className="absolute left-3 top-3 rounded-full bg-[#072338] px-2.5 py-1 text-[11px] font-bold text-white">
                               {s.when}
                             </span>
                           </div>
@@ -439,7 +447,7 @@ export function ItinerarySheet({
                 disabled={busy}
                 onClick={() => onPublished(!published)}
                 className={`rounded-full p-[15px] text-center text-base font-bold disabled:opacity-60 ${
-                  published ? "border border-border bg-surface text-text hover:bg-surface-2" : "bg-accent text-navy hover:bg-accent-strong"
+                  published ? "border border-border bg-surface text-text hover:bg-surface-2" : "bg-accent text-[#072338] hover:bg-accent-strong"
                 }`}
               >
                 {published ? "Unpublish" : "Publish itinerary"}
@@ -463,7 +471,7 @@ export function ItinerarySheet({
                   <button
                     type="button"
                     onClick={copy}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3.5 py-2 text-[13px] font-semibold text-white"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
                   >
                     {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                     {copied ? "Copied" : "Copy"}
@@ -490,6 +498,9 @@ export function ItinerarySheet({
         </div>
       </main>
       {choosingCover && link.trip_id && <CoverPicker tripId={link.trip_id} onClose={() => setChoosingCover(false)} />}
+      {choosingThumbnail && link.trip_id && (
+        <CoverPicker tripId={link.trip_id} kind="thumbnail" onClose={() => setChoosingThumbnail(false)} />
+      )}
     </div>
   );
 }
