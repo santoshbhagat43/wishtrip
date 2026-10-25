@@ -6,7 +6,7 @@ import { B4Header } from "../header";
 import { SiteFooter } from "../footer";
 import { Avatar, CHANNEL, Cover, CreatorTile, dayStops, tripHref } from "./creator-parts";
 
-const plan = (prompt: string) => `/plan?prompt=${encodeURIComponent(prompt)}`;
+const plan = (prompt: string) => `/arya?prompt=${encodeURIComponent(prompt)}`;
 
 /** A creator's own page (/creator/<handle>): who they are and the trips they really took. Real
  *  data only: their published trips, the places in them, and links to their reels. */

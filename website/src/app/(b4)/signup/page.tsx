@@ -8,7 +8,7 @@ export default async function SignupPage() {
   const h = await headers();
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
-  const url = new URL(ssoLoginUrl(host ? `${proto}://${host}/plan` : "/plan"));
+  const url = new URL(ssoLoginUrl(host ? `${proto}://${host}/arya` : "/arya"));
   url.searchParams.set("mode", "signup");
   redirect(url.toString());
 }

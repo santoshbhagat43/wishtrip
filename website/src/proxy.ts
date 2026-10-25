@@ -4,7 +4,7 @@ import { GATE_COOKIE, gateEnabled, gateToken } from "@/lib/server/gate";
 import { ACCESS_COOKIE, REFRESH_COOKIE, roleFromToken } from "@/lib/server/session";
 import { CREATOR_URL, creatorSsoUrl, isCreatorHost, publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
 
-const PRIVATE = ["/plan", "/profile", "/saved", "/help", "/creator"];
+const PRIVATE = ["/arya", "/profile", "/saved", "/help", "/creator"];
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
 /** The creator site has no "/creator" in its addresses: the dashboard is "/", an itinerary is
@@ -53,6 +53,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/") || pathname.startsWith("/media/")) return NextResponse.next();
+
+  // Arya moved from /plan to /arya: old links, bookmarks and prompts keep working.
+  if (pathname === "/plan") {
+    return NextResponse.redirect(new URL(`/arya${request.nextUrl.search}`, request.url), 308);
+  }
 
   // A creator's public page, /creator/<handle>, is served from /creators/p/<handle>. A UUID there
   // is the creator portal's own itinerary page and is left alone.
@@ -107,7 +112,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(ssoLoginUrl(here));
   }
   if (signedIn && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/plan", request.url));
+    return NextResponse.redirect(new URL("/arya", request.url));
   }
   return NextResponse.next();
 }

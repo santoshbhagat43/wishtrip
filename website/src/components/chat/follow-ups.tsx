@@ -24,8 +24,8 @@ export function UserBubble({ content }: { content: string }) {
   const { question, answer } = splitQuestion(content);
   return (
     <div className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-brand px-4 py-2.5 text-sm text-on-brand">
-        {question && <p className="mb-1 border-l-2 border-on-brand/40 pl-2 text-xs text-on-brand/75">{question}</p>}
+      <div className="max-w-[85%] rounded-[16px] rounded-br-sm bg-navy px-4 py-3 text-[15px] leading-snug text-white">
+        {question && <p className="mb-1 border-l-2 border-white/40 pl-2 text-xs text-white/75">{question}</p>}
         <p className="whitespace-pre-wrap">{answer}</p>
       </div>
     </div>
@@ -43,7 +43,7 @@ export function FollowUps({
   onOwnAnswer: (question: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="rounded-[16px] border border-border bg-surface p-4">
       <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
         <MessageCircleQuestion className="size-3.5" /> A few questions to tailor your plan
       </p>
@@ -57,7 +57,7 @@ export function FollowUps({
                   key={a}
                   type="button"
                   onClick={() => onAnswer(f.question, a)}
-                  className="rounded-full border border-brand/40 bg-brand-soft/40 px-3 py-1 text-xs font-medium text-brand hover:bg-brand-soft"
+                  className="rounded-full border border-accent bg-surface px-3.5 py-1.5 text-[13px] font-semibold text-accent-text hover:bg-accent-soft"
                 >
                   {a}
                 </button>
@@ -65,7 +65,7 @@ export function FollowUps({
               <button
                 type="button"
                 onClick={() => onOwnAnswer(f.question)}
-                className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-xs font-medium text-muted hover:border-brand hover:text-brand"
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3.5 py-1.5 text-[13px] font-medium text-muted hover:border-brand hover:text-brand"
               >
                 <PenLine className="size-3" /> Type my own…
               </button>

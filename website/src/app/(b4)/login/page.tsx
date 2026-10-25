@@ -13,6 +13,6 @@ export default async function LoginPage({
   const h = await headers();
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
-  const path = next && next.startsWith("/") ? next : "/plan";
-  redirect(ssoLoginUrl(host ? `${proto}://${host}${path}` : "/plan"));
+  const path = next && next.startsWith("/") ? next : "/arya";
+  redirect(ssoLoginUrl(host ? `${proto}://${host}${path}` : "/arya"));
 }

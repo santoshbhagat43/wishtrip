@@ -32,7 +32,7 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         [
             ("Destinations", "/destinations"),
             ("Creator trips", "/creators/trips"),
-            ("Plan a trip", "/plan"),
+            ("Plan a trip", "/arya"),
             ("Reel to trip", "/reel"),
         ],
     ),
@@ -52,7 +52,7 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         "Menu",
         MenuPlacement.MOBILE,
         [
-            ("Start planning", "/plan"),
+            ("Start planning", "/arya"),
             ("Turn a reel into a trip", "/reel"),
             ("Destinations", "/destinations"),
             ("Creator trips", "/creators/trips"),

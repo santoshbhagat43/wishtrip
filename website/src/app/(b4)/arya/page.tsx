@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { AryaScreen } from "@/components/b4/screens/arya";
+import { AryaPlanner } from "@/components/arya/planner";
 
-export const metadata: Metadata = { title: "Plan with Arya — wishtrip" };
+export const metadata: Metadata = {
+  title: "Arya — plan your trip — wishtrip",
+  description: "Tell Arya the trip you're dreaming of. She plans it from places wishtrip has checked.",
+};
 
+/** Arya, the real planner (the old /plan). Signed-out visitors are sent to sign in by the proxy. */
 export default function Page() {
-  return <AryaScreen />;
+  return (
+    <Suspense>
+      <AryaPlanner />
+    </Suspense>
+  );
 }

@@ -101,7 +101,7 @@ MENUS = [
         "placement": MenuPlacement.HEADER,
         "items": [
             {"label": "Explore", "url": "/explore"},
-            {"label": "Plan a trip", "url": "/plan"},
+            {"label": "Plan a trip", "url": "/arya"},
             {"label": "Saved", "url": "/saved"},
             {"label": "Help", "url": "/help"},
         ],

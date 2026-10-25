@@ -66,7 +66,7 @@ test.describe("Destinations", () => {
     // Ask Arya takes what they type to the planner.
     const ask = page.getByRole("textbox", { name: "Ask Arya where to go" });
     await expect(ask).toBeVisible();
-    const form = page.locator("form[action='/plan']");
+    const form = page.locator("form[action='/arya']");
     await expect(form).toHaveAttribute("method", /get/i);
     await expect(ask).toHaveAttribute("name", "prompt");
   });

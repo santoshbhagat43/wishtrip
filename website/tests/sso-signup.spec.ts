@@ -37,7 +37,7 @@ test.describe("Sign-up on SSO", () => {
     await page.getByLabel("Sign-in code").fill(DEV_CODE);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
-    await expect(page).toHaveURL(`${baseURL}/plan`);
+    await expect(page).toHaveURL(`${baseURL}/arya`);
     expect((await page.request.get("/api/wt/auth/me")).status()).toBe(200);
   });
 

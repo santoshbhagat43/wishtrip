@@ -1,10 +1,9 @@
 "use client";
 
-import { CalendarDays, MapPin, Ticket, Users } from "lucide-react";
+import { MapPin, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { gradientFor } from "@/components/trip/visuals";
 import { Tabs } from "@/components/ui/tabs";
 import type { ChatMessage, Schemas } from "@/lib/api/client";
 import { COST_LABELS, titleCase, tripStateRows } from "@/lib/format";
@@ -65,6 +64,7 @@ export function TripBoard({
   showPlan,
   profile,
   savedCount,
+  building = false,
 }: {
   state: Record<string, unknown>;
   /** The reply whose plan the board shows (the latest one with a plan, unless one was picked). */
@@ -73,6 +73,8 @@ export function TripBoard({
   showPlan: boolean;
   profile: Profile | undefined;
   savedCount: number;
+  /** Arya is working on a reply right now. */
+  building?: boolean;
 }) {
   const [tab, setTab] = useState<"itinerary" | "info">("itinerary");
   const [kind, setKind] = useState<Kind>("all");
@@ -83,38 +85,41 @@ export function TripBoard({
   const rows = tripStateRows(state);
   const companions = typeof state.companions === "string" ? titleCase(state.companions) : null;
   const show = KINDS[kind].types;
+  const title = destination ? `Your ${destination} trip` : "Your trip";
+  const subtitle = plan
+    ? [planTitle(plan, state), dates, companions].filter(Boolean).join(" · ")
+    : destination
+      ? "Dates and details still to come"
+      : "Tell Arya where, when and who";
 
   return (
-    <section aria-label="Trip board" className="flex min-w-0 flex-col overflow-hidden rounded-[22px] border border-border bg-surface shadow-card xl:h-full">
-      {/* Cover: the destination's colours (no licensed photography yet, so no stock images). */}
-      <div
-        className="relative flex min-h-36 shrink-0 flex-col justify-end p-5 text-white"
-        style={{ background: gradientFor(destination ?? "WishTrip") }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
-        <div className="relative">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/85">
-            <MapPin className="size-3.5" /> {destination ?? "Plan a trip"}
-          </p>
-          <h2 className="mt-1 font-display text-2xl leading-tight">{planTitle(plan, state)}</h2>
-          <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/90">
-            {dates && <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-4" /> {dates}</span>}
-            {companions && <span className="inline-flex items-center gap-1.5"><Users className="size-4" /> {companions}</span>}
-          </p>
+    <section aria-label="Trip board" className="flex min-w-0 flex-col overflow-hidden rounded-[22px] border border-border bg-surface lg:h-full">
+      <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-10 flex-none place-items-center rounded-xl bg-accent-soft text-brand">
+            <MapPin className="size-5" />
+          </span>
+          <div className="min-w-0 leading-tight">
+            <h2 className="font-sans! m-0 truncate text-[17px] font-bold">{title}</h2>
+            <p className="m-0 mt-0.5 truncate text-[13px] text-muted">{subtitle}</p>
+          </div>
         </div>
-      </div>
+        <span className={`inline-flex flex-none items-center gap-1.5 text-[12.5px] font-bold ${building ? "text-ok" : "text-muted"}`} aria-live="polite">
+          <span className={`size-2 rounded-full ${building ? "animate-pulse bg-ok" : plan ? "bg-ok" : "bg-border"}`} />
+          {building ? "Building live" : plan ? "Plan ready" : "Waiting for you"}
+        </span>
+      </header>
 
-      {/* What the assistant has understood, always in view. */}
-      <aside aria-label="Your trip so far" className="shrink-0 border-b border-border px-5 py-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Your trip so far</h3>
+      {/* What Arya has understood so far, always in view. */}
+      <aside aria-label="What Arya knows" className="shrink-0 px-5 pb-4">
+        <h3 className="m-0 text-[12.5px] font-semibold text-muted">What Arya knows</h3>
         {rows.length === 0 ? (
-          <p className="mt-1 text-sm text-muted">We&apos;ll fill this in as we understand your trip.</p>
+          <p className="m-0 mt-1.5 text-sm text-muted">She&apos;ll fill this in as she learns about your trip.</p>
         ) : (
-          <ul className="mt-2 flex flex-wrap gap-1.5">
+          <ul className="m-0 mt-2 flex list-none flex-wrap gap-1.5 p-0">
             {rows.map(({ label, value }) => (
-              <li key={label} className="rounded-full bg-surface-2 px-2.5 py-1 text-xs">
-                <span className="text-muted">{label}: </span>
-                <span className="font-medium">{value}</span>
+              <li key={label} title={label} className="rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-semibold text-accent-text">
+                {value}
               </li>
             ))}
           </ul>
@@ -137,9 +142,20 @@ export function TripBoard({
           (!showPlan ? (
             <p className="text-sm text-muted">Your plan is shown in the conversation.</p>
           ) : !plan ? (
-            <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center">
-              <p className="font-display text-lg">Your day-by-day plan appears here</p>
-              <p className="mt-1 text-sm text-muted">Tell us where you&apos;d like to go — and for how long — and we&apos;ll lay it out day by day.</p>
+            <div className="flex flex-col gap-2.5">
+              <h3 className="m-0 text-[12.5px] font-semibold text-muted">Coming up on your board</h3>
+              {(
+                [
+                  ["Day by day", "Arya lays it out once she knows where, for how long and who is coming"],
+                  ["Places she has checked", "Only places WishTrip has checked, each with its tips"],
+                  ["Good to know", "Opening hours, travel times and what to book ahead"],
+                ] as const
+              ).map(([name, note]) => (
+                <div key={name} className="rounded-[14px] border border-dashed border-[#D9D4C7] px-4 py-3">
+                  <p className="m-0 text-[14px] font-bold">{name}</p>
+                  <p className="m-0 text-[13px] text-muted">{note}</p>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col gap-3">

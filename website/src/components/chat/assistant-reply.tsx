@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, BookOpenCheck, CalendarDays, Globe, Info, Lightbulb, PanelRight, Sparkles, Ticket } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CalendarDays, Globe, Info, Lightbulb, PanelRight, Ticket } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+import { AryaAvatar } from "@/components/arya/avatar";
 import { Badge, type Tone } from "@/components/ui/badge";
 import type { ChatMessage } from "@/lib/api/client";
 import { minutes, titleCase } from "@/lib/format";
@@ -102,12 +103,14 @@ export function AssistantReply({
   const inlinePlan = (checked || general) && !wide;
   return (
     <div className="flex gap-3">
-      <span aria-hidden className="mt-0.5 hidden size-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand sm:flex">
-        <Sparkles className="size-4" />
+      <span className="mt-0.5 flex-none">
+        <AryaAvatar size={28} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <Badge tone={grounding.tone} className="self-start"><grounding.icon className="size-3.5" /> {grounding.label}</Badge>
-        <div className="prose-chat text-[15px] leading-relaxed"><ReactMarkdown>{message.content}</ReactMarkdown></div>
+        <div className="prose-chat rounded-[16px] rounded-tl-sm border border-border bg-surface px-4 py-3 text-[15px] leading-relaxed">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+        </div>
         {(checked || general) && wide ? (
           <PlanCard message={message} onBoard={onBoard} onShow={() => onShowOnBoard?.()} />
         ) : checked ? (

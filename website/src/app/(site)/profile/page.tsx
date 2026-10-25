@@ -85,7 +85,7 @@ function ProfileForm({ initial }: { initial: Profile }) {
       </div>
       <div className="mt-4 flex items-center gap-3">
         <Button type="submit" variant="accent" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save preferences"}</Button>
-        {save.isSuccess && <span className="text-sm text-ok">Saved. <Link href="/plan" className="font-semibold underline">Plan a trip →</Link></span>}
+        {save.isSuccess && <span className="text-sm text-ok">Saved. <Link href="/arya" className="font-semibold underline">Plan a trip →</Link></span>}
       </div>
       <div className="mt-3"><ErrorNote error={save.error} /></div>
     </form>

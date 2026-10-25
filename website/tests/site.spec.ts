@@ -6,11 +6,11 @@ test.describe("Public site", () => {
   test("landing and explore work signed out, private pages ask to sign in", async ({ page, request, baseURL }) => {
     await page.goto("/");
     // The B4 home: scroll story, then the sections (desktop stage at this viewport).
-    await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true })).toContainText("scattered");
+    await expect(page.getByRole("heading", { level: 1 }).filter({ visible: true })).toContainText("6 different");
     await expect(page.getByRole("heading", { name: "One chat. Your whole trip." })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Start with a destination" })).toBeVisible();
-    await page.getByRole("link", { name: "All destinations →" }).click();
-    // "All destinations" opens the Destinations page (the same one the header's link opens).
+    await expect(page.getByRole("heading", { name: "Destinations to explore" })).toBeVisible();
+    await page.locator("#b4-explore").getByRole("link", { name: "See all ›" }).last().click();
+    // "See all" opens the Destinations page (the same one the header's link opens).
     await expect(page).toHaveURL(/\/destinations$/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Where to");
     await page.getByRole("link", { name: /Munnar tea hills/ }).click();
@@ -19,9 +19,9 @@ test.describe("Public site", () => {
     await expect(page.getByText("not available yet").first()).toBeVisible();
 
     // Private pages hand over to the shared SSO login, with this page as the way back.
-    await page.goto("/plan");
+    await page.goto("/arya");
     await expect(page).toHaveURL(SSO_LOGIN);
-    expect(new URL(page.url()).searchParams.get("redirect")).toBe(`${baseURL}/plan`);
+    expect(new URL(page.url()).searchParams.get("redirect")).toBe(`${baseURL}/arya`);
 
     // The gateway only forwards traveler routes; staff APIs don't exist from here.
     expect((await request.get("/api/wt/admin/users")).status()).toBe(404);
@@ -61,7 +61,7 @@ test.describe("Shared sign-in (SSO)", () => {
         (name) => ({ name, value: "old-token", domain, path: "/" }),
       ),
     );
-    await page.goto("/plan");
+    await page.goto("/arya");
     await expect(page).toHaveURL(SSO_LOGIN);
   });
 
@@ -80,7 +80,7 @@ test.describe("Shared sign-in (SSO)", () => {
     await signUp(page); // signs in on the SSO app, lands back on the website signed in
     expect((await page.request.get("/api/wt/auth/me")).status()).toBe(200);
 
-    await page.goto(`${SSO_URL}/api/sso/logout?redirect=${encodeURIComponent(`${baseURL}/plan`)}`);
+    await page.goto(`${SSO_URL}/api/sso/logout?redirect=${encodeURIComponent(`${baseURL}/arya`)}`);
     await expect(page).toHaveURL(SSO_LOGIN); // /plan is private again, so it bounces to SSO
     expect((await page.request.get("/api/wt/auth/me")).status()).toBe(401);
   });
@@ -116,15 +116,12 @@ test.describe("Traveler journey", () => {
 
   test("plan a trip in chat: grounded answer, checked itinerary, honest booking", async ({ page }) => {
     await signUp(page);
-    await page.goto("/plan");
-    await expect(page.getByRole("heading", { name: "Where to next?" })).toBeVisible();
+    await page.goto("/arya");
+    await expect(page.getByText(/Tell me the trip you.re dreaming of/)).toBeVisible();
 
-    // Intent modes that aren't built yet say so instead of pretending.
-    await page.getByRole("tab", { name: "Paste a link" }).click();
-    await expect(page.getByText(/Coming soon — we can.t read reels/)).toBeVisible();
-    await page.getByRole("tab", { name: "Screenshot" }).click();
-    await expect(page.getByText(/Coming soon — planning from a screenshot/)).toBeVisible();
-    await page.getByRole("tab", { name: "Describe it" }).click();
+    // The board starts empty and honest: what is still to come, with no invented prices.
+    await expect(page.getByText("Coming up on your board")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Your trips" })).toBeVisible();
 
     const reply = page.waitForResponse((r) => /\/api\/wt\/chat\/sessions\/[^/]+\/messages/.test(r.url()), { timeout: 200_000 });
     await page.getByPlaceholder(/4 days in Munnar/).fill("Plan 3 relaxed days in Kerala for my parents, they love nature and tea gardens");

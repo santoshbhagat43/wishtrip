@@ -203,8 +203,9 @@ test.describe("Conversation scenarios @conversations", () => {
         const res = await page.request.put("/api/wt/profiles/me", { data: scenario.profile });
         expect(res.status()).toBe(200);
       }
-      await page.goto("/plan");
-      await page.getByRole("button", { name: "New trip" }).click();
+      await page.goto("/arya");
+      await page.getByRole("button", { name: "Your trips" }).click();
+      await page.getByRole("menuitem", { name: "New trip" }).click();
 
       const transcript = [`# ${scenario.name}`, `Intents covered: ${scenario.intents.join(", ")}`, ""];
       for (const turn of scenario.turns) {

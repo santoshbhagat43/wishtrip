@@ -15,7 +15,7 @@ import { useMe, useSignOut } from "@/lib/session";
 /** Used until staff have configured a header menu, and if the menus call ever fails. */
 const FALLBACK = [
   { href: "/explore", label: "Explore" },
-  { href: "/plan", label: "Plan a trip" },
+  { href: "/arya", label: "Plan a trip" },
   { href: "/saved", label: "Saved" },
   { href: "/help", label: "Help" },
   { href: "/profile", label: "My profile" },

@@ -8,7 +8,7 @@ import { B4Header } from "../header";
 import { DestinationGrid } from "./destination-grid";
 import { describe, Photo, placesLabel, tripsLabel } from "./destination-parts";
 
-const plan = (prompt: string) => `/plan?prompt=${encodeURIComponent(prompt)}`;
+const plan = (prompt: string) => `/arya?prompt=${encodeURIComponent(prompt)}`;
 
 /** One tile of the hero mosaic. */
 function Tile({ d, big = false }: { d: DestinationCard; big?: boolean }) {
@@ -56,7 +56,7 @@ export function DestinationsScreen({ destinations }: { destinations: Destination
               Every place here is in WishTrip&rsquo;s checked travel knowledge, and some already have trips from real travel
               creators. Pick one, make it yours with Arya.
             </p>
-            <form action="/plan" method="get" className="flex items-center gap-2 rounded-full border border-[#E3E8EE] bg-white p-1.5 pl-5 shadow-[0_6px_24px_rgba(7,35,56,.08)]">
+            <form action="/arya" method="get" className="flex items-center gap-2 rounded-full border border-[#E3E8EE] bg-white p-1.5 pl-5 shadow-[0_6px_24px_rgba(7,35,56,.08)]">
               <input
                 name="prompt"
                 aria-label="Ask Arya where to go"
@@ -111,7 +111,7 @@ export function DestinationsScreen({ destinations }: { destinations: Destination
             <h2 className="font-display m-0 mt-2 text-[30px] font-medium md:text-[42px]">Tell Arya the mood. She&rsquo;ll find the place.</h2>
             <p className="m-0 mt-2 text-[15px] text-white/75">&ldquo;Somewhere warm in December, good for a 4-year-old.&rdquo;</p>
           </div>
-          <Link href="/plan" className="rounded-full bg-[#22DDE0] px-7 py-4 text-[16px] font-bold text-[#072338] no-underline">
+          <Link href="/arya" className="rounded-full bg-[#22DDE0] px-7 py-4 text-[16px] font-bold text-[#072338] no-underline">
             Start planning →
           </Link>
         </div>

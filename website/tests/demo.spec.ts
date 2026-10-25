@@ -16,9 +16,9 @@ const MODIFY = "actually make it 4 days from 10 December, and we would rather be
 const CLEAR = "dates are flexible now";
 const UNCOVERED = "Plan 3 days in Reykjavik for a couple";
 
-/** The right-hand "Your trip so far" panel — the intent surface in Act 2. */
+/** The trip board's "What Arya knows" panel: the intent surface in Act 2. */
 const tripPanel = (page: import("@playwright/test").Page) =>
-  page.getByRole("complementary").filter({ hasText: "Your trip so far" });
+  page.getByRole("complementary").filter({ hasText: "What Arya knows" });
 
 async function send(page: import("@playwright/test").Page, message: string) {
   const reply = page.waitForResponse((r) => /\/api\/wt\/chat\/sessions\/[^/]+\/messages/.test(r.url()), {
@@ -32,8 +32,8 @@ async function send(page: import("@playwright/test").Page, message: string) {
 test.describe("Demo @demo", () => {
   test("Act 2 + 3: one sentence becomes a checked trip, and the data stays honest", async ({ page }) => {
     await signUp(page);
-    await page.goto("/plan");
-    await expect(page.getByRole("heading", { name: "Where to next?" })).toBeVisible();
+    await page.goto("/arya");
+    await expect(page.getByText(/Tell me the trip you.re dreaming of/)).toBeVisible();
 
     // --- Act 2, turn 1: intent out of one typo-ridden sentence.
     await send(page, PLAN);
@@ -46,7 +46,7 @@ test.describe("Demo @demo", () => {
     await expect(panel.getByText(/\(1\/5\)/)).toBeVisible(); // "relaxed" → pace 1 of 5
 
     // --- Act 3: how the answer is presented.
-    await expect(page.getByText("From places WishTrip has checked")).toBeVisible();
+    await expect(page.getByText(/From places WishTrip has checked|Includes some general suggestions/)).toBeVisible();
     await expect(page.getByText(/Checked — /).first()).toBeVisible(); // feasibility verdict on the plan
     await expect(page.getByText(/^Day 1/).first()).toBeVisible();
     await expect(page.getByText(/planned · fits/).first()).toBeVisible(); // day load vs capacity
@@ -73,7 +73,7 @@ test.describe("Demo @demo", () => {
 
   test("Act 2: a destination we don't cover is labelled, not bluffed", async ({ page }) => {
     await signUp(page);
-    await page.goto("/plan");
+    await page.goto("/arya");
     await send(page, UNCOVERED);
 
     await expect(page.getByText("General ideas — not from our checked places")).toBeVisible();
@@ -92,11 +92,9 @@ test.describe("Demo @demo", () => {
     await expect(page.getByText("How long")).toBeVisible();
     await expect(page.getByText("not available yet")).toBeVisible();
 
-    // The two intent modes that aren't built are labelled in the UI, not hidden.
-    await page.goto("/plan");
-    await page.getByRole("tab", { name: "Paste a link" }).click();
-    await expect(page.getByText(/Coming soon — we can.t read reels/)).toBeVisible();
-    await page.getByRole("tab", { name: "Screenshot" }).click();
-    await expect(page.getByText(/Coming soon — planning from a screenshot/)).toBeVisible();
+    // Nothing is offered that isn't built: Arya takes a described trip (reels have their own page).
+    await page.goto("/arya");
+    await expect(page.getByRole("tab", { name: "Paste a link" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Screenshot" })).toHaveCount(0);
   });
 });

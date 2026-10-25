@@ -133,15 +133,15 @@ test.describe("Knowledge → plan @knowledge @demo", () => {
 
     await test.step("A new traveler opens the trip planner on the website", async () => {
       await signUp(page);
-      await page.goto("/plan");
-      await expect(page.getByRole("heading", { name: "Where to next?" })).toBeVisible();
+      await page.goto("/arya");
+      await expect(page.getByText(/Tell me the trip you.re dreaming of/)).toBeVisible();
     });
 
     const turn = await test.step("They describe the trip in one sentence", () => send(page, ASK));
     const message = turn.assistant_message;
 
     await test.step("Intent: the sentence is understood", async () => {
-      const panel = page.getByRole("complementary").filter({ hasText: "Your trip so far" });
+      const panel = page.getByRole("complementary").filter({ hasText: "What Arya knows" });
       await expect(panel.getByText("Munnar")).toBeVisible();
       await expect(panel.getByText("2 days")).toBeVisible();
       await expect(panel.getByText(/seniors/i)).toBeVisible(); // "my parents"
@@ -173,7 +173,8 @@ test.describe("Knowledge → plan @knowledge @demo", () => {
     });
 
     await test.step("Not in the knowledge base: still answered, but labelled as general", async () => {
-      await page.getByRole("button", { name: "New trip" }).click();
+      await page.getByRole("button", { name: "Your trips" }).click();
+      await page.getByRole("menuitem", { name: "New trip" }).click();
       const general = await send(page, UNCOVERED);
       await expect(page.getByText("General ideas — not from our checked places")).toBeVisible();
       expect(general.assistant_message.sources).toEqual([]);
