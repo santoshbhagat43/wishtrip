@@ -28,21 +28,19 @@ function seedReel(shortcode: string) {
 /** Sign a creator in through SSO, approve them as staff would, and land on the dashboard. */
 async function approvedCreator(page: Page, request: import("@playwright/test").APIRequestContext) {
   const email = `e2e-links-${Date.now()}@creators.example.com`;
-  await page.goto(`${CREATOR_URL}/creator`);
+  await page.goto(`${CREATOR_URL}/login`);
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send code" }).click();
   await page.getByLabel("Sign-in code").fill(DEV_CODE);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+  await expect(page).toHaveURL(`${CREATOR_URL}/`);
 
   const login = await request.post(`${API_URL}/auth/login`, { data: ADMIN });
   const headers = { Authorization: `Bearer ${(await login.json()).access_token}` };
-  const creators = (await (await request.get(`${API_URL}/creators`, { headers })).json()) as {
-    id: string;
-    email: string;
-    referral_code: string;
-  }[];
-  const me = creators.find((c) => c.email === email)!;
+  const found = (await (await request.get(`${API_URL}/creators`, { headers, params: { q: email } })).json()) as {
+    items: { id: string; email: string; referral_code: string }[];
+  };
+  const me = found.items.find((c) => c.email === email)!;
   await request.patch(`${API_URL}/creators/${me.id}`, {
     headers,
     // Handles are unique, so each run gets its own.
@@ -142,13 +140,13 @@ test.describe("Reel links", () => {
     await reel.getByRole("button", { name: "Open itinerary" }).click();
     const sheet = page.getByRole("dialog", { name: "Itinerary: Goa beach weekend" });
     await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
-    // The itinerary has its own address, /creator/<itinerary id>: it survives a reload, and
+    // The itinerary has its own address, /<itinerary id>: it survives a reload, and
     // Back returns to the reel it was opened from.
-    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/creator/[0-9a-f-]{36}$`));
+    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/[0-9a-f-]{36}$`));
     await page.reload();
     await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
     await page.goBack();
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
     await expect(sheet).toHaveCount(0);
     await page.goForward();
     await expect(sheet.getByRole("tab", { name: /Day 1/ })).toBeVisible();
@@ -221,9 +219,9 @@ test.describe("Reel links", () => {
     await visitor.close();
     await sheet.getByRole("button", { name: "Back to reel" }).click();
     await expect(sheet).toHaveCount(0);
-    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/creator\\?reel=`));
+    await expect(page).toHaveURL(new RegExp(`^${CREATOR_URL}/\\?reel=`));
     await reel.getByRole("button", { name: "Close" }).click();
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
     await expect(card).toContainText("Not published");
 
     expect(pageErrors).toEqual([]);
@@ -326,8 +324,8 @@ test.describe("Reel links", () => {
     await expect.poll(async () => hero.getAttribute("src")).not.toBe(before);
 
     // The trip editor: same cover, the stops by day, and edits that save.
-    const tripId = page.url().match(/\/creator\/([0-9a-f-]{36})$/)![1];
-    await page.goto(`${CREATOR_URL}/creator/trips/${tripId}`);
+    const tripId = page.url().match(/\/([0-9a-f-]{36})$/)![1];
+    await page.goto(`${CREATOR_URL}/trips/${tripId}`);
     await expect(page.getByText("Edit your trip")).toBeVisible();
     await expect(page.getByRole("region", { name: "Day 1" })).toBeVisible();
     await expect(page.getByText("All changes saved")).toBeVisible();
@@ -383,15 +381,80 @@ test.describe("Reel links", () => {
     await expect(card.getByRole("button", { name: "Copy link" })).toBeVisible();
   });
 
+  test("the profile: a dropdown in the header, photos and the name on their page, then sign out", async ({ page, request }) => {
+    await approvedCreator(page, request);
+
+    // No loose Sign out button in the header: it's in the account menu with Profile.
+    await expect(page.getByRole("button", { name: "Sign out", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Make your page yours")).toBeVisible();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    const menu = page.getByRole("menu", { name: "Account" });
+    await expect(menu.getByRole("menuitem", { name: "Profile" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await menu.getByRole("menuitem", { name: "Profile" }).click();
+    await expect(page).toHaveURL(`${CREATOR_URL}/profile`);
+    await expect(page.getByRole("heading", { level: 1, name: "Your profile" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your page", exact: true })).toBeVisible();
+    await expect(page.getByText(/Your page shows once you have a published trip/)).toBeVisible();
+    const photo = path.resolve(__dirname, "fixtures/photo.png");
+
+    await page.getByLabel("Upload a profile photo").setInputFiles(photo);
+    const avatar = page.getByAltText("Your profile photo");
+    await expect(avatar).toBeVisible();
+    await expect.poll(() => avatar.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    // …and the photo is the picture in the header's avatar too.
+    await expect(page.getByRole("button", { name: "Account menu" }).locator("img")).toBeVisible();
+
+    await page.getByLabel("Upload a cover photo").setInputFiles(photo);
+    await expect(page.getByAltText("Your cover photo")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Change cover photo" })).toBeVisible();
+    if (SHOT) await page.screenshot({ path: `${SHOT}/profile-page.png`, fullPage: true });
+
+    // The photos are kept: a reload still shows them.
+    await page.reload();
+    await expect(page.getByAltText("Your profile photo")).toBeVisible();
+    await expect(page.getByAltText("Your cover photo")).toBeVisible();
+
+    // The name on their page.
+    const name = page.getByLabel("Name on your page");
+    await expect(name).toHaveValue("Meera Kamat");
+    await expect(page.getByRole("button", { name: "Save name" })).toBeDisabled();
+    await name.fill("M");
+    await expect(page.getByRole("button", { name: "Save name" })).toBeDisabled(); // too short
+    await name.fill("  Meera   K ");
+    await page.getByRole("button", { name: "Save name" }).click();
+    await expect(page.getByRole("button", { name: "Account menu" })).toContainText("Meera K");
+    await page.goto(`${CREATOR_URL}/`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Meera K");
+    // With both photos on, the nudge is gone.
+    await expect(page.getByText("Make your page yours")).toHaveCount(0);
+
+    // Photos can be taken off again.
+    await page.goto(`${CREATOR_URL}/profile`);
+    await page.getByRole("button", { name: "Remove cover photo" }).click();
+    await expect(page.getByAltText("Your cover photo")).toHaveCount(0);
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(page.getByAltText("Your profile photo")).toHaveCount(0);
+
+    // Signing out is in the menu.
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await menu.getByRole("menuitem", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(`${CREATOR_URL}/creators`);
+  });
+
   test("a creator who isn't approved yet sees why they can't make links", async ({ page }) => {
     const email = `e2e-pendinglinks-${Date.now()}@creators.example.com`;
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await expect(page).toHaveURL(new RegExp(`^${SSO_URL}/sso/login`));
     await page.getByLabel("Email").fill(email);
     await page.getByRole("button", { name: "Send code" }).click();
     await page.getByLabel("Sign-in code").fill(DEV_CODE);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
 
     const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Reels", exact: true }) });
     await expect(section.getByText("unlock as soon as the WishTrip team approves")).toBeVisible();

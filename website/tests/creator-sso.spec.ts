@@ -38,7 +38,7 @@ test.describe("Creator site", () => {
     const url = new URL(page.url());
     expect(url.searchParams.get("for")).toBe("creator");
     // After signing in they land on their dashboard on the creator site.
-    expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/creator`);
+    expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/`);
     // And nothing on the way was the old creators sign-in page, or the creator site's gate.
     expect(visited.filter((u) => u.includes("/creators/join") || u.includes("/gate"))).toEqual([]);
     await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
@@ -50,11 +50,11 @@ test.describe("Creator site", () => {
     await expect(page).toHaveURL(SSO_LOGIN);
     const url = new URL(page.url());
     expect(url.searchParams.get("for")).toBe("creator");
-    expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/creator`);
+    expect(url.searchParams.get("redirect")).toBe(`${CREATOR_URL}/`);
   });
 
   test("the sign-in page offers Email and WhatsApp; WhatsApp says it isn't available yet", async ({ page }) => {
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Email" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("Email")).toBeVisible();
@@ -72,7 +72,7 @@ test.describe("Creator site", () => {
   });
 
   test("a creator signs in with an email code and lands in their portal", async ({ page }) => {
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await expect(page).toHaveURL(SSO_LOGIN);
     await expect(page.getByRole("heading", { level: 1, name: "Creator sign-in" })).toBeVisible();
 
@@ -80,12 +80,12 @@ test.describe("Creator site", () => {
     await page.getByRole("button", { name: "Send code" }).click();
     await signInWithCode(page, DEV_CODE);
 
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
     // A first email sign-in makes a pending creator, waiting for staff to approve them.
     await expect(page.getByText("Waiting for approval").first()).toBeVisible();
     // Back to the creator site's front door, they now go straight to the portal.
     await page.goto(`${CREATOR_URL}/`);
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
   });
 
   // WhatsApp sign-in is switched off until Trustsignal WhatsApp is wired (email only for now).
@@ -98,21 +98,21 @@ test.describe("Creator site", () => {
     });
     expect(applied.status()).toBe(202);
 
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await page.getByRole("tab", { name: "WhatsApp" }).click();
     await page.getByLabel("WhatsApp number").fill(`98${local}`);
     await page.getByRole("button", { name: "Send code" }).click();
     await expect(page.getByText(phone)).toBeVisible();
     await signInWithCode(page, DEV_CODE);
 
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
     await expect(page.getByText("Waiting for approval").first()).toBeVisible();
     const me = await (await page.request.get(`${CREATOR_URL}/api/wt/auth/me`)).json();
     expect(me.email).toBe(email);
   });
 
   test("a wrong code is refused with a clear message", async ({ page }) => {
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await page.getByLabel("Email").fill(`e2e-wrong-${Date.now()}@creators.example.com`);
     await page.getByRole("button", { name: "Send code" }).click();
     await signInWithCode(page, DEV_CODE === "9999" ? "8888" : "9999");
@@ -129,11 +129,11 @@ test.describe("Creator site", () => {
     const traveller = await (await page.request.get("/api/wt/auth/me")).json();
     await page.context().clearCookies();
 
-    await page.goto(`${CREATOR_URL}/creator`);
+    await page.goto(`${CREATOR_URL}/login`);
     await page.getByLabel("Email").fill(email);
     await page.getByRole("button", { name: "Send code" }).click();
     await signInWithCode(page, DEV_CODE);
-    await expect(page).toHaveURL(`${CREATOR_URL}/creator`);
+    await expect(page).toHaveURL(`${CREATOR_URL}/`);
     await expect(page.getByText("Waiting for approval").first()).toBeVisible();
     await expect(page.getByText(/already has a traveller account/)).toHaveCount(0);
     const me = await (await page.request.get(`${CREATOR_URL}/api/wt/auth/me`)).json();

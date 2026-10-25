@@ -100,7 +100,7 @@ export default function TripEditorPage() {
       <div className="mx-auto max-w-xl py-16 text-center">
         <h1 className="font-sans! text-[26px] font-bold">We couldn&rsquo;t open that trip</h1>
         <p className="mt-2 text-muted">It may belong to another creator account.</p>
-        <Link href="/creator" className="mt-5 inline-flex rounded-full border border-border px-4 py-2 text-sm font-semibold">
+        <Link href="/" className="mt-5 inline-flex rounded-full border border-border px-4 py-2 text-sm font-semibold">
           Back to your dashboard
         </Link>
       </div>
@@ -141,7 +141,7 @@ export default function TripEditorPage() {
     <div className="mx-auto max-w-[1180px] pb-24">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          href="/creator"
+          href="/"
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-2 text-sm font-semibold hover:bg-surface-2"
         >
           <ArrowLeft className="size-4" /> Your dashboard

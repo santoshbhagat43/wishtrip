@@ -126,6 +126,22 @@ export default function CreatorDashboardPage() {
             </div>
           </Card>
 
+          {(!o.avatar_url || !o.cover_url) && (
+            <Link
+              href="/profile"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-brand-soft px-4 py-3 text-sm no-underline hover:border-brand"
+            >
+              <span>
+                <strong className="block text-text">Make your page yours</strong>
+                <span className="text-muted">
+                  Add {!o.avatar_url && !o.cover_url ? "a profile photo and a cover photo" : !o.avatar_url ? "a profile photo" : "a cover photo"}{" "}
+                  for the page travellers see.
+                </span>
+              </span>
+              <span className="whitespace-nowrap font-semibold text-brand">Go to profile →</span>
+            </Link>
+          )}
+
           <ReelsCard approved={o.status === "active"}>
             {o.reels.length > 0 && (
               <>

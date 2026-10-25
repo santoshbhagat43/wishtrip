@@ -15,13 +15,13 @@ async function adminCreators(request: APIRequestContext) {
   const login = await request.post(`${API_URL}/auth/login`, { data: ADMIN });
   expect(login.status(), "admin login (ADMIN_* in ../.env)").toBe(200);
   const { access_token } = await login.json();
-  const res = await request.get(`${API_URL}/creators`, { headers: { Authorization: `Bearer ${access_token}` } });
+  const res = await request.get(`${API_URL}/creators?status=active&page_size=100`, {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
   expect(res.status()).toBe(200);
-  return (await res.json()) as {
-    referral_code: string;
-    status: string;
-    stats: { credited_travellers: number };
-  }[];
+  return ((await res.json()) as {
+    items: { referral_code: string; status: string; stats: { credited_travellers: number } }[];
+  }).items;
 }
 
 test.describe("Sign-up on SSO", () => {

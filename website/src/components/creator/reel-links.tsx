@@ -482,7 +482,7 @@ function ReelModal({
 }
 
 /** The itinerary sheet for one link, with its publishing wired to the server. It lives at
- *  /creator/<itinerary id>, so it has its own address you can reload, share and go back from. */
+ *  /<itinerary id>, so it has its own address you can reload, share and go back from. */
 export function SheetFor({ link, onClose }: { link: Link; onClose: () => void }) {
   const { patch } = useLinkActions(link);
   return (
@@ -496,7 +496,7 @@ export function SheetFor({ link, onClose }: { link: Link; onClose: () => void })
   );
 }
 
-/** Coming back from an itinerary lands on /creator?reel=<id>: that reel opens again, which is
+/** Coming back from an itinerary lands on /?reel=<id>: that reel opens again, which is
  *  what "Back to reel" promises. */
 function ReelFromUrl({ links }: { links: Link[] }) {
   const router = useRouter();
@@ -507,8 +507,8 @@ function ReelFromUrl({ links }: { links: Link[] }) {
     <ReelModal
       key={link.id}
       link={link}
-      onOpenItinerary={() => link.trip_id && router.push(`/creator/${link.trip_id}`)}
-      onClose={() => router.replace("/creator")}
+      onOpenItinerary={() => link.trip_id && router.push(`/${link.trip_id}`)}
+      onClose={() => router.replace("/")}
     />
   );
 }
@@ -573,7 +573,7 @@ export function ReelsCard({ approved, children }: { approved: boolean; children?
         <ReelModal
           key={open.id}
           link={open}
-          onOpenItinerary={() => open.trip_id && router.push(`/creator/${open.trip_id}`)}
+          onOpenItinerary={() => open.trip_id && router.push(`/${open.trip_id}`)}
           onClose={() => setOpenId(null)}
         />
       )}

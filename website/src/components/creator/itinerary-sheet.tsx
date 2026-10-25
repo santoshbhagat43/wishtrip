@@ -286,7 +286,7 @@ export function ItinerarySheet({
                 {link.trip_id && (
                   <span className="mt-1 flex flex-wrap gap-2">
                     <Link
-                      href={`/creator/trips/${link.trip_id}`}
+                      href={`/trips/${link.trip_id}`}
                       className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/70 px-4 py-2 text-[13px] font-semibold text-white hover:bg-white/10"
                     >
                       <Pencil className="size-3.5" /> Edit trip

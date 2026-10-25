@@ -12,6 +12,6 @@ export default async function Page() {
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
   // Where a creator lands after signing in: their dashboard on the creator site.
-  const dashboard = CREATOR_URL ? `${CREATOR_URL}/creator` : `${proto}://${host}/creator`;
+  const dashboard = CREATOR_URL ? `${CREATOR_URL}/` : `${proto}://${host}/`;
   return <CreatorsScreen signInHref={creatorSsoUrl(dashboard)} />;
 }

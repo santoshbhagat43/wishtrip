@@ -9,5 +9,5 @@ export default async function CreatorJoinPage() {
   const h = await headers();
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
-  redirect(creatorSsoUrl(host ? `${proto}://${host}/creator` : "/creator"));
+  redirect(creatorSsoUrl(host ? `${proto}://${host}/` : "/"));
 }

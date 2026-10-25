@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/card";
 import { api, unwrap } from "@/lib/api/client";
 
-/** One itinerary on its own address, /creator/<itinerary id>: reloading keeps you here, the
+/** One itinerary on its own address, /<itinerary id> on the creator site: reloading keeps you here, the
  *  browser's Back button returns to the dashboard, and the link can be bookmarked. */
 export default function ItineraryPage() {
   const { tripId } = useParams<{ tripId: string }>();
@@ -29,12 +29,12 @@ export default function ItineraryPage() {
         <h1 className="text-[28px] leading-tight">We couldn&rsquo;t find that itinerary</h1>
         <p className="mt-2 text-muted">It may belong to another creator account, or it was removed.</p>
         <div className="mt-5 flex justify-center">
-          <Link href="/creator">
+          <Link href="/">
             <Button variant="secondary">Back to your dashboard</Button>
           </Link>
         </div>
       </div>
     );
   }
-  return <SheetFor link={link} onClose={() => router.push(`/creator?reel=${link.id}`)} />;
+  return <SheetFor link={link} onClose={() => router.push(`/?reel=${link.id}`)} />;
 }

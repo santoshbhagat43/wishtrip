@@ -33,7 +33,7 @@ function CreateTrip() {
     setError(null);
     try {
       const job = unwrap(await api.POST("/creator/trips/import", { body: { url } }));
-      if (job.status === "done" && job.creator_trip_id) return router.push(`/creator/trips/${job.creator_trip_id}`);
+      if (job.status === "done" && job.creator_trip_id) return router.push(`/trips/${job.creator_trip_id}`);
       if (job.status === "failed") throw new Error(job.error || "That reel couldn't be read");
       setImportId(job.id);
     } catch (e) {
@@ -50,7 +50,7 @@ function CreateTrip() {
       setStep(r.data.step);
       if (r.data.status === "done" && r.data.creator_trip_id) {
         clearInterval(timer.current!);
-        router.push(`/creator/trips/${r.data.creator_trip_id}`);
+        router.push(`/trips/${r.data.creator_trip_id}`);
       } else if (r.data.status === "failed") {
         clearInterval(timer.current!);
         setError(r.data.error || "That reel couldn't be read");
@@ -84,7 +84,7 @@ export function TripTools() {
       {trips.data && trips.data.length > 0 && (
         <div className="flex flex-col gap-2">
           {trips.data.map((t) => (
-            <Link key={t.id} href={`/creator/trips/${t.id}`} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 hover:border-brand">
+            <Link key={t.id} href={`/trips/${t.id}`} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 hover:border-brand">
               <span className="flex flex-1 flex-col">
                 <strong>{t.title}</strong>
                 <span className="text-sm text-muted">{t.destination_name} · {t.items.length} stops</span>
