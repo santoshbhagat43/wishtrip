@@ -24,6 +24,11 @@ async function forward(request: NextRequest, ctx: { params: Promise<{ path: stri
     const headers = new Headers();
     const contentType = request.headers.get("content-type");
     if (contentType) headers.set("content-type", contentType);
+    // Staff working for a creator, and the name of a video being uploaded for them.
+    for (const name of ["x-act-as-creator", "x-reel-filename"]) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
     if (token) headers.set("authorization", `Bearer ${token}`);
     return fetch(target, { method: request.method, headers, body, cache: "no-store" });
   };

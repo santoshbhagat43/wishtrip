@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { ActingProvider } from "@/components/creator-reels/acting";
+import { ReelsCard } from "@/components/creator-reels/reels-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, Empty, ErrorNote, PageHeader, Spinner } from "@/components/ui/card";
@@ -84,8 +86,16 @@ export default function CreatorPage() {
             </div>
           </Card>
 
+          <ActingProvider creatorId={id}>
+            <ReelsCard
+              approved={c.status === "active"}
+              title="Reel links and itineraries"
+              description={`Add reels for ${c.display_name || (c.handle ? `@${c.handle}` : "this creator")} the way they would. What you add appears in their own dashboard, and is recorded as done by staff.`}
+            />
+          </ActingProvider>
+
           <Card>
-            <CardHeader title="Reels" description="What we read from each reel travellers pasted." />
+            <CardHeader title="Reels travellers pasted" description="What we read from each reel travellers pasted." />
             {c.reels.length === 0 ? (
               <Empty title="No reels yet" />
             ) : (

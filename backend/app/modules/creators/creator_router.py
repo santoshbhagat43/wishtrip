@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
 from app.core.config import settings
-from app.core.deps import get_current_user
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
 from app.modules.creators import service, trips
+from app.modules.creators.acting import Acting, acting_as
 from app.modules.creators.models import (
     Creator,
     CreatorLink,
@@ -54,11 +54,11 @@ def trip_read(trip: CreatorTrip) -> CreatorTripRead:
     return data
 
 
-async def _active_creator(session: AsyncSession, user: User) -> Creator:
-    creator = await trips.require_creator(session, user.id)
-    if creator.status != CreatorStatus.ACTIVE:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Your creator account isn't approved yet.")
-    return creator
+def _active(acting: Acting) -> Creator:
+    if acting.creator.status != CreatorStatus.ACTIVE:
+        who = "The creator's" if acting.staff else "Your"
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"{who} creator account isn't approved yet.")
+    return acting.creator
 
 
 @router.post("/creator/trips/import", response_model=ReelImportRead, status_code=201)
@@ -66,14 +66,14 @@ async def import_reel(
     data: TripImportStart,
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Build a trip from one of the creator's own reels (same pipeline as a traveller paste)."""
-    await _active_creator(session, user)
+    _active(acting)
     shortcode = reels.shortcode_from(data.url)
     if not shortcode:
         raise bad_request("Paste an Instagram reel link, like instagram.com/reel/…")
-    job = await _start_import(session, ai, user, shortcode)
+    job = await _start_import(session, ai, acting.user, shortcode)
     return ReelImportRead.model_validate(job, from_attributes=True)
 
 
@@ -115,19 +115,19 @@ async def _start_import(
 async def import_status(
     import_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     job = await session.get(ReelImport, import_id)
-    if not job or job.user_id != user.id:
+    if not job or job.user_id != acting.user.id:
         raise not_found("Import")
     return ReelImportRead.model_validate(job, from_attributes=True)
 
 
 @router.get("/creator/trips", response_model=list[CreatorTripRead])
 async def list_trips(
-    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+    session: AsyncSession = Depends(get_session), acting: Acting = Depends(acting_as)
 ):
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     return [trip_read(t) for t in await trips.list_for_creator(session, creator.id)]
 
 
@@ -135,9 +135,9 @@ async def list_trips(
 async def get_trip(
     trip_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     return trip_read(await trips.owned(session, trip_id, creator.id))
 
 
@@ -146,9 +146,9 @@ async def update_trip(
     trip_id: uuid.UUID,
     data: CreatorTripUpdate,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     trip = await trips.owned(session, trip_id, creator.id)
     if data.title is not None:
         trip.title = data.title.strip() or trip.title
@@ -169,11 +169,11 @@ async def update_trip(
 async def trip_cover_options(
     trip_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Frames from the creator's video (and the reel's cover, and their own uploads) to choose
     the trip's cover image from."""
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     trip = await trips.owned(session, trip_id, creator.id)
     return await trips.cover_options(session, trip)
 
@@ -183,11 +183,11 @@ async def upload_trip_cover(
     trip_id: uuid.UUID,
     data: CoverUpload,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Use an image the creator uploads as the trip's cover (for reels read before frames were
     kept, or when none of the frames suit)."""
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     trip = await trips.owned(session, trip_id, creator.id)
     trip.cover_image_key = trips.save_cover_upload(trip, data.filename, data.data_base64)
     await session.commit()
@@ -199,12 +199,12 @@ async def upload_trip_cover(
 async def save_from_reel(
     data: SaveFromReel,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Save a creator's reel-based trip and publish its affiliate link in one step."""
-    creator = await _active_creator(session, user)
+    creator = _active(acting)
     job = await session.get(ReelImport, data.import_id)
-    if not job or job.user_id != user.id:
+    if not job or job.user_id != acting.user.id:
         raise not_found("Reel")
     content = await session.get(CreatorContent, job.content_id) if job.content_id else None
     if content is None:
@@ -379,10 +379,10 @@ async def _own_link(session: AsyncSession, creator: Creator, link_id: uuid.UUID)
 
 @router.get("/creator/links", response_model=list[CreatorLinkRead])
 async def my_links(
-    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+    session: AsyncSession = Depends(get_session), acting: Acting = Depends(acting_as)
 ):
     """The creator's reel links with each one's own numbers, newest first."""
-    creator = await trips.require_creator(session, user.id)
+    creator = acting.creator
     links = list(
         await session.scalars(
             select(CreatorLink)
@@ -397,10 +397,10 @@ async def my_links(
 async def create_my_link(
     data: CreatorLinkCreate,
     session: AsyncSession = Depends(get_session),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Make a short link for a reel you are about to post. The Instagram URL comes later."""
-    creator = await _active_creator(session, user)
+    creator = _active(acting)
     link = await service.create_link(session, creator, data.label, data.destination_id)
     await session.commit()
     await session.refresh(link)
@@ -413,11 +413,11 @@ async def change_my_link(
     data: CreatorLinkUpdate,
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Add the reel's Instagram or YouTube link once it is posted (it is read into an itinerary,
     Instagram first), choose auto-publishing, or publish / unpublish the itinerary."""
-    creator = await _active_creator(session, user)
+    creator = _active(acting)
     link = await _own_link(session, creator, link_id)
     sent = data.model_dump(exclude_unset=True)
     before = await _read_from(session, link)
@@ -444,7 +444,7 @@ async def change_my_link(
         else:
             trip.status = TripStatus.DRAFT
     if reel_changed and after:
-        await _start_import(session, ai, user, after, link)
+        await _start_import(session, ai, acting.user, after, link)
     await session.commit()
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
@@ -455,11 +455,11 @@ async def build_my_link(
     link_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Read the link's reel or video into an itinerary again (after a failure, or for a link made
     before itineraries existed)."""
-    creator = await _active_creator(session, user)
+    creator = _active(acting)
     link = await _own_link(session, creator, link_id)
     sources = _sources(link)
     if not sources:
@@ -467,7 +467,7 @@ async def build_my_link(
             "Add your Instagram reel or YouTube video link first, or upload the video."
         )
     await _retire_trip(session, link)
-    await _start_import(session, ai, user, sources[0], link)
+    await _start_import(session, ai, acting.user, sources[0], link)
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
 
@@ -478,17 +478,17 @@ async def upload_my_link_video(
     request: Request,
     session: AsyncSession = Depends(get_session),
     ai: AIOrchestrator = Depends(get_orchestrator),
-    user: User = Depends(get_current_user),
+    acting: Acting = Depends(acting_as),
 ):
     """Build the itinerary from a video file the creator uploads, for when a link can't be read
     (YouTube often refuses a server). The raw video is the request body (content-type video/*,
     filename in X-Reel-Filename), so it streams through the website's proxy without a multipart
     hop."""
-    creator = await _active_creator(session, user)
+    creator = _active(acting)
     link = await _own_link(session, creator, link_id)
     if not (request.headers.get("content-type") or "").startswith("video/"):
         raise bad_request("Upload a video file (mp4 or mov).")
-    if await reels.recent_count(session, user.id) >= settings.reel_imports_per_hour:
+    if await reels.recent_count(session, acting.user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try later.")
     data = await request.body()
     if not data:
@@ -499,7 +499,7 @@ async def upload_my_link_video(
         )
     key = storage.save(data, request.headers.get("x-reel-filename") or "upload.mp4", "reel-uploads")
     await _retire_trip(session, link)
-    await _start_import(session, ai, user, reels.upload_shortcode(), link, upload_key=key)
+    await _start_import(session, ai, acting.user, reels.upload_shortcode(), link, upload_key=key)
     await session.refresh(link)
     return (await _link_read(session, [link]))[0]
 
