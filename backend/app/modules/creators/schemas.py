@@ -67,6 +67,13 @@ class CreatorUpdate(BaseModel):
     notes: str | None = None
 
 
+class CreatorProfileUpdate(BaseModel):
+    """What a creator can change about their own page. The handle is staff's to set: it is
+    their address and their identity with us."""
+
+    display_name: str = Field(min_length=2, max_length=80)
+
+
 class CreatorMe(BaseModel):
     """What a signed-in creator sees about their own account."""
 
@@ -81,6 +88,9 @@ class CreatorMe(BaseModel):
     referral_code: str
     commission_type: CommissionType
     commission_value: int
+    # Their profile photo and cover photo, when they have added them.
+    avatar_url: str | None = None
+    cover_url: str | None = None
 
 
 class CreatorReel(BaseModel):

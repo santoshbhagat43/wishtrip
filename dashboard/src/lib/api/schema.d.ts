@@ -1048,6 +1048,46 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Update My Profile
+         * @description A creator changes the name shown on their public page and on their trips.
+         */
+        patch: operations["update_my_profile_creators_me_patch"];
+        trace?: never;
+    };
+    "/creators/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload My Avatar */
+        post: operations["upload_my_avatar_creators_me_avatar_post"];
+        /** Remove My Avatar */
+        delete: operations["remove_my_avatar_creators_me_avatar_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/me/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload My Cover */
+        post: operations["upload_my_cover_creators_me_cover_post"];
+        /** Remove My Cover */
+        delete: operations["remove_my_cover_creators_me_cover_delete"];
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1081,7 +1121,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Creators */
+        /**
+         * List Creators
+         * @description Creators, newest first, a page at a time. `q` finds a creator by any part of their handle
+         *     (with or without the @), name, email, WhatsApp number or YouTube channel.
+         */
         get: operations["list_creators_creators_get"];
         put?: never;
         post?: never;
@@ -1180,6 +1224,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/explore/creators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Creators Index */
+        get: operations["creators_index_explore_creators_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/explore/creators/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Creator Page */
+        get: operations["creator_page_explore_creators__handle__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spotlight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spotlight State
+         * @description Every published trip that can be featured, and which one is.
+         */
+        get: operations["spotlight_state_spotlight_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spotlight/trips/{trip_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Spotlight
+         * @description Feature a published trip (its creator is shown with it) or take it off. One at a time.
+         */
+        put: operations["set_spotlight_spotlight_trips__trip_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creator/trips/import": {
         parameters: {
             query?: never;
@@ -1250,6 +1368,48 @@ export interface paths {
         head?: never;
         /** Update Trip */
         patch: operations["update_trip_creator_trips__trip_id__patch"];
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}/cover-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trip Cover Options
+         * @description Frames from the creator's video (and the reel's cover, and their own uploads) to choose
+         *     the trip's cover image from.
+         */
+        get: operations["trip_cover_options_creator_trips__trip_id__cover_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creator/trips/{trip_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Trip Cover
+         * @description Use an image the creator uploads as the trip's cover (for reels read before frames were
+         *     kept, or when none of the frames suit).
+         */
+        post: operations["upload_trip_cover_creator_trips__trip_id__cover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/creator/trips/from-reel": {
@@ -1882,6 +2042,32 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /** CoverOption */
+        CoverOption: {
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+            /** T */
+            t?: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "video" | "reel_cover" | "upload";
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+        };
+        /** CoverUpload */
+        CoverUpload: {
+            /** Filename */
+            filename: string;
+            /** Data Base64 */
+            data_base64: string;
+        };
         /**
          * CreatorApplication
          * @description The apply form. A creator gives an Instagram handle, a YouTube channel, or both.
@@ -2063,6 +2249,10 @@ export interface components {
             commission_type: components["schemas"]["CommissionType"];
             /** Commission Value */
             commission_value: number;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Cover Url */
+            cover_url?: string | null;
         };
         /**
          * CreatorOtpRequest
@@ -2120,6 +2310,10 @@ export interface components {
             commission_type: components["schemas"]["CommissionType"];
             /** Commission Value */
             commission_value: number;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Cover Url */
+            cover_url?: string | null;
             /**
              * Profile Url
              * @default
@@ -2137,6 +2331,21 @@ export interface components {
             activity: components["schemas"]["AttributionRead"][];
             /** Commissions */
             commissions: components["schemas"]["CommissionRead"][];
+        };
+        /** CreatorPage */
+        CreatorPage: {
+            creator: components["schemas"]["PublicCreatorCard"];
+            /** More */
+            more: components["schemas"]["PublicCreatorCard"][];
+        };
+        /**
+         * CreatorProfileUpdate
+         * @description What a creator can change about their own page. The handle is staff's to set: it is
+         *     their address and their identity with us.
+         */
+        CreatorProfileUpdate: {
+            /** Display Name */
+            display_name: string;
         };
         /** CreatorRead */
         CreatorRead: {
@@ -2295,6 +2504,8 @@ export interface components {
             items?: components["schemas"]["TripItem"][] | null;
             /** Publish */
             publish?: boolean | null;
+            /** Cover Image Key */
+            cover_image_key?: string | null;
         };
         /** CreatorUpdate */
         CreatorUpdate: {
@@ -2310,6 +2521,23 @@ export interface components {
             commission_value?: number | null;
             /** Notes */
             notes?: string | null;
+        };
+        /** CreatorsIndex */
+        CreatorsIndex: {
+            /** Creators */
+            creators: number;
+            /** Trips */
+            trips: number;
+            /** Stops */
+            stops: number;
+            spotlight?: components["schemas"]["PublicCreatorCard"] | null;
+            /**
+             * Spotlight Chosen
+             * @default false
+             */
+            spotlight_chosen: boolean;
+            /** All */
+            all: components["schemas"]["PublicCreatorCard"][];
         };
         /** Destination */
         "Destination-Input": {
@@ -2346,6 +2574,14 @@ export interface components {
             place_count: number;
             /** Highlights */
             highlights: string[];
+            /**
+             * Creator Trips
+             * @default 0
+             */
+            creator_trips: number;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            top_creator?: components["schemas"]["TopCreator"] | null;
         };
         /** DestinationDetail */
         DestinationDetail: {
@@ -3478,6 +3714,17 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
+        /** Page[CreatorRead] */
+        Page_CreatorRead_: {
+            /** Items */
+            items: components["schemas"]["CreatorRead"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /** Page[LocationListItem] */
         Page_LocationListItem_: {
             /** Items */
@@ -3721,6 +3968,23 @@ export interface components {
             /** Referral Code */
             referral_code: string;
         };
+        /** PublicCreatorCard */
+        PublicCreatorCard: {
+            /** Handle */
+            handle: string;
+            /** Display Name */
+            display_name: string;
+            /** Channel */
+            channel: string;
+            /** Profile Url */
+            profile_url: string;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /** Trips */
+            trips: components["schemas"]["PublicTripCard"][];
+        };
         /**
          * PublicLocation
          * @description What travelers may see: no provenance, source, reference data, status or index state.
@@ -3795,6 +4059,25 @@ export interface components {
             url: string;
             /** Opens In New Tab */
             opens_in_new_tab: boolean;
+        };
+        /** PublicTripCard */
+        PublicTripCard: {
+            /** Share Code */
+            share_code: string;
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Days */
+            days: number;
+            /** Stops */
+            stops: number;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /** Source Url */
+            source_url?: string | null;
         };
         /**
          * PublicTripRead
@@ -4358,6 +4641,46 @@ export interface components {
             /** Similarity */
             similarity: number | null;
         };
+        /** SpotlightChange */
+        SpotlightChange: {
+            /** On */
+            on: boolean;
+        };
+        /** SpotlightState */
+        SpotlightState: {
+            /** Chosen Trip Id */
+            chosen_trip_id?: string | null;
+            /** Automatic Creator */
+            automatic_creator?: string | null;
+            /** Trips */
+            trips: components["schemas"]["SpotlightTrip"][];
+        };
+        /** SpotlightTrip */
+        SpotlightTrip: {
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Days */
+            days: number;
+            /** Stops */
+            stops: number;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /** Creator Name */
+            creator_name: string;
+            /** Creator Handle */
+            creator_handle: string;
+            /** Creator Trips */
+            creator_trips: number;
+            /** Spotlight */
+            spotlight: boolean;
+        };
         /** Suggestion */
         Suggestion: {
             /** Name */
@@ -4587,6 +4910,13 @@ export interface components {
              * @default bearer
              */
             token_type: string;
+        };
+        /** TopCreator */
+        TopCreator: {
+            /** Handle */
+            handle: string;
+            /** Display Name */
+            display_name: string;
         };
         /** TravelerDetail */
         TravelerDetail: {
@@ -6788,6 +7118,145 @@ export interface operations {
             };
         };
     };
+    update_my_profile_creators_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatorProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_my_avatar_creators_me_avatar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_my_avatar_creators_me_avatar_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+        };
+    };
+    upload_my_cover_creators_me_cover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_my_cover_creators_me_cover_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorMe"];
+                };
+            };
+        };
+    };
     my_overview_creators_me_overview_get: {
         parameters: {
             query?: never;
@@ -6812,6 +7281,9 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["CreatorStatus"] | null;
+                q?: string | null;
+                page?: number;
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -6825,7 +7297,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatorRead"][];
+                    "application/json": components["schemas"]["Page_CreatorRead_"];
                 };
             };
             /** @description Validation Error */
@@ -7040,6 +7512,112 @@ export interface operations {
             };
         };
     };
+    creators_index_explore_creators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorsIndex"];
+                };
+            };
+        };
+    };
+    creator_page_explore_creators__handle__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spotlight_state_spotlight_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightState"];
+                };
+            };
+        };
+    };
+    set_spotlight_spotlight_trips__trip_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpotlightChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_reel_creator_trips_import_post: {
         parameters: {
             query?: never;
@@ -7167,6 +7745,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreatorTripUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trip_cover_options_creator_trips__trip_id__cover_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_trip_cover_creator_trips__trip_id__cover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trip_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverUpload"];
             };
         };
         responses: {

@@ -249,7 +249,7 @@ async def test_referral_signup_then_first_plan_earns_commission(client, admin, l
         entries = list(await session.scalars(select(CommissionEntry)))
     assert len(entries) == 1 and entries[0].amount_paise == 5000
 
-    creators = (await client.get("/creators", headers=auth(admin))).json()
+    creators = (await client.get("/creators", headers=auth(admin))).json()["items"]
     stats = creators[0]["stats"]
     assert stats["link_visits"] == 1
     assert stats["credited_travellers"] == 1

@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import not_found
 from app.db.session import get_session
+from app.modules.creators import public as creator_public
+from app.modules.creators import trips as creator_trips
+from app.modules.creators.models import Creator, CreatorTrip
 from app.modules.knowledge.models import (
     CONTAINER_TYPES,
     Location,
@@ -26,6 +29,11 @@ router = APIRouter(prefix="/explore", tags=["explore"])
 PUBLISHED = Location.status == LocationStatus.PUBLISHED
 
 
+class TopCreator(BaseModel):
+    handle: str
+    display_name: str
+
+
 class Destination(BaseModel):
     id: uuid.UUID
     name: str
@@ -37,6 +45,11 @@ class Destination(BaseModel):
     longitude: float | None
     place_count: int
     highlights: list[str]
+    # Real published creator trips to this place (matched by name), the cover of the newest one,
+    # and the creator who made it. Zero/null when no creator has been there yet.
+    creator_trips: int = 0
+    cover_image_url: str | None = None
+    top_creator: TopCreator | None = None
 
 
 class DestinationDetail(BaseModel):
@@ -72,6 +85,19 @@ class PlaceDetail(PublicLocation):
     nearby: list[Nearby] = []
 
 
+def _creator_trips(found: list[tuple[Creator, CreatorTrip]]) -> dict:
+    if not found:
+        return {}
+    creator, newest = found[0]
+    return {
+        "creator_trips": len(found),
+        "cover_image_url": creator_trips.cover_url(newest),
+        "top_creator": TopCreator(
+            handle=(creator.handle or "").lstrip("@"), display_name=creator.display_name or ""
+        ),
+    }
+
+
 async def _destinations(
     session: AsyncSession, city_ids: list[uuid.UUID] | None = None
 ) -> list[Destination]:
@@ -103,6 +129,10 @@ async def _destinations(
     highlights: dict[uuid.UUID, list[str]] = {}
     for parent_id, name in highlight_rows:
         highlights.setdefault(parent_id, []).append(name)
+    # Creator trips to each place: published trips by approved creators, newest first.
+    by_place: dict[str, list[tuple[Creator, CreatorTrip]]] = {}
+    for creator, trip in await creator_public.eligible(session):
+        by_place.setdefault(trip.destination_name.strip().lower(), []).append((creator, trip))
     return [
         Destination(
             id=c.id,
@@ -115,6 +145,7 @@ async def _destinations(
             longitude=c.longitude,
             place_count=counts.get(c.id, 0),
             highlights=highlights.get(c.id, [])[:3],
+            **_creator_trips(by_place.get(c.name.strip().lower(), [])),
         )
         for c in cities
         if counts.get(c.id, 0) > 0

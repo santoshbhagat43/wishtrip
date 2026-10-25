@@ -260,7 +260,8 @@ async def set_cover(session: AsyncSession, trip: CreatorTrip, key: str) -> None:
     trip.cover_image_key = key
 
 
-def save_cover_upload(trip: CreatorTrip, filename: str, data_base64: str) -> str:
+def save_image_upload(filename: str, data_base64: str, folder: str) -> str:
+    """Store an uploaded image (JPG, PNG or WebP, up to 4 MB) and return its storage key."""
     import base64
     import binascii
     from pathlib import Path
@@ -274,7 +275,11 @@ def save_cover_upload(trip: CreatorTrip, filename: str, data_base64: str) -> str
         raise bad_request("That image couldn't be read.") from None
     if not data or len(data) > COVER_UPLOAD_MAX_BYTES:
         raise bad_request("Use an image under 4 MB.")
-    return storage.save(data, f"cover{suffix}", _upload_prefix(trip).rstrip("/"))
+    return storage.save(data, f"image{suffix}", folder)
+
+
+def save_cover_upload(trip: CreatorTrip, filename: str, data_base64: str) -> str:
+    return save_image_upload(filename, data_base64, _upload_prefix(trip).rstrip("/"))
 
 
 def cover_url(trip: CreatorTrip) -> str | None:

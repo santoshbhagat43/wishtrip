@@ -54,7 +54,7 @@ async def test_staff_approve_a_pending_creator(client, admin):
 
     pending = await client.get("/creators", params={"status": "pending"}, headers=auth(admin))
     assert pending.status_code == 200
-    rows = pending.json()
+    rows = pending.json()["items"]
     assert len(rows) == 1 and rows[0]["email"] == "pending@creators.example.com"
 
     approved = await client.patch(
@@ -206,3 +206,52 @@ async def test_an_instagram_handle_already_registered_is_a_clear_conflict_not_a_
     assert (
         await _apply(client, email="first@creators.example.com", handle="shared.handle")
     ).status_code == 202
+
+
+async def test_staff_search_and_page_through_creators(client, admin):
+    staff = auth(admin)
+    emails = [f"person{n:02d}@creators.example.com" for n in range(25)]
+    for email in emails:
+        await client.post("/auth/creator/request-otp", json={"email": email})
+        await client.post("/auth/creator/verify", json={"email": email, "code": OTP})
+    mine = (await client.get("/creators", params={"page_size": 100}, headers=staff)).json()
+    assert mine["total"] == 25
+    named = next(c for c in mine["items"] if c["email"] == "person07@creators.example.com")
+    await client.patch(
+        f"/creators/{named['id']}",
+        json={"handle": "slow.goa_trips", "display_name": "Meera 100% Kamat"},
+        headers=staff,
+    )
+
+    # Pages: 20 then 5, newest first, nothing repeated.
+    first = (await client.get("/creators", headers=staff)).json()
+    second = (await client.get("/creators", params={"page": 2}, headers=staff)).json()
+    assert (first["page"], first["page_size"], first["total"]) == (1, 20, 25)
+    assert len(first["items"]) == 20 and len(second["items"]) == 5
+    seen = [c["id"] for c in first["items"] + second["items"]]
+    assert len(set(seen)) == 25
+    assert (await client.get("/creators", params={"page": 3}, headers=staff)).json()["items"] == []
+    small = (await client.get("/creators", params={"page_size": 10, "page": 3}, headers=staff)).json()
+    assert len(small["items"]) == 5 and small["total"] == 25
+
+    async def find(q: str, **extra):
+        r = await client.get("/creators", params={"q": q, **extra}, headers=staff)
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    # By handle (with or without @), name, email and part of a word; case doesn't matter.
+    for q in ("slow.goa", "@SLOW.goa_trips", "100% kam", "person07", "PERSON07@creators"):
+        found = await find(q)
+        assert found["total"] == 1 and found["items"][0]["id"] == named["id"], q
+    assert (await find("person0"))["total"] == 10  # person00 to person09
+    assert (await find("person0", page_size=4, page=3))["items"].__len__() == 2
+    # % and _ are searched for as text, not treated as wildcards.
+    assert (await find("%"))["total"] == 1 and (await find("_"))["total"] == 1
+    assert (await find("nobody-has-this"))["total"] == 0
+    # Search and the status filter work together.
+    assert (await find("person", status="pending"))["total"] == 25
+    assert (await find("person", status="active"))["total"] == 0
+    # Staff only, and sensible limits.
+    assert (await client.get("/creators", params={"q": "x"})).status_code == 401
+    assert (await client.get("/creators", params={"page": 0}, headers=staff)).status_code == 422
+    assert (await client.get("/creators", params={"page_size": 101}, headers=staff)).status_code == 422

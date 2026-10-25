@@ -70,6 +70,9 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     )
     commission_value: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str] = mapped_column(Text, default="")
+    # The creator's own profile photo and cover photo for their public page (storage keys).
+    avatar_key: Mapped[str | None] = mapped_column(String(500))
+    cover_key: Mapped[str | None] = mapped_column(String(500))
 
 
 class CreatorLink(UUIDPrimaryKey, Timestamps, Base):
@@ -193,3 +196,5 @@ class CreatorTrip(UUIDPrimaryKey, Timestamps, Base):
     status: Mapped[TripStatus] = mapped_column(str_enum(TripStatus), default=TripStatus.DRAFT)
     # Set when published: the public link is /t/<share_code>, carrying the creator's affiliate tag.
     share_code: Mapped[str | None] = mapped_column(String(64), unique=True)
+    # The trip staff feature in the spotlight on the public Creator trips page (one at a time).
+    spotlight: Mapped[bool] = mapped_column(Boolean, default=False)

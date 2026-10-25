@@ -1,14 +1,15 @@
 import uuid
 from collections import Counter
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_staff
-from app.core.errors import not_found
+from app.core.errors import bad_request, not_found
+from app.core.pagination import Page
 from app.db.session import get_session
-from app.modules.creators import service
+from app.modules.creators import service, trips
 from app.modules.creators.models import (
     AttributionEvent,
     AttributionSource,
@@ -22,10 +23,12 @@ from app.modules.creators.schemas import (
     AttributionRead,
     CommissionRead,
     CommissionUpdate,
+    CoverUpload,
     CreatorApplication,
     CreatorDetail,
     CreatorMe,
     CreatorOverview,
+    CreatorProfileUpdate,
     CreatorRead,
     CreatorReel,
     CreatorStats,
@@ -86,15 +89,92 @@ async def _read(session: AsyncSession, creator: Creator) -> CreatorRead:
     return data
 
 
+def _me(creator: Creator) -> CreatorMe:
+    me = CreatorMe.model_validate(creator)
+    me.avatar_url = storage.url(creator.avatar_key) if creator.avatar_key else None
+    me.cover_url = storage.url(creator.cover_key) if creator.cover_key else None
+    return me
+
+
+async def _my_creator(session: AsyncSession, user: User) -> Creator:
+    creator = await service.for_user(session, user.id)
+    if not creator or user.role != Role.CREATOR:
+        raise not_found("Creator")
+    return creator
+
+
+async def _set_photo(
+    session: AsyncSession, user: User, field: str, data: CoverUpload | None
+) -> CreatorMe:
+    """Replace (or, with no upload, remove) the creator's profile or cover photo."""
+    creator = await _my_creator(session, user)
+    old = getattr(creator, field)
+    new = (
+        trips.save_image_upload(data.filename, data.data_base64, f"creator-pages/{creator.id}")
+        if data
+        else None
+    )
+    setattr(creator, field, new)
+    await session.commit()
+    if old:
+        storage.delete(old)
+    return _me(creator)
+
+
+@router.patch("/creators/me", response_model=CreatorMe)
+async def update_my_profile(
+    data: CreatorProfileUpdate,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """A creator changes the name shown on their public page and on their trips."""
+    creator = await _my_creator(session, user)
+    name = " ".join(data.display_name.split())
+    if len(name) < 2:
+        raise bad_request("Enter the name you'd like to show.")
+    creator.display_name = name
+    await session.commit()
+    return _me(creator)
+
+
+@router.post("/creators/me/avatar", response_model=CreatorMe)
+async def upload_my_avatar(
+    data: CoverUpload,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return await _set_photo(session, user, "avatar_key", data)
+
+
+@router.post("/creators/me/cover", response_model=CreatorMe)
+async def upload_my_cover(
+    data: CoverUpload,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    return await _set_photo(session, user, "cover_key", data)
+
+
+@router.delete("/creators/me/avatar", response_model=CreatorMe)
+async def remove_my_avatar(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    return await _set_photo(session, user, "avatar_key", None)
+
+
+@router.delete("/creators/me/cover", response_model=CreatorMe)
+async def remove_my_cover(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    return await _set_photo(session, user, "cover_key", None)
+
+
 @router.get("/creators/me", response_model=CreatorMe)
 async def my_creator(
     session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
 ):
     """The signed-in creator's own account, so the website can show their approval state."""
-    creator = await service.for_user(session, user.id)
-    if not creator or user.role != Role.CREATOR:
-        raise not_found("Creator")
-    return creator
+    return _me(await _my_creator(session, user))
 
 
 @router.get("/creators/me/overview", response_model=CreatorOverview)
@@ -106,30 +186,62 @@ async def my_overview(
     Built from the same data as the staff view, but a creator never sees which travellers they
     brought in — every traveller email is dropped — and never sees staff notes.
     """
-    creator = await service.for_user(session, user.id)
-    if not creator or user.role != Role.CREATOR:
-        raise not_found("Creator")
+    creator = await _my_creator(session, user)
     detail = await _detail(session, creator)
     for row in (*detail.activity, *detail.commissions):
         row.user_email = None
-    return CreatorOverview.model_validate(detail.model_dump(exclude={"notes"}))
+    overview = CreatorOverview.model_validate(detail.model_dump(exclude={"notes"}))
+    photos = _me(creator)
+    overview.avatar_url, overview.cover_url = photos.avatar_url, photos.cover_url
+    return overview
 
 
-@router.get("/creators", response_model=list[CreatorRead], dependencies=[Depends(require_staff)])
+@router.get("/creators", response_model=Page[CreatorRead], dependencies=[Depends(require_staff)])
 async def list_creators(
-    status: CreatorStatus | None = None, session: AsyncSession = Depends(get_session)
+    status: CreatorStatus | None = None,
+    q: str | None = Query(None, max_length=100),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    session: AsyncSession = Depends(get_session),
 ):
-    query = select(Creator).order_by(Creator.created_at.desc())
+    """Creators, newest first, a page at a time. `q` finds a creator by any part of their handle
+    (with or without the @), name, email, WhatsApp number or YouTube channel."""
+    query = select(Creator)
     if status is not None:
         query = query.where(Creator.status == status)
-    creators = list(await session.scalars(query))
+    term = (q or "").strip().lstrip("@")
+    if term:
+        # Search for the text itself: % and _ are not wildcards here.
+        like = "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        query = query.where(
+            or_(
+                *(
+                    column.ilike(like, escape="\\")
+                    for column in (
+                        Creator.handle,
+                        Creator.display_name,
+                        Creator.email,
+                        Creator.whatsapp,
+                        Creator.youtube_url,
+                    )
+                )
+            )
+        )
+    total = await session.scalar(select(func.count()).select_from(query.subquery())) or 0
+    creators = list(
+        await session.scalars(
+            query.order_by(Creator.created_at.desc(), Creator.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    )
     stats = await _stats(session, [c.id for c in creators])
     out = []
     for c in creators:
         row = CreatorRead.model_validate(c)
         row.stats = stats[c.id]
         out.append(row)
-    return out
+    return Page(items=out, total=total, page=page, page_size=page_size)
 
 
 async def _detail(session: AsyncSession, creator: Creator) -> CreatorDetail:

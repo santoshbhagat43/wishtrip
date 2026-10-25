@@ -3218,6 +3218,191 @@
       "HTTPBearer": []
      }
     ]
+   },
+   "patch": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Update My Profile",
+    "description": "A creator changes the name shown on their public page and on their trips.",
+    "operationId": "update_my_profile_creators_me_patch",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CreatorProfileUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creators/me/avatar": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Upload My Avatar",
+    "operationId": "upload_my_avatar_creators_me_avatar_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CoverUpload"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "delete": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Remove My Avatar",
+    "operationId": "remove_my_avatar_creators_me_avatar_delete",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/creators/me/cover": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Upload My Cover",
+    "operationId": "upload_my_cover_creators_me_cover_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CoverUpload"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "delete": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Remove My Cover",
+    "operationId": "remove_my_cover_creators_me_cover_delete",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorMe"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
    }
   },
   "/creators/me/overview": {
@@ -3253,6 +3438,7 @@
      "creators"
     ],
     "summary": "List Creators",
+    "description": "Creators, newest first, a page at a time. `q` finds a creator by any part of their handle\n(with or without the @), name, email, WhatsApp number or YouTube channel.",
     "operationId": "list_creators_creators_get",
     "security": [
      {
@@ -3275,6 +3461,46 @@
        ],
        "title": "Status"
       }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 100
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 20,
+       "title": "Page Size"
+      }
      }
     ],
     "responses": {
@@ -3283,11 +3509,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "type": "array",
-         "items": {
-          "$ref": "#/components/schemas/CreatorRead"
-         },
-         "title": "Response List Creators Creators Get"
+         "$ref": "#/components/schemas/Page_CreatorRead_"
         }
        }
       }
@@ -3594,6 +3816,155 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ReferralRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/creators": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Creators Index",
+    "operationId": "creators_index_explore_creators_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorsIndex"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/explore/creators/{handle}": {
+   "get": {
+    "tags": [
+     "explore"
+    ],
+    "summary": "Creator Page",
+    "operationId": "creator_page_explore_creators__handle__get",
+    "parameters": [
+     {
+      "name": "handle",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Handle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/spotlight": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Spotlight State",
+    "description": "Every published trip that can be featured, and which one is.",
+    "operationId": "spotlight_state_spotlight_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SpotlightState"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/spotlight/trips/{trip_id}": {
+   "put": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Set Spotlight",
+    "description": "Feature a published trip (its creator is shown with it) or take it off. One at a time.",
+    "operationId": "set_spotlight_spotlight_trips__trip_id__put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "trip_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Trip Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SpotlightChange"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SpotlightState"
         }
        }
       }
@@ -6351,6 +6722,28 @@
      "commission_value": {
       "type": "integer",
       "title": "Commission Value"
+     },
+     "avatar_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avatar Url"
+     },
+     "cover_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Url"
      }
     },
     "type": "object",
@@ -6511,6 +6904,28 @@
       "type": "integer",
       "title": "Commission Value"
      },
+     "avatar_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avatar Url"
+     },
+     "cover_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Url"
+     },
      "profile_url": {
       "type": "string",
       "title": "Profile Url",
@@ -6562,6 +6977,42 @@
     ],
     "title": "CreatorOverview",
     "description": "A signed-in creator's own dashboard: the admin view of them, minus anything about other\npeople (traveller emails are never included) and minus staff notes."
+   },
+   "CreatorPage": {
+    "properties": {
+     "creator": {
+      "$ref": "#/components/schemas/PublicCreatorCard"
+     },
+     "more": {
+      "items": {
+       "$ref": "#/components/schemas/PublicCreatorCard"
+      },
+      "type": "array",
+      "title": "More"
+     }
+    },
+    "type": "object",
+    "required": [
+     "creator",
+     "more"
+    ],
+    "title": "CreatorPage"
+   },
+   "CreatorProfileUpdate": {
+    "properties": {
+     "display_name": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 2,
+      "title": "Display Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "display_name"
+    ],
+    "title": "CreatorProfileUpdate",
+    "description": "What a creator can change about their own page. The handle is staff's to set: it is\ntheir address and their identity with us."
    },
    "CreatorRead": {
     "properties": {
@@ -7024,6 +7475,52 @@
     "type": "object",
     "title": "CreatorUpdate"
    },
+   "CreatorsIndex": {
+    "properties": {
+     "creators": {
+      "type": "integer",
+      "title": "Creators"
+     },
+     "trips": {
+      "type": "integer",
+      "title": "Trips"
+     },
+     "stops": {
+      "type": "integer",
+      "title": "Stops"
+     },
+     "spotlight": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PublicCreatorCard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "spotlight_chosen": {
+      "type": "boolean",
+      "title": "Spotlight Chosen",
+      "default": false
+     },
+     "all": {
+      "items": {
+       "$ref": "#/components/schemas/PublicCreatorCard"
+      },
+      "type": "array",
+      "title": "All"
+     }
+    },
+    "type": "object",
+    "required": [
+     "creators",
+     "trips",
+     "stops",
+     "all"
+    ],
+    "title": "CreatorsIndex"
+   },
    "Destination-Input": {
     "properties": {
      "key": {
@@ -7111,6 +7608,32 @@
       },
       "type": "array",
       "title": "Highlights"
+     },
+     "creator_trips": {
+      "type": "integer",
+      "title": "Creator Trips",
+      "default": 0
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "top_creator": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TopCreator"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -10136,6 +10659,37 @@
     ],
     "title": "Page[AuditLogRead]"
    },
+   "Page_CreatorRead_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/CreatorRead"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[CreatorRead]"
+   },
    "Page_LocationListItem_": {
     "properties": {
      "items": {
@@ -10818,6 +11372,64 @@
     ],
     "title": "PublicCreator"
    },
+   "PublicCreatorCard": {
+    "properties": {
+     "handle": {
+      "type": "string",
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "channel": {
+      "type": "string",
+      "title": "Channel"
+     },
+     "profile_url": {
+      "type": "string",
+      "title": "Profile Url"
+     },
+     "avatar_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Avatar Url"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "trips": {
+      "items": {
+       "$ref": "#/components/schemas/PublicTripCard"
+      },
+      "type": "array",
+      "title": "Trips"
+     }
+    },
+    "type": "object",
+    "required": [
+     "handle",
+     "display_name",
+     "channel",
+     "profile_url",
+     "trips"
+    ],
+    "title": "PublicCreatorCard"
+   },
    "PublicLocation": {
     "properties": {
      "id": {
@@ -11058,6 +11670,66 @@
     ],
     "title": "PublicMenuItem",
     "description": "What the traveler website renders: a label and a URL, nothing internal."
+   },
+   "PublicTripCard": {
+    "properties": {
+     "share_code": {
+      "type": "string",
+      "title": "Share Code"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "stops": {
+      "type": "integer",
+      "title": "Stops"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "source_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "share_code",
+     "title",
+     "destination_name",
+     "summary",
+     "days",
+     "stops"
+    ],
+    "title": "PublicTripCard"
    },
    "PublicTripRead": {
     "properties": {
@@ -12606,6 +13278,123 @@
     ],
     "title": "Source"
    },
+   "SpotlightChange": {
+    "properties": {
+     "on": {
+      "type": "boolean",
+      "title": "On"
+     }
+    },
+    "type": "object",
+    "required": [
+     "on"
+    ],
+    "title": "SpotlightChange"
+   },
+   "SpotlightState": {
+    "properties": {
+     "chosen_trip_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chosen Trip Id"
+     },
+     "automatic_creator": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Automatic Creator"
+     },
+     "trips": {
+      "items": {
+       "$ref": "#/components/schemas/SpotlightTrip"
+      },
+      "type": "array",
+      "title": "Trips"
+     }
+    },
+    "type": "object",
+    "required": [
+     "trips"
+    ],
+    "title": "SpotlightState"
+   },
+   "SpotlightTrip": {
+    "properties": {
+     "trip_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Trip Id"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "stops": {
+      "type": "integer",
+      "title": "Stops"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "creator_name": {
+      "type": "string",
+      "title": "Creator Name"
+     },
+     "creator_handle": {
+      "type": "string",
+      "title": "Creator Handle"
+     },
+     "creator_trips": {
+      "type": "integer",
+      "title": "Creator Trips"
+     },
+     "spotlight": {
+      "type": "boolean",
+      "title": "Spotlight"
+     }
+    },
+    "type": "object",
+    "required": [
+     "trip_id",
+     "title",
+     "destination_name",
+     "days",
+     "stops",
+     "creator_name",
+     "creator_handle",
+     "creator_trips",
+     "spotlight"
+    ],
+    "title": "SpotlightTrip"
+   },
    "Suggestion": {
     "properties": {
      "name": {
@@ -13251,6 +14040,24 @@
      "refresh_token"
     ],
     "title": "TokenPair"
+   },
+   "TopCreator": {
+    "properties": {
+     "handle": {
+      "type": "string",
+      "title": "Handle"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "handle",
+     "display_name"
+    ],
+    "title": "TopCreator"
    },
    "TravelerDetail": {
     "properties": {
