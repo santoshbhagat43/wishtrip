@@ -20,8 +20,8 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         MenuPlacement.HEADER,
         [
             ("How it works", "/#b4-arya"),
-            ("Destinations", "/destination"),
-            ("Creator trips", "/creator-trip"),
+            ("Destinations", "/destinations"),
+            ("Creator trips", "/creators/trips"),
             ("For creators", "/creators"),
         ],
     ),
@@ -30,8 +30,8 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         "Explore",
         MenuPlacement.FOOTER,
         [
-            ("Destinations", "/destination"),
-            ("Creator trips", "/creator-trip"),
+            ("Destinations", "/destinations"),
+            ("Creator trips", "/creators/trips"),
             ("Plan a trip", "/plan"),
             ("Reel to trip", "/reel"),
         ],
@@ -54,8 +54,8 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         [
             ("Start planning", "/plan"),
             ("Turn a reel into a trip", "/reel"),
-            ("Destinations", "/destination"),
-            ("Creator trips", "/creator-trip"),
+            ("Destinations", "/destinations"),
+            ("Creator trips", "/creators/trips"),
             ("For creators", "/creators"),
         ],
     ),

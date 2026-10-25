@@ -21,7 +21,7 @@ export const LINKS = {
   createAccount: "/signup",
   start: "/plan",
   arya: "/plan",
-  destinations: "/explore",
+  destinations: "/destinations",
   destination: "/destination",
   creatorTrip: "/creator-trip",
   creators: "/creators",
@@ -256,7 +256,7 @@ export const MENU = [
     heading: "EXPLORE",
     items: [
       { href: LINKS.destinations, icon: "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z", label: "Destinations" },
-      { href: "/#b4-reels", icon: "M6 3h12v18l-6-4-6 4z", label: "Creator trips" },
+      { href: "/creators/trips", icon: "M6 3h12v18l-6-4-6 4z", label: "Creator trips" },
       { href: "/#b4-travellers", icon: "M4 7h16v12H4zM9 7V5h6v2", label: "Trips booked by travellers" },
     ],
   },

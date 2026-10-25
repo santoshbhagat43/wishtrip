@@ -11,7 +11,7 @@ import { menuBySlug, useMenus } from "./menus";
 export const NAV = [
   { href: "/#b4-arya", label: "How it works" },
   { href: LINKS.destinations, label: "Destinations" },
-  { href: "/#b4-reels", label: "Creator trips" },
+  { href: "/creators/trips", label: "Creator trips" },
   { href: "/#b4-creators", label: "For creators" },
 ];
 

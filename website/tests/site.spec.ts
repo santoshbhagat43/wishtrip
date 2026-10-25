@@ -10,7 +10,9 @@ test.describe("Public site", () => {
     await expect(page.getByRole("heading", { name: "One chat. Your whole trip." })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Start with a destination" })).toBeVisible();
     await page.getByRole("link", { name: "All destinations →" }).click();
-    await expect(page.getByRole("heading", { name: "Explore destinations" })).toBeVisible();
+    // "All destinations" opens the Destinations page (the same one the header's link opens).
+    await expect(page).toHaveURL(/\/destinations$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Where to");
     await page.getByRole("link", { name: /Munnar tea hills/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Munnar tea hills" })).toBeVisible();
     await expect(page.getByText("Create a free account")).toBeVisible();
