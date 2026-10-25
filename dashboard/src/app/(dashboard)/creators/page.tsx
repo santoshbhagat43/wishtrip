@@ -1,17 +1,21 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, Empty, ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
-import { Table, Td, Th } from "@/components/ui/table";
+import { SpotlightPicker } from "@/components/creators/spotlight-picker";
+import { Input } from "@/components/ui/field";
+import { Pagination, Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { CREATOR_STATUS, rupees } from "@/lib/creators";
 
 type Status = Schemas["CreatorStatus"];
+const PAGE_SIZE = 20;
 const FILTERS: [label: string, value: Status | "all"][] = [
   ["All", "all"],
   ["Pending", "pending"],
@@ -22,22 +26,50 @@ const FILTERS: [label: string, value: Status | "all"][] = [
 export default function CreatorsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Status | "all">("all");
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  // Search as they type, but ask the server once they pause.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQ((current) => {
+        const next = search.trim();
+        if (next !== current) setPage(1);
+        return next;
+      });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const creators = useQuery({
-    queryKey: ["creators", filter],
+    queryKey: ["creators", filter, q, page],
+    // Keep the old rows on screen while the next page loads: no flicker between pages.
+    placeholderData: keepPreviousData,
     queryFn: async () =>
-      unwrap(await api.GET("/creators", { params: { query: filter === "all" ? {} : { status: filter } } })),
+      unwrap(
+        await api.GET("/creators", {
+          params: {
+            query: { status: filter === "all" ? undefined : filter, q: q || undefined, page, page_size: PAGE_SIZE },
+          },
+        }),
+      ),
   });
   const pending = useQuery({
     queryKey: ["creators", "pending-count"],
-    queryFn: async () => unwrap(await api.GET("/creators", { params: { query: { status: "pending" } } })),
+    queryFn: async () =>
+      unwrap(await api.GET("/creators", { params: { query: { status: "pending", page_size: 1 } } })),
   });
+  const pickFilter = (value: Status | "all") => {
+    setFilter(value);
+    setPage(1);
+  };
   const approve = useMutation({
     mutationFn: async (id: string) =>
       unwrap(await api.PATCH("/creators/{creator_id}", { params: { path: { creator_id: id } }, body: { status: "active" } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["creators"] }),
   });
 
-  const rows = creators.data ?? [];
+  const rows = creators.data?.items ?? [];
+  const found = creators.data?.total ?? 0;
   const total = (key: "credited_travellers" | "trips_planned" | "earned_paise") => rows.reduce((n, c) => n + c.stats[key], 0);
 
   return (
@@ -45,26 +77,29 @@ export default function CreatorsPage() {
       <PageHeader
         breadcrumb="Growth"
         title="Creators"
-        description="Everyone whose reels travellers paste, and the affiliates who send us travellers. Approve creators who sign up, and set what each earns per traveller they bring in."
+        description="Everyone whose reels travellers paste, and the affiliates who send us travellers. Approve creators who sign up, set what each earns per traveller they bring in, and choose the creator trip in the spotlight on the public Creator trips page."
         action={
           rows.length > 0 && (
             <HeaderStats
               items={[
-                { value: total("credited_travellers"), label: "travellers brought in" },
-                { value: rupees(total("earned_paise")), label: "earned" },
+                { value: total("credited_travellers"), label: "travellers brought in (this page)" },
+                { value: rupees(total("earned_paise")), label: "earned (this page)" },
               ]}
             />
           )
         }
       />
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <SpotlightPicker />
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-1.5">
         {FILTERS.map(([label, value]) => {
-          const count = value === "pending" ? pending.data?.length ?? 0 : null;
+          const count = value === "pending" ? pending.data?.total ?? 0 : null;
           return (
             <button
               key={value}
-              onClick={() => setFilter(value)}
+              onClick={() => pickFilter(value)}
               className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 filter === value ? "bg-brand text-on-brand" : "border border-border bg-surface text-muted hover:text-text"
               }`}
@@ -75,6 +110,28 @@ export default function CreatorsPage() {
           );
         })}
       </div>
+        <div className="relative w-full sm:w-[340px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, handle or email"
+            aria-label="Search creators"
+            className="pl-9 pr-9"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-text"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
 
       <Card>
         {creators.isLoading ? (
@@ -82,8 +139,18 @@ export default function CreatorsPage() {
         ) : creators.error ? (
           <div className="p-4"><ErrorNote error={creators.error} /></div>
         ) : rows.length === 0 ? (
-          <Empty title={filter === "pending" ? "No creators waiting" : "No creators yet"}>
-            {filter === "pending"
+          <Empty
+            title={
+              q
+                ? `No creators match “${q}”`
+                : filter === "pending"
+                  ? "No creators waiting"
+                  : "No creators yet"
+            }
+          >
+            {q
+              ? "Try part of their handle, name or email. Clear the search to see everyone."
+              : filter === "pending"
               ? "Creators who sign up on the website appear here for approval."
               : "A creator is saved the first time a traveller pastes one of their reels, or when someone signs up as a creator."}
           </Empty>
@@ -127,6 +194,7 @@ export default function CreatorsPage() {
             </tbody>
           </Table>
         )}
+        {found > 0 && <Pagination page={page} pageSize={PAGE_SIZE} total={found} onPage={setPage} />}
       </Card>
     </div>
   );
