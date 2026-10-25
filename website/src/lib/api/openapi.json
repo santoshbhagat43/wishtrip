@@ -3854,21 +3854,21 @@
     }
    }
   },
-  "/explore/creators/{handle}": {
+  "/explore/creators/{slug}": {
    "get": {
     "tags": [
      "explore"
     ],
     "summary": "Creator Page",
-    "operationId": "creator_page_explore_creators__handle__get",
+    "operationId": "creator_page_explore_creators__slug__get",
     "parameters": [
      {
-      "name": "handle",
+      "name": "slug",
       "in": "path",
       "required": true,
       "schema": {
        "type": "string",
-       "title": "Handle"
+       "title": "Slug"
       }
      }
     ],
@@ -11374,8 +11374,19 @@
    },
    "PublicCreatorCard": {
     "properties": {
-     "handle": {
+     "slug": {
       "type": "string",
+      "title": "Slug"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Handle"
      },
      "display_name": {
@@ -11422,7 +11433,7 @@
     },
     "type": "object",
     "required": [
-     "handle",
+     "slug",
      "display_name",
      "channel",
      "profile_url",
@@ -13369,7 +13380,14 @@
       "title": "Creator Name"
      },
      "creator_handle": {
-      "type": "string",
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Creator Handle"
      },
      "creator_trips": {
@@ -13389,7 +13407,6 @@
      "days",
      "stops",
      "creator_name",
-     "creator_handle",
      "creator_trips",
      "spotlight"
     ],
@@ -14043,8 +14060,19 @@
    },
    "TopCreator": {
     "properties": {
-     "handle": {
+     "slug": {
       "type": "string",
+      "title": "Slug"
+     },
+     "handle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
       "title": "Handle"
      },
      "display_name": {
@@ -14054,7 +14082,7 @@
     },
     "type": "object",
     "required": [
-     "handle",
+     "slug",
      "display_name"
     ],
     "title": "TopCreator"

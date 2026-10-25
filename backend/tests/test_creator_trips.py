@@ -435,4 +435,119 @@ async def test_destinations_show_the_creator_trips_that_went_there(client, admin
     await _publish_trips(client, headers, [REEL])  # the canned reel is a Goa trip
     after = [d for d in (await client.get("/explore/destinations")).json() if d["name"] == "Goa"][0]
     assert after["creator_trips"] == 1
-    assert after["top_creator"] == {"handle": "goa.diaries", "display_name": "Goa Diaries"}
+    assert after["top_creator"] == {
+        "slug": "goa.diaries",
+        "handle": "goa.diaries",
+        "display_name": "Goa Diaries",
+    }
+
+
+async def test_a_creator_without_a_handle_is_shown_at_their_referral_code(client, admin, fake_reel):
+    staff = auth(admin)
+    headers = await _approved_creator(client, admin, "nohandle@creators.example.com")
+    me = (await client.get("/creators/me", headers=headers)).json()
+    await client.patch(
+        f"/creators/{me['id']}", json={"display_name": "Santosh Bhagat"}, headers=staff
+    )
+    trip = await _make_trip(client, headers)
+    await client.patch(f"/creator/trips/{trip['id']}", json={"publish": True}, headers=headers)
+
+    # Staff haven't set a handle, and the creator is still on the page: their page is their
+    # referral code, and the name is what is shown.
+    index = (await client.get("/explore/creators")).json()
+    card = next(c for c in index["all"] if c["display_name"] == "Santosh Bhagat")
+    assert card["handle"] is None and card["slug"] == me["referral_code"]
+    page = await client.get(f"/explore/creators/{me['referral_code']}")
+    assert page.status_code == 200 and page.json()["creator"]["display_name"] == "Santosh Bhagat"
+
+    # Staff can feature their trip, and the staff list shows the name (no handle to show).
+    state = (await client.get("/spotlight", headers=staff)).json()
+    row = next(t for t in state["trips"] if t["trip_id"] == trip["id"])
+    assert row["creator_name"] == "Santosh Bhagat" and row["creator_handle"] is None
+    r = await client.put(f"/spotlight/trips/{trip['id']}", json={"on": True}, headers=staff)
+    assert r.status_code == 200 and r.json()["chosen_trip_id"] == trip["id"]
+    assert (await client.get("/explore/creators")).json()["spotlight"]["slug"] == me["referral_code"]
+
+    # Once a handle is set, the page moves to it.
+    await client.patch(f"/creators/{me['id']}", json={"handle": "santosh.b"}, headers=staff)
+    card = next(c for c in (await client.get("/explore/creators")).json()["all"] if c["display_name"] == "Santosh Bhagat")
+    assert card["slug"] == "santosh.b" and card["handle"] == "santosh.b"
+
+
+async def test_staff_add_reels_for_a_creator_the_way_the_creator_would(client, admin, fake_reel):
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.audit.models import AuditLog
+
+    headers = await _approved_creator(client, admin, "forher@creators.example.com")
+    me = (await client.get("/creators/me", headers=headers)).json()
+    staff = {**auth(admin), "X-Act-As-Creator": me["id"]}
+
+    # Staff make the link, and it is the creator's: they see it in their own workspace.
+    r = await client.post("/creator/links", json={"label": "Goa for Mum"}, headers=staff)
+    assert r.status_code == 201, r.text
+    link = r.json()
+    mine = (await client.get("/creator/links", headers=headers)).json()
+    assert [x["id"] for x in mine] == [link["id"]] and mine[0]["label"] == "Goa for Mum"
+    assert [x["id"] for x in (await client.get("/creator/links", headers=staff)).json()] == [link["id"]]
+
+    # Staff add the reel; it is read into an itinerary under the creator's account.
+    r = await client.patch(f"/creator/links/{link['id']}", json={"instagram_url": REEL}, headers=staff)
+    assert r.status_code == 200, r.text
+    trips = (await client.get("/creator/trips", headers=headers)).json()
+    assert len(trips) == 1 and [i["name"] for i in trips[0]["items"]] == ["Fort Aguada", "Thalassa"]
+    assert (await client.get(f"/creator/trips/{trips[0]['id']}", headers=staff)).status_code == 200
+
+    # …and publish it, change its cover options, exactly as the creator could.
+    r = await client.patch(f"/creator/links/{link['id']}", json={"published": True}, headers=staff)
+    assert r.status_code == 200 and r.json()["status"] == "published"
+    assert (await client.get(f"/creator/trips/{trips[0]['id']}/cover-options", headers=staff)).status_code == 200
+
+    # Every change staff made is on the audit trail, with who did it.
+    async with SessionLocal() as session:
+        rows = (await session.scalars(select(AuditLog).where(AuditLog.action == "act_as"))).all()
+    assert len(rows) >= 3 and {r.user_email for r in rows} == {"admin@example.com"}
+    assert all(r.entity_id and str(r.entity_id) == me["id"] for r in rows)
+    assert any(r.changes["method"] == "POST" for r in rows) and all(r.changes["path"] for r in rows)
+
+
+async def test_only_staff_can_act_as_a_creator(client, admin, fake_reel, traveler):
+    one = await _approved_creator(client, admin, "one.act@creators.example.com")
+    two = await _approved_creator(client, admin, "two.act@creators.example.com")
+    one_me = (await client.get("/creators/me", headers=one)).json()
+
+    # Another creator, or a traveller, cannot work in someone else's workspace.
+    for who in (two, auth(traveler)):
+        r = await client.post("/creator/links", json={"label": "Not mine"}, headers={**who, "X-Act-As-Creator": one_me["id"]})
+        assert r.status_code == 403, r.text
+    assert (await client.get("/creator/links", headers=one)).json() == []
+
+    # Staff without the header are not a creator; with a bad or unknown id there is no workspace.
+    staff = auth(admin)
+    assert (await client.get("/creator/links", headers=staff)).status_code == 404
+    for bad in ("not-a-uuid", "00000000-0000-0000-0000-000000000000"):
+        r = await client.get("/creator/links", headers={**staff, "X-Act-As-Creator": bad})
+        assert r.status_code == 404, bad
+
+
+async def test_staff_cannot_work_for_an_unapproved_creator_or_one_with_no_account(client, admin, fake_reel):
+    from app.db.session import SessionLocal
+    from app.modules.creators.models import Creator
+
+    staff = auth(admin)
+    # Waiting for approval: the same refusal the creator would get, but worded for staff.
+    await client.post("/auth/creator/request-otp", json={"email": "waiting@creators.example.com"})
+    r = await client.post("/auth/creator/verify", json={"email": "waiting@creators.example.com", "code": OTP})
+    pending = (await client.get("/creators/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"})).json()
+    r = await client.post("/creator/links", json={"label": "x"}, headers={**staff, "X-Act-As-Creator": pending["id"]})
+    assert r.status_code == 403 and "creator's creator account" in r.json()["detail"]
+
+    # A creator staff added by hand, who has never signed in, has no account to keep trips under.
+    async with SessionLocal() as session:
+        ghost = Creator(handle="ghost.creator", display_name="Ghost", referral_code="ghostcode1")
+        session.add(ghost)
+        await session.commit()
+        ghost_id = str(ghost.id)
+    r = await client.get("/creator/links", headers={**staff, "X-Act-As-Creator": ghost_id})
+    assert r.status_code == 400 and "hasn't signed in" in r.json()["detail"]

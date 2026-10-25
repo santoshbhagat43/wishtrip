@@ -24,7 +24,8 @@ class SpotlightTrip(BaseModel):
     stops: int
     cover_image_url: str | None = None
     creator_name: str
-    creator_handle: str
+    # Their Instagram or YouTube handle, when staff have set it.
+    creator_handle: str | None = None
     # How many published trips this creator has.
     creator_trips: int
     spotlight: bool
@@ -56,8 +57,8 @@ async def _state(session: AsyncSession) -> SpotlightState:
                     days=card.days,
                     stops=card.stops,
                     cover_image_url=card.cover_image_url,
-                    creator_name=creator.display_name or (creator.handle or ""),
-                    creator_handle=(creator.handle or "").lstrip("@"),
+                    creator_name=creator.display_name or creator.handle or "WishTrip creator",
+                    creator_handle=(creator.handle or "").lstrip("@") or None,
                     creator_trips=len(creator_trips),
                     spotlight=trip.spotlight,
                 )
@@ -65,9 +66,12 @@ async def _state(session: AsyncSession) -> SpotlightState:
     # Featured first, then creators with the most trips, then the newest.
     out.sort(key=lambda t: (not t.spotlight, -t.creator_trips))
     chosen = next((t.trip_id for t in out if t.spotlight), None)
+    automatic = auto[0] if auto else None
     return SpotlightState(
         chosen_trip_id=chosen,
-        automatic_creator=(auto[0].display_name or auto[0].handle) if auto else None,
+        automatic_creator=(automatic.display_name or automatic.handle or "WishTrip creator")
+        if automatic
+        else None,
         trips=out,
     )
 
@@ -90,7 +94,7 @@ async def set_spotlight(
         shown = {t.id for _, t in await public.eligible(session)}
         if trip.id not in shown:
             raise bad_request(
-                "Only a published trip by an approved creator with a handle can be featured."
+                "Only a published trip by an approved creator can be featured."
             )
         await session.execute(
             update(CreatorTrip).where(CreatorTrip.id != trip.id).values(spotlight=False)

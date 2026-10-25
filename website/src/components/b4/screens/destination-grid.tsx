@@ -55,7 +55,7 @@ export function DestinationGrid({ destinations }: { destinations: DestinationCar
                   {where(d)} · {placesLabel(d.place_count)}
                 </span>
                 {d.top_creator && (
-                  <span className="font-semibold text-[#0A7C80]">Top trip by @{d.top_creator.handle}</span>
+                  <span className="font-semibold text-[#0A7C80]">Top trip by {d.top_creator.handle ? `@${d.top_creator.handle}` : d.top_creator.display_name}</span>
                 )}
               </span>
             </Link>

@@ -1241,7 +1241,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/explore/creators/{handle}": {
+    "/explore/creators/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1249,7 +1249,7 @@ export interface paths {
             cookie?: never;
         };
         /** Creator Page */
-        get: operations["creator_page_explore_creators__handle__get"];
+        get: operations["creator_page_explore_creators__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3970,8 +3970,10 @@ export interface components {
         };
         /** PublicCreatorCard */
         PublicCreatorCard: {
+            /** Slug */
+            slug: string;
             /** Handle */
-            handle: string;
+            handle?: string | null;
             /** Display Name */
             display_name: string;
             /** Channel */
@@ -4675,7 +4677,7 @@ export interface components {
             /** Creator Name */
             creator_name: string;
             /** Creator Handle */
-            creator_handle: string;
+            creator_handle?: string | null;
             /** Creator Trips */
             creator_trips: number;
             /** Spotlight */
@@ -4913,8 +4915,10 @@ export interface components {
         };
         /** TopCreator */
         TopCreator: {
+            /** Slug */
+            slug: string;
             /** Handle */
-            handle: string;
+            handle?: string | null;
             /** Display Name */
             display_name: string;
         };
@@ -7532,12 +7536,12 @@ export interface operations {
             };
         };
     };
-    creator_page_explore_creators__handle__get: {
+    creator_page_explore_creators__slug__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                handle: string;
+                slug: string;
             };
             cookie?: never;
         };

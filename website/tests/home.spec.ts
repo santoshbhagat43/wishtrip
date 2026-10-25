@@ -6,7 +6,7 @@
 import { API_URL, expect, test } from "./fixtures";
 
 type Dest = { id: string; name: string };
-type Creators = { all: { handle: string; display_name: string; trips: { title: string }[] }[] };
+type Creators = { all: { slug: string; handle: string | null; display_name: string; trips: { title: string }[] }[] };
 
 test.describe("Home", () => {
   test("the story goes from six apps to one board, and the example says it is an example", async ({ page }) => {
@@ -93,9 +93,10 @@ test.describe("Home", () => {
 
     const creator = creators.all[0];
     if (creator) {
-      await search.fill(`@${creator.handle.slice(0, 6)}`);
+      const label = creator.handle ? `@${creator.handle}` : creator.display_name;
+      await search.fill(label.slice(0, 6));
       await expect(results.getByText("CREATORS", { exact: true })).toBeVisible();
-      await expect(results.getByRole("option", { name: new RegExp(`@${creator.handle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }).first()).toBeVisible();
+      await expect(results.getByRole("option", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).first()).toBeVisible();
       await search.fill(creator.trips[0].title.split(" ")[0]);
       await expect(results.getByText("TRIPS", { exact: true })).toBeVisible();
     }

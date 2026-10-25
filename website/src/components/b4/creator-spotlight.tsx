@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import type { CreatorTripCard } from "@/lib/server/creators";
 
-export type SpotlightTrip = CreatorTripCard & { handle: string; creator: string; tag: string | null };
+export type SpotlightTrip = CreatorTripCard & { slug: string; handle?: string | null; creator: string; tag: string | null };
 
 const plan = (prompt: string) => `/plan?prompt=${encodeURIComponent(prompt)}`;
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
@@ -77,8 +77,8 @@ export function CreatorSpotlight({ trips }: { trips: SpotlightTrip[] }) {
                   </h3>
                   <p className="m-0 text-[14px] text-[#E6F0F6]">
                     by{" "}
-                    <Link href={`/creator/${encodeURIComponent(t.handle)}`} tabIndex={here ? 0 : -1} className="font-semibold text-[#6BEDEF]">
-                      @{t.handle}
+                    <Link href={`/creator/${encodeURIComponent(t.slug)}`} tabIndex={here ? 0 : -1} className="font-semibold text-[#6BEDEF]">
+                      {t.handle ? `@${t.handle}` : t.creator}
                     </Link>
                     {t.destination_name ? ` · ${t.destination_name}` : ""}
                   </p>

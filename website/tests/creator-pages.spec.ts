@@ -91,6 +91,26 @@ test.describe("Creator trips and creator pages", () => {
     expect((await go("/")).headers()["location"]).toContain("/creators");
   });
 
+  test("a creator staff haven't given a handle yet is still shown, at their referral code", async ({ page, request }) => {
+    const c = await publishedCreator(request, { withHandle: false });
+    await page.goto("/creators/trips");
+    const all = page.getByRole("region", { name: "More creators who travel like you" });
+    const tile = all.getByRole("link", { name: new RegExp(c.name) });
+    await expect(tile).toBeVisible();
+    // No "@handle" to show, so the name is what's shown.
+    await expect(tile).not.toContainText("@");
+    await tile.click();
+    await expect(page).toHaveURL(new RegExp(`/creator/${c.slug}$`));
+    await expect(page.getByRole("heading", { level: 1, name: c.name })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "The trips they actually took" })).toBeVisible();
+    // Staff can feature their trip: the dashboard has no handle to show for them.
+    const set = await request.put(`${API_URL}/spotlight/trips/${c.tripId}`, { headers: c.staff, data: { on: true } });
+    expect(set.status()).toBe(200);
+    await page.goto("/creators/trips");
+    await expect(page.getByRole("region", { name: /CREATOR IN THE SPOTLIGHT/i }).getByRole("heading", { name: c.name })).toBeVisible();
+    await request.put(`${API_URL}/spotlight/trips/${c.tripId}`, { headers: c.staff, data: { on: false } });
+  });
+
   test("a creator with no published trip is not shown", async ({ page, request }) => {
     const stamp = Date.now().toString(36);
     const email = `e2e-nopub-${stamp}@creators.example.com`;

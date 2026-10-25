@@ -41,16 +41,18 @@ export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
               ✓ wishtrip creator
             </span>
             <h1 className="font-display m-0 text-[40px] font-medium leading-[1.05] md:text-[58px]">{creator.display_name}</h1>
-            <p className="m-0 text-[15px] text-[#566E85]">
-              {creator.profile_url ? (
-                <a href={creator.profile_url} target="_blank" rel="noreferrer" className="font-semibold text-[#0A7C80] no-underline hover:underline">
-                  @{creator.handle}
-                </a>
-              ) : (
-                <span className="font-semibold text-[#0A7C80]">@{creator.handle}</span>
-              )}{" "}
-              · {channel}
-            </p>
+            {creator.handle && (
+              <p className="m-0 text-[15px] text-[#566E85]">
+                {creator.profile_url ? (
+                  <a href={creator.profile_url} target="_blank" rel="noreferrer" className="font-semibold text-[#0A7C80] no-underline hover:underline">
+                    @{creator.handle}
+                  </a>
+                ) : (
+                  <span className="font-semibold text-[#0A7C80]">@{creator.handle}</span>
+                )}{" "}
+                · {channel}
+              </p>
+            )}
             {places.length > 0 && (
               <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
                 {places.map((p) => (
@@ -164,7 +166,7 @@ export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
             </div>
             <ul className="m-0 mt-5 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {more.map((c) => (
-                <li key={c.handle}>
+                <li key={c.slug}>
                   <CreatorTile creator={c} />
                 </li>
               ))}

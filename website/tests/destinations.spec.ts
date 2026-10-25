@@ -4,7 +4,7 @@
  */
 import { API_URL, expect, test } from "./fixtures";
 
-type Destination = { id: string; name: string; country: string | null; creator_trips: number; top_creator: { handle: string } | null };
+type Destination = { id: string; name: string; country: string | null; creator_trips: number; top_creator: { handle: string | null; display_name: string } | null };
 
 async function destinations(request: import("@playwright/test").APIRequestContext) {
   const res = await request.get(`${API_URL}/explore/destinations`);
@@ -58,7 +58,8 @@ test.describe("Destinations", () => {
     if (visited) {
       const card = grid.getByRole("listitem").filter({ hasText: visited.name }).first();
       await expect(card).toContainText(`${visited.creator_trips} creator ${visited.creator_trips === 1 ? "trip" : "trips"}`);
-      await expect(card).toContainText(`Top trip by @${visited.top_creator!.handle}`);
+      const who = visited.top_creator!;
+      await expect(card).toContainText(`Top trip by ${who.handle ? `@${who.handle}` : who.display_name}`);
     }
     // No stock figures: no prices, best months or follower counts on the cards.
     await expect(grid.getByText(/₹|Best (Nov|Apr|Mar|Sep)|followers/i)).toHaveCount(0);

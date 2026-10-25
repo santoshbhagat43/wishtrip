@@ -44,7 +44,7 @@ export function CreatorTripsScreen({ data }: { data: CreatorsIndex | null }) {
             </dl>
             <ul className="m-0 mt-8 flex list-none justify-center gap-4 overflow-x-auto p-0 pb-2 md:gap-6">
               {creators.slice(0, 14).map((c) => (
-                <li key={c.handle} className="flex-none">
+                <li key={c.slug} className="flex-none">
                   <Link href={profileHref(c)} className="flex w-[78px] flex-col items-center gap-2 text-white no-underline md:w-[92px]">
                     <span className="rounded-full border-2 border-[#22DDE0] p-[3px]">
                       <Avatar name={c.display_name} src={c.avatar_url} size={64} />
@@ -102,9 +102,11 @@ export function CreatorTripsScreen({ data }: { data: CreatorsIndex | null }) {
                   <Avatar name={spotlight.display_name} src={spotlight.avatar_url} size={64} />
                   <div className="flex flex-col leading-tight">
                     <h2 className="font-display m-0 text-[32px] font-medium md:text-[40px]">{spotlight.display_name}</h2>
-                    <span className="text-[14.5px] font-medium text-[#0A7C80]">
-                      @{spotlight.handle} · {CHANNEL[spotlight.channel] ?? "Instagram"}
-                    </span>
+                    {spotlight.handle && (
+                      <span className="text-[14.5px] font-medium text-[#0A7C80]">
+                        @{spotlight.handle} · {CHANNEL[spotlight.channel] ?? "Instagram"}
+                      </span>
+                    )}
                   </div>
                 </div>
                 {lead?.summary && <p className="m-0 max-w-[560px] text-[16px] leading-relaxed text-[#3F5A72]">{lead.summary}</p>}
@@ -147,7 +149,7 @@ export function CreatorTripsScreen({ data }: { data: CreatorsIndex | null }) {
             </h2>
             <ul className="m-0 mt-6 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {creators.map((c) => (
-                <li key={c.handle}>
+                <li key={c.slug}>
                   <CreatorTile creator={c} />
                 </li>
               ))}

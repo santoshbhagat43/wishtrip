@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import type { CreatorCard, CreatorTripCard } from "@/lib/server/creators";
 
-export const profileHref = (c: Pick<CreatorCard, "handle">) => `/creator/${encodeURIComponent(c.handle)}`;
+export const profileHref = (c: Pick<CreatorCard, "slug">) => `/creator/${encodeURIComponent(c.slug)}`;
 export const tripHref = (t: Pick<CreatorTripCard, "share_code">) => `/t/${t.share_code}`;
 export const CHANNEL = { instagram: "Instagram", youtube: "YouTube" } as Record<string, string>;
 export const dayStops = (t: CreatorTripCard) =>
@@ -54,7 +54,7 @@ export function CreatorTile({ creator }: { creator: CreatorCard }) {
       <span className="-mt-7 flex flex-col gap-1 px-4 pb-4">
         <Avatar name={creator.display_name} src={creator.avatar_url} size={56} ring />
         <strong className="mt-1.5 text-[17px] leading-tight text-[#0D2436]">{creator.display_name}</strong>
-        <span className="text-[13.5px] font-medium text-[#0A7C80]">@{creator.handle}</span>
+        {creator.handle && <span className="text-[13.5px] font-medium text-[#0A7C80]">@{creator.handle}</span>}
         {trip && (
           <span className="mt-2 flex items-center gap-2.5 rounded-[14px] border border-[#E3E8EE] p-2">
             <span className="size-11 flex-none overflow-hidden rounded-[10px] bg-[#F3F6F9]">

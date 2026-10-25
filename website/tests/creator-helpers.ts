@@ -16,8 +16,9 @@ function seedReel(shortcode: string) {
   });
 }
 
-/** An approved creator with a handle and one published trip, made through the API. */
-export async function publishedCreator(request: APIRequestContext) {
+/** An approved creator and one published trip, made through the API. Staff give them a handle
+ *  unless `withHandle` is false: then their page is at their referral code. */
+export async function publishedCreator(request: APIRequestContext, { withHandle = true } = {}) {
   const stamp = Date.now().toString(36);
   const email = `e2e-pages-${stamp}@creators.example.com`;
   await request.post(`${API_URL}/auth/creator/request-otp`, { data: { email } });
@@ -30,7 +31,7 @@ export async function publishedCreator(request: APIRequestContext) {
   const handle = `pages.${stamp}`;
   await request.patch(`${API_URL}/creators/${me.id}`, {
     headers: staff,
-    data: { status: "active", handle, display_name: "Ananya Pages" },
+    data: { status: "active", ...(withHandle ? { handle } : {}), display_name: withHandle ? "Ananya Pages" : `Nohandle ${stamp}` },
   });
 
   const shortcode = `Cpg${stamp}`;
@@ -50,6 +51,13 @@ export async function publishedCreator(request: APIRequestContext) {
     headers: creatorAuth,
     data: { title: "Slow North Goa", publish: true },
   });
-  return { id: me.id as string, handle, staff, tripId: trip.id as string };
+  return {
+    id: me.id as string,
+    handle,
+    slug: withHandle ? handle : (me.referral_code as string),
+    name: withHandle ? "Ananya Pages" : `Nohandle ${stamp}`,
+    staff,
+    tripId: trip.id as string,
+  };
 }
 

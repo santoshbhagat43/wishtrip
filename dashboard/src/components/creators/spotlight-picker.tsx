@@ -71,7 +71,7 @@ export function SpotlightPicker() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{t.title}</span>
                   <span className="block truncate text-xs text-muted">
-                    {t.creator_name} · @{t.creator_handle} · {t.creator_trips} {t.creator_trips === 1 ? "trip" : "trips"} · {t.days}{" "}
+                    {t.creator_name}{t.creator_handle ? ` · @${t.creator_handle}` : ""} · {t.creator_trips} {t.creator_trips === 1 ? "trip" : "trips"} · {t.days}{" "}
                     {t.days === 1 ? "day" : "days"}, {t.stops} stops
                   </span>
                 </span>

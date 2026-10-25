@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const data = await fetchCreator(decodeURIComponent(handle));
   return data
-    ? { title: `${data.creator.display_name} — wishtrip creator`, description: `Trips by ${data.creator.display_name} (@${data.creator.handle}) on wishtrip.` }
+    ? { title: `${data.creator.display_name} — wishtrip creator`, description: `Trips by ${data.creator.display_name}${data.creator.handle ? ` (@${data.creator.handle})` : ""} on wishtrip.` }
     : { title: "Creator — wishtrip" };
 }
 

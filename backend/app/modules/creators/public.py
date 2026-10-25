@@ -31,7 +31,11 @@ class PublicTripCard(BaseModel):
 
 
 class PublicCreatorCard(BaseModel):
-    handle: str
+    # The address of their page, /creator/<slug>: their handle, or their referral code until staff
+    # have set one.
+    slug: str
+    # Their Instagram or YouTube handle, when staff have set it.
+    handle: str | None = None
     display_name: str
     channel: str
     profile_url: str
@@ -82,8 +86,9 @@ def creator_card(creator: Creator, published: list[CreatorTrip]) -> PublicCreato
     handle = (creator.handle or "").lstrip("@")
     cards = [trip_card(t) for t in published]
     return PublicCreatorCard(
-        handle=handle,
-        display_name=creator.display_name or handle,
+        slug=handle or creator.referral_code,
+        handle=handle or None,
+        display_name=creator.display_name or handle or "WishTrip creator",
         channel=creator.platform if creator.platform in ("instagram", "youtube") else "instagram",
         profile_url=creator.profile_url or creator.youtube_url or "",
         avatar_url=storage.url(creator.avatar_key) if creator.avatar_key else None,
@@ -98,16 +103,15 @@ def creator_card(creator: Creator, published: list[CreatorTrip]) -> PublicCreato
 
 
 async def eligible(session: AsyncSession) -> list[tuple[Creator, CreatorTrip]]:
-    """Every (creator, trip) that can be shown: an approved creator with a handle, and a published
-    trip with its link, newest trip first."""
+    """Every (creator, trip) that can be shown: an approved creator and a published trip with its
+    link, newest trip first. A creator needs no handle: their page is at their referral code until
+    one is set."""
     rows = (
         await session.execute(
             select(Creator, CreatorTrip)
             .join(CreatorTrip, CreatorTrip.creator_id == Creator.id)
             .where(
                 Creator.status == CreatorStatus.ACTIVE,
-                Creator.handle.is_not(None),
-                Creator.handle != "",
                 CreatorTrip.status == TripStatus.PUBLISHED,
                 CreatorTrip.share_code.is_not(None),
             )
@@ -163,14 +167,14 @@ async def creators_index(session: AsyncSession = Depends(get_session)):
     )
 
 
-@router.get("/{handle}", response_model=CreatorPage)
-async def creator_page(handle: str, session: AsyncSession = Depends(get_session)):
-    wanted = handle.strip().lstrip("@").lower()
+@router.get("/{slug}", response_model=CreatorPage)
+async def creator_page(slug: str, session: AsyncSession = Depends(get_session)):
+    wanted = slug.strip().lstrip("@").lower()
     cards = await _featured(session)
-    mine = next((c for c in cards if c.handle.lower() == wanted), None)
+    mine = next((c for c in cards if c.slug.lower() == wanted), None)
     if mine is None:
         raise not_found("Creator")
-    more = [c for c in cards if c.handle != mine.handle][:3]
+    more = [c for c in cards if c.slug != mine.slug][:3]
     # Cards on this page link out; the full trip lists stay with the creator's own page.
     return CreatorPage(
         creator=mine, more=[c.model_copy(update={"trips": c.trips[:1]}) for c in more]

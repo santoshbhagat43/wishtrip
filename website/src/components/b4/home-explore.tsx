@@ -15,7 +15,7 @@ function spotlightTrips(data: CreatorsIndex | null): SpotlightTrip[] {
   const add = (c: CreatorsIndex["all"][number], t: CreatorsIndex["all"][number]["trips"][number], tag: string | null) => {
     if (seen.has(t.share_code)) return;
     seen.add(t.share_code);
-    out.push({ ...t, handle: c.handle, creator: c.display_name, tag });
+    out.push({ ...t, slug: c.slug, handle: c.handle, creator: c.display_name, tag });
   };
   if (data.spotlight) {
     const [lead, ...rest] = data.spotlight.trips;

@@ -30,7 +30,9 @@ PUBLISHED = Location.status == LocationStatus.PUBLISHED
 
 
 class TopCreator(BaseModel):
-    handle: str
+    # The address of their page (/creator/<slug>), and their handle when staff have set one.
+    slug: str
+    handle: str | None = None
     display_name: str
 
 
@@ -93,7 +95,9 @@ def _creator_trips(found: list[tuple[Creator, CreatorTrip]]) -> dict:
         "creator_trips": len(found),
         "cover_image_url": creator_trips.cover_url(newest),
         "top_creator": TopCreator(
-            handle=(creator.handle or "").lstrip("@"), display_name=creator.display_name or ""
+            slug=(creator.handle or "").lstrip("@") or creator.referral_code,
+            handle=(creator.handle or "").lstrip("@") or None,
+            display_name=creator.display_name or "",
         ),
     }
 
