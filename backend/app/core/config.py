@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     reel_transcribe_model: str = "google/gemini-2.5-flash"
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
+    # Frames read by OCR at the same time. 0 = one per CPU. Tesseract is single-threaded per
+    # frame here (OMP_THREAD_LIMIT=1), so this is what uses the machine's cores.
+    reel_ocr_workers: int = 0
     reel_download_timeout_seconds: int = 240
     reel_imports_per_hour: int = 10
     # Top a creator's itinerary up to a whole trip (at least two full days) from the knowledge

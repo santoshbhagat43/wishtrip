@@ -8,6 +8,7 @@ A reel is processed once (CreatorContent is cached by shortcode); every later pa
 reel only creates the traveller's chat session.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -288,12 +289,19 @@ async def listen(ai: AIOrchestrator, video: Path, workdir: Path, has_audio: bool
     if not has_audio or not ai.supports("transcribe"):
         return Transcript()
     try:
-        mp3 = media.audio(video, workdir / "audio.mp3").read_bytes()
-        return await transcribe(ai, mp3)
-    except (media.MediaError, AIUnavailableError, ValueError) as exc:
-        # Caption and on-screen text still make a reading; the voice-over is a bonus.
-        logger.warning("Transcription failed: %s", exc)
+        mp3 = (await asyncio.to_thread(media.audio, video, workdir / "audio.mp3")).read_bytes()
+    except media.MediaError as exc:
+        logger.warning("Audio extraction failed: %s", exc)
         return Transcript()
+    # One retry: the model now and then returns malformed JSON for a long transcript, and that
+    # used to drop the whole voice-over.
+    for attempt in (1, 2):
+        try:
+            return await transcribe(ai, mp3)
+        except (AIUnavailableError, ValueError) as exc:
+            logger.warning("Transcription failed (try %d): %s", attempt, exc)
+    # Caption and on-screen text still make a reading; the voice-over is a bonus.
+    return Transcript()
 
 
 def _norm(text: str) -> str:
@@ -411,6 +419,13 @@ UPLOAD_META = {
 }
 
 
+def _read_screen(
+    video: Path, workdir: Path, duration: float
+) -> tuple[list[media.Frame], list[dict]]:
+    frame_list = media.frames(video, workdir / "frames", settings.reel_max_frames, duration)
+    return frame_list, media.ocr(frame_list)
+
+
 async def _read_into_content(
     session: AsyncSession,
     ai: AIOrchestrator,
@@ -431,12 +446,26 @@ async def _read_into_content(
             "Try a shorter reel."
         )
 
+    # The screen (frames, then OCR: CPU, minutes) and the voice-over (audio, then a Gemini call:
+    # network) don't need each other, so they run at the same time. Both stay off the event loop.
     await step(ImportStep.READING_SCREEN)
-    frame_list = media.frames(video, workdir / "frames", settings.reel_max_frames, info.duration)
-    ocr_lines = media.ocr(frame_list)
-
-    await step(ImportStep.LISTENING)
-    transcript = await listen(ai, video, workdir, info.has_audio)
+    started = time.perf_counter()
+    listening = asyncio.create_task(listen(ai, video, workdir, info.has_audio))
+    try:
+        frame_list, ocr_lines = await asyncio.to_thread(
+            _read_screen, video, workdir, info.duration
+        )
+    except BaseException:
+        listening.cancel()
+        raise
+    screen_done = time.perf_counter()
+    transcript = await listening
+    logger.info(
+        "Reel %s: %.0fs video, %d frames, %d OCR lines; screen %.1fs, then waited %.1fs more "
+        "for the voice-over",
+        shortcode, info.duration, len(frame_list), len(ocr_lines),
+        screen_done - started, time.perf_counter() - screen_done,
+    )  # fmt: skip
 
     await step(ImportStep.FINDING_PLACES)
     text = material(

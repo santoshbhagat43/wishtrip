@@ -1,8 +1,10 @@
 """Cut a reel into scene frames and an audio track, and read the text on the frames."""
 
 import json
+import os
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -114,19 +116,34 @@ def _key(line: str) -> str:
     return re.sub(r"[\W_]+", "", line.lower())
 
 
-def ocr(frame_list: list[Frame]) -> list[dict]:
-    """Text on screen, once per line: overlays stay up across many frames."""
+def _read_frame(path: Path, lang: str) -> str:
     import pytesseract
     from PIL import Image, ImageOps
 
+    with Image.open(path) as img:
+        gray = ImageOps.autocontrast(ImageOps.grayscale(img))
+        # psm 11: sparse text, the way captions float over video.
+        return pytesseract.image_to_string(gray, lang=lang, config="--psm 11")
+
+
+def ocr(frame_list: list[Frame], workers: int | None = None) -> list[dict]:
+    """Text on screen, once per line: overlays stay up across many frames.
+
+    Frames are read in parallel (Tesseract runs as a subprocess, so threads are enough) and
+    merged in frame order, so the result is the same as reading them one by one."""
+    from app.core.config import settings
+
+    if not frame_list:
+        return []
+    # One Tesseract thread per frame: several frames at once beats one frame on all cores.
+    os.environ.setdefault("OMP_THREAD_LIMIT", "1")
     lang = _languages()
+    workers = max(1, workers or settings.reel_ocr_workers or os.cpu_count() or 1)
+    with ThreadPoolExecutor(max_workers=min(workers, len(frame_list))) as pool:
+        texts = list(pool.map(lambda f: _read_frame(f.path, lang), frame_list))
     seen: set[str] = set()
     lines: list[dict] = []
-    for frame in frame_list:
-        with Image.open(frame.path) as img:
-            gray = ImageOps.autocontrast(ImageOps.grayscale(img))
-            # psm 11: sparse text, the way captions float over video.
-            text = pytesseract.image_to_string(gray, lang=lang, config="--psm 11")
+    for frame, text in zip(frame_list, texts, strict=True):
         for raw in text.splitlines():
             line = clean_line(raw)
             if not line or _key(line) in seen:
