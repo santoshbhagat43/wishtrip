@@ -58,7 +58,7 @@ function CountryView({ loc }: { loc: Location }) {
             <EditDetails id={loc.id} />
             <Link
               href={`/locations/new?type=city&parent_id=${loc.id}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-strong"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-navy hover:bg-accent-strong"
             >
               <Plus className="size-4" /> Add city
             </Link>

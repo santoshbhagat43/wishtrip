@@ -319,7 +319,7 @@ export default function ReviewQueuePage() {
                       done: `${current.name} is live for travellers and the trip engine.`,
                     })
                   }
-                  className="flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-white transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-navy transition-colors hover:bg-accent-strong disabled:opacity-50"
                 >
                   <Send className="size-4" /> Publish
                 </button>

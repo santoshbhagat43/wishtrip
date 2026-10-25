@@ -51,7 +51,7 @@ export function PlaceSection({ cityId, section }: { cityId: string; section: Sec
         <p className="text-sm text-muted">{NOTES[section]}</p>
         <Link
           href={`/locations/new?type=${meta.add}&parent_id=${cityId}`}
-          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-strong"
+          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-navy hover:bg-accent-strong"
         >
           <Plus className="size-4" /> Add {meta.one}
         </Link>

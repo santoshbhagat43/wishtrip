@@ -327,7 +327,7 @@ export default function MenusPage() {
                 <button
                   disabled={!label.trim() || (!url.trim() && !placeId) || addLink.isPending}
                   onClick={() => addLink.mutate(current.id)}
-                  className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-bold text-white disabled:opacity-50"
+                  className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-bold text-navy disabled:opacity-50"
                 >
                   <Plus className="size-4" /> Add link
                 </button>

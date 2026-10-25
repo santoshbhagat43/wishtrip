@@ -188,7 +188,7 @@ export default function SupportInboxPage() {
                         </span>
                       )}
                       {mine && (
-                        <span className="rounded-full bg-accent/15 px-2 py-px text-[10.5px] font-extrabold text-accent">
+                        <span className="rounded-full bg-accent/15 px-2 py-px text-[10.5px] font-extrabold text-accent-text">
                           Assigned to you
                         </span>
                       )}
@@ -198,7 +198,7 @@ export default function SupportInboxPage() {
                     <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
                       <span>{t.user.full_name || t.user.email}</span>
                       <span aria-hidden>·</span>
-                      <span className={mine ? "font-semibold text-accent" : undefined}>
+                      <span className={mine ? "font-semibold text-accent-text" : undefined}>
                         {t.assignee ? t.assignee.full_name || t.assignee.email : "Unassigned"}
                       </span>
                       {t.trip_title && (
@@ -263,7 +263,7 @@ export default function SupportInboxPage() {
                     ))}
                   </select>
                 ) : current.assignee?.id === me?.id ? (
-                  <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-[13px] font-semibold text-accent">
+                  <span className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-[13px] font-semibold text-accent-text">
                     Assigned to you
                   </span>
                 ) : current.assignee ? (
@@ -333,7 +333,7 @@ export default function SupportInboxPage() {
                 <button
                   disabled={!draft.trim() || send.isPending}
                   onClick={() => send.mutate()}
-                  className="ml-auto flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-white transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="ml-auto flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-navy transition-colors hover:bg-accent-strong disabled:opacity-50"
                 >
                   {internal ? <StickyNote className="size-4" /> : <Send className="size-4" />}
                   {internal ? "Save note" : resolveAfter ? "Send and resolve" : "Send reply"}

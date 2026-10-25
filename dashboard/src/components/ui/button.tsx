@@ -6,7 +6,7 @@ type Variant = "primary" | "accent" | "secondary" | "ghost" | "danger";
 const styles: Record<Variant, string> = {
   primary: "bg-brand text-on-brand hover:bg-brand-strong",
   // Coral is reserved for commit actions (save, create, send).
-  accent: "bg-accent text-white hover:bg-accent-strong shadow-[0_8px_20px_rgba(226,97,62,0.25)]",
+  accent: "bg-accent text-navy hover:bg-accent-strong shadow-[0_8px_20px_rgba(34,221,224,0.25)]",
   secondary: "border border-border bg-surface text-text hover:bg-surface-2",
   ghost: "text-muted hover:bg-surface-2 hover:text-text",
   danger: "border border-danger/40 text-danger hover:bg-danger-soft",
