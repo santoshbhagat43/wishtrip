@@ -232,14 +232,14 @@ export const TRIP_FILTERS = [
 export const CREATOR_STEPS = [
   { icon: "M4 4h16v16H4zM10 9l5 3-5 3z", title: "Connect your Instagram or YouTube", desc: "Pick the trips you’ve posted. No new content needed." },
   { icon: "M4 7h16v12H4zM9 7V5h6v2M8 13h8", title: "We turn them into bookable trips", desc: "Your reels become a day-by-day trip with real prices, credited to you." },
-  { icon: "M12 3v18M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6", title: "Earn every time someone books", desc: "You get [X%] of every booking from your trip, paid monthly to your bank." },
+  { icon: "M12 3v18M17 7H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6", title: "Earn every time someone books", desc: "You earn a share of every booking from your trip, paid monthly to your bank." },
 ];
 
 export const CREATOR_DASHBOARD = [
   { label: "Views on wishtrip", value: "18.2k" },
   { label: "Bookings this month", value: "42" },
-  { label: "Your share of each booking", value: "[X%]" },
-  { label: "Earned this month", value: "₹ [your earnings]", earned: true },
+  { label: "Your share of each booking", value: "Agreed with you" },
+  { label: "Earned this month", value: "Paid monthly", earned: true },
 ];
 
 export const TRUST = [

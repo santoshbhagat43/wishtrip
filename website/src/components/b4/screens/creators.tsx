@@ -19,11 +19,11 @@ const COIN = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 12h6M12 9v6";
 const STEPS = [
   { icon: PLAY, title: "Connect your Instagram or YouTube", body: "Pick the trips you've posted. No new content needed." },
   { icon: BOARD, title: "We turn them into bookable trips", body: "Your reels become a day-by-day trip with real prices, credited to you." },
-  { icon: COIN, title: "Earn every time someone books", body: "You get [X%] of every booking from your trip, paid monthly to your bank." },
+  { icon: COIN, title: "Earn every time someone books", body: "You earn a share of every booking from your trip, paid monthly to your bank." },
 ];
 
 const PERKS = [
-  { title: "Earn [X%] of every booking", body: "Paid monthly to your bank, for as long as people book." },
+  { title: "Earn on every booking", body: "Your share is agreed with you, and paid monthly for as long as people book." },
   { title: "Your name on every trip", body: "Travellers see who made it. You build a following." },
   { title: "A dashboard that shows it all", body: "Views, saves and bookings for each trip." },
   { title: "We do the hard part", body: "Flights, stays, support and refunds are on us." },
@@ -38,8 +38,8 @@ const FAQ = [
 const DASH: [label: string, value: string, accent?: boolean][] = [
   ["Views on wishtrip", "18.2k"],
   ["Bookings this month", "42"],
-  ["Your share of each booking", "[X%]"],
-  ["Earned this month", "₹ [your earnings]", true],
+  ["Your share of each booking", "Agreed with you"],
+  ["Earned this month", "Paid monthly", true],
 ];
 
 /** The creator program landing: how earning works, what you get, and a way in. */

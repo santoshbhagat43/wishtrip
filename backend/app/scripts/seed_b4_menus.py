@@ -32,8 +32,6 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         [
             ("Destinations", "/destinations"),
             ("Creator trips", "/creators/trips"),
-            ("Plan a trip", "/arya"),
-            ("Reel to trip", "/reel"),
         ],
     ),
     (
@@ -42,9 +40,7 @@ GROUPS: list[tuple[str, str, MenuPlacement, list[tuple[str, str]]]] = [
         MenuPlacement.FOOTER,
         [
             ("For creators", "/creators"),
-            ("Sign in", "/login"),
             ("Help", "/help"),
-            ("Explore", "/explore"),
         ],
     ),
     (
