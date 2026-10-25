@@ -236,8 +236,13 @@ export function SharedTripScreen() {
                     const Icon = KIND_ICON[s.kind] ?? Landmark;
                     return (
                       <div key={`${s.name}-${i}`} className="flex items-center gap-2.5 rounded-[14px] border border-[#E3E8EE] bg-white p-2.5">
-                        <span aria-hidden="true" className="grid size-11 flex-none place-items-center rounded-[10px] bg-[#F3F6F9] text-[#3F5A72]">
-                          <Icon className="size-[18px]" strokeWidth={1.8} />
+                        <span aria-hidden="true" className="relative grid size-11 flex-none place-items-center overflow-hidden rounded-[10px] bg-[#F3F6F9] text-[#3F5A72]">
+                          {s.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
+                            <img src={s.image} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                          ) : (
+                            <Icon className="size-[18px]" strokeWidth={1.8} />
+                          )}
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
                           <span className="text-[11.5px] font-semibold text-[#5F6B78]">{s.when}</span>

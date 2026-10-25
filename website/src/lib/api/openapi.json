@@ -4354,7 +4354,7 @@
      "creator"
     ],
     "summary": "Upload Trip Thumbnail",
-    "description": "Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard.",
+    "description": "Use an image the creator uploads as the reel's thumbnail (the tall dashboard card).",
     "operationId": "upload_trip_thumbnail_creator_trips__trip_id__thumbnail_post",
     "security": [
      {
@@ -14687,6 +14687,28 @@
       ],
       "title": "Origin",
       "default": "reel"
+     },
+     "image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Url"
+     },
+     "image_hotel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Hotel"
      }
     },
     "type": "object",

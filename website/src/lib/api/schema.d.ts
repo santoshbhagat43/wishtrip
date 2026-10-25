@@ -1444,7 +1444,7 @@ export interface paths {
         put?: never;
         /**
          * Upload Trip Thumbnail
-         * @description Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard.
+         * @description Use an image the creator uploads as the reel's thumbnail (the tall dashboard card).
          */
         post: operations["upload_trip_thumbnail_creator_trips__trip_id__thumbnail_post"];
         delete?: never;
@@ -5149,6 +5149,10 @@ export interface components {
              * @enum {string}
              */
             origin: "reel" | "kb" | "suggested" | "creator";
+            /** Image Url */
+            image_url?: string | null;
+            /** Image Hotel */
+            image_hotel?: string | null;
         };
         /**
          * TripStatus

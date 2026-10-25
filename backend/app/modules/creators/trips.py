@@ -291,7 +291,9 @@ def check_image_size(data: bytes, minimum: tuple[int, int], what: str) -> None:
             f"Your {what} is {width}×{height}px. Use one at least {minimum[0]}×{minimum[1]}px."
         )
     if max(width, height) > IMAGE_MAX_SIDE:
-        raise bad_request(f"Your {what} is too large. Use one under {IMAGE_MAX_SIDE}px on its longest side.")
+        raise bad_request(
+            f"Your {what} is too large. Use one under {IMAGE_MAX_SIDE}px on its longest side."
+        )
 
 
 def save_image_upload(

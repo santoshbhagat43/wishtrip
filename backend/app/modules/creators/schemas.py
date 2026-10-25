@@ -177,6 +177,10 @@ class TripItem(BaseModel):
     # reel: named in the creator's video · kb: WishTrip's checked place · suggested: the AI's
     # suggestion, neither from the video nor checked · creator: a stop the creator added by hand.
     origin: Literal["reel", "kb", "suggested", "creator"] = "reel"
+    # A stay's picture and the TripJack hotel it came from, when its name matches one. Read-only:
+    # filled in when the trip is read, never saved.
+    image_url: str | None = None
+    image_hotel: str | None = None
 
 
 class CreatorTripRead(BaseModel):

@@ -259,6 +259,55 @@ async def test_a_trip_has_a_cover_and_a_separate_reel_thumbnail(client, admin, f
     assert r.status_code == 400
 
 
+async def test_a_stay_gets_the_photo_of_the_tripjack_hotel_it_names(client, admin, fake_reel):
+    from app.db.session import SessionLocal
+    from app.modules.hotels.models import SupplierHotel
+
+    async with SessionLocal() as session:
+        session.add_all(
+            [
+                SupplierHotel(tj_hotel_id="h1", region_id=1, name="Grand Mega Resort & Spa Kuta",
+                              hero_image="https://img.example/mega.jpg", content_synced_at=None),
+                SupplierHotel(tj_hotel_id="h2", region_id=1, name="Mega Palace Hotel",
+                              hero_image="https://img.example/palace.jpg"),
+            ]
+        )  # fmt: skip
+        await session.commit()
+    headers = await _approved_creator(client, admin, "stays@creators.example.com")
+    trip = await _make_trip(client, headers)
+    items = [
+        {"id": "a", "kind": "stay", "name": "Grand Mega Resort & Spa", "day": 1},
+        {"id": "b", "kind": "stay", "name": "Some Unknown Villa", "day": 2},
+        {"id": "c", "kind": "sight", "name": "Grand Mega Resort", "day": 1},
+    ]
+    r = await client.patch(f"/creator/trips/{trip['id']}", json={"items": items}, headers=headers)
+    assert r.status_code == 200, r.text
+    by_id = {i["id"]: i for i in r.json()["items"]}
+    assert by_id["a"]["image_url"] == "https://img.example/mega.jpg"
+    assert by_id["a"]["image_hotel"] == "Grand Mega Resort & Spa Kuta"
+    # No close match: no picture. Only stays are matched.
+    assert by_id["b"]["image_url"] is None and by_id["c"]["image_url"] is None
+
+    # The photo is looked up, never saved with the trip.
+    got = (await client.get(f"/creator/trips/{trip['id']}", headers=headers)).json()
+    assert {i["id"]: i["image_url"] for i in got["items"]}["a"] == "https://img.example/mega.jpg"
+
+
+def test_hotel_names_match_only_when_they_are_close():
+    from app.modules.hotels.models import SupplierHotel
+    from app.modules.hotels.photos import best_match
+
+    def hotel(name):
+        return SupplierHotel(tj_hotel_id=name, region_id=1, name=name)
+
+    hotels = [hotel("Mega Palace Hotel"), hotel("Grand Mega Resort & Spa Kuta")]
+    assert best_match("Grand Mega Resort & Spa", hotels).name == "Grand Mega Resort & Spa Kuta"
+    assert best_match("Mega", hotels) is None  # one common word is not enough on its own
+    assert best_match("Mega Palace", hotels).name == "Mega Palace Hotel"
+    assert best_match("The Villa", hotels) is None  # nothing distinctive to match on
+    assert best_match("Grand Hyatt Bali", hotels) is None
+
+
 def test_frames_are_spread_over_the_whole_video():
     from pathlib import Path
 

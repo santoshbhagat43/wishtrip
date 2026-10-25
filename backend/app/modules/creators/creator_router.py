@@ -37,6 +37,7 @@ from app.modules.creators.schemas import (
     ReferralVisit,
     SaveFromReel,
     TripImportStart,
+    TripItem,
 )
 from app.modules.knowledge.models import Location
 from app.modules.media.storage import storage
@@ -52,6 +53,29 @@ def trip_read(trip: CreatorTrip) -> CreatorTripRead:
     data = CreatorTripRead.model_validate(trip)
     data.cover_image_url = trips.cover_url(trip)
     data.thumbnail_image_url = trips.thumbnail_url(trip)
+    return data
+
+
+async def stay_photos(session: AsyncSession, trip: CreatorTrip) -> list[dict]:
+    """The trip's items, each stay with its TripJack photo when its name matches a hotel. When some
+    stay has none yet, the destination's hotels are fetched in the background (once a few hours)."""
+    from app.modules.hotels import photos
+    from app.modules.tripjack.cache import cache_get, cache_set
+
+    items, missing = await photos.attach(session, list(trip.items or []))
+    if missing and settings.tripjack_api_key:
+        key = f"tj:trip-photos:{trip.id}"
+        if not await cache_get(key):
+            await cache_set(key, {"queued": True}, 6 * 3600)
+            from app.workers.tasks import trip_hotel_photos_task
+
+            trip_hotel_photos_task.delay(str(trip.id))
+    return items
+
+
+async def trip_view(session: AsyncSession, trip: CreatorTrip) -> CreatorTripRead:
+    data = trip_read(trip)
+    data.items = [TripItem(**i) for i in await stay_photos(session, trip)]
     return data
 
 
@@ -139,7 +163,7 @@ async def get_trip(
     acting: Acting = Depends(acting_as),
 ):
     creator = acting.creator
-    return trip_read(await trips.owned(session, trip_id, creator.id))
+    return await trip_view(session, await trips.owned(session, trip_id, creator.id))
 
 
 @router.patch("/creator/trips/{trip_id}", response_model=CreatorTripRead)
@@ -165,7 +189,7 @@ async def update_trip(
         await trips.publish(session, trip)
     await session.commit()
     await session.refresh(trip)
-    return trip_read(trip)
+    return await trip_view(session, trip)
 
 
 @router.get("/creator/trips/{trip_id}/cover-options", response_model=list[CoverOption])
@@ -188,7 +212,7 @@ async def _upload_trip_image(
     setattr(trip, field, trips.save_cover_upload(trip, data.filename, data.data_base64))
     await session.commit()
     await session.refresh(trip)
-    return trip_read(trip)
+    return await trip_view(session, trip)
 
 
 @router.post("/creator/trips/{trip_id}/cover", response_model=CreatorTripRead)
@@ -210,7 +234,7 @@ async def upload_trip_thumbnail(
     session: AsyncSession = Depends(get_session),
     acting: Acting = Depends(acting_as),
 ):
-    """Use an image the creator uploads as the reel's thumbnail, the tall card on their dashboard."""
+    """Use an image the creator uploads as the reel's thumbnail (the tall dashboard card)."""
     return await _upload_trip_image("thumbnail_image_key", trip_id, data, session, acting)
 
 
@@ -238,7 +262,7 @@ async def save_from_reel(
     await trips.publish(session, trip)
     await session.commit()
     await session.refresh(trip)
-    return trip_read(trip)
+    return await trip_view(session, trip)
 
 
 @router.get("/trips/{share_code}", response_model=PublicTripRead)
@@ -263,7 +287,7 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
             display_name=creator.display_name or (creator.handle or "A wishtrip creator"),
             referral_code=creator.referral_code,
         ),
-        items=trip.items,
+        items=[TripItem(**i) for i in await stay_photos(session, trip)],
     )
 
 

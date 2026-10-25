@@ -90,6 +90,29 @@ def sync_region_content_task(region_id: int) -> int:
     return asyncio.run(_hotel_sync("content", region_id))
 
 
+# TripJack photos for the hotels a creator's trip stays at (matched by name once fetched).
+async def _trip_hotel_photos(trip_id: str) -> int:
+    from app.modules.creators.models import CreatorTrip
+    from app.modules.hotels import photos
+
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            trip = await session.get(CreatorTrip, uuid.UUID(trip_id))
+            if trip is None:
+                return 0
+            return await photos.fetch_for_trip(session, trip.items or [], trip.destination_name)
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(
+    name="hotels.trip_photos", autoretry_for=(Exception,), retry_backoff=True, max_retries=2
+)
+def trip_hotel_photos_task(trip_id: str) -> int:
+    return asyncio.run(_trip_hotel_photos(trip_id))
+
+
 # A few hotel photos for every published destination (the Destinations page's pictures).
 @celery_app.task(
     name="hotels.sync_destination_photos",

@@ -41,6 +41,9 @@ export type Stop = {
   name: string;
   note: string;
   at: string | null;
+  /** A TripJack photo of the hotel, for a stay whose name matches one. */
+  image?: string | null;
+  imageHotel?: string | null;
   /** Where it came from: the creator's video, WishTrip's checked places, or a suggestion. */
   origin: "reel" | "kb" | "suggested" | "creator";
 };
@@ -87,6 +90,8 @@ export function daysFromItems(items: Item[]): ItineraryDay[] {
         note: noteFor(s),
         at: s.origin === "reel" ? reelTime(s.t) : null,
         origin: s.origin ?? "reel",
+        image: s.image_url ?? null,
+        imageHotel: s.image_hotel ?? null,
       },
     ]);
   });
@@ -384,7 +389,12 @@ export function ItinerarySheet({
                       return (
                         <article key={`${s.name}-${i}`} className={`${CARD} flex overflow-hidden`}>
                           <div className="relative grid w-[96px] flex-none place-items-center bg-gradient-to-br from-surface-2 to-brand-soft text-brand md:w-[180px]">
-                            <Icon className="size-9 md:size-12" strokeWidth={1.5} />
+                            {s.image ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
+                              <img src={s.image} alt={s.imageHotel ?? s.name} className="absolute inset-0 size-full object-cover" loading="lazy" />
+                            ) : (
+                              <Icon className="size-9 md:size-12" strokeWidth={1.5} />
+                            )}
                             <span className="absolute left-3 top-3 rounded-full bg-[#072338] px-2.5 py-1 text-[11px] font-bold text-white">
                               {s.when}
                             </span>
@@ -392,6 +402,9 @@ export function ItinerarySheet({
                           <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 md:p-5">
                             <span className={`w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold ${chip}`}>{label}</span>
                             <strong className="text-[19px] leading-snug md:text-[21px]">{s.name}</strong>
+                            {s.image && s.imageHotel && (
+                              <span className="-mt-1 text-[11px] text-muted">Photo: {s.imageHotel} · via TripJack</span>
+                            )}
                             <span className="flex flex-wrap gap-1.5">
                               {s.origin === "suggested" ? (
                                 <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-muted">
