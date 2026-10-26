@@ -1,92 +1,176 @@
 """Photos for the hotels a creator's itinerary stays at, from TripJack's own hotel content.
 
-A stay is only given a picture when its name closely matches a TripJack hotel; otherwise it keeps
-its icon. Nothing is guessed. The hotels of the trip's destination are fetched from TripJack in the
-background the first time they are needed (their names come with the content, not the id list)."""
+Each stay is matched to a TripJack hotel by name (hotels/matching.py); the match is saved
+(`StayMatch`) so it is stable, can be reviewed, and can be corrected by staff. A photo shows only
+for a confident or staff-confirmed match; otherwise the stay keeps its icon. Nothing is guessed.
+The hotels of the trip's destination are fetched from TripJack in the background the first time
+they are needed (their names come with the content, not the id list)."""
 
 import logging
-import re
+import uuid
+from dataclasses import dataclass
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.hotels.models import SupplierHotel, SupplierRegion
+from app.modules.hotels import matching
+from app.modules.hotels.models import StayMatch, SupplierHotel, SupplierRegion
 
 log = logging.getLogger(__name__)
 
-# Words that say "this is a hotel" rather than which one.
-GENERIC = {
-    "hotel", "resort", "resorts", "spa", "villa", "villas", "the", "and", "by", "at", "of", "in",
-    "stay", "stays", "inn", "suites", "suite", "boutique", "homestay", "guest", "house", "lodge",
-    "bali", "restaurant", "beach", "club",
-}
 # Most hotels fetched for one trip's destination (100 per TripJack call).
 FETCH_LIMIT = 8000
+# States whose hotel photo is shown to travellers.
+SHOWN = ("matched", "confirmed")
 
 
-def tokens(name: str) -> list[str]:
-    return [t for t in re.findall(r"[a-z0-9]+", name.lower().replace("&", " and ")) if t]
+@dataclass
+class Resolved:
+    state: str
+    score: float
+    hotel: SupplierHotel | None
+    row: StayMatch | None = None
 
 
-def distinctive(name: str) -> set[str]:
-    return {t for t in tokens(name) if t not in GENERIC}
-
-
-def best_match(stop_name: str, hotels: list[SupplierHotel]) -> SupplierHotel | None:
-    """The hotel whose name has every distinctive word of the stop's name (and not many more)."""
-    want = distinctive(stop_name)
-    if not want:
-        return None
-    best: tuple[float, SupplierHotel] | None = None
-    for hotel in hotels:
-        have = distinctive(hotel.name)
-        if not have or not want <= have or len(have - want) > 2:
-            continue
-        if len(want) == 1 and have != want:
-            continue  # one common word ("Mega") isn't enough to call it the same hotel
-        score = len(want) / len(have | want)
-        if best is None or score > best[0]:
-            best = (score, hotel)
-    return best[1] if best else None
-
-
-async def _candidates(session: AsyncSession, name: str) -> list[SupplierHotel]:
-    words = sorted(distinctive(name), key=len, reverse=True)[:3]
-    if not words:
+async def candidates(
+    session: AsyncSession, text: str, *, limit: int = 60, with_photo: bool = True
+) -> list[SupplierHotel]:
+    """Hotels whose names look like `text`, closest first (typos and extra words allowed)."""
+    query = " ".join(matching.words(matching.clean_name(text)))
+    if not query:
         return []
-    return list(
-        (
-            await session.execute(
-                select(SupplierHotel)
-                .where(
-                    SupplierHotel.hero_image.is_not(None),
-                    SupplierHotel.is_active.is_(True),
-                    and_(*[func.lower(SupplierHotel.name).contains(w) for w in words]),
-                )
-                .limit(80)
-            )
-        ).scalars()
+    name = func.lower(SupplierHotel.name)
+    closeness = func.greatest(func.similarity(name, query), func.word_similarity(query, name))
+    stmt = select(SupplierHotel).where(
+        SupplierHotel.is_active.is_(True),
+        or_(name.op("%")(query), literal(query).op("<%")(name)),
     )
+    if with_photo:
+        stmt = stmt.where(SupplierHotel.hero_image.is_not(None))
+    return list((await session.scalars(stmt.order_by(closeness.desc()).limit(limit))).all())
+
+
+def _area(hotel: SupplierHotel) -> str:
+    return f"{hotel.city} {hotel.address} {hotel.country}"
+
+
+async def ranked(
+    session: AsyncSession, name: str, place: str = "", *, search: str | None = None, limit: int = 12
+) -> list[tuple[SupplierHotel, float]]:
+    """The likeliest hotels for a stay, best first, each with its score. `search` replaces the
+    stay's name (staff typing the hotel they mean)."""
+    text = search or name
+    found = await candidates(session, text)
+    scored = [(h, matching.score(text, h.name, place, _area(h))) for h in found]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    return scored[:limit]
+
+
+async def best(
+    session: AsyncSession, name: str, place: str = ""
+) -> tuple[SupplierHotel | None, float]:
+    """The hotel this stay is, and how sure we are. Two different hotels that fit equally well
+    make it a question for staff, so the score is capped below the confident line."""
+    top = await ranked(session, name, place, limit=2)
+    if not top or top[0][1] < matching.REVIEW:
+        return None, top[0][1] if top else 0.0
+    hotel, value = top[0]
+    if len(top) > 1:
+        other, other_value = top[1]
+        different = matching.words(other.name) != matching.words(hotel.name)
+        if different and other_value >= value - 0.03 and value >= matching.CONFIDENT:
+            value = matching.CONFIDENT - 0.01
+    return hotel, value
 
 
 def stays(items: list[dict]) -> list[dict]:
     return [i for i in items if i.get("kind") == "stay" and (i.get("name") or "").strip()]
 
 
-async def attach(session: AsyncSession, items: list[dict]) -> tuple[list[dict], list[dict]]:
-    """The items with `image_url` and `image_hotel` on every stay that matches a TripJack hotel,
-    and the stays that matched none."""
+def _state(value: float, hotel: SupplierHotel | None) -> str:
+    if hotel is None:
+        return "nomatch"
+    return "matched" if value >= matching.CONFIDENT else "review"
+
+
+async def resolve(
+    session: AsyncSession,
+    trip_id: uuid.UUID | None,
+    items: list[dict],
+    place: str = "",
+    *,
+    persist: bool = True,
+) -> dict[str, Resolved]:
+    """The match of every stay in a trip's items: the saved one when there is one, else worked
+    out now (and saved, when `persist`). Staff decisions are never overridden."""
+    wanted = stays(items)
+    if not wanted:
+        return {}
+    saved: dict[str, StayMatch] = {}
+    if trip_id is not None:
+        rows = await session.scalars(select(StayMatch).where(StayMatch.trip_id == trip_id))
+        saved = {r.item_id: r for r in rows}
+    ids = {r.hotel_id for r in saved.values() if r.hotel_id}
+    known = {}
+    if ids:
+        hotels = await session.scalars(select(SupplierHotel).where(SupplierHotel.id.in_(ids)))
+        known = {h.id: h for h in hotels}
+
+    out: dict[str, Resolved] = {}
+    changed = False
+    for item in wanted:
+        item_id = str(item["id"])[:40]
+        cleaned = matching.clean_name(item["name"])
+        row = saved.get(item_id)
+        if row is not None and (
+            row.state in ("confirmed", "unlinked")
+            or (row.state == "matched" and row.stay_name == cleaned)
+        ):
+            out[item_id] = Resolved(row.state, row.score, known.get(row.hotel_id), row)
+            continue
+        # New, renamed, or still undecided (review / nomatch: tried again as hotels are fetched).
+        hotel, value = await best(session, item["name"], place)
+        state = _state(value, hotel)
+        if persist and trip_id is not None:
+            if row is None:
+                row = StayMatch(trip_id=trip_id, item_id=item_id)
+                session.add(row)
+                changed = True
+            hotel_id = hotel.id if hotel else None
+            if (row.state, row.hotel_id, row.stay_name) != (state, hotel_id, cleaned):
+                row.state, row.hotel_id, row.stay_name = state, hotel_id, cleaned
+                row.score = value
+                changed = True
+        out[item_id] = Resolved(state, value, hotel, row)
+    if changed:
+        await session.commit()
+    return out
+
+
+async def attach(
+    session: AsyncSession,
+    items: list[dict],
+    trip_id: uuid.UUID | None = None,
+    place: str = "",
+    *,
+    persist: bool = True,
+) -> tuple[list[dict], list[dict]]:
+    """The items with `image_url` and `image_hotel` on every stay whose match is confident or
+    confirmed, and the stays still without a photo (staff-unlinked ones excluded: those are
+    decided)."""
+    found = await resolve(session, trip_id, items, place, persist=persist)
     out, missing = [], []
     for item in items:
-        if item.get("kind") != "stay" or not (item.get("name") or "").strip():
+        match = found.get(str(item.get("id"))[:40]) if item.get("kind") == "stay" else None
+        if match is None:
             out.append(item)
-            continue
-        hotel = best_match(item["name"], await _candidates(session, item["name"]))
-        if hotel is None:
-            out.append(item)
-            missing.append(item)
-        else:
+        elif match.state in SHOWN and match.hotel is not None and match.hotel.hero_image:
+            hotel = match.hotel
             out.append({**item, "image_url": hotel.hero_image, "image_hotel": hotel.name})
+        else:
+            out.append(item)
+            if match.state != "unlinked":
+                missing.append(item)
     return out, missing
 
 
@@ -120,12 +204,14 @@ async def _regions_for(
     return chosen[:4]
 
 
-async def fetch_for_trip(session: AsyncSession, items: list[dict], destination: str) -> int:
+async def fetch_for_trip(
+    session: AsyncSession, trip_id: uuid.UUID, items: list[dict], destination: str
+) -> int:
     """Fetch hotel content from TripJack for the trip's destination until every stay has a
     matching photo, or the limit is reached. Returns how many hotels were fetched."""
     from app.modules.hotels.sync import sync_region_content, sync_region_mapping
 
-    _, missing = await attach(session, items)
+    _, missing = await attach(session, items, trip_id, destination)
     if not missing:
         return 0
     places = [i["name"] for i in items if i.get("kind") != "stay"]
@@ -136,7 +222,7 @@ async def fetch_for_trip(session: AsyncSession, items: list[dict], destination: 
         while fetched < FETCH_LIMIT:
             n = await sync_region_content(session, region.region_id, limit=100)
             fetched += n
-            _, missing = await attach(session, items)
+            _, missing = await attach(session, items, trip_id, destination)
             if not missing or n == 0:
                 break
         if not missing or fetched >= FETCH_LIMIT:

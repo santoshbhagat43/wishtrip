@@ -368,21 +368,6 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
     assert other["code"] != mine["code"]
 
 
-def test_hotel_names_match_only_when_they_are_close():
-    from app.modules.hotels.models import SupplierHotel
-    from app.modules.hotels.photos import best_match
-
-    def hotel(name):
-        return SupplierHotel(tj_hotel_id=name, region_id=1, name=name)
-
-    hotels = [hotel("Mega Palace Hotel"), hotel("Grand Mega Resort & Spa Kuta")]
-    assert best_match("Grand Mega Resort & Spa", hotels).name == "Grand Mega Resort & Spa Kuta"
-    assert best_match("Mega", hotels) is None  # one common word is not enough on its own
-    assert best_match("Mega Palace", hotels).name == "Mega Palace Hotel"
-    assert best_match("The Villa", hotels) is None  # nothing distinctive to match on
-    assert best_match("Grand Hyatt Bali", hotels) is None
-
-
 def test_frames_are_spread_over_the_whole_video():
     from pathlib import Path
 

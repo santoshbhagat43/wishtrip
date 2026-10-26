@@ -11,7 +11,7 @@ from app.modules.creators.models import (
     CreatorTrip,
     TravellerTrip,
 )
-from app.modules.hotels.models import SupplierHotel, SupplierRegion
+from app.modules.hotels.models import StayMatch, SupplierHotel, SupplierRegion
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
 from app.modules.media.models import Media
 from app.modules.menus.models import MenuGroup, MenuItem
@@ -47,6 +47,7 @@ __all__ = [
     "ProfileEvent",
     "DownloadRequest",
     "ReelImport",
+    "StayMatch",
     "SupplierHotel",
     "SupplierRegion",
     "SupportMessage",

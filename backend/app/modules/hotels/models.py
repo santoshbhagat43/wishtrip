@@ -1,7 +1,18 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -30,6 +41,14 @@ class SupplierHotel(UUIDPrimaryKey, Timestamps, Base):
     """Static catalogue data for a TripJack hotel. Prices and availability are never stored."""
 
     __tablename__ = "supplier_hotels"
+    __table_args__ = (
+        # Typo-tolerant search over hotel names (see hotels/matching.py and photos.py).
+        Index(
+            "ix_supplier_hotels_name_trgm",
+            text("lower(name) gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+    )
 
     tj_hotel_id: Mapped[str] = mapped_column(String(32), unique=True)
     unica_id: Mapped[str] = mapped_column(String(32), default="")
@@ -54,3 +73,31 @@ class SupplierHotel(UUIDPrimaryKey, Timestamps, Base):
     policies: Mapped[dict] = mapped_column(JSONB, default=dict)
     # Search order: better-described, better-rated hotels go to Listing first.
     rank: Mapped[float] = mapped_column(Float, default=0, index=True)
+
+
+class StayMatch(UUIDPrimaryKey, Timestamps, Base):
+    """Which TripJack hotel a creator trip's stay is. Matched by name when the trip is first read,
+    then kept: staff can confirm it, change it, or say there is none.
+
+      matched    a confident automatic match (its photo is shown)
+      review     a likely match that staff should confirm (no photo is shown yet)
+      nomatch    nothing close in the catalogue (yet: it is tried again as hotels are fetched)
+      confirmed  staff chose this hotel (its photo is shown)
+      unlinked   staff said no hotel fits: nothing is shown, and it is not matched again
+    """
+
+    __tablename__ = "stay_matches"
+    __table_args__ = (UniqueConstraint("trip_id", "item_id"),)
+
+    trip_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("creator_trips.id", ondelete="CASCADE"), index=True
+    )
+    item_id: Mapped[str] = mapped_column(String(40))
+    # The stay's name when it was matched (a renamed stay is matched again, unless staff decided).
+    stay_name: Mapped[str] = mapped_column(String(255), default="")
+    hotel_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("supplier_hotels.id", ondelete="SET NULL"), index=True
+    )
+    score: Mapped[float] = mapped_column(Float, default=0)
+    state: Mapped[str] = mapped_column(String(12), default="nomatch", index=True)
+    decided_by: Mapped[str] = mapped_column(String(255), default="")

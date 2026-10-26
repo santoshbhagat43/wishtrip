@@ -113,7 +113,9 @@ async def _trip_hotel_photos(trip_id: str) -> int:
             trip = await session.get(CreatorTrip, uuid.UUID(trip_id))
             if trip is None:
                 return 0
-            return await photos.fetch_for_trip(session, trip.items or [], trip.destination_name)
+            return await photos.fetch_for_trip(
+                session, trip.id, trip.items or [], trip.destination_name
+            )
     finally:
         await engine.dispose()
 

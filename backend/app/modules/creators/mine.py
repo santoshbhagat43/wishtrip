@@ -64,7 +64,9 @@ async def _unique_code(session: AsyncSession) -> str:
 
 
 async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
-    items, _ = await photos.attach(session, list(mine.items or []))
+    items, _ = await photos.attach(
+        session, list(mine.items or []), mine.source_trip_id, mine.destination_name, persist=False
+    )
     return MineRead(
         code=mine.code,
         source_share_code=mine.source_share_code,

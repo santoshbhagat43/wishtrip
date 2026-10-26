@@ -62,7 +62,9 @@ async def stay_photos(session: AsyncSession, trip: CreatorTrip) -> list[dict]:
     from app.modules.hotels import photos
     from app.modules.tripjack.cache import cache_get, cache_set
 
-    items, missing = await photos.attach(session, list(trip.items or []))
+    items, missing = await photos.attach(
+        session, list(trip.items or []), trip.id, trip.destination_name
+    )
     if missing and settings.tripjack_api_key:
         key = f"tj:trip-photos:{trip.id}"
         if not await cache_get(key):

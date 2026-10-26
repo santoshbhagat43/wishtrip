@@ -33,6 +33,7 @@ async def schema():
         await conn.execute(text("DROP SCHEMA public CASCADE"))
         await conn.execute(text("CREATE SCHEMA public"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
