@@ -461,3 +461,24 @@ def test_a_youtube_video_is_cached_under_its_own_id():
     assert service.youtube_shortcode("dQw4w9WgXcQ") == "yt-dQw4w9WgXcQ"
     assert service.canonical_url("yt-dQw4w9WgXcQ") == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     assert service.canonical_url("Cabc123xyz") == "https://www.instagram.com/reel/Cabc123xyz/"
+
+
+def test_a_screen_that_repeats_is_read_once_but_a_new_caption_is_kept(tmp_path):
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.load_default(size=48)
+
+    def shot(name: str, caption: str) -> media.Frame:
+        img = Image.new("RGB", (720, 1280), (30, 60, 90))
+        ImageDraw.Draw(img).text((60, 600), caption, fill="white", font=font)
+        path = tmp_path / f"{name}.png"
+        img.save(path)
+        return media.Frame(t=float(len(list(tmp_path.glob("*.png")))), path=path)
+
+    frames = [
+        shot("a", "Tower Bridge"),
+        shot("b", "Tower Bridge"),  # the same screen held
+        shot("c", "Borough Market"),  # same shot, new caption
+        shot("d", "Tower Bridge"),  # an earlier screen coming back
+    ]
+    assert [f.path.stem for f in media.new_screens(frames)] == ["a", "c"]

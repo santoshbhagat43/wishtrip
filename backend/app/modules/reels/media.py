@@ -137,6 +137,38 @@ def _read_frame(path: Path, lang: str) -> str:
         return pytesseract.image_to_string(gray, lang=lang, config="--psm 11")
 
 
+# A frame counts as the same screen when fewer than this share of its pixels (on a small grey
+# copy) differ clearly from a frame already read. A new caption line changes about 1%.
+SAME_SCREEN = 0.004
+
+
+def _thumb(path: Path):
+    from PIL import Image, ImageOps
+
+    with Image.open(path) as img:
+        return ImageOps.grayscale(img).resize((160, 284))
+
+
+def new_screens(frame_list: list[Frame]) -> list[Frame]:
+    """The frames worth reading: drops those that show the same screen as one already kept, so a
+    held shot or a caption that stays up is read once. Their text would be skipped as a repeat
+    anyway; this just doesn't spend OCR time finding that out."""
+    from PIL import ImageChops
+
+    kept: list[Frame] = []
+    thumbs = []
+    for frame in frame_list:
+        thumb = _thumb(frame.path)
+        for other in thumbs:
+            hist = ImageChops.difference(thumb, other).histogram()
+            if sum(hist[48:]) / (160 * 284) < SAME_SCREEN:
+                break
+        else:
+            kept.append(frame)
+            thumbs.append(thumb)
+    return kept
+
+
 def ocr(frame_list: list[Frame], workers: int | None = None) -> list[dict]:
     """Text on screen, once per line: overlays stay up across many frames.
 
@@ -144,6 +176,7 @@ def ocr(frame_list: list[Frame], workers: int | None = None) -> list[dict]:
     merged in frame order, so the result is the same as reading them one by one."""
     from app.core.config import settings
 
+    frame_list = new_screens(frame_list)
     if not frame_list:
         return []
     # One Tesseract thread per frame: several frames at once beats one frame on all cores.
