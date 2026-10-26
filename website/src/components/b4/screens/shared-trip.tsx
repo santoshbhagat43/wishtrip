@@ -267,7 +267,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                           <span className="self-start">
                             {s.origin === "suggested" ? (
                               <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EEF2F6] px-[9px] py-0.5 text-[10.5px] font-bold text-[#3F5A72]">
-                                Suggested · not from the reel
+                                WishTrip recommended
                               </span>
                             ) : (
                               <Why>

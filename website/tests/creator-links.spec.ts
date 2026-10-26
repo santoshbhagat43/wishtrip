@@ -349,8 +349,8 @@ test.describe("Reel links", () => {
     // The video names five places and says "4 days": the itinerary is made whole, and says which
     // stops are the video's and which were added.
     await expect(sheet.getByRole("tab", { name: /Day 4/ })).toBeVisible();
-    await openDayWith(sheet, "Suggested · not from the reel");
-    await expect(sheet.getByText("Suggested · not from the reel").first()).toBeVisible();
+    await openDayWith(sheet, "WishTrip recommended");
+    await expect(sheet.getByText("WishTrip recommended").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
 
     // Choose the cover from frames of the uploaded video.
