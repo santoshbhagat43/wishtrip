@@ -100,7 +100,9 @@ def test_shortcodes():
     assert service.shortcode_from("https://www.instagram.com/goadiaries/reel/DAbc123xyz") == (
         "DAbc123xyz"
     )
-    assert service.shortcode_from("https://youtube.com/shorts/abc") is None  # not an 11-character id
+    assert (
+        service.shortcode_from("https://youtube.com/shorts/abc") is None
+    )  # not an 11-character id
     for link in (
         "https://www.youtube.com/shorts/GE4EgoAVqPA",
         "youtube.com/watch?v=GE4EgoAVqPA&t=9s",
@@ -175,7 +177,9 @@ def fake_instagram(tmp_path, monkeypatch):
     return downloads
 
 
-async def test_reel_becomes_places_a_chat_and_a_creator(client, traveler, london, fake_instagram):
+async def test_reel_becomes_places_a_chat_and_a_creator(
+    client, traveler, admin, london, fake_instagram
+):
     ai = ReelAI()
     app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
     try:
@@ -195,6 +199,21 @@ async def test_reel_becomes_places_a_chat_and_a_creator(client, traveler, london
     assert places["Borough Market Food Walk"]["verified"]
     assert not places["Dishoom Shoreditch"]["verified"]  # in the reel, not in our KB
     assert "Tower Bridge" in job["seed_message"]
+
+    # Staff can see the stage timings, the log and the text that was read.
+    as_staff = auth(admin)
+    listing = (await client.get("/reels/admin/imports", headers=as_staff)).json()
+    row = next(i for i in listing["items"] if i["id"] == job["id"])
+    assert row["status"] == "done" and row["requested_by"] == traveler.email
+    assert [s["step"] for s in row["stages"]] == [
+        "downloading", "reading_screen", "finding_places"
+    ]  # fmt: skip
+    assert listing["totals"]["done"] >= 1 and row["total_seconds"] is not None
+    detail = (await client.get(f"/reels/admin/imports/{job['id']}", headers=as_staff)).json()
+    assert any("Screen:" in e["message"] for e in detail["log"])
+    assert any("Voice-over:" in e["message"] for e in detail["log"])
+    assert detail["transcript"] and len(detail["ocr_lines"]) >= 2
+    assert (await client.get("/reels/admin/imports", headers=auth(traveler))).status_code == 403
 
     # The model saw caption, screen text and voice-over together.
     reading = next(m for task, m in ai.calls if task == "planner")[1]["content"]

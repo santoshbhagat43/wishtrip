@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import case, func, select
@@ -12,10 +13,16 @@ from app.db.session import get_session
 from app.modules.creators.models import Creator
 from app.modules.media.storage import storage
 from app.modules.reels import service
-from app.modules.reels.models import CreatorContent, DownloadRequest, ReelImport
+from app.modules.reels.models import CreatorContent, DownloadRequest, ImportStatus, ReelImport
 from app.modules.reels.schemas import (
     DownloadLog,
     DownloadRequestRead,
+    ImportDetail,
+    ImportList,
+    ImportLogEntry,
+    ImportRow,
+    ImportStage,
+    ImportTotals,
     ProviderTotals,
     ReelContentDetail,
     ReelContentRead,
@@ -201,4 +208,113 @@ async def download_log(
         ],
         credits_remaining=latest,
         requests=[DownloadRequestRead.model_validate(r, from_attributes=True) for r in rows],
+    )
+
+
+def _stages(job: ReelImport) -> tuple[float | None, list[ImportStage]]:
+    """Seconds waiting in the queue, then seconds spent in each stage, read off the job's log."""
+    log = job.log or []
+    marks = [(datetime.fromisoformat(e["at"]), e["step"]) for e in log if e.get("step")]
+    started = next((at for at, step in marks if step == "started"), None)
+    queue = (started - job.created_at).total_seconds() if started else None
+    stages = [(at, step) for at, step in marks if step not in ("started", "failed")]
+    end = job.finished_at or (datetime.now(UTC) if job.status == ImportStatus.RUNNING else None)
+    out: list[ImportStage] = []
+    for i, (at, step) in enumerate(stages):
+        nxt = stages[i + 1][0] if i + 1 < len(stages) else end
+        if nxt is not None:
+            out.append(ImportStage(step=step, seconds=round((nxt - at).total_seconds(), 1)))
+    return queue, out
+
+
+async def _row(session: AsyncSession, job: ReelImport) -> dict:
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    creator = (
+        await session.get(Creator, content.creator_id) if content and content.creator_id else None
+    )
+    user = await session.get(User, job.user_id)
+    queue, stages = _stages(job)
+    end = job.finished_at or datetime.now(UTC)
+    return {
+        "id": job.id,
+        "url": job.url,
+        "shortcode": job.shortcode,
+        "kind": job.kind.value,
+        "status": job.status,
+        "step": job.step,
+        "error": job.error,
+        "created_at": job.created_at,
+        "finished_at": job.finished_at,
+        "requested_by": user.email if user else "",
+        "creator_handle": creator.handle if creator and creator.handle else "",
+        "destination_name": content.destination_name if content else "",
+        "places": len([p for p in content.places if p.get("kind") != "area"]) if content else 0,
+        "queue_seconds": round(queue, 1) if queue is not None else None,
+        "stages": stages,
+        "total_seconds": round((end - job.created_at).total_seconds(), 1),
+    }
+
+
+@router.get("/admin/imports", response_model=ImportList)
+async def admin_imports(
+    limit: int = 100,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
+):
+    """Every reel import, newest first, with its stage and how long each stage took."""
+    jobs = (
+        await session.scalars(
+            select(ReelImport).order_by(ReelImport.created_at.desc()).limit(min(limit, 300))
+        )
+    ).all()
+    rows = [ImportRow(**await _row(session, j)) for j in jobs]
+    by_status = dict(
+        (
+            await session.execute(
+                select(ReelImport.status, func.count()).group_by(ReelImport.status)
+            )
+        ).all()
+    )
+    finished = [r.total_seconds for r in rows if r.status == ImportStatus.DONE and r.stages]
+    return ImportList(
+        totals=ImportTotals(
+            total=sum(by_status.values()),
+            done=by_status.get(ImportStatus.DONE, 0),
+            failed=by_status.get(ImportStatus.FAILED, 0),
+            running=by_status.get(ImportStatus.RUNNING, 0) + by_status.get(ImportStatus.QUEUED, 0),
+            average_seconds=round(sum(finished) / len(finished), 1) if finished else None,
+        ),
+        items=rows,
+    )
+
+
+@router.get("/admin/imports/{import_id}", response_model=ImportDetail)
+async def admin_import(
+    import_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
+):
+    """One import in full: the stage timings and log, what was read off the screen and heard in the
+    voice-over, the places found, and every download attempt."""
+    job = await session.get(ReelImport, import_id)
+    if not job:
+        raise not_found("Reel import")
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    downloads = await session.scalars(
+        select(DownloadRequest)
+        .where(DownloadRequest.import_id == job.id)
+        .order_by(DownloadRequest.created_at)
+    )
+    return ImportDetail(
+        **await _row(session, job),
+        caption=content.caption if content else "",
+        duration_seconds=content.duration_seconds if content else None,
+        ocr_lines=content.ocr_lines if content else [],
+        transcript=content.transcript if content else "",
+        transcript_language=content.transcript_language if content else "",
+        transcript_en=content.transcript_en if content else "",
+        extracted=content.extracted if content else {},
+        place_list=content.places if content else [],
+        log=[ImportLogEntry(**e) for e in job.log or []],
+        downloads=[DownloadRequestRead.model_validate(d, from_attributes=True) for d in downloads],
     )

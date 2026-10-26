@@ -95,3 +95,62 @@ class DownloadLog(BaseModel):
     totals: list[ProviderTotals]
     credits_remaining: float | None
     requests: list[DownloadRequestRead]
+
+
+class ImportStage(BaseModel):
+    step: str
+    seconds: float
+
+
+class ImportLogEntry(BaseModel):
+    at: datetime
+    step: str | None = None
+    message: str = ""
+    seconds: float | None = None
+
+
+class ImportRow(BaseModel):
+    """One reel import, for staff: where it stands and how long each stage took."""
+
+    id: uuid.UUID
+    url: str
+    shortcode: str
+    kind: str
+    status: ImportStatus
+    step: ImportStep
+    error: str
+    created_at: datetime
+    finished_at: datetime | None
+    requested_by: str
+    creator_handle: str
+    destination_name: str
+    places: int
+    queue_seconds: float | None
+    stages: list[ImportStage]
+    total_seconds: float | None
+
+
+class ImportTotals(BaseModel):
+    total: int
+    done: int
+    failed: int
+    running: int
+    average_seconds: float | None
+
+
+class ImportList(BaseModel):
+    totals: ImportTotals
+    items: list[ImportRow]
+
+
+class ImportDetail(ImportRow):
+    caption: str
+    duration_seconds: float | None
+    ocr_lines: list[dict]
+    transcript: str
+    transcript_language: str
+    transcript_en: str
+    extracted: dict
+    place_list: list[dict]
+    log: list[ImportLogEntry]
+    downloads: list[DownloadRequestRead]

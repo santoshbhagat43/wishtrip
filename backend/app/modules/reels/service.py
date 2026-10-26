@@ -128,6 +128,16 @@ class Attempt:
 _attempts: ContextVar[list[Attempt] | None] = ContextVar("download_attempts", default=None)
 # The import being processed, so each download attempt can say which one it was for.
 _current_import: ContextVar[uuid.UUID | None] = ContextVar("current_import", default=None)
+# The running import's log; process() saves it on the job at each step and at the end.
+_events: ContextVar[list | None] = ContextVar("import_events", default=None)
+
+
+def note(message: str, **extra: Any) -> None:
+    """Add a line to the running import's log (staff read it in the dashboard)."""
+    events = _events.get()
+    if events is not None:
+        events.append({"at": datetime.now(UTC).isoformat(), "message": message, **extra})
+
 
 # Our own download failing in these ways is worth asking SaveAPI about. Private, deleted, not a
 # video or too long would fail there too (and a failed lookup still costs credits).
@@ -467,15 +477,34 @@ async def _read_into_content(
     # network) don't need each other, so they run at the same time. Both stay off the event loop.
     await step(ImportStep.READING_SCREEN)
     started = time.perf_counter()
-    listening = asyncio.create_task(listen(ai, video, workdir, info.has_audio))
-    try:
-        frame_list, ocr_lines = await asyncio.to_thread(
-            _read_screen, video, workdir, info.duration
+
+    async def listen_timed() -> Transcript:
+        began = time.perf_counter()
+        heard = await listen(ai, video, workdir, info.has_audio)
+        note(
+            f"Voice-over: {len(heard.text.split())} words"
+            + (f" in {heard.language}" if heard.language else "")
+            if heard.text
+            else "Voice-over: none heard",
+            seconds=round(time.perf_counter() - began, 1),
         )
+        return heard
+
+    note(
+        f"Video: {info.duration:.0f}s, {'with' if info.has_audio else 'no'} audio",
+        seconds=round(info.duration, 1),
+    )
+    listening = asyncio.create_task(listen_timed())
+    try:
+        frame_list, ocr_lines = await asyncio.to_thread(_read_screen, video, workdir, info.duration)
     except BaseException:
         listening.cancel()
         raise
     screen_done = time.perf_counter()
+    note(
+        f"Screen: {len(frame_list)} frames, {len(ocr_lines)} lines of text read",
+        seconds=round(screen_done - started, 1),
+    )
     transcript = await listening
     logger.info(
         "Reel %s: %.0fs video, %d frames, %d OCR lines; screen %.1fs, then waited %.1fs more "
@@ -495,7 +524,14 @@ async def _read_into_content(
     if not ai.enabled:
         raise ReelError("Reading reels needs the AI service, which is not set up.")
     reading = await read_places(ai, text, ocr_lines)
+    note(
+        f"Places read: {len(reading.places)}"
+        + (f"; destination {reading.destination}" if reading.destination else "")
+    )
     destination, places = await match_places(session, ai, reading)
+    note(
+        f"Matched to our knowledge: {sum(1 for p in places if p.get('verified'))} of {len(places)}"
+    )
 
     owner = meta.get("owner_username") or ""
     creator = (
@@ -615,8 +651,15 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
     job_id = job.id
     _current_import.set(job_id)
 
+    events: list = list(job.log or [])
+    _events.set(events)
+    events.append(
+        {"at": datetime.now(UTC).isoformat(), "step": "started", "message": "Picked up by a worker"}
+    )
+
     async def step(value: ImportStep) -> None:
-        job.status, job.step = ImportStatus.RUNNING, value
+        events.append({"at": datetime.now(UTC).isoformat(), "step": value.value})
+        job.status, job.step, job.log = ImportStatus.RUNNING, value, list(events)
         await session.commit()
 
     try:
@@ -626,6 +669,7 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
             )
         else:
             content = await produce_content(session, ai, job.shortcode, on_step=step)
+        job.log = list(events)
         if job.kind == ImportKind.CREATOR_TRIP:
             if not any(p.get("kind") != "area" for p in content.places):
                 raise ReelError(
@@ -641,6 +685,14 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
         assert job is not None
         job.status, job.error = ImportStatus.FAILED, _message(exc)
         job.finished_at = datetime.now(UTC)
+        events.append(
+            {
+                "at": job.finished_at.isoformat(),
+                "step": "failed",
+                "message": f"{type(exc).__name__}: {exc}"[:500],
+            }
+        )
+        job.log = list(events)
         await session.commit()
 
 

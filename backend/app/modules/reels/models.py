@@ -96,6 +96,9 @@ class ReelImport(UUIDPrimaryKey, Timestamps, Base):
     step: Mapped[ImportStep] = mapped_column(str_enum(ImportStep), default=ImportStep.QUEUED)
     error: Mapped[str] = mapped_column(Text, default="")
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # What happened while it ran, in order: {"at": iso time, "step": ..., "message": ..., ...}.
+    # A "step" entry marks the start of a stage; the others are notes (sizes, counts, seconds).
+    log: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
 
 
 class DownloadRequest(UUIDPrimaryKey, Timestamps, Base):
