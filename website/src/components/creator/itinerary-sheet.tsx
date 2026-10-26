@@ -411,7 +411,7 @@ export function ItinerarySheet({
                             <span className="flex flex-wrap gap-1.5">
                               {s.origin === "suggested" ? (
                                 <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-muted">
-                                  WishTrip recommended
+                                  Wishtrip recommended
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">

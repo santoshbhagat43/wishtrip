@@ -10,13 +10,12 @@ import { Avatar, CHANNEL, Cover, CreatorTile, dayStops, tripHref } from "./creat
 const plan = (prompt: string) => `/arya?prompt=${encodeURIComponent(prompt)}`;
 
 /** A creator's own page (/creator/<handle>): who they are and the trips they really took. Real
- *  data only: their published trips, the places in them, and links to their reels. */
+ *  data only: their published trips, and the places in them. */
 export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
   const { creator, more } = data;
   const first = creator.display_name.split(" ")[0];
   const stops = creator.trips.reduce((n, t) => n + t.stops, 0);
   const places = [...new Set(creator.trips.map((t) => t.destination_name).filter(Boolean))];
-  const reels = creator.trips.filter((t) => t.source_url);
   const channel = CHANNEL[creator.channel] ?? "Instagram";
 
   return (
@@ -102,11 +101,6 @@ export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
                   </span>
                 </Link>
                 <div className="flex flex-col gap-2 p-5">
-                  {t.source_url && (
-                    <a href={t.source_url} target="_blank" rel="noreferrer" className="w-fit text-[12.5px] font-semibold text-[#0A7C80] no-underline hover:underline">
-                      ▶ Watch the reel
-                    </a>
-                  )}
                   <strong className="font-display text-[26px] font-medium leading-tight">{t.title}</strong>
                   {t.summary && <p className="m-0 line-clamp-2 text-[14px] text-[#566E85]">{t.summary}</p>}
                   <span className="text-[13px] text-[#566E85]">{dayStops(t)}</span>
@@ -126,34 +120,6 @@ export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
             ))}
           </ul>
         </section>
-
-        {reels.length > 1 && (
-          <section className="mt-14 md:mt-20" aria-labelledby="reels">
-            <p className="m-0 text-[12.5px] font-bold tracking-[.1em] text-[#0A7C80]">REELS</p>
-            <h2 id="reels" className="font-display m-0 mt-2 text-[30px] font-medium md:text-[42px]">
-              Where {first} has been
-            </h2>
-            <ul className="m-0 mt-6 grid list-none grid-cols-2 gap-4 p-0 md:grid-cols-4">
-              {reels.map((t) => (
-                <li key={t.share_code}>
-                  <a
-                    href={t.source_url!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="relative block aspect-[9/14] overflow-hidden rounded-[20px] bg-[#072338]"
-                  >
-                    <Cover src={t.cover_image_url} />
-                    <span className="absolute inset-0 bg-gradient-to-t from-[#072338]/70 via-transparent to-transparent" />
-                    <span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#072338]">
-                      ▶
-                    </span>
-                    <span className="absolute inset-x-3 bottom-3 truncate text-[12.5px] font-semibold text-white">{t.title}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
 
         {more.length > 0 && (
           <section className="mt-14 pb-4 md:mt-20" aria-labelledby="more">

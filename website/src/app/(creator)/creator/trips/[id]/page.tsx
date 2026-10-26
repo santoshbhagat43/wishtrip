@@ -45,7 +45,7 @@ const FIELD =
 /** Where a stop came from, in the creator's own terms. */
 function Origin({ item }: { item: Item }) {
   if (item.origin === "suggested")
-    return <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-muted">WishTrip recommended</span>;
+    return <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-muted">Wishtrip recommended</span>;
   if (item.origin === "creator")
     return <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-muted">Added by you</span>;
   const label = item.origin === "kb" ? "Checked by WishTrip" : `From the reel${reelTime(item.t) ? ` · ${reelTime(item.t)}` : ""}`;

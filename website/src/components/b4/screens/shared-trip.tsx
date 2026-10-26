@@ -24,6 +24,16 @@ const KIND_ICON: Record<string, typeof Landmark> = {
   note: Landmark,
 };
 
+/** The kind of stop, as the trip board labels it. */
+const KIND_CHIP: Record<string, { label: string; chip: string }> = {
+  sight: { label: "See", chip: "bg-[#E6F3FB] text-[#1A6094]" },
+  food: { label: "Eat", chip: "bg-[#FCE9ED] text-[#C43B58]" },
+  stay: { label: "Stay", chip: "bg-[#F1EAF8] text-[#6A3FA0]" },
+  experience: { label: "Experience", chip: "bg-[#FDF0D9] text-[#B86E00]" },
+  area: { label: "Explore", chip: "bg-[#E3F5EE] text-[#0B7A57]" },
+  note: { label: "Note", chip: "bg-[#F3F6F9] text-[#566E85]" },
+};
+
 /** What a traveller chose on the Details screen, when the trip is being made theirs. */
 /** `code` is its own trip number; `source` is the creator's trip it was made from. */
 export type Mine = { code: string; source: string; days: number; party: Party; pace: string; when?: string };
@@ -79,6 +89,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   });
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [dayIx, setDayIx] = useState(0);
 
   // Credit the creator once we know who they are.
   const referralCode = (preloaded ?? trip.data)?.creator.referral_code;
@@ -132,6 +143,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const days = daysFromItems(t.items, mine?.days);
   const travellers = mine ? Math.max(1, partySize(mine.party)) : 3;
   const prices = samplePrices(travellers, mine ? Math.max(1, days.length - 1) : 4);
+  const current = Math.min(dayIx, Math.max(0, days.length - 1));
+  const day = days[current];
   const stops = days.reduce((n, d) => n + d.stops.length, 0);
   const seed = `Plan a trip to ${where}${mine ? ` for ${partyText(mine.party)}, ${mine.days} days, ${mine.pace} pace${mine.when ? `, ${mine.when}` : ""}` : ""}${
     t.items.length ? `. I want to see: ${t.items.filter((i) => i.kind !== "note").map((i) => i.name).slice(0, 10).join(", ")}` : ""
@@ -145,73 +158,76 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
 
       <main className="mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-7 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pb-[72px] md:pt-8">
         <section className="flex min-w-0 flex-col gap-[22px]">
-          {t.cover_image_url && (
-            <div className="relative h-52 overflow-hidden rounded-[22px] md:h-60">
-              {/* eslint-disable-next-line @next/next/no-img-element -- backend media */}
-              <img src={t.cover_image_url} alt="" className="absolute inset-0 size-full object-cover" />
-              <span className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div>
+          <div className="relative isolate overflow-hidden rounded-[28px] bg-[#072338] text-white">
+            {t.cover_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element -- backend media
+              <img src={t.cover_image_url} alt="" className="absolute inset-0 -z-20 size-full object-cover" />
+            ) : (
+              <span className="absolute inset-0 -z-20 bg-gradient-to-br from-[#072338] to-[#0A7C80]" />
+            )}
+            <span className="absolute inset-0 -z-10 bg-gradient-to-r from-[#041A2C]/85 via-[#041A2C]/45 to-[#041A2C]/10" />
+            <span className="absolute inset-0 -z-10 bg-gradient-to-t from-[#041A2C]/50 via-transparent to-transparent" />
+            <div className="flex min-h-[230px] flex-col justify-end gap-2 p-6 md:min-h-[290px] md:p-9">
               {mine && (
-                <span className="mb-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-[#F3F6F9] py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-[#3F5A72]">
-                  Trip no. <strong className="font-mono tracking-wider text-[#0D2436]">{`${mine.code.slice(0, 4)}-${mine.code.slice(4)}`.toUpperCase()}</strong>
+                <span className="mb-1 inline-flex w-fit flex-wrap items-center gap-2 rounded-full bg-white/15 py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-white">
+                  Trip no.{" "}
+                  <strong className="font-mono tracking-wider">{`${mine.code.slice(0, 4)}-${mine.code.slice(4)}`.toUpperCase()}</strong>
                   <Link href={`${LINKS.details}?trip=${mine.source}&mine=${mine.code}`} className="rounded-full bg-white px-3 py-1 text-[#0A7C80] no-underline">
                     Change details
                   </Link>
                 </span>
               )}
-              <Kicker teal>{mine ? `MADE FOR YOU · BASED ON ${who.toUpperCase()}’S TRIP` : `A TRIP BY ${who.toUpperCase()}`}</Kicker>
-              <h1 className="font-display mb-0 mt-1.5 text-[32px] font-medium leading-[1.08] md:text-[44px]">{mine ? `Your ${where} trip` : t.title}</h1>
-              <p className="mt-1.5 text-[15px] text-[#566E85]">
-                {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops ·{" "}
+              <span className="text-[13px] font-bold text-[#22DDE0]">
+                {mine ? `Made for you · based on ${who}’s trip` : `A trip by ${who}`}
+              </span>
+              <h1 className="font-display m-0 text-[36px] font-medium leading-[1.05] md:text-[56px]">{mine ? `Your ${where} trip` : t.title}</h1>
+              <p className="m-0 text-[14.5px] text-white/90">
+                {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops
                 {mine
-                  ? `${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}`
-                  : `${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from ${who}’s reel`}
+                  ? ` · ${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}`
+                  : ` · ${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from ${who}’s reel`}
               </p>
-              {t.summary && <p className="mt-2 max-w-[640px] text-[14.5px] text-[#3F5A72]">{t.summary}</p>}
-            </div>
-            <div className="relative flex gap-2">
-              <button
-                type="button"
-                aria-expanded={sharing}
-                onClick={() => setSharing((open) => !open)}
-                className="rounded-full border-[1.5px] border-[#E3E8EE] bg-white px-4 py-2.5 text-sm font-semibold text-[#0D2436]"
-              >
-                Share with family
-              </button>
-              {sharing && (
-                <div
-                  role="group"
-                  aria-label="Share with family"
-                  className="absolute right-0 top-[calc(100%+8px)] z-10 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E3E8EE] bg-white p-4 shadow-lg"
+              {t.summary && <p className="m-0 max-w-[640px] text-[14px] text-white/80">{t.summary}</p>}
+              <div className="relative mt-2 flex gap-2">
+                <button
+                  type="button"
+                  aria-expanded={sharing}
+                  onClick={() => setSharing((open) => !open)}
+                  className="rounded-full border-[1.5px] border-white/70 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
                 >
-                  <strong className="text-sm">Send it to the people coming with you</strong>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        copyText(here);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      className="flex-1 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
-                    >
-                      {copied ? "Copied" : "Copy link"}
-                    </button>
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(`${t.title} — ${here}`)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 rounded-full border-[1.5px] border-[#E3E8EE] px-3.5 py-2 text-center text-[13px] font-semibold text-[#0D2436] no-underline"
-                    >
-                      WhatsApp
-                    </a>
+                  Share with family
+                </button>
+                {sharing && (
+                  <div
+                    role="group"
+                    aria-label="Share with family"
+                    className="absolute left-0 top-[calc(100%+8px)] z-10 flex w-[300px] flex-col gap-2.5 rounded-2xl border border-[#E3E8EE] bg-white p-4 text-[#0D2436] shadow-lg"
+                  >
+                    <strong className="text-sm">Send it to the people coming with you</strong>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          copyText(here);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="flex-1 rounded-full bg-[#072338] px-3.5 py-2 text-[13px] font-semibold text-white"
+                      >
+                        {copied ? "Copied" : "Copy link"}
+                      </button>
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(`${t.title} — ${here}`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 rounded-full border-[1.5px] border-[#E3E8EE] px-3.5 py-2 text-center text-[13px] font-semibold text-[#0D2436] no-underline"
+                      >
+                        WhatsApp
+                      </a>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -235,60 +251,99 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
             </div>
           </div>
 
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3">
             <Kicker>DAY BY DAY</Kicker>
-            <div className="grid auto-cols-[236px] grid-flow-col gap-2.5 overflow-x-auto pb-1.5">
-              {days.map((d: ItineraryDay) => (
-                <div key={d.n} className="flex min-w-0 flex-col gap-2 rounded-[20px] bg-[#F3F6F9] p-3">
-                  <span className="flex flex-col gap-px px-1 pb-1.5 pt-0.5">
-                    <span className="text-[11.5px] font-bold text-[#0A7C80]">DAY {d.n}</span>
-                    <strong className="font-display line-clamp-2 text-lg font-medium leading-[1.2]">
-                      {d.stops
-                        .slice(0, 2)
-                        .map((s) => s.name)
-                        .join(" and ")}
-                    </strong>
+            <div role="tablist" aria-label="Days" className="flex gap-2.5 overflow-x-auto pb-1.5">
+              {days.map((d: ItineraryDay, i) => {
+                const on = i === current;
+                const lead = d.stops.find((x) => x.image);
+                const LeadIcon = KIND_ICON[d.stops[0]?.kind ?? "sight"] ?? Landmark;
+                return (
+                  <button
+                    key={d.n}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setDayIx(i)}
+                    className={`flex flex-none cursor-pointer items-center gap-3 rounded-2xl bg-white p-2 pr-4 text-left text-[#0D2436] ${
+                      on ? "border-2 border-[#C43B58]" : "border border-[#E8EDF2] hover:border-[#C9D3DE]"
+                    }`}
+                  >
+                    <span className="relative grid size-[46px] flex-none place-items-center overflow-hidden rounded-xl bg-[#F3F6F9] text-[#3F5A72]">
+                      {lead?.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
+                        <img src={lead.image} alt="" className="absolute inset-0 size-full object-cover" />
+                      ) : (
+                        <LeadIcon className="size-5" strokeWidth={1.7} />
+                      )}
+                    </span>
+                    <span className="flex flex-col leading-tight">
+                      <strong className="text-[15px]">Day {d.n}</strong>
+                      <span className="text-xs text-[#5F6B78]">
+                        {d.stops.length} {d.stops.length === 1 ? "stop" : "stops"}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {day && (
+              <div role="tabpanel" aria-label={`Day ${day.n}`} className="flex flex-col gap-3">
+                <div className="mt-2 flex items-baseline justify-between gap-3">
+                  <span className="text-[12px] font-bold tracking-[.1em] text-[#C43B58]">DAY {day.n}</span>
+                  <span className="text-[13px] text-[#5F6B78]">
+                    {day.stops.length} {day.stops.length === 1 ? "plan" : "plans"}
                   </span>
-                  {d.stops.map((s, i) => {
-                    const Icon = KIND_ICON[s.kind] ?? Landmark;
-                    return (
-                      <div key={`${s.name}-${i}`} className="flex items-center gap-2.5 rounded-[14px] border border-[#E3E8EE] bg-white p-2.5">
-                        <span aria-hidden="true" className="relative grid size-11 flex-none place-items-center overflow-hidden rounded-[10px] bg-[#F3F6F9] text-[#3F5A72]">
-                          {s.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
-                            <img src={s.image} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+                </div>
+                <h2 className="m-0 -mt-1 mb-1 font-sans text-[26px] font-bold leading-tight tracking-tight md:text-[32px]">
+                  {day.stops
+                    .slice(0, 2)
+                    .map((x) => x.name)
+                    .join(" and ")}
+                </h2>
+                {day.stops.map((s, i) => {
+                  const Icon = KIND_ICON[s.kind] ?? Landmark;
+                  const kind = KIND_CHIP[s.kind] ?? KIND_CHIP.sight;
+                  return (
+                    <article key={`${s.name}-${i}`} className="flex overflow-hidden rounded-[22px] border border-[#E3E8EE] bg-white">
+                      <div className="relative grid w-[104px] flex-none place-items-center bg-gradient-to-br from-[#F3F6F9] to-[#E3F5F5] text-[#0A7C80] md:w-[240px]">
+                        {s.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
+                          <img src={s.image} alt={s.imageHotel ?? s.name} className="absolute inset-0 size-full object-cover" loading="lazy" />
+                        ) : (
+                          <Icon className="size-9 md:size-12" strokeWidth={1.4} />
+                        )}
+                        <span className="absolute left-3 top-3 rounded-full bg-[rgba(7,35,56,.85)] px-2.5 py-1 text-[11.5px] font-bold text-white">{s.when}</span>
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 md:p-5">
+                        <span className={`w-fit rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${kind.chip}`}>{kind.label}</span>
+                        <strong className="text-[18px] leading-snug md:text-[22px]">{s.name}</strong>
+                        {s.image && s.imageHotel && (
+                          <span className="-mt-1 text-[11.5px] text-[#5F6B78]">Photo: {s.imageHotel} · via TripJack</span>
+                        )}
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {s.origin === "suggested" ? (
+                            <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EEF2F6] px-[9px] py-0.5 text-[10.5px] font-bold text-[#3F5A72]">
+                              Wishtrip recommended
+                            </span>
                           ) : (
-                            <Icon className="size-[18px]" strokeWidth={1.8} />
+                            <Why>
+                              {s.origin === "kb"
+                                ? "Checked by WishTrip"
+                                : s.origin === "creator"
+                                  ? "Added by the creator"
+                                  : `From the reel${s.at ? ` · ${s.at}` : ""}`}
+                            </Why>
                           )}
-                        </span>
-                        <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                          <span className="text-[11.5px] font-semibold text-[#5F6B78]">{s.when}</span>
-                          <strong className="text-[13.5px] leading-[1.3]">{s.name}</strong>
-                          <span className="self-start">
-                            {s.origin === "suggested" ? (
-                              <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EEF2F6] px-[9px] py-0.5 text-[10.5px] font-bold text-[#3F5A72]">
-                                WishTrip recommended
-                              </span>
-                            ) : (
-                              <Why>
-                                {s.origin === "kb"
-                                  ? "Checked by WishTrip"
-                                  : s.origin === "creator"
-                                    ? "Added by the creator"
-                                    : `From the reel${s.at ? ` · ${s.at}` : ""}`}
-                              </Why>
-                            )}
-                          </span>
+                          {s.note && <span className="rounded-full bg-[#F3F6F9] px-2.5 py-0.5 text-[11px] font-semibold text-[#566E85]">{s.note}</span>}
                         </span>
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-            <span className="text-[12.5px] text-[#5F6B78]">
-              Scroll sideways for all {days.length} {days.length === 1 ? "day" : "days"}
-            </span>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 

@@ -188,14 +188,17 @@ test.describe("Reel links", () => {
     // The trip board, as in the B4 prototype: nothing missing.
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible();
     await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Goa trip");
-    await expect(traveller.getByText("A TRIP BY ")).toBeVisible();
+    await expect(traveller.getByText(/^A trip by /)).toBeVisible();
     await expect(traveller.getByRole("button", { name: "Share with family" })).toBeVisible();
     await expect(traveller.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
     for (const kind of ["FLIGHTS", "STAY", "TRANSFERS"]) await expect(traveller.getByText(kind, { exact: true })).toBeVisible();
     await expect(traveller.getByText("DAY BY DAY")).toBeVisible();
     await expect(traveller.getByText("DAY 1", { exact: true })).toBeVisible();
     await expect(traveller.getByText(/From the reel · 0:04/)).toBeVisible();
-    await expect(traveller.getByText(/Scroll sideways for all 2 days/)).toBeVisible();
+    await expect(traveller.getByRole("tab", { name: /Day 2/ })).toBeVisible(); // the days are tabs
+    await traveller.getByRole("tab", { name: /Day 2/ }).click();
+    await expect(traveller.getByText("DAY 2", { exact: true })).toBeVisible();
+    await traveller.getByRole("tab", { name: /Day 1/ }).click();
     await expect(traveller.getByText("ONE PRICE, EVERYTHING IN")).toBeVisible();
     await expect(traveller.getByText("Total for 3")).toBeVisible();
     await expect(traveller.getByRole("link", { name: "Make it mine" })).toBeVisible();
@@ -227,7 +230,7 @@ test.describe("Reel links", () => {
     // The trip gets its own number, in the address.
     await expect(traveller).toHaveURL(/\/trip\/mine\/[a-z0-9]{8}$/);
     const tripNo = traveller.url().split("/").pop()!;
-    await expect(traveller.getByText(/^MADE FOR YOU · BASED ON /)).toBeVisible();
+    await expect(traveller.getByText(/^Made for you · based on /)).toBeVisible();
     await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Your Goa trip");
     await expect(traveller.locator("main").getByText(/^1 day · \d+ stops/)).toBeVisible();
     await expect(traveller.getByText("2 adults, 2 children")).toBeVisible();
@@ -349,8 +352,8 @@ test.describe("Reel links", () => {
     // The video names five places and says "4 days": the itinerary is made whole, and says which
     // stops are the video's and which were added.
     await expect(sheet.getByRole("tab", { name: /Day 4/ })).toBeVisible();
-    await openDayWith(sheet, "WishTrip recommended");
-    await expect(sheet.getByText("WishTrip recommended").first()).toBeVisible();
+    await openDayWith(sheet, "Wishtrip recommended");
+    await expect(sheet.getByText("Wishtrip recommended").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });
 
     // Choose the cover from frames of the uploaded video.
