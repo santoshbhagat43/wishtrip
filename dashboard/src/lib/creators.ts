@@ -17,6 +17,7 @@ export const CREATOR_STATUS: Record<string, { label: string; tone: Tone }> = {
   invited: { label: "Invited", tone: "info" },
   active: { label: "Affiliate", tone: "ok" },
   paused: { label: "Paused", tone: "warn" },
+  rejected: { label: "Rejected", tone: "danger" },
 };
 
 export const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;

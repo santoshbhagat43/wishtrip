@@ -1112,6 +1112,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/creators/me/bank-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Bank Details */
+        get: operations["my_bank_details_creators_me_bank_details_get"];
+        /**
+         * Save My Bank Details
+         * @description The creator sends where to pay their earnings. Staff confirm them to activate the account.
+         */
+        put: operations["save_my_bank_details_creators_me_bank_details_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creators/me/overview": {
         parameters: {
             query?: never;
@@ -1172,6 +1193,66 @@ export interface paths {
         head?: never;
         /** Update Creator */
         patch: operations["update_creator_creators__creator_id__patch"];
+        trace?: never;
+    };
+    "/creators/{creator_id}/bank-details/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind Bank Details
+         * @description Email the creator to add their bank details (the reminder).
+         */
+        post: operations["remind_bank_details_creators__creator_id__bank_details_remind_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/{creator_id}/bank-details/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Bank Details
+         * @description Staff checked the bank details: the account is active, and the creator is told.
+         */
+        post: operations["confirm_bank_details_creators__creator_id__bank_details_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/creators/{creator_id}/bank-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reveal Bank Details
+         * @description The full details, for paying the creator out. Staff only.
+         */
+        get: operations["reveal_bank_details_creators__creator_id__bank_details_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/creators/{creator_id}/commissions/{entry_id}": {
@@ -2066,6 +2147,107 @@ export interface components {
          * @enum {string}
          */
         Availability: "online" | "away" | "off_shift";
+        /** BankDetailsIn */
+        BankDetailsIn: {
+            /** Holder */
+            holder: string;
+            /** Bank Name */
+            bank_name: string;
+            /** Ifsc */
+            ifsc: string;
+            /** Account Number */
+            account_number: string;
+            /**
+             * Upi
+             * @default
+             */
+            upi: string;
+        };
+        /**
+         * BankDetailsRead
+         * @description What a creator sees of their own bank details: never the full account number.
+         */
+        BankDetailsRead: {
+            /**
+             * Submitted
+             * @default false
+             */
+            submitted: boolean;
+            /**
+             * Holder
+             * @default
+             */
+            holder: string;
+            /**
+             * Bank Name
+             * @default
+             */
+            bank_name: string;
+            /**
+             * Ifsc
+             * @default
+             */
+            ifsc: string;
+            /**
+             * Account Last4
+             * @default
+             */
+            account_last4: string;
+            /**
+             * Upi
+             * @default
+             */
+            upi: string;
+            /** Submitted At */
+            submitted_at?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+        };
+        /**
+         * BankDetailsStaff
+         * @description For staff, who pay it out: the full account number too.
+         */
+        BankDetailsStaff: {
+            /**
+             * Submitted
+             * @default false
+             */
+            submitted: boolean;
+            /**
+             * Holder
+             * @default
+             */
+            holder: string;
+            /**
+             * Bank Name
+             * @default
+             */
+            bank_name: string;
+            /**
+             * Ifsc
+             * @default
+             */
+            ifsc: string;
+            /**
+             * Account Last4
+             * @default
+             */
+            account_last4: string;
+            /**
+             * Upi
+             * @default
+             */
+            upi: string;
+            /** Submitted At */
+            submitted_at?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /**
+             * Account Number
+             * @default
+             */
+            account_number: string;
+        };
         /** Body_add_media_admin_locations__location_id__media_post */
         Body_add_media_admin_locations__location_id__media_post: {
             kind: components["schemas"]["MediaKind"];
@@ -2243,6 +2425,19 @@ export interface components {
              *     }
              */
             stats: components["schemas"]["CreatorStats"];
+            /**
+             * @default {
+             *       "bank": {
+             *         "account_last4": "",
+             *         "bank_name": "",
+             *         "holder": "",
+             *         "ifsc": "",
+             *         "submitted": false,
+             *         "upi": ""
+             *       }
+             *     }
+             */
+            onboarding: components["schemas"]["Onboarding"];
             /** Reels */
             reels: components["schemas"]["CreatorReel"][];
             /** Activity */
@@ -2562,7 +2757,7 @@ export interface components {
          * CreatorStatus
          * @enum {string}
          */
-        CreatorStatus: "pending" | "unclaimed" | "invited" | "active" | "paused";
+        CreatorStatus: "pending" | "unclaimed" | "invited" | "active" | "paused" | "rejected";
         /** CreatorTripRead */
         CreatorTripRead: {
             /**
@@ -3875,6 +4070,26 @@ export interface components {
             relation: string;
             /** Travel Minutes */
             travel_minutes: number | null;
+        };
+        /** Onboarding */
+        Onboarding: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Bank Reminder Sent At */
+            bank_reminder_sent_at?: string | null;
+            /**
+             * @default {
+             *       "submitted": false,
+             *       "holder": "",
+             *       "bank_name": "",
+             *       "ifsc": "",
+             *       "account_last4": "",
+             *       "upi": ""
+             *     }
+             */
+            bank: components["schemas"]["BankDetailsRead"];
         };
         /** Page[AuditLogRead] */
         Page_AuditLogRead_: {
@@ -7458,6 +7673,59 @@ export interface operations {
             };
         };
     };
+    my_bank_details_creators_me_bank_details_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankDetailsRead"];
+                };
+            };
+        };
+    };
+    save_my_bank_details_creators_me_bank_details_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankDetailsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankDetailsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     my_overview_creators_me_overview_get: {
         parameters: {
             query?: never;
@@ -7565,6 +7833,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remind_bank_details_creators__creator_id__bank_details_remind_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_bank_details_creators__creator_id__bank_details_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_bank_details_creators__creator_id__bank_details_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankDetailsStaff"];
                 };
             };
             /** @description Validation Error */

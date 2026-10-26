@@ -216,6 +216,16 @@ async def apply_as_creator(
         if youtube_url and not creator.youtube_url:
             creator.youtube_url = youtube_url
         creator.notes = notes
+        if creator.status == CreatorStatus.REJECTED:
+            # Applying again is allowed after the cool-off the rejection email promised.
+            reopens = (creator.rejected_at or datetime.now(UTC)) + timedelta(
+                days=settings.creator_reapply_days
+            )
+            if datetime.now(UTC) < reopens:
+                raise conflict(
+                    f"You can apply again from {reopens.strftime('%d %b %Y').lstrip('0')}."
+                )
+            creator.application_emailed_at = None  # a fresh application: acknowledge it again
         if creator.status not in (CreatorStatus.ACTIVE, CreatorStatus.PAUSED):
             creator.status = CreatorStatus.PENDING
     return creator

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
+import { BankDetails } from "@/components/creator/bank-details";
 import { ChannelsForm } from "@/components/creator/channels-form";
 import { PageProfile } from "@/components/creator/page-profile";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   paused: { label: "Paused", tone: "danger" },
   unclaimed: { label: "Not yet claimed", tone: "neutral" },
   invited: { label: "Invited", tone: "neutral" },
+  rejected: { label: "Not approved", tone: "danger" },
 };
 
 /** The creator's profile (creator.<domain>/profile): the photos and name on their public page,
@@ -62,6 +64,8 @@ export default function CreatorProfilePage() {
       <PageProfile overview={o} />
 
       <ChannelsForm overview={o} />
+
+      <BankDetails approved={o.status === "active"} />
 
       <Card>
         <CardHeader title="Your account" description="These are managed by the WishTrip team." />

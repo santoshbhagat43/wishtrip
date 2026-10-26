@@ -9,7 +9,7 @@ from app.core.deps import get_current_user, require_staff
 from app.core.errors import bad_request, not_found
 from app.core.pagination import Page
 from app.db.session import get_session
-from app.modules.creators import service, trips
+from app.modules.creators import onboarding, service, trips
 from app.modules.creators.models import (
     AttributionEvent,
     AttributionSource,
@@ -21,6 +21,9 @@ from app.modules.creators.models import (
 )
 from app.modules.creators.schemas import (
     AttributionRead,
+    BankDetailsIn,
+    BankDetailsRead,
+    BankDetailsStaff,
     CommissionRead,
     CommissionUpdate,
     CoverUpload,
@@ -33,6 +36,7 @@ from app.modules.creators.schemas import (
     CreatorReel,
     CreatorStats,
     CreatorUpdate,
+    Onboarding,
     ReferralRead,
     ReferralVisit,
 )
@@ -182,6 +186,32 @@ async def remove_my_cover(
     return await _set_photo(session, user, "cover_key", None)
 
 
+def _approved(creator: Creator) -> Creator:
+    if creator.status != CreatorStatus.ACTIVE:
+        raise bad_request("Bank details open up once your application is approved.")
+    return creator
+
+
+@router.get("/creators/me/bank-details", response_model=BankDetailsRead)
+async def my_bank_details(
+    session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
+):
+    return _bank(await _my_creator(session, user))
+
+
+@router.put("/creators/me/bank-details", response_model=BankDetailsRead)
+async def save_my_bank_details(
+    data: BankDetailsIn,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """The creator sends where to pay their earnings. Staff confirm them to activate the account."""
+    creator = _approved(await _my_creator(session, user))
+    onboarding.save_bank_details(creator, data)
+    await session.commit()
+    return _bank(creator)
+
+
 @router.get("/creators/me", response_model=CreatorMe)
 async def my_creator(
     session: AsyncSession = Depends(get_session), user: User = Depends(get_current_user)
@@ -320,7 +350,29 @@ async def _detail(session: AsyncSession, creator: Creator) -> CreatorDetail:
         )
     ]
     return CreatorDetail(
-        **base.model_dump(), reels=reels, activity=activity, commissions=commissions
+        **base.model_dump(),
+        onboarding=Onboarding(
+            approved_at=creator.approved_at,
+            rejected_at=creator.rejected_at,
+            bank_reminder_sent_at=creator.bank_reminder_sent_at,
+            bank=_bank(creator),
+        ),
+        reels=reels,
+        activity=activity,
+        commissions=commissions,
+    )
+
+
+def _bank(creator: Creator) -> BankDetailsRead:
+    return BankDetailsRead(
+        submitted=bool(creator.bank_submitted_at),
+        holder=creator.bank_holder,
+        bank_name=creator.bank_name,
+        ifsc=creator.bank_ifsc,
+        account_last4=creator.bank_account_last4,
+        upi=creator.bank_upi,
+        submitted_at=creator.bank_submitted_at,
+        confirmed_at=creator.bank_confirmed_at,
     )
 
 
@@ -345,11 +397,57 @@ async def update_creator(
     creator_id: uuid.UUID, data: CreatorUpdate, session: AsyncSession = Depends(get_session)
 ):
     creator = await _get(session, creator_id)
+    before = creator.status
     for key, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(creator, key, value)
+    # The onboarding emails go out as the application is decided.
+    if creator.status != before:
+        if creator.status == CreatorStatus.ACTIVE and creator.approved_at is None:
+            await onboarding.approved(creator)
+        elif creator.status == CreatorStatus.REJECTED:
+            await onboarding.rejected(creator)
     await session.commit()
     await session.refresh(creator)
     return await _detail(session, creator)
+
+
+@router.post(
+    "/creators/{creator_id}/bank-details/remind",
+    response_model=CreatorDetail,
+    dependencies=[Depends(require_staff)],
+)
+async def remind_bank_details(creator_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    """Email the creator to add their bank details (the reminder)."""
+    creator = await _get(session, creator_id)
+    await onboarding.remind_bank_details(creator)
+    await session.commit()
+    return await _detail(session, creator)
+
+
+@router.post(
+    "/creators/{creator_id}/bank-details/confirm",
+    response_model=CreatorDetail,
+    dependencies=[Depends(require_staff)],
+)
+async def confirm_bank_details(creator_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    """Staff checked the bank details: the account is active, and the creator is told."""
+    creator = await _get(session, creator_id)
+    await onboarding.confirm_bank_details(creator)
+    await session.commit()
+    return await _detail(session, creator)
+
+
+@router.get(
+    "/creators/{creator_id}/bank-details",
+    response_model=BankDetailsStaff,
+    dependencies=[Depends(require_staff)],
+)
+async def reveal_bank_details(creator_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    """The full details, for paying the creator out. Staff only."""
+    creator = await _get(session, creator_id)
+    return BankDetailsStaff(
+        **_bank(creator).model_dump(), account_number=onboarding.account_number(creator)
+    )
 
 
 @router.patch(
@@ -377,7 +475,7 @@ async def update_commission(
 @router.post("/creators/apply", status_code=202)
 async def apply(data: CreatorApplication, session: AsyncSession = Depends(get_session)):
     """Public: a creator applies to join from the website's creator program page."""
-    await service.apply_as_creator(
+    creator = await service.apply_as_creator(
         session,
         email=data.email,
         name=data.name,
@@ -387,6 +485,7 @@ async def apply(data: CreatorApplication, session: AsyncSession = Depends(get_se
         followers=data.followers,
         posted_from=data.posted_from,
     )
+    await onboarding.application_received(creator)
     await session.commit()
     return {"ok": True}
 

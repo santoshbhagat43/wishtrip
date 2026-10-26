@@ -130,7 +130,42 @@ class CommissionRead(BaseModel):
     created_at: datetime
 
 
+class BankDetailsIn(BaseModel):
+    holder: str = Field(min_length=2, max_length=120)
+    bank_name: str = Field(min_length=2, max_length=120)
+    ifsc: str = Field(min_length=11, max_length=11)
+    account_number: str = Field(min_length=6, max_length=24)
+    upi: str = Field(default="", max_length=100)
+
+
+class BankDetailsRead(BaseModel):
+    """What a creator sees of their own bank details: never the full account number."""
+
+    submitted: bool = False
+    holder: str = ""
+    bank_name: str = ""
+    ifsc: str = ""
+    account_last4: str = ""
+    upi: str = ""
+    submitted_at: datetime | None = None
+    confirmed_at: datetime | None = None
+
+
+class BankDetailsStaff(BankDetailsRead):
+    """For staff, who pay it out: the full account number too."""
+
+    account_number: str = ""
+
+
+class Onboarding(BaseModel):
+    approved_at: datetime | None = None
+    rejected_at: datetime | None = None
+    bank_reminder_sent_at: datetime | None = None
+    bank: BankDetailsRead = BankDetailsRead()
+
+
 class CreatorDetail(CreatorRead):
+    onboarding: Onboarding = Onboarding()
     reels: list[CreatorReel]
     activity: list[AttributionRead]
     commissions: list[CommissionRead]

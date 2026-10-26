@@ -28,6 +28,8 @@ class CreatorStatus(enum.StrEnum):
     INVITED = "invited"
     ACTIVE = "active"
     PAUSED = "paused"
+    # Staff declined the application. They can apply again after a cool-off (the rejected email).
+    REJECTED = "rejected"
 
 
 class CommissionType(enum.StrEnum):
@@ -73,6 +75,22 @@ class Creator(UUIDPrimaryKey, Timestamps, Base):
     # The creator's own profile photo and cover photo for their public page (storage keys).
     avatar_key: Mapped[str | None] = mapped_column(String(500))
     cover_key: Mapped[str | None] = mapped_column(String(500))
+
+    # Onboarding: when each step happened (the emails go out as they do).
+    application_emailed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bank_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bank_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Where we pay their earnings. The account number is encrypted (app/core/secrets.py); only its
+    # last four digits are ever shown outside the staff "reveal".
+    bank_holder: Mapped[str] = mapped_column(String(120), default="")
+    bank_name: Mapped[str] = mapped_column(String(120), default="")
+    bank_ifsc: Mapped[str] = mapped_column(String(16), default="")
+    bank_account_enc: Mapped[str] = mapped_column(Text, default="")
+    bank_account_last4: Mapped[str] = mapped_column(String(4), default="")
+    bank_upi: Mapped[str] = mapped_column(String(100), default="")
+    bank_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CreatorLink(UUIDPrimaryKey, Timestamps, Base):

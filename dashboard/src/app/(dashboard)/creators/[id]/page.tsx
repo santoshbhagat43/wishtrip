@@ -87,6 +87,8 @@ export default function CreatorPage() {
             </div>
           </Card>
 
+          <Onboarding creator={c} onChange={refresh} />
+
           <ActingProvider creatorId={id}>
             <ReelsCard
               approved={c.status === "active"}
@@ -154,6 +156,140 @@ export default function CreatorPage() {
   );
 }
 
+const dateOf = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+/** Where this creator is in onboarding, and the buttons that move it on. Each one sends the
+ *  creator the matching email. */
+function Onboarding({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
+  const { onboarding: o } = creator;
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const decide = useMutation({
+    mutationFn: async (status: "active" | "rejected") =>
+      unwrap(
+        await api.PATCH("/creators/{creator_id}", { params: { path: { creator_id: creator.id } }, body: { status } }),
+      ),
+    onSuccess: onChange,
+  });
+  const remind = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/creators/{creator_id}/bank-details/remind", { params: { path: { creator_id: creator.id } } })),
+    onSuccess: onChange,
+  });
+  const confirm = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/creators/{creator_id}/bank-details/confirm", { params: { path: { creator_id: creator.id } } })),
+    onSuccess: onChange,
+  });
+  const reveal = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.GET("/creators/{creator_id}/bank-details", { params: { path: { creator_id: creator.id } } })),
+    onSuccess: (d) => setRevealed(d.account_number),
+  });
+
+  const undecided = ["pending", "unclaimed", "invited", "rejected"].includes(creator.status);
+  const approved = creator.status === "active" || creator.status === "paused";
+  const bank = o.bank;
+  const noEmail = !creator.email;
+  const steps: [string, string | null][] = [
+    ["Applied", creator.created_at],
+    ["Approved", o.approved_at ?? null],
+    ["Bank details sent", bank.submitted_at ?? null],
+    ["Account active", bank.confirmed_at ?? null],
+  ];
+
+  return (
+    <Card>
+      <CardHeader title="Onboarding" description="Each button below sends the creator the matching email." />
+      <div className="flex flex-col gap-4 px-5 pb-5">
+        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {steps.map(([label, at]) => (
+            <li key={label} className="rounded-xl bg-surface-2 px-3 py-2.5 text-sm">
+              <span className={`block font-semibold ${at ? "text-ok" : "text-muted"}`}>{at ? "✓ " : ""}{label}</span>
+              <span className="text-xs text-muted">{at ? dateOf(at) : "Not yet"}</span>
+            </li>
+          ))}
+        </ol>
+        {creator.status === "rejected" && o.rejected_at && (
+          <p className="m-0 text-sm text-muted">Rejected on {dateOf(o.rejected_at)}. They can apply again after the cool-off.</p>
+        )}
+        {noEmail && <p className="m-0 text-sm text-warn">This creator has no email address, so no emails can be sent.</p>}
+
+        {undecided && (
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={decide.isPending || noEmail} onClick={() => decide.mutate("active")}>
+              Approve and send the welcome email
+            </Button>
+            {creator.status !== "rejected" && (
+              <Button
+                variant="secondary"
+                disabled={decide.isPending || noEmail}
+                onClick={() => window.confirm("Reject this application and email the creator?") && decide.mutate("rejected")}
+              >
+                Reject and send the update email
+              </Button>
+            )}
+          </div>
+        )}
+
+        {approved && !bank.confirmed_at && (
+          <div className="flex flex-col gap-3">
+            {!bank.submitted ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="secondary" disabled={remind.isPending || noEmail} onClick={() => remind.mutate()}>
+                  {remind.isPending ? "Sending…" : "Send bank details reminder"}
+                </Button>
+                <span className="text-sm text-muted">
+                  {o.bank_reminder_sent_at ? `Last reminded ${dateOf(o.bank_reminder_sent_at)}.` : "No reminder sent yet."}
+                </span>
+              </div>
+            ) : (
+              <p className="m-0 text-sm text-muted">Sent on {dateOf(bank.submitted_at!)}. Check them, then confirm.</p>
+            )}
+          </div>
+        )}
+
+        {bank.submitted && (
+          <dl className="m-0 grid gap-3 rounded-xl border border-border p-4 text-sm sm:grid-cols-2">
+            {(
+              [
+                ["Account holder", bank.holder],
+                ["Bank", bank.bank_name],
+                ["IFSC", bank.ifsc],
+                ["UPI", bank.upi || "—"],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-xs text-muted">{label}</dt>
+                <dd className="m-0 font-medium">{value}</dd>
+              </div>
+            ))}
+            <div className="sm:col-span-2">
+              <dt className="text-xs text-muted">Account number</dt>
+              <dd className="m-0 flex items-center gap-3 font-medium tabular-nums">
+                {revealed ?? `•••• •••• ${bank.account_last4}`}
+                {!revealed && (
+                  <Button size="sm" variant="secondary" disabled={reveal.isPending} onClick={() => reveal.mutate()}>
+                    Show full number
+                  </Button>
+                )}
+              </dd>
+            </div>
+          </dl>
+        )}
+        {approved && bank.submitted && !bank.confirmed_at && (
+          <div>
+            <Button variant="accent" disabled={confirm.isPending || noEmail} onClick={() => confirm.mutate()}>
+              {confirm.isPending ? "Confirming…" : "Confirm bank details and activate the account"}
+            </Button>
+          </div>
+        )}
+        {bank.confirmed_at && <p className="m-0 text-sm text-ok">Bank details confirmed on {dateOf(bank.confirmed_at)}. The account is active.</p>}
+        <ErrorNote error={decide.error ?? remind.error ?? confirm.error ?? reveal.error} />
+      </div>
+    </Card>
+  );
+}
+
 function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
   const [status, setStatus] = useState<Status>(creator.status);
   const [handle, setHandle] = useState(creator.handle ?? "");
@@ -213,7 +349,7 @@ function Settings({ creator, onChange }: { creator: Creator; onChange: (c: Creat
         <Field label="Instagram handle" hint="Set this for a creator who signed up by email, so reels and their link line up.">
           <Input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))} placeholder="goadiaries" />
         </Field>
-        <Field label="Status" hint="Only an affiliate who accepted the terms is owed commission.">
+        <Field label="Status" hint="Approving or rejecting here also sends the creator the matching email. Only an affiliate who accepted the terms is owed commission.">
           <Select value={status} onChange={(e) => setStatus(e.target.value as Status)}>
             {Object.entries(CREATOR_STATUS).map(([value, s]) => (
               <option key={value} value={value}>

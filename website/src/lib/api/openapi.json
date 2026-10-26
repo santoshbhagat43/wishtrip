@@ -3430,6 +3430,77 @@
     ]
    }
   },
+  "/creators/me/bank-details": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "My Bank Details",
+    "operationId": "my_bank_details_creators_me_bank_details_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BankDetailsRead"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   },
+   "put": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Save My Bank Details",
+    "description": "The creator sends where to pay their earnings. Staff confirm them to activate the account.",
+    "operationId": "save_my_bank_details_creators_me_bank_details_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BankDetailsIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BankDetailsRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
   "/creators/me/overview": {
    "get": {
     "tags": [
@@ -3639,6 +3710,153 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creators/{creator_id}/bank-details/remind": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Remind Bank Details",
+    "description": "Email the creator to add their bank details (the reminder).",
+    "operationId": "remind_bank_details_creators__creator_id__bank_details_remind_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creators/{creator_id}/bank-details/confirm": {
+   "post": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Confirm Bank Details",
+    "description": "Staff checked the bank details: the account is active, and the creator is told.",
+    "operationId": "confirm_bank_details_creators__creator_id__bank_details_confirm_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CreatorDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/creators/{creator_id}/bank-details": {
+   "get": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Reveal Bank Details",
+    "description": "The full details, for paying the creator out. Staff only.",
+    "operationId": "reveal_bank_details_creators__creator_id__bank_details_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BankDetailsStaff"
         }
        }
       }
@@ -6268,6 +6486,175 @@
     ],
     "title": "Availability"
    },
+   "BankDetailsIn": {
+    "properties": {
+     "holder": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Holder"
+     },
+     "bank_name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Bank Name"
+     },
+     "ifsc": {
+      "type": "string",
+      "maxLength": 11,
+      "minLength": 11,
+      "title": "Ifsc"
+     },
+     "account_number": {
+      "type": "string",
+      "maxLength": 24,
+      "minLength": 6,
+      "title": "Account Number"
+     },
+     "upi": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Upi",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "holder",
+     "bank_name",
+     "ifsc",
+     "account_number"
+    ],
+    "title": "BankDetailsIn"
+   },
+   "BankDetailsRead": {
+    "properties": {
+     "submitted": {
+      "type": "boolean",
+      "title": "Submitted",
+      "default": false
+     },
+     "holder": {
+      "type": "string",
+      "title": "Holder",
+      "default": ""
+     },
+     "bank_name": {
+      "type": "string",
+      "title": "Bank Name",
+      "default": ""
+     },
+     "ifsc": {
+      "type": "string",
+      "title": "Ifsc",
+      "default": ""
+     },
+     "account_last4": {
+      "type": "string",
+      "title": "Account Last4",
+      "default": ""
+     },
+     "upi": {
+      "type": "string",
+      "title": "Upi",
+      "default": ""
+     },
+     "submitted_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Submitted At"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     }
+    },
+    "type": "object",
+    "title": "BankDetailsRead",
+    "description": "What a creator sees of their own bank details: never the full account number."
+   },
+   "BankDetailsStaff": {
+    "properties": {
+     "submitted": {
+      "type": "boolean",
+      "title": "Submitted",
+      "default": false
+     },
+     "holder": {
+      "type": "string",
+      "title": "Holder",
+      "default": ""
+     },
+     "bank_name": {
+      "type": "string",
+      "title": "Bank Name",
+      "default": ""
+     },
+     "ifsc": {
+      "type": "string",
+      "title": "Ifsc",
+      "default": ""
+     },
+     "account_last4": {
+      "type": "string",
+      "title": "Account Last4",
+      "default": ""
+     },
+     "upi": {
+      "type": "string",
+      "title": "Upi",
+      "default": ""
+     },
+     "submitted_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Submitted At"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "account_number": {
+      "type": "string",
+      "title": "Account Number",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "BankDetailsStaff",
+    "description": "For staff, who pay it out: the full account number too."
+   },
    "Body_add_media_admin_locations__location_id__media_post": {
     "properties": {
      "kind": {
@@ -6628,6 +7015,19 @@
        "trips_planned": 0,
        "earned_paise": 0,
        "paid_paise": 0
+      }
+     },
+     "onboarding": {
+      "$ref": "#/components/schemas/Onboarding",
+      "default": {
+       "bank": {
+        "account_last4": "",
+        "bank_name": "",
+        "holder": "",
+        "ifsc": "",
+        "submitted": false,
+        "upi": ""
+       }
       }
      },
      "reels": {
@@ -7511,7 +7911,8 @@
      "unclaimed",
      "invited",
      "active",
-     "paused"
+     "paused",
+     "rejected"
     ],
     "title": "CreatorStatus"
    },
@@ -11087,6 +11488,59 @@
      "travel_minutes"
     ],
     "title": "Nearby"
+   },
+   "Onboarding": {
+    "properties": {
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "rejected_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejected At"
+     },
+     "bank_reminder_sent_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bank Reminder Sent At"
+     },
+     "bank": {
+      "$ref": "#/components/schemas/BankDetailsRead",
+      "default": {
+       "submitted": false,
+       "holder": "",
+       "bank_name": "",
+       "ifsc": "",
+       "account_last4": "",
+       "upi": ""
+      }
+     }
+    },
+    "type": "object",
+    "title": "Onboarding"
    },
    "Page_AuditLogRead_": {
     "properties": {

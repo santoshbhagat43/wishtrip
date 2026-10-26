@@ -71,6 +71,8 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["GET", /^creators\/me$/],
   ["GET", /^creators\/me\/overview$/],
   ["PATCH", /^creators\/me$/],
+  ["GET", /^creators\/me\/bank-details$/],
+  ["PUT", /^creators\/me\/bank-details$/],
   ["POST", /^creators\/me\/(avatar|cover)$/],
   ["DELETE", /^creators\/me\/(avatar|cover)$/],
   ["POST", /^creator\/trips\/import$/],

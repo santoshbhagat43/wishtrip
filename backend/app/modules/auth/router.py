@@ -19,6 +19,7 @@ from app.modules.auth.schemas import (
     TravelerOtpRequest,
     TravelerOtpVerify,
 )
+from app.modules.creators import onboarding
 from app.modules.creators import service as creators
 from app.modules.users import service as users
 from app.modules.users.models import Role, User
@@ -133,6 +134,10 @@ async def creator_verify(data: CreatorOtpVerify, session: AsyncSession = Depends
         email=str(data.email) if data.channel == "email" else None,
         whatsapp=data.phone if data.channel == "whatsapp" else None,
     )
+    # A first sign-in is an application: acknowledge it (once).
+    creator = await creators.for_user(session, user.id)
+    if creator is not None:
+        await onboarding.application_received(creator)
     await session.commit()
     return _tokens(user)
 
