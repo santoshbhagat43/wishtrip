@@ -119,7 +119,7 @@ async def test_bank_details_reminder_then_details_then_confirmation(client, admi
     r = await client.post(f"/creators/{mine['id']}/bank-details/remind", headers=staff)
     assert r.status_code == 200 and r.json()["onboarding"]["bank_reminder_sent_at"]
     assert names(outbox) == ["bank-details-reminder"]
-    assert outbox[0][2]["days_since_approval"] == 3 and outbox[0][2]["first_name"] == "Asha"
+    assert outbox[0][2]["approved_ago"] == "3 days ago" and outbox[0][2]["first_name"] == "Asha"
 
     # Nothing to confirm until they send details.
     assert (await client.post(f"/creators/{mine['id']}/bank-details/confirm", headers=staff)).status_code == 400
@@ -178,7 +178,7 @@ def test_every_template_renders_with_nothing_left_unfilled():
             expires_minutes=10,
             bank_details_link="https://creator.example/profile#bank-details",
             dashboard_link="https://creator.example/",
-            days_since_approval=3,
+            approved_ago="3 days ago",
         )
         for part in (subject, body_html, body_text):
             assert "{{" not in part, (name, part[:80])
@@ -197,3 +197,16 @@ async def test_nothing_goes_out_for_creators_who_were_active_before_this_existed
         old = (await session.execute(select(Creator))).scalar_one()
     await client.patch(f"/creators/{old.id}", json={"display_name": "Old Hand"}, headers=auth(admin))
     assert outbox == []
+
+
+def test_the_reminder_never_says_zero_days():
+    for ago in ("today", "yesterday", "3 days ago"):
+        _, body_html, body_text = emails.render(
+            "bank-details-reminder", first_name="Asha", approved_ago=ago, bank_details_link="https://x/y"
+        )
+        assert f"approved {ago}" in body_text and f"approved <strong>{ago}</strong>" in body_html
+        assert "0 days" not in body_text and "Add bank details" in body_text
+    # Brand spelling in every email: Wishtrip, never WishTrip.
+    for name in emails.TEMPLATES:
+        subject, body_html, body_text = emails.render(name, first_name="A", code="1", expires_minutes=10)
+        assert "WishTrip" not in subject + body_html + body_text, name

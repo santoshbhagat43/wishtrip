@@ -75,7 +75,7 @@ async def remind_bank_details(creator: Creator) -> None:
         "bank-details-reminder",
         creator.email,
         first_name=first_name(creator),
-        days_since_approval=days,
+        approved_ago="today" if days < 1 else "yesterday" if days == 1 else f"{days} days ago",
         bank_details_link=bank_link(),
     )
 

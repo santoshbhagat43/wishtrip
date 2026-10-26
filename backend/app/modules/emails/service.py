@@ -10,7 +10,7 @@ import re
 import smtplib
 from datetime import UTC, datetime
 from email.message import EmailMessage
-from email.utils import formataddr, parseaddr
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 from functools import cache
 from pathlib import Path
 
@@ -83,6 +83,10 @@ def smtp_send(to: str, subject: str, body_html: str, body_text: str) -> None:
     message["From"] = formataddr((name, address)) if address else settings.smtp_from
     message["To"] = to
     message["Reply-To"] = settings.support_email
+    # Mail without a Date and a Message-ID is scored as spam; smtplib adds neither.
+    message["Date"] = formatdate(localtime=False)
+    domain = address.rsplit("@", 1)[-1] if "@" in address else None
+    message["Message-ID"] = make_msgid(domain=domain)
     message.set_content(body_text)
     message.add_alternative(body_html, subtype="html")
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:

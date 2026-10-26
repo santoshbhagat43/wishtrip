@@ -204,7 +204,8 @@ def test_the_email_sender_speaks_smtp(monkeypatch):
     assert calls["tls"] and calls["login"] == ("resend", "secret")
     message = calls["message"]
     assert message["To"] == "creator@example.com"
-    assert message["Subject"] == "482913 is your WishTrip sign-in code"
+    assert message["Subject"] == "482913 is your Wishtrip sign-in code"
+    assert message["Date"] and message["Message-ID"].endswith("@wishtrip.co>")  # headers spam filters expect
     assert "expires in 10 minutes" in message.get_body(("plain",)).get_content()
     page = message.get_body(("html",)).get_content()  # the same words, in the WishTrip template
     assert "482913" in page and "expires in 10 minutes</strong>" in page and "{{" not in page

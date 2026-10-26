@@ -21,7 +21,7 @@ SUBJECTS = {
     "rejected": PROGRAM + " An update on your application",
     "bank-details-reminder": PROGRAM + " {{first_name}}, your trip links are waiting",
     "account-active": PROGRAM + " You're all set, {{first_name}} — your account is active",
-    "sign-in-code": "{{code}} is your WishTrip sign-in code",
+    "sign-in-code": "{{code}} is your Wishtrip sign-in code",
 }
 
 _BODIES = {
@@ -74,7 +74,7 @@ Explore Wishtrip → https://wishtrip.co
 Thank you again for your interest in Wishtrip. Should you have any questions, let me know.""",
     "bank-details-reminder": """Hi {{first_name}},
 
-Just a quick nudge — it's been {{days_since_approval}} days since you were approved for the Travel Inspiration Creator Program, and we haven't received your bank details yet.
+Just a quick nudge — your application to the Travel Inspiration Creator Program was approved {{approved_ago}}, and we haven't received your bank details yet.
 
 Once you add them, trip link generation unlocks on your dashboard. Add your personal link to your content — "Want this trip? Book on Wishtrip" — and followers who come through it are tagged to you.
 
@@ -106,11 +106,11 @@ Should you have any questions, let me know.""",
 
 TEXTS = {name: f"{body}\n\n{SIGNATURE}\n\n{FOOTER}" for name, body in _BODIES.items()}
 
-TEXTS["sign-in-code"] = """Your WishTrip sign-in code is {{code}}
+TEXTS["sign-in-code"] = """Your Wishtrip sign-in code is {{code}}
 
-It works once and expires in {{expires_minutes}} minutes. If you didn't ask for it, you can ignore this email.
+Select the code to copy it. It works once and expires in {{expires_minutes}} minutes. If you didn't ask for it, you can ignore this email.
 
-Never share this code with anyone. WishTrip will never ask you for it.
+Never share this code with anyone. Wishtrip will never ask you for it.
 
 —
 Questions? Write to us at {{support_email}}
