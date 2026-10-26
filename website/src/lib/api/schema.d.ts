@@ -842,6 +842,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/admin/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Imports
+         * @description Every reel import, newest first, with its stage and how long each stage took.
+         */
+        get: operations["admin_imports_reels_admin_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reels/admin/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin Import
+         * @description One import in full: the stage timings and log, what was read off the screen and heard in the
+         *     voice-over, the places found, and every download attempt.
+         */
+        get: operations["admin_import_reels_admin_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hotels/destinations": {
         parameters: {
             query?: never;
@@ -1043,6 +1084,64 @@ export interface paths {
          *     the API key is never recorded.
          */
         get: operations["evidence_tripjack_evidence__trace_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tripjack/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Logs
+         * @description Every call to TripJack, newest first (without the bodies: open one for those).
+         */
+        get: operations["list_logs_tripjack_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tripjack/logs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Logs
+         * @description The log as a plain-text file, oldest first, in the form TripJack asks for: each call with
+         *     its request and its response (for certification and support).
+         */
+        get: operations["export_logs_tripjack_logs_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tripjack/logs/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Log */
+        get: operations["read_log_tripjack_logs__log_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3186,6 +3285,143 @@ export interface components {
              */
             sort: string;
         };
+        /** ImportDetail */
+        ImportDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            /** Shortcode */
+            shortcode: string;
+            /** Kind */
+            kind: string;
+            status: components["schemas"]["ImportStatus"];
+            step: components["schemas"]["ImportStep"];
+            /** Error */
+            error: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Requested By */
+            requested_by: string;
+            /** Creator Handle */
+            creator_handle: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Places */
+            places: number;
+            /** Queue Seconds */
+            queue_seconds: number | null;
+            /** Stages */
+            stages: components["schemas"]["ImportStage"][];
+            /** Total Seconds */
+            total_seconds: number | null;
+            /** Caption */
+            caption: string;
+            /** Duration Seconds */
+            duration_seconds: number | null;
+            /** Ocr Lines */
+            ocr_lines: {
+                [key: string]: unknown;
+            }[];
+            /** Transcript */
+            transcript: string;
+            /** Transcript Language */
+            transcript_language: string;
+            /** Transcript En */
+            transcript_en: string;
+            /** Extracted */
+            extracted: {
+                [key: string]: unknown;
+            };
+            /** Place List */
+            place_list: {
+                [key: string]: unknown;
+            }[];
+            /** Log */
+            log: components["schemas"]["ImportLogEntry"][];
+            /** Downloads */
+            downloads: components["schemas"]["DownloadRequestRead"][];
+        };
+        /** ImportList */
+        ImportList: {
+            totals: components["schemas"]["ImportTotals"];
+            /** Items */
+            items: components["schemas"]["ImportRow"][];
+        };
+        /** ImportLogEntry */
+        ImportLogEntry: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Step */
+            step?: string | null;
+            /**
+             * Message
+             * @default
+             */
+            message: string;
+            /** Seconds */
+            seconds?: number | null;
+        };
+        /**
+         * ImportRow
+         * @description One reel import, for staff: where it stands and how long each stage took.
+         */
+        ImportRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            /** Shortcode */
+            shortcode: string;
+            /** Kind */
+            kind: string;
+            status: components["schemas"]["ImportStatus"];
+            step: components["schemas"]["ImportStep"];
+            /** Error */
+            error: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Requested By */
+            requested_by: string;
+            /** Creator Handle */
+            creator_handle: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Places */
+            places: number;
+            /** Queue Seconds */
+            queue_seconds: number | null;
+            /** Stages */
+            stages: components["schemas"]["ImportStage"][];
+            /** Total Seconds */
+            total_seconds: number | null;
+        };
+        /** ImportStage */
+        ImportStage: {
+            /** Step */
+            step: string;
+            /** Seconds */
+            seconds: number;
+        };
         /**
          * ImportStatus
          * @enum {string}
@@ -3196,6 +3432,19 @@ export interface components {
          * @enum {string}
          */
         ImportStep: "queued" | "downloading" | "reading_screen" | "listening" | "finding_places" | "done";
+        /** ImportTotals */
+        ImportTotals: {
+            /** Total */
+            total: number;
+            /** Done */
+            done: number;
+            /** Failed */
+            failed: number;
+            /** Running */
+            running: number;
+            /** Average Seconds */
+            average_seconds: number | null;
+        };
         /** Inbox */
         Inbox: {
             counts: components["schemas"]["InboxCounts"];
@@ -3749,6 +3998,110 @@ export interface components {
             /** History */
             history?: string | null;
         };
+        /** LogDetail */
+        LogDetail: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Product */
+            product: string;
+            /** Method */
+            method: string;
+            /** Path */
+            path: string;
+            /** Status */
+            status?: number | null;
+            /** Ok */
+            ok: boolean;
+            /** Ms */
+            ms: number;
+            /** Attempts */
+            attempts: number;
+            /** Response Bytes */
+            response_bytes: number;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /**
+             * Trace Id
+             * @default
+             */
+            trace_id: string;
+            /**
+             * Environment
+             * @default
+             */
+            environment: string;
+            /** Url */
+            url: string;
+            /** Request Headers */
+            request_headers: {
+                [key: string]: unknown;
+            };
+            /** Request Body */
+            request_body?: {
+                [key: string]: unknown;
+            } | unknown[] | null;
+            /** Request Params */
+            request_params?: {
+                [key: string]: unknown;
+            } | null;
+            /** Response Headers */
+            response_headers: {
+                [key: string]: unknown;
+            };
+            /** Response Body */
+            response_body: string;
+            /** Response Truncated */
+            response_truncated: boolean;
+        };
+        /** LogRow */
+        LogRow: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Product */
+            product: string;
+            /** Method */
+            method: string;
+            /** Path */
+            path: string;
+            /** Status */
+            status?: number | null;
+            /** Ok */
+            ok: boolean;
+            /** Ms */
+            ms: number;
+            /** Attempts */
+            attempts: number;
+            /** Response Bytes */
+            response_bytes: number;
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /**
+             * Trace Id
+             * @default
+             */
+            trace_id: string;
+            /**
+             * Environment
+             * @default
+             */
+            environment: string;
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Email */
@@ -4117,6 +4470,17 @@ export interface components {
         Page_LocationListItem_: {
             /** Items */
             items: components["schemas"]["LocationListItem"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /** Page[LogRow] */
+        Page_LogRow_: {
+            /** Items */
+            items: components["schemas"]["LogRow"][];
             /** Total */
             total: number;
             /** Page */
@@ -7180,6 +7544,68 @@ export interface operations {
             };
         };
     };
+    admin_imports_reels_admin_imports_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_import_reels_admin_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     destinations_hotels_destinations_get: {
         parameters: {
             query: {
@@ -7501,6 +7927,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_logs_tripjack_logs_get: {
+        parameters: {
+            query?: {
+                product?: ("hotels" | "flights" | "insurance") | null;
+                outcome?: "all" | "ok" | "failed";
+                /** @description Matches the path, trace id, error or the answer */
+                q?: string | null;
+                days?: number | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_LogRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_logs_tripjack_logs_export_get: {
+        parameters: {
+            query?: {
+                product?: ("hotels" | "flights" | "insurance") | null;
+                outcome?: "all" | "ok" | "failed";
+                q?: string | null;
+                days?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_log_tripjack_logs__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogDetail"];
                 };
             };
             /** @description Validation Error */

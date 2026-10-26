@@ -171,6 +171,12 @@ class Settings(BaseSettings):
     # TripJack countryId of the guest's nationality when the traveller has not said (106 = India).
     tripjack_nationality: str = "106"
     tripjack_request_timeout_ms: int = 13000
+    # The record of every TripJack call (request and answer) is kept this many days.
+    tripjack_log_days: int = 14
+    # Longest answer kept whole, in bytes (a hotel listing can be megabytes). Catalogue-sync answers
+    # (content/…) keep only their first few KB.
+    tripjack_log_body_bytes: int = 200_000
+    tripjack_log_sync_bytes: int = 3_000
     # Repeat searches inside this window are served from Redis. Prices are live, so keep it short.
     tripjack_listing_cache_seconds: int = 180
     # Hotels sent to Listing per search, best-first (star rating, photos). Chunks of 100 run in

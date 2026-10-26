@@ -9,6 +9,7 @@ from app.modules.creators.models import (
     CreatorAttribution,
     CreatorLink,
     CreatorTrip,
+    TravellerTrip,
 )
 from app.modules.hotels.models import SupplierHotel, SupplierRegion
 from app.modules.knowledge.models import Location, LocationRelation, Tag, location_tags
@@ -23,6 +24,7 @@ from app.modules.support.models import (
     SupportTicket,
     TicketAssignment,
 )
+from app.modules.tripjack.models import TripJackLog
 from app.modules.users.models import User
 
 __all__ = [
@@ -53,6 +55,8 @@ __all__ = [
     "TicketAssignment",
     "Tag",
     "TravelerProfile",
+    "TravellerTrip",
+    "TripJackLog",
     "User",
     "location_tags",
 ]

@@ -40,6 +40,10 @@ class Call:
     error: str = ""
     # The values TripJack returned, in compact form (see each client's `excerpt`).
     excerpt: dict[str, Any] | None = None
+    # For the log in the database (tripjack/logs.py): what was sent, and the answer as it came.
+    request: dict[str, Any] | None = None
+    response_text: str = ""
+    response_headers: dict[str, str] | None = None
 
     def summary(self) -> dict:
         return {

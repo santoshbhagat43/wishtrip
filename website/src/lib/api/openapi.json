@@ -2744,6 +2744,104 @@
     }
    }
   },
+  "/reels/admin/imports": {
+   "get": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Admin Imports",
+    "description": "Every reel import, newest first, with its stage and how long each stage took.",
+    "operationId": "admin_imports_reels_admin_imports_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 100,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportList"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/reels/admin/imports/{import_id}": {
+   "get": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Admin Import",
+    "description": "One import in full: the stage timings and log, what was read off the screen and heard in the\nvoice-over, the places found, and every download attempt.",
+    "operationId": "admin_import_reels_admin_imports__import_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/hotels/destinations": {
    "get": {
     "tags": [
@@ -3202,6 +3300,308 @@
       "content": {
        "application/json": {
         "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tripjack/logs": {
+   "get": {
+    "tags": [
+     "tripjack"
+    ],
+    "summary": "List Logs",
+    "description": "Every call to TripJack, newest first (without the bodies: open one for those).",
+    "operationId": "list_logs_tripjack_logs_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "product",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "hotels",
+          "flights",
+          "insurance"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Product"
+      }
+     },
+     {
+      "name": "outcome",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "all",
+        "ok",
+        "failed"
+       ],
+       "type": "string",
+       "default": "all",
+       "title": "Outcome"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Matches the path, trace id, error or the answer",
+       "title": "Q"
+      },
+      "description": "Matches the path, trace id, error or the answer"
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "maximum": 90,
+         "minimum": 1
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Days"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_LogRow_"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tripjack/logs/export": {
+   "get": {
+    "tags": [
+     "tripjack"
+    ],
+    "summary": "Export Logs",
+    "description": "The log as a plain-text file, oldest first, in the form TripJack asks for: each call with\nits request and its response (for certification and support).",
+    "operationId": "export_logs_tripjack_logs_export_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "product",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "hotels",
+          "flights",
+          "insurance"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Product"
+      }
+     },
+     {
+      "name": "outcome",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "all",
+        "ok",
+        "failed"
+       ],
+       "type": "string",
+       "default": "all",
+       "title": "Outcome"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "days",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer",
+         "maximum": 90,
+         "minimum": 1
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Days"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 1000,
+       "minimum": 1,
+       "default": 200,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tripjack/logs/{log_id}": {
+   "get": {
+    "tags": [
+     "tripjack"
+    ],
+    "summary": "Read Log",
+    "operationId": "read_log_tripjack_logs__log_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "log_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Log Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LogDetail"
+        }
        }
       }
      },
@@ -9090,6 +9490,384 @@
     ],
     "title": "HotelSearch"
    },
+   "ImportDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "shortcode": {
+      "type": "string",
+      "title": "Shortcode"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ImportStatus"
+     },
+     "step": {
+      "$ref": "#/components/schemas/ImportStep"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "requested_by": {
+      "type": "string",
+      "title": "Requested By"
+     },
+     "creator_handle": {
+      "type": "string",
+      "title": "Creator Handle"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "places": {
+      "type": "integer",
+      "title": "Places"
+     },
+     "queue_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Queue Seconds"
+     },
+     "stages": {
+      "items": {
+       "$ref": "#/components/schemas/ImportStage"
+      },
+      "type": "array",
+      "title": "Stages"
+     },
+     "total_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total Seconds"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption"
+     },
+     "duration_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Seconds"
+     },
+     "ocr_lines": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Ocr Lines"
+     },
+     "transcript": {
+      "type": "string",
+      "title": "Transcript"
+     },
+     "transcript_language": {
+      "type": "string",
+      "title": "Transcript Language"
+     },
+     "transcript_en": {
+      "type": "string",
+      "title": "Transcript En"
+     },
+     "extracted": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Extracted"
+     },
+     "place_list": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Place List"
+     },
+     "log": {
+      "items": {
+       "$ref": "#/components/schemas/ImportLogEntry"
+      },
+      "type": "array",
+      "title": "Log"
+     },
+     "downloads": {
+      "items": {
+       "$ref": "#/components/schemas/DownloadRequestRead"
+      },
+      "type": "array",
+      "title": "Downloads"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "url",
+     "shortcode",
+     "kind",
+     "status",
+     "step",
+     "error",
+     "created_at",
+     "finished_at",
+     "requested_by",
+     "creator_handle",
+     "destination_name",
+     "places",
+     "queue_seconds",
+     "stages",
+     "total_seconds",
+     "caption",
+     "duration_seconds",
+     "ocr_lines",
+     "transcript",
+     "transcript_language",
+     "transcript_en",
+     "extracted",
+     "place_list",
+     "log",
+     "downloads"
+    ],
+    "title": "ImportDetail"
+   },
+   "ImportList": {
+    "properties": {
+     "totals": {
+      "$ref": "#/components/schemas/ImportTotals"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ImportRow"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "totals",
+     "items"
+    ],
+    "title": "ImportList"
+   },
+   "ImportLogEntry": {
+    "properties": {
+     "at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "At"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message",
+      "default": ""
+     },
+     "seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "at"
+    ],
+    "title": "ImportLogEntry"
+   },
+   "ImportRow": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "shortcode": {
+      "type": "string",
+      "title": "Shortcode"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ImportStatus"
+     },
+     "step": {
+      "$ref": "#/components/schemas/ImportStep"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "requested_by": {
+      "type": "string",
+      "title": "Requested By"
+     },
+     "creator_handle": {
+      "type": "string",
+      "title": "Creator Handle"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "places": {
+      "type": "integer",
+      "title": "Places"
+     },
+     "queue_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Queue Seconds"
+     },
+     "stages": {
+      "items": {
+       "$ref": "#/components/schemas/ImportStage"
+      },
+      "type": "array",
+      "title": "Stages"
+     },
+     "total_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "url",
+     "shortcode",
+     "kind",
+     "status",
+     "step",
+     "error",
+     "created_at",
+     "finished_at",
+     "requested_by",
+     "creator_handle",
+     "destination_name",
+     "places",
+     "queue_seconds",
+     "stages",
+     "total_seconds"
+    ],
+    "title": "ImportRow",
+    "description": "One reel import, for staff: where it stands and how long each stage took."
+   },
+   "ImportStage": {
+    "properties": {
+     "step": {
+      "type": "string",
+      "title": "Step"
+     },
+     "seconds": {
+      "type": "number",
+      "title": "Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "step",
+     "seconds"
+    ],
+    "title": "ImportStage"
+   },
    "ImportStatus": {
     "type": "string",
     "enum": [
@@ -9111,6 +9889,46 @@
      "done"
     ],
     "title": "ImportStep"
+   },
+   "ImportTotals": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "done": {
+      "type": "integer",
+      "title": "Done"
+     },
+     "failed": {
+      "type": "integer",
+      "title": "Failed"
+     },
+     "running": {
+      "type": "integer",
+      "title": "Running"
+     },
+     "average_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Average Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "done",
+     "failed",
+     "running",
+     "average_seconds"
+    ],
+    "title": "ImportTotals"
    },
    "Inbox": {
     "properties": {
@@ -10632,6 +11450,221 @@
     "title": "LocationUpdate",
     "description": "Every field optional; only fields sent are changed."
    },
+   "LogDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "product": {
+      "type": "string",
+      "title": "Product"
+     },
+     "method": {
+      "type": "string",
+      "title": "Method"
+     },
+     "path": {
+      "type": "string",
+      "title": "Path"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "ms": {
+      "type": "integer",
+      "title": "Ms"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "response_bytes": {
+      "type": "integer",
+      "title": "Response Bytes"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error",
+      "default": ""
+     },
+     "trace_id": {
+      "type": "string",
+      "title": "Trace Id",
+      "default": ""
+     },
+     "environment": {
+      "type": "string",
+      "title": "Environment",
+      "default": ""
+     },
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "request_headers": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Request Headers"
+     },
+     "request_body": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request Body"
+     },
+     "request_params": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request Params"
+     },
+     "response_headers": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Response Headers"
+     },
+     "response_body": {
+      "type": "string",
+      "title": "Response Body"
+     },
+     "response_truncated": {
+      "type": "boolean",
+      "title": "Response Truncated"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "product",
+     "method",
+     "path",
+     "ok",
+     "ms",
+     "attempts",
+     "response_bytes",
+     "url",
+     "request_headers",
+     "response_headers",
+     "response_body",
+     "response_truncated"
+    ],
+    "title": "LogDetail"
+   },
+   "LogRow": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "product": {
+      "type": "string",
+      "title": "Product"
+     },
+     "method": {
+      "type": "string",
+      "title": "Method"
+     },
+     "path": {
+      "type": "string",
+      "title": "Path"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "ms": {
+      "type": "integer",
+      "title": "Ms"
+     },
+     "attempts": {
+      "type": "integer",
+      "title": "Attempts"
+     },
+     "response_bytes": {
+      "type": "integer",
+      "title": "Response Bytes"
+     },
+     "error": {
+      "type": "string",
+      "title": "Error",
+      "default": ""
+     },
+     "trace_id": {
+      "type": "string",
+      "title": "Trace Id",
+      "default": ""
+     },
+     "environment": {
+      "type": "string",
+      "title": "Environment",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "product",
+     "method",
+     "path",
+     "ok",
+     "ms",
+     "attempts",
+     "response_bytes"
+    ],
+    "title": "LogRow"
+   },
    "LoginRequest": {
     "properties": {
      "email": {
@@ -11634,6 +12667,37 @@
      "page_size"
     ],
     "title": "Page[LocationListItem]"
+   },
+   "Page_LogRow_": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/LogRow"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size"
+    ],
+    "title": "Page[LogRow]"
    },
    "Page_TravelerSummary_": {
     "properties": {

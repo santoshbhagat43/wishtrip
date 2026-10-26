@@ -9,11 +9,13 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.modules.tripjack import trace
+from app.modules.tripjack import logs, trace
 
 log = logging.getLogger(__name__)
 
 BACKOFF_SECONDS = (1, 2, 4)
+# The answer headers worth keeping in the record of a call.
+KEPT_HEADERS = {"content-type", "content-length", "date", "retry-after", "request-id"}
 
 
 class TripJackError(Exception):
@@ -90,6 +92,7 @@ class TripJackHTTP:
         call = trace.Call(
             product=self.product, method=method, host=parsed.netloc, path=parsed.path,
             status=None, ms=0, bytes=0, ok=False,
+            request={"json": kwargs.get("json"), "params": kwargs.get("params")},
         )  # fmt: skip
         try:
             body = await self._send(method, url, call, **kwargs)
@@ -106,6 +109,7 @@ class TripJackHTTP:
         finally:
             call.ms = int((time.monotonic() - started) * 1000)
             trace.record(call)
+            await logs.save(call, self.api_key())
 
     async def _send(self, method: str, url: str, call: "trace.Call", **kwargs: Any) -> Any:
         attempt = 0
@@ -126,6 +130,10 @@ class TripJackHTTP:
                 attempt += 1
                 continue
             call.status, call.bytes = response.status_code, len(response.content)
+            call.response_text = response.text
+            call.response_headers = {
+                k: v for k, v in response.headers.items() if k.lower() in KEPT_HEADERS
+            }
             try:
                 body = response.json()
             except ValueError:

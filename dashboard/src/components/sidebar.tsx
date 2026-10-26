@@ -7,6 +7,8 @@ import {
   FolderTree,
   LifeBuoy,
   Clapperboard,
+  Film,
+  Plug,
   Link2,
   Globe2,
   LayoutDashboard,
@@ -54,12 +56,14 @@ const NAV: { section: string; items: Item[] }[] = [
     { href: "/search", label: "Semantic search", icon: Search, roles: ["admin", "editor", "support"] },
     { href: "/travelers", label: "Travelers", icon: Users, roles: ["admin", "editor", "support"] },
     { href: "/creators", label: "Creators", icon: Clapperboard, roles: ["admin", "editor"] },
+    { href: "/reels", label: "Reel imports", icon: Film, roles: ["admin", "editor"] },
     { href: "/support", label: "Support inbox", icon: LifeBuoy, badge: "support", roles: ["admin", "editor", "support"] },
   ]},
   { section: "Admin", items: [
     { href: "/users", label: "Staff users", icon: UserCog, roles: ["admin"] },
     { href: "/roles", label: "Roles & permissions", icon: ShieldCheck, roles: ["admin", "editor"] },
     { href: "/system", label: "System health", icon: Activity, roles: ["admin", "editor"] },
+    { href: "/tripjack", label: "TripJack log", icon: Plug, roles: ["admin", "editor"] },
     { href: "/audit-log", label: "Audit log", icon: ScrollText, roles: ["admin"] },
   ]},
 ];
