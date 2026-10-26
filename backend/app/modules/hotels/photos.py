@@ -21,7 +21,7 @@ GENERIC = {
     "bali", "restaurant", "beach", "club",
 }
 # Most hotels fetched for one trip's destination (100 per TripJack call).
-FETCH_LIMIT = 1500
+FETCH_LIMIT = 8000
 
 
 def tokens(name: str) -> list[str]:
@@ -106,13 +106,18 @@ async def _regions_for(
             )
         ).scalars()
     )
-    first = next((r for w in wanted[:1] for r in found if r.city_name.upper() == w), None)
-    if first is None:
+    # City names repeat across the world (a Bali in Rajasthan, another in Crete). The country is the
+    # one where most of the trip's own place names are TripJack regions too.
+    names_by_country: dict[str, set[str]] = {}
+    for r in found:
+        names_by_country.setdefault(r.country_name, set()).add(r.city_name.upper())
+    countries = [c for c, names in names_by_country.items() if wanted[0] in names]
+    if not countries:
         return []
-    # Same country as the destination's region; the destination itself first.
-    same = [r for r in found if r.country_name == first.country_name]
-    same.sort(key=lambda r: (r.region_id != first.region_id, wanted.index(r.city_name.upper())))
-    return same[:4]
+    country = max(countries, key=lambda c: len(names_by_country[c]))
+    chosen = [r for r in found if r.country_name == country]
+    chosen.sort(key=lambda r: (wanted.index(r.city_name.upper()), -r.hotel_count))
+    return chosen[:4]
 
 
 async def fetch_for_trip(session: AsyncSession, items: list[dict], destination: str) -> int:
