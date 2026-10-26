@@ -8,6 +8,7 @@ import { IMG, LINKS, MENU as MENU_GROUPS } from "./data";
 import { ARROW, CLOSE, MENU, Path } from "./icons";
 import { HeaderSearch, type SearchEntry } from "./header-search";
 import { menuBySlug, useMenus } from "./menus";
+import { Avatar, useTraveller } from "./traveller";
 
 export const NAV = [
   { href: "/#b4-arya", label: "How it works" },
@@ -31,6 +32,7 @@ export function RoundButton({ label, d, onClick }: { label: string; d: string; o
 
 export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: () => void; search?: SearchEntry[]; focusSearch?: boolean }) {
   const drawerMenus = useMenus("mobile");
+  const { signedIn } = useTraveller();
   const drawerLinks =
     menuBySlug(drawerMenus.data, "b4-drawer")?.items ??
     MENU_GROUPS.flatMap((g) => g.items.map((i) => ({ label: i.label, url: i.href, opens_in_new_tab: false })));
@@ -62,6 +64,7 @@ export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: 
             <HeaderSearch index={search} drawer autoFocus={focusSearch} onNavigate={onClose} />
           </div>
         )}
+        {!signedIn && (
         <div className="flex flex-col gap-2.5 rounded-[18px] border border-[#E3E8EE] bg-white p-4">
           <strong className="text-base">Sign in to wishtrip</strong>
           <span className="text-[13.5px] leading-[1.45] text-[#566E85]">See your trip boards, saved reels and bookings on any device.</span>
@@ -78,6 +81,7 @@ export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: 
           </span>
           <span className="text-xs text-[#5F6B78]">With an emailed code or Google. No passwords.</span>
         </div>
+        )}
         <div className="flex flex-col">
           <span className="mb-1 mt-3.5 text-[10.5px] font-bold tracking-[.14em] text-[#5F6B78]">MENU</span>
           {drawerLinks.map((item) => (
@@ -117,6 +121,7 @@ export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: 
 export function B4Header({ solid = false, search }: { solid?: boolean; search?: SearchEntry[] }) {
   const [open, setOpen] = useState<false | "menu" | "search">(false);
   const headerMenus = useMenus("header");
+  const who = useTraveller();
   const nav =
     menuBySlug(headerMenus.data, "b4-primary")?.items ??
     NAV.map((n) => ({ label: n.label, url: n.href, opens_in_new_tab: false }));
@@ -140,9 +145,16 @@ export function B4Header({ solid = false, search }: { solid?: boolean; search?: 
           ))}
         </nav>
         {search && <HeaderSearch index={search} />}
-        <Link href={LINKS.signIn} className="hidden px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline md:block">
-          Sign in
-        </Link>
+        {who.signedIn ? (
+          <span className="hidden items-center gap-2 text-[14.5px] font-semibold text-[#0D2436] md:flex">
+            <Avatar letter={(who.name ?? "W").charAt(0).toUpperCase()} />
+            {who.name}
+          </span>
+        ) : (
+          <Link href={LINKS.signIn} className="hidden px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline md:block">
+            Sign in
+          </Link>
+        )}
         <span className="flex items-center gap-2">
           {search && (
             <span className="md:hidden">

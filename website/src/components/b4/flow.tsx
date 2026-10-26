@@ -7,21 +7,9 @@ import { Fragment, useState } from "react";
 import { IMG, LINKS } from "./data";
 import { MenuDrawer, NAV, RoundButton } from "./header";
 import { CHECK, MENU, Path } from "./icons";
+import { Avatar, useTraveller } from "./traveller";
 
 const STEPS = ["Start", "Shape your board", "Book"];
-
-/** The signed-in traveller's initial, as the prototype shows it in the header. */
-function Avatar({ size = 32, letter = "A" }: { size?: number; letter?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="font-display grid flex-none place-items-center rounded-full text-white"
-      style={{ width: size, height: size, fontSize: size * 0.44, background: "linear-gradient(145deg,#1A6094,#0B3050)" }}
-    >
-      {letter}
-    </span>
-  );
-}
 
 /**
  * Header for the booking flow. Desktop: logo · step tracker (or the main nav) · Sign in or the
@@ -32,7 +20,7 @@ export function FlowHeader({
   title,
   subtitle,
   back,
-  signedIn = false,
+  signedIn,
   traveller,
   nav = false,
 }: {
@@ -49,6 +37,9 @@ export function FlowHeader({
   nav?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  const who = useTraveller();
+  const isIn = signedIn ?? who.signedIn;
+  const name = traveller ?? who.name;
   return (
     <>
       {/* Desktop */}
@@ -94,10 +85,10 @@ export function FlowHeader({
             </ol>
           )}
           <span className="flex items-center gap-3.5">
-            {signedIn ? (
+            {isIn ? (
               <span className="flex items-center gap-2 text-sm font-semibold">
-                <Avatar letter={(traveller ?? "Asha").charAt(0).toUpperCase()} />
-                {traveller ?? "Asha"}
+                <Avatar letter={(name ?? "W").charAt(0).toUpperCase()} />
+                {name}
               </span>
             ) : (
               <Link href={LINKS.signIn} className="px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline">

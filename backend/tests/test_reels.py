@@ -100,7 +100,15 @@ def test_shortcodes():
     assert service.shortcode_from("https://www.instagram.com/goadiaries/reel/DAbc123xyz") == (
         "DAbc123xyz"
     )
-    assert service.shortcode_from("https://youtube.com/shorts/abc") is None
+    assert service.shortcode_from("https://youtube.com/shorts/abc") is None  # not an 11-character id
+    for link in (
+        "https://www.youtube.com/shorts/GE4EgoAVqPA",
+        "youtube.com/watch?v=GE4EgoAVqPA&t=9s",
+        "https://youtu.be/GE4EgoAVqPA?si=x",
+        "https://m.youtube.com/live/GE4EgoAVqPA",
+    ):
+        assert service.shortcode_from(link) == "yt-GE4EgoAVqPA", link
+    assert service.canonical_url("yt-GE4EgoAVqPA") == "https://www.youtube.com/watch?v=GE4EgoAVqPA"
 
 
 def test_ocr_noise_is_dropped():
@@ -223,7 +231,26 @@ async def test_failed_download_is_explained(client, traveler, monkeypatch):
     assert job["status"] == "failed"
     assert "Instagram" in job["error"]
     bad = await client.post("/reels/imports", json={"url": "hello"}, headers=auth(traveler))
-    assert bad.status_code == 400 and "Instagram reel link" in bad.json()["detail"]
+    assert bad.status_code == 400 and "Instagram reel or YouTube" in bad.json()["detail"]
+
+
+async def test_a_pasted_youtube_link_is_imported_like_a_reel(client, traveler, monkeypatch):
+    seen = []
+
+    def fake_download(shortcode, workdir):
+        seen.append(shortcode)
+        raise service.ReelError("stop here")
+
+    monkeypatch.setattr(service, "download", fake_download)
+    monkeypatch.setattr(settings, "reels_inline", True)
+    r = await client.post(
+        "/reels/imports",
+        json={"url": "https://www.youtube.com/shorts/GE4EgoAVqPA"},
+        headers=auth(traveler),
+    )
+    assert r.status_code == 201, r.text
+    assert seen == ["yt-GE4EgoAVqPA"]  # sent down the YouTube path, not refused
+    assert r.json()["url"] == "https://www.youtube.com/watch?v=GE4EgoAVqPA"
 
 
 async def test_referral_signup_then_first_plan_earns_commission(client, admin, london):

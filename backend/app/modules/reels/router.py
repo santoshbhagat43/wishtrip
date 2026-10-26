@@ -72,7 +72,10 @@ async def start_import(
 ):
     shortcode = service.shortcode_from(data.url)
     if not shortcode:
-        raise bad_request("Paste an Instagram reel link, like instagram.com/reel/…")
+        raise bad_request(
+            "Paste an Instagram reel or YouTube video link, "
+            "like instagram.com/reel/… or youtube.com/shorts/…"
+        )
     if await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try again in an hour."

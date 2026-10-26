@@ -13,6 +13,16 @@ export default async function LoginPage({
   const h = await headers();
   const host = h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
-  const path = next && next.startsWith("/") ? next : "/arya";
-  redirect(ssoLoginUrl(host ? `${proto}://${host}${path}` : "/arya"));
+  // Back to where the visitor was: the page they asked to sign in from, else the home page.
+  let path = next && next.startsWith("/") && !next.startsWith("//") ? next : "";
+  if (!path) {
+    try {
+      const from = new URL(h.get("referer") ?? "");
+      const here = from.pathname + from.search;
+      path = from.host === host && !from.pathname.startsWith("/login") ? here : "/";
+    } catch {
+      path = "/";
+    }
+  }
+  redirect(ssoLoginUrl(host ? `${proto}://${host}${path}` : "/"));
 }

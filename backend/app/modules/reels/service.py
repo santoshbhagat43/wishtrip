@@ -66,12 +66,25 @@ class ReelError(RuntimeError):
     """A failure the traveller should read: shown as-is on the reel screen."""
 
 
-def shortcode_from(url: str) -> str | None:
-    match = REEL_URL.match(url.strip())
-    return match.group(1) if match else None
-
-
 YOUTUBE_PREFIX = "yt-"
+
+# A YouTube video: watch, shorts, live or youtu.be links.
+YOUTUBE_VIDEO_URL = re.compile(
+    r"^(?:https?://)?(?:(?:www\.|m\.)?youtube\.com/(?:watch\?(?:[^#]*&)?v=|shorts/|live/)|youtu\.be/)"
+    r"([A-Za-z0-9_-]{11})(?:[?&#/].*)?$",
+    re.IGNORECASE,
+)
+
+
+def shortcode_from(url: str) -> str | None:
+    """What a pasted link is cached and imported under: an Instagram reel's shortcode, or `yt-<id>`
+    for a YouTube video (a Short or an ordinary video)."""
+    url = url.strip()
+    match = REEL_URL.match(url)
+    if match:
+        return match.group(1)
+    video = YOUTUBE_VIDEO_URL.match(url)
+    return YOUTUBE_PREFIX + video.group(1) if video else None
 
 
 def youtube_shortcode(video_id: str) -> str:

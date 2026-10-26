@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, api, errorMessage, unwrap, type Schemas } from "@/lib/api/client";
+import { useMe } from "@/lib/session";
 
 import { IMG, LINKS } from "../data";
 import { CARD, DonePill, FlowHeader, Kicker } from "../flow";
@@ -35,11 +36,20 @@ export function ReelScreen() {
 
   const pastedUrl = params.get("url");
   const importId = params.get("id");
+  const me = useMe();
+  const signedOut = me.isSuccess && !me.data;
+
+  // Nothing is read until they are signed in: sign in first, then come back to this reel.
+  useEffect(() => {
+    if (!signedOut || (!pastedUrl && !importId)) return;
+    const back = importId ? `${LINKS.reel}?id=${importId}` : `${LINKS.reel}?url=${encodeURIComponent(pastedUrl!)}`;
+    router.replace(`/login?next=${encodeURIComponent(back)}`);
+  }, [signedOut, pastedUrl, importId, router]);
 
   // Start an import from ?url=…, or pick one up again from ?id=… (after a refresh).
   useEffect(() => {
     const key = importId ?? pastedUrl;
-    if (!key || started.current === key) return;
+    if (!me.data || !key || started.current === key) return;
     started.current = key;
     (async () => {
       try {
@@ -59,7 +69,7 @@ export function ReelScreen() {
         setError(errorMessage(e));
       }
     })();
-  }, [importId, pastedUrl, router]);
+  }, [importId, pastedUrl, router, me.data]);
 
   // Poll while the worker is on it.
   const busy = job && (job.status === "queued" || job.status === "running");
@@ -75,6 +85,13 @@ export function ReelScreen() {
   let body: React.ReactNode;
   if (error || job?.status === "failed") body = <PasteForm error={error ?? job?.error ?? ""} />;
   else if (!importId && !pastedUrl) body = <PasteForm />;
+  else if (!me.data) {
+    body = (
+      <p className="p-10 text-center text-[#566E85]">
+        {me.isLoading ? "One moment…" : "Taking you to sign in first — we’ll read your reel right after."}
+      </p>
+    );
+  }
   else if (job?.status === "done" && job.content) body = <ReelResult job={job} content={job.content} />;
   else body = <Working job={job} />;
 
@@ -138,14 +155,14 @@ function PasteForm({ error = "" }: { error?: string }) {
         }}
       >
         <label htmlFor="reel-url" className="sr-only">
-          Instagram reel link
+          Instagram reel or YouTube video link
         </label>
         <input
           id="reel-url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           inputMode="url"
-          placeholder="instagram.com/reel/…"
+          placeholder="instagram.com/reel/… or youtube.com/shorts/…"
           className="min-w-0 flex-1 rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
         />
         <button type="submit" className="cursor-pointer whitespace-nowrap rounded-full border-0 bg-[#072338] px-6 py-3.5 text-base font-semibold text-white">

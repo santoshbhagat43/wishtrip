@@ -12,6 +12,14 @@
   background: var(--b4-cream);
   font-variant-numeric: lining-nums;
   color-scheme: light;
+  /* The home story scatters cards beyond the screen; clip them (not "hidden", so sticky still works). */
+  overflow-x: clip;
+}
+@supports not (overflow: clip) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
 }
 .b4 .font-display {
   font-family: var(--font-b4-display), Georgia, serif;

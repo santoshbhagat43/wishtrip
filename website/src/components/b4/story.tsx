@@ -16,6 +16,8 @@ import {
   STORY_MOBILE,
   type StoryLayout,
 } from "./data";
+import { useMe } from "@/lib/session";
+
 import { B4Header } from "./header";
 import type { SearchEntry } from "./header-search";
 import { ARROW, CLOSE, Path, Play } from "./icons";
@@ -37,6 +39,7 @@ function StartPanel({ onClose }: { onClose: () => void }) {
   const [reelUrl, setReelUrl] = useState("");
   const [text, setText] = useState("");
   const router = useRouter();
+  const me = useMe();
   const content = text.trim();
   /** Only a trip that has been described goes to Arya, and it goes with the words typed. */
   const planIt = () => {
@@ -123,7 +126,9 @@ function StartPanel({ onClose }: { onClose: () => void }) {
             className="contents"
             onSubmit={(e) => {
               e.preventDefault();
-              router.push(reelUrl.trim() ? `${LINKS.reel}?url=${encodeURIComponent(reelUrl.trim())}` : LINKS.reel);
+              const reel = reelUrl.trim() ? `${LINKS.reel}?url=${encodeURIComponent(reelUrl.trim())}` : LINKS.reel;
+              // Sign in first; the reel is read only once they are back (the reel page checks too).
+              router.push(reelUrl.trim() && me.isSuccess && !me.data ? `/login?next=${encodeURIComponent(reel)}` : reel);
             }}
           >
             <input
@@ -131,10 +136,10 @@ function StartPanel({ onClose }: { onClose: () => void }) {
               value={reelUrl}
               onChange={(e) => setReelUrl(e.target.value)}
               inputMode="url"
-              placeholder="instagram.com/reel/…"
+              placeholder="instagram.com/reel/… or youtube.com/shorts/…"
               className="rounded-[14px] border-[1.5px] border-[#E3E8EE] px-3.5 py-[13px] text-base text-[#0D2436] outline-none focus:border-[#0A7C80]"
             />
-            <span className="text-xs text-[#5F6B78]">Works with public Instagram reels.</span>
+            <span className="text-xs text-[#5F6B78]">Works with public Instagram reels and YouTube videos or Shorts.</span>
             <button type="submit" className="cursor-pointer rounded-full border-0 bg-[#072338] p-3.5 text-center text-base font-semibold text-white">
               Get the trip from this reel →
             </button>

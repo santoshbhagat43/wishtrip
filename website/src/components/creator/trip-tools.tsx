@@ -67,7 +67,7 @@ function CreateTrip() {
         <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm font-medium">{STEP_LABEL[step] ?? "Working…"}</p>
       ) : (
         <div className="flex flex-col gap-2">
-          <Input inputMode="url" placeholder="instagram.com/reel/…" value={url} onChange={(e) => setUrl(e.target.value)} required />
+          <Input inputMode="url" placeholder="instagram.com/reel/… or youtube.com/shorts/…" value={url} onChange={(e) => setUrl(e.target.value)} required />
           <Button type="submit" disabled={!url.trim()}>Create trip</Button>
         </div>
       )}

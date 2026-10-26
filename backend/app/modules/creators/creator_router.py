@@ -97,7 +97,10 @@ async def import_reel(
     _active(acting)
     shortcode = reels.shortcode_from(data.url)
     if not shortcode:
-        raise bad_request("Paste an Instagram reel link, like instagram.com/reel/…")
+        raise bad_request(
+            "Paste an Instagram reel or YouTube video link, "
+            "like instagram.com/reel/… or youtube.com/shorts/…"
+        )
     job = await _start_import(session, ai, acting.user, shortcode)
     return ReelImportRead.model_validate(job, from_attributes=True)
 
