@@ -70,18 +70,21 @@ const noteFor = (s: Item) => {
   return !note || name.includes(note) || note.includes(name) ? "" : s.note.slice(0, 48);
 };
 
-/** The trip's stops as days: the creator's own days if they set them, else about three a day. */
-export function daysFromItems(items: Item[]): ItineraryDay[] {
+/** The trip's stops as days: the creator's own days if they set them, else about three a day.
+ *  With `days`, the same stops in the same order are spread over that many days instead (a
+ *  traveller making the trip their own). */
+export function daysFromItems(items: Item[], days?: number): ItineraryDay[] {
   const stops = items.filter((i) => i.name.trim());
   const dayOf = (i: number) => {
+    if (days) return Math.floor(i / Math.ceil(stops.length / Math.min(days, Math.max(1, stops.length)))) + 1;
     if (stops.some((s) => s.day)) return stops[i].day ?? 1;
     const perDay = Math.ceil(stops.length / Math.min(7, Math.max(1, Math.ceil(stops.length / 3))));
     return Math.floor(i / perDay) + 1;
   };
-  const days = new Map<number, Stop[]>();
+  const byDay = new Map<number, Stop[]>();
   stops.forEach((s, i) => {
-    const day = days.get(dayOf(i)) ?? [];
-    days.set(dayOf(i), [
+    const day = byDay.get(dayOf(i)) ?? [];
+    byDay.set(dayOf(i), [
       ...day,
       {
         when: WHEN[day.length % WHEN.length],
@@ -95,7 +98,7 @@ export function daysFromItems(items: Item[]): ItineraryDay[] {
       },
     ]);
   });
-  return [...days.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));
+  return [...byDay.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));
 }
 
 export const stopCount = (days: ItineraryDay[]) => days.reduce((n, d) => n + d.stops.length, 0);

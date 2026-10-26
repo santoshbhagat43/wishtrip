@@ -3921,6 +3921,153 @@
     }
    }
   },
+  "/trips/{share_code}/make-mine": {
+   "post": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Make Mine",
+    "description": "Public: copy a published creator trip for this traveller, with their details. Returns the\ncode to come back to.",
+    "operationId": "make_mine_trips__share_code__make_mine_post",
+    "parameters": [
+     {
+      "name": "share_code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Share Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MineConfig"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/my-trips/{code}": {
+   "get": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Read Mine",
+    "description": "Public (the code is the key): a trip made for a traveller, as they left it.",
+    "operationId": "read_mine_my_trips__code__get",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Update Mine",
+    "description": "Change who is going, the days, the pace or the dates; the code stays the same.",
+    "operationId": "update_mine_my_trips__code__patch",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MineConfig"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/spotlight": {
    "get": {
     "tags": [
@@ -10780,6 +10927,137 @@
      "assistant"
     ],
     "title": "MessageRole"
+   },
+   "MineConfig": {
+    "properties": {
+     "adults": {
+      "type": "integer",
+      "maximum": 9.0,
+      "minimum": 0.0,
+      "title": "Adults",
+      "default": 2
+     },
+     "kids": {
+      "type": "integer",
+      "maximum": 9.0,
+      "minimum": 0.0,
+      "title": "Kids",
+      "default": 0
+     },
+     "seniors": {
+      "type": "integer",
+      "maximum": 9.0,
+      "minimum": 0.0,
+      "title": "Seniors",
+      "default": 0
+     },
+     "days": {
+      "type": "integer",
+      "maximum": 7.0,
+      "minimum": 1.0,
+      "title": "Days",
+      "default": 4
+     },
+     "pace": {
+      "type": "string",
+      "title": "Pace",
+      "default": "relaxed"
+     },
+     "when": {
+      "type": "string",
+      "maxLength": 80,
+      "title": "When",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "MineConfig"
+   },
+   "MineRead": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "source_share_code": {
+      "type": "string",
+      "title": "Source Share Code"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination_name": {
+      "type": "string",
+      "title": "Destination Name"
+     },
+     "summary": {
+      "type": "string",
+      "title": "Summary"
+     },
+     "cover_image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Image Url"
+     },
+     "creator": {
+      "$ref": "#/components/schemas/PublicCreator"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TripItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "adults": {
+      "type": "integer",
+      "title": "Adults"
+     },
+     "kids": {
+      "type": "integer",
+      "title": "Kids"
+     },
+     "seniors": {
+      "type": "integer",
+      "title": "Seniors"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "pace": {
+      "type": "string",
+      "title": "Pace"
+     },
+     "when": {
+      "type": "string",
+      "title": "When"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "source_share_code",
+     "title",
+     "destination_name",
+     "summary",
+     "creator",
+     "items",
+     "adults",
+     "kids",
+     "seniors",
+     "days",
+     "pace",
+     "when"
+    ],
+    "title": "MineRead"
    },
    "Nearby": {
     "properties": {

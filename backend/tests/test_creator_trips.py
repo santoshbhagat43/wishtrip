@@ -293,6 +293,81 @@ async def test_a_stay_gets_the_photo_of_the_tripjack_hotel_it_names(client, admi
     assert {i["id"]: i["image_url"] for i in got["items"]}["a"] == "https://img.example/mega.jpg"
 
 
+async def test_the_trips_country_decides_which_bali_it_is():
+    from app.db.session import SessionLocal
+    from app.modules.hotels.models import SupplierRegion
+    from app.modules.hotels.photos import _regions_for
+
+    def region(rid, city, country):
+        return SupplierRegion(region_id=rid, city_name=city, country_name=country,
+                              full_name=f"{city}, {country}")  # fmt: skip
+
+    async with SessionLocal() as session:
+        session.add_all(
+            [region(1, "BALI", "INDIA"), region(2, "BALI", "INDONESIA"),
+             region(3, "UBUD", "INDONESIA"), region(4, "KUTA", "INDONESIA")]
+        )  # fmt: skip
+        await session.commit()
+        got = await _regions_for(session, "Bali", ["Kuta", "Ubud", "Nowhere"])
+        assert [r.region_id for r in got] == [2, 4, 3]
+        assert await _regions_for(session, "Atlantis", ["Kuta"]) == []
+
+
+async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_back_to(
+    client, admin, fake_reel
+):
+    headers = await _approved_creator(client, admin, "mine@creators.example.com")
+    trip = await _make_trip(client, headers)
+    await client.patch(
+        f"/creator/trips/{trip['id']}",
+        json={"title": "Slow North Goa", "publish": True,
+              "items": [{"id": "a", "kind": "sight", "name": "Fort Aguada", "day": 1}]},
+        headers=headers,
+    )  # fmt: skip
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.creators.models import CreatorTrip
+
+    async with SessionLocal() as session:
+        share_code = (await session.scalar(select(CreatorTrip.share_code))) or ""
+    assert share_code
+
+    made = await client.post(
+        f"/trips/{share_code}/make-mine",
+        json={"adults": 2, "kids": 2, "days": 3, "pace": "balanced", "when": "  Dec  12–15 "},
+    )
+    assert made.status_code == 201, made.text
+    mine = made.json()
+    assert len(mine["code"]) == 8 and mine["code"].isalnum()
+    assert (mine["adults"], mine["kids"], mine["days"], mine["pace"]) == (2, 2, 3, "balanced")
+    assert mine["when"] == "Dec 12–15" and mine["title"] == "Slow North Goa"
+    assert [i["name"] for i in mine["items"]] == ["Fort Aguada"]
+
+    # Coming back: the same code gives the same configuration.
+    again = (await client.get(f"/my-trips/{mine['code']}")).json()
+    assert again == mine
+
+    # Changing it keeps the code.
+    r = await client.patch(f"/my-trips/{mine['code']}", json={"adults": 1, "days": 2, "pace": "packed"})
+    assert r.status_code == 200 and r.json()["code"] == mine["code"]
+    assert (r.json()["adults"], r.json()["kids"], r.json()["days"]) == (1, 0, 2)
+
+    # It is a copy: the creator unpublishing or editing the original doesn't change it.
+    await client.patch(f"/creator/trips/{trip['id']}", json={"title": "Renamed"}, headers=headers)
+    assert (await client.get(f"/my-trips/{mine['code']}")).json()["title"] == "Slow North Goa"
+
+    # Bad input and unknown trips.
+    for bad in ({"adults": 0, "kids": 0, "seniors": 0}, {"pace": "fast"}, {"days": 9}, {"adults": 12}):
+        assert (await client.post(f"/trips/{share_code}/make-mine", json=bad)).status_code in (400, 422)
+    assert (await client.post("/trips/nope-0000/make-mine", json={})).status_code == 404
+    assert (await client.get("/my-trips/zzzzzzzz")).status_code == 404
+
+    # Two travellers never share a code.
+    other = (await client.post(f"/trips/{share_code}/make-mine", json={})).json()
+    assert other["code"] != mine["code"]
+
+
 def test_hotel_names_match_only_when_they_are_close():
     from app.modules.hotels.models import SupplierHotel
     from app.modules.hotels.photos import best_match

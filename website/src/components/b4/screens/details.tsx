@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -8,7 +9,9 @@ import { LINKS } from "../data";
 import { CARD, FlowHeader, Kicker, MobileBar, SELECTED, UNSELECTED } from "../flow";
 import { GROUPS, PACES, PEOPLE } from "../flow-data";
 import { Path } from "../icons";
-import { useReelImport } from "../trip-journey";
+import { api, errorMessage, unwrap } from "@/lib/api/client";
+
+import { partyText, samplePrices, useMineTrip, usePublicTrip, useReelImport } from "../trip-journey";
 
 type Count = "adults" | "kids" | "seniors";
 const FIELD =
@@ -18,9 +21,24 @@ const LABEL = "flex flex-col gap-2 text-[10.5px] font-bold tracking-[.14em] text
 /** Step 2a: who's coming, when, how many days and pace — from the reel you just imported. */
 export function DetailsScreen() {
   const router = useRouter();
-  const id = useSearchParams().get("id");
-  const imp = useReelImport(id);
-  const content = imp.data?.content;
+  const queryClient = useQueryClient();
+  const params = useSearchParams();
+  const id = params.get("id");
+  // "Make it mine": the traveller starts from a creator's published trip instead of a reel.
+  const code = params.get("trip");
+  // Coming back to a trip already made: its trip number, so the details are as they were left.
+  const mineCode = params.get("mine");
+  const saved = useMineTrip(mineCode).data;
+  const imp = useReelImport(code ? null : id);
+  const shared = usePublicTrip(code);
+  const sharedTrip = shared.data;
+  const who = sharedTrip ? sharedTrip.creator.display_name || (sharedTrip.creator.handle ? `@${sharedTrip.creator.handle}` : "a creator") : "";
+  const sharedStops = sharedTrip?.items.filter((i) => i.kind !== "note" && i.name.trim()) ?? [];
+  const sharedDays = sharedTrip ? new Set(sharedTrip.items.map((i) => i.day ?? 1)).size : undefined;
+  const content = sharedTrip
+    ? { destination_name: sharedTrip.destination_name, days_hint: sharedDays, places: sharedStops.map((i) => ({ name: i.name, kind: i.kind, location_name: null as string | null })) }
+    : imp.data?.content;
+  const loading = code ? shared.isLoading : imp.isLoading;
   const where = content?.destination_name || "your trip";
 
   const [group, setGroup] = useState("couple");
@@ -29,13 +47,47 @@ export function DetailsScreen() {
   const [pace, setPace] = useState("relaxed");
   const n = count.adults + count.kids + count.seniors;
   const travellers = `${n} ${n === 1 ? "TRAVELLER" : "TRAVELLERS"}`;
+  // The same sample prices the board uses (real ones come at checkout), for who is going and how long.
+  const estimate = samplePrices(Math.max(1, n), Math.max(1, days - 1)).total;
   const bump = (k: Count, by: number) => setCount({ ...count, [k]: Math.max(0, Math.min(9, count[k] + by)) });
 
-  const next = () => router.push(`${LINKS.board}?id=${id}&days=${days}`);
+  const [when, setWhen] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  // Show the saved details once they arrive (set while rendering, once per saved trip).
+  const [seeded, setSeeded] = useState<string | null>(null);
+  if (saved && seeded !== saved.code) {
+    const match = GROUPS.find((g) => g.c[0] === saved.adults && g.c[1] === saved.kids && g.c[2] === saved.seniors);
+    setSeeded(saved.code);
+    setGroup(match?.id ?? "");
+    setCount({ adults: saved.adults, kids: saved.kids, seniors: saved.seniors });
+    setDays(saved.days);
+    setPace(saved.pace);
+    setWhen(saved.when);
+  }
+
+  const next = async () => {
+    if (!code) return router.push(`${LINKS.board}?id=${id}&days=${days}`);
+    // Make (or update) the trip under its own number, then open it: the number is the way back.
+    setSaving(true);
+    setProblem(null);
+    const body = { ...count, days, pace, when: when.trim() };
+    try {
+      const made = mineCode
+        ? unwrap(await api.PATCH("/my-trips/{code}", { params: { path: { code: mineCode } }, body }))
+        : unwrap(await api.POST("/trips/{share_code}/make-mine", { params: { path: { share_code: code } }, body }));
+      queryClient.setQueryData(["mine-trip", made.code], made); // the trip page shows what was just saved
+      router.push(`${LINKS.mine}/${made.code}`);
+    } catch (e) {
+      setProblem(errorMessage(e));
+      setSaving(false);
+    }
+  };
 
   const starting = content && (
     <div className={`${CARD} flex flex-col gap-2 p-4`}>
-      <Kicker>FROM YOUR REEL</Kicker>
+      <Kicker>{code ? `FROM ${who.toUpperCase()}’S TRIP` : "FROM YOUR REEL"}</Kicker>
       <strong className="text-[15px]">
         {content.places.length} {content.places.length === 1 ? "place" : "places"} in {where}
       </strong>
@@ -90,7 +142,7 @@ export function DetailsScreen() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={LABEL}>
           WHEN
-          <input defaultValue="Add your dates" className={FIELD} />
+          <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="Add your dates" className={FIELD} />
         </label>
         <div className={LABEL}>
           HOW MANY DAYS
@@ -125,11 +177,11 @@ export function DetailsScreen() {
 
   return (
     <div className="min-h-dvh bg-[#FFFFFF]">
-      <FlowHeader step={2} title={`Your ${where} trip`} subtitle="Your details" back={LINKS.reel} signedIn />
-      {imp.isLoading ? (
-        <p className="p-10 text-center text-[#566E85]">Loading your reel…</p>
+      <FlowHeader step={code ? 1 : 2} title={`Your ${where} trip`} subtitle="Your details" back={code ? `/t/${code}` : LINKS.reel} signedIn />
+      {loading ? (
+        <p className="p-10 text-center text-[#566E85]">{code ? "Loading the trip…" : "Loading your reel…"}</p>
       ) : !content ? (
-        <p className="p-10 text-center text-[#566E85]">We couldn’t find that trip. <Link href={LINKS.reel} className="font-semibold text-[#0A7C80] underline">Start from a reel</Link>.</p>
+        <p className="p-10 text-center text-[#566E85]">We couldn’t find that trip. <Link href={code ? LINKS.home : LINKS.reel} className="font-semibold text-[#0A7C80] underline">{code ? "Explore wishtrip" : "Start from a reel"}</Link>.</p>
       ) : (
         <>
           {/* Phones */}
@@ -138,11 +190,11 @@ export function DetailsScreen() {
             <section className="px-4 pb-[150px] pt-2.5">{form}</section>
             <MobileBar>
               <span className="flex flex-col gap-0.5">
-                <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">{days} DAYS · {travellers}</span>
-                <span className="text-xs text-[#A9C2D4]">Your board shows the day-by-day.</span>
+                <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">{days} DAYS · {travellers} · EST. {estimate}</span>
+                <span className="text-xs text-[#A9C2D4]">{code ? "Your trip shows the day-by-day." : "Your board shows the day-by-day."}</span>
               </span>
-              <button onClick={next} className="ml-auto whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338]">
-                Build my board
+              <button onClick={next} disabled={saving || n < 1} className="ml-auto whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338] disabled:opacity-60">
+                {saving ? "Building…" : "Build my trip"}
               </button>
             </MobileBar>
           </div>
@@ -153,16 +205,40 @@ export function DetailsScreen() {
               <div>
                 <Kicker teal>YOUR DETAILS</Kicker>
                 <h1 className="font-display mb-0 mt-1.5 text-[46px] font-medium leading-[1.08]">Your {where} trip</h1>
-                <p className="mb-0 mt-2 text-[15.5px] text-[#3F5A72]">A few quick things, then your board builds itself from the reel.</p>
+                <p className="mb-0 mt-2 text-[15.5px] text-[#3F5A72]">
+                  {code ? `A few quick things, then we shape ${who}’s trip around you.` : "A few quick things, then your board builds itself from the reel."}
+                </p>
               </div>
               {form}
             </section>
             <aside className="sticky top-[100px] flex flex-col gap-3.5">
               {starting}
-              <button onClick={next} className="rounded-full bg-[#072338] p-[15px] text-center text-base font-bold text-white">
-                Build my board →
-              </button>
-              <span className="text-center text-xs text-[#5F6B78]">{days} days · {travellers.toLowerCase()}</span>
+              <div className="flex flex-col gap-4 rounded-[22px] bg-[#072338] p-[22px] text-white">
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">ESTIMATE FOR {travellers}</span>
+                  <strong className="text-[32px] tabular-nums">{estimate}</strong>
+                  <span className="text-xs text-[#A9C2D4]">
+                    {days} days · {partyText(count) || travellers.toLowerCase()}. A sample while bookings are being set up; your board shows the final price.
+                  </span>
+                </span>
+                <button
+                  onClick={next}
+                  disabled={saving || n < 1}
+                  className="cursor-pointer rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] disabled:opacity-60"
+                >
+                  {saving ? "Building…" : "Build my trip →"}
+                </button>
+                {problem && <span role="alert" className="text-center text-[12.5px] text-[#FFB4AA]">{problem}</span>}
+              </div>
+              {code && (
+                <Link href={LINKS.arya} className="flex items-center gap-3 rounded-[20px] border border-[#E3E8EE] bg-white px-4 py-3.5 text-[#0D2436] no-underline">
+                  <span aria-hidden="true" className="font-display grid size-[38px] flex-none place-items-center rounded-full bg-gradient-to-br from-[#22DDE0] to-[#1A6094] text-xl font-semibold italic text-white">A</span>
+                  <span className="flex flex-col">
+                    <strong className="text-[14.5px]">Rather just tell Arya?</strong>
+                    <span className="text-[12.5px] text-[#566E85]">Say it in a sentence. She fills this in for you.</span>
+                  </span>
+                </Link>
+              )}
             </aside>
           </main>
         </>

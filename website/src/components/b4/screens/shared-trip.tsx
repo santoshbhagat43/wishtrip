@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { partySize, partyText, samplePrices, type Party, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
 import { daysFromItems, type ItineraryDay } from "@/components/creator/itinerary-sheet";
@@ -23,31 +24,26 @@ const KIND_ICON: Record<string, typeof Landmark> = {
   note: Landmark,
 };
 
-/** The sample prices from the prototype's board. Real prices come at checkout. */
-const PRICE_ROWS = [
-  ["Flights · 3 seats", "₹19,800"],
-  ["Stay", "₹14,400"],
-  ["Experiences & meals", "₹5,400"],
-  ["Transfers", "₹3,200"],
-  ["Taxes & fees", "₹3,400"],
-] as const;
+/** What a traveller chose on the Details screen, when the trip is being made theirs. */
+/** `code` is its own trip number; `source` is the creator's trip it was made from. */
+export type Mine = { code: string; source: string; days: number; party: Party; pace: string; when?: string };
 
 const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E3E8EE] bg-white p-3.5";
 
 /** What the board says about each booking. The wording follows the prototype; the destination
  *  is the trip's own, and the prices are samples. */
-function bookings(where: string, nights: number) {
+function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>) {
   return [
     {
       kind: "FLIGHTS",
-      price: "₹19,800",
+      price: prices.flights,
       title: `Your city ⇄ ${where}`,
       detail: "Return · dates and seats at checkout",
       chip: "Cheapest, seats together",
     },
     {
       kind: "STAY",
-      price: "₹14,400",
+      price: prices.stay,
       title: `A stay in ${where}`,
       detail: `${nights} ${nights === 1 ? "night" : "nights"} · rooms at checkout`,
       chip: "Ground floor on request",
@@ -55,7 +51,7 @@ function bookings(where: string, nights: number) {
     },
     {
       kind: "TRANSFERS",
-      price: "₹3,200",
+      price: prices.transfers,
       title: "Private car, same driver",
       detail: "Airport both ways + day trips",
       chip: "Short drives only",
@@ -68,12 +64,14 @@ function bookings(where: string, nights: number) {
  * board, the days from the creator's reel, one price, and Arya to change anything. The stops are
  * the creator's own; the bookings and prices are the prototype's samples until bookings are live.
  */
-export function SharedTripScreen() {
-  const { code } = useParams<{ code: string }>();
+export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?: PublicTrip } = {}) {
+  const params = useParams<{ code?: string }>();
+  const code = mine?.source ?? params.code ?? "";
   const me = useMe();
   const trip = useQuery({
     queryKey: ["public-trip", code],
     retry: false,
+    enabled: !preloaded,
     queryFn: async () => {
       const r = await api.GET("/trips/{share_code}", { params: { path: { share_code: code } } });
       return r.response.status === 404 ? null : unwrap(r);
@@ -83,7 +81,7 @@ export function SharedTripScreen() {
   const [copied, setCopied] = useState(false);
 
   // Credit the creator once we know who they are.
-  const referralCode = trip.data?.creator.referral_code;
+  const referralCode = (preloaded ?? trip.data)?.creator.referral_code;
   useEffect(() => {
     if (!referralCode) return;
     fetch("/api/creator-visit", {
@@ -95,10 +93,17 @@ export function SharedTripScreen() {
 
   const name = me.data ? (me.data.full_name || me.data.email.split("@")[0]) : undefined;
   const header = (title: string, subtitle: string) => (
-    <FlowHeader step={2} title={title} subtitle={subtitle} back={LINKS.home} signedIn={!!me.data} traveller={name} />
+    <FlowHeader
+      {...(mine ? { step: 2 } : { nav: true })}
+      title={title}
+      subtitle={subtitle}
+      back={mine ? `${LINKS.details}?trip=${mine.source}&mine=${mine.code}` : LINKS.home}
+      signedIn={!!me.data}
+      traveller={name}
+    />
   );
 
-  if (trip.isLoading) {
+  if (!preloaded && trip.isLoading) {
     return (
       <div className="min-h-dvh bg-[#FFFFFF]">
         {header("Trip board", "Loading")}
@@ -106,7 +111,8 @@ export function SharedTripScreen() {
       </div>
     );
   }
-  if (!trip.data) {
+  const t = preloaded ?? trip.data;
+  if (!t) {
     return (
       <div className="min-h-dvh bg-[#FFFFFF]">
         {header("Trip board", "Not available")}
@@ -121,12 +127,13 @@ export function SharedTripScreen() {
     );
   }
 
-  const t = trip.data;
   const who = t.creator.display_name || (t.creator.handle ? `@${t.creator.handle}` : "a creator");
   const where = t.destination_name || "your trip";
-  const days = daysFromItems(t.items);
+  const days = daysFromItems(t.items, mine?.days);
+  const travellers = mine ? Math.max(1, partySize(mine.party)) : 3;
+  const prices = samplePrices(travellers, mine ? Math.max(1, days.length - 1) : 4);
   const stops = days.reduce((n, d) => n + d.stops.length, 0);
-  const seed = `Plan a trip to ${where}${
+  const seed = `Plan a trip to ${where}${mine ? ` for ${partyText(mine.party)}, ${mine.days} days, ${mine.pace} pace${mine.when ? `, ${mine.when}` : ""}` : ""}${
     t.items.length ? `. I want to see: ${t.items.filter((i) => i.kind !== "note").map((i) => i.name).slice(0, 10).join(", ")}` : ""
   }.`;
   const plan = (extra = "") => `${LINKS.start}?prompt=${encodeURIComponent(seed + extra)}`;
@@ -134,7 +141,7 @@ export function SharedTripScreen() {
 
   return (
     <div className="min-h-dvh bg-[#FFFFFF] text-[#0D2436]">
-      {header(t.title, `${days.length} ${days.length === 1 ? "day" : "days"} · by ${who}`)}
+      {header(mine ? `Your ${where} trip` : t.title, `${days.length} ${days.length === 1 ? "day" : "days"} · ${mine ? "made for you" : `by ${who}`}`)}
 
       <main className="mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-7 px-4 pb-16 pt-6 md:grid-cols-[1fr_330px] md:px-10 md:pb-[72px] md:pt-8">
         <section className="flex min-w-0 flex-col gap-[22px]">
@@ -148,11 +155,21 @@ export function SharedTripScreen() {
 
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
-              <Kicker teal>A TRIP BY {who.toUpperCase()}</Kicker>
-              <h1 className="font-display mb-0 mt-1.5 text-[32px] font-medium leading-[1.08] md:text-[44px]">{t.title}</h1>
+              {mine && (
+                <span className="mb-2 inline-flex flex-wrap items-center gap-2 rounded-full bg-[#F3F6F9] py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-[#3F5A72]">
+                  Trip no. <strong className="font-mono tracking-wider text-[#0D2436]">{`${mine.code.slice(0, 4)}-${mine.code.slice(4)}`.toUpperCase()}</strong>
+                  <Link href={`${LINKS.details}?trip=${mine.source}&mine=${mine.code}`} className="rounded-full bg-white px-3 py-1 text-[#0A7C80] no-underline">
+                    Change details
+                  </Link>
+                </span>
+              )}
+              <Kicker teal>{mine ? `MADE FOR YOU · BASED ON ${who.toUpperCase()}’S TRIP` : `A TRIP BY ${who.toUpperCase()}`}</Kicker>
+              <h1 className="font-display mb-0 mt-1.5 text-[32px] font-medium leading-[1.08] md:text-[44px]">{mine ? `Your ${where} trip` : t.title}</h1>
               <p className="mt-1.5 text-[15px] text-[#566E85]">
                 {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops ·{" "}
-                {days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from {who}’s reel
+                {mine
+                  ? `${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}`
+                  : `${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from ${who}’s reel`}
               </p>
               {t.summary && <p className="mt-2 max-w-[640px] text-[14.5px] text-[#3F5A72]">{t.summary}</p>}
             </div>
@@ -201,7 +218,7 @@ export function SharedTripScreen() {
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, Math.max(1, days.length - 1)).map((b) => (
+              {bookings(where, Math.max(1, days.length - 1), prices).map((b) => (
                 <div key={b.kind} className={BOOKING}>
                   <span className="flex items-center justify-between">
                     <Kicker>{b.kind}</Kicker>
@@ -278,21 +295,21 @@ export function SharedTripScreen() {
         <aside className="flex flex-col gap-3.5 md:sticky md:top-[100px]">
           <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-5">
             <Kicker>ONE PRICE, EVERYTHING IN</Kicker>
-            {PRICE_ROWS.map(([label, price]) => (
+            {prices.rows.map(([label, price]) => (
               <span key={label} className="flex justify-between text-[13.5px] text-[#3F5A72]">
                 <span>{label}</span>
                 <span className="font-semibold tabular-nums text-[#0D2436]">{price}</span>
               </span>
             ))}
             <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
-              <strong className="text-[15px]">Total for 3</strong>
-              <strong className="text-[30px] tabular-nums">₹46,200</strong>
+              <strong className="text-[15px]">Total for {travellers}</strong>
+              <strong className="text-[30px] tabular-nums">{prices.total}</strong>
             </span>
             <Link
-              href={plan()}
+              href={mine ? plan() : `${LINKS.details}?trip=${code}`}
               className="rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] no-underline shadow-[0_10px_26px_rgba(18,201,206,.3)]"
             >
-              Book in one go
+              {mine ? "Book in one go" : "Make it mine"}
             </Link>
             <span className="text-center text-xs text-[#566E85]">Nothing is charged until you choose at checkout</span>
             <span className="text-center text-[11px] text-[#5F6B78]">Sample prices while bookings are being set up.</span>

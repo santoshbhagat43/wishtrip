@@ -1279,6 +1279,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/{share_code}/make-mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Mine
+         * @description Public: copy a published creator trip for this traveller, with their details. Returns the
+         *     code to come back to.
+         */
+        post: operations["make_mine_trips__share_code__make_mine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/my-trips/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Mine
+         * @description Public (the code is the key): a trip made for a traveller, as they left it.
+         */
+        get: operations["read_mine_my_trips__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Mine
+         * @description Change who is going, the days, the pace or the dates; the code stays the same.
+         */
+        patch: operations["update_mine_my_trips__code__patch"];
+        trace?: never;
+    };
     "/spotlight": {
         parameters: {
             query?: never;
@@ -3760,6 +3805,69 @@ export interface components {
          * @enum {string}
          */
         MessageRole: "user" | "assistant";
+        /** MineConfig */
+        MineConfig: {
+            /**
+             * Adults
+             * @default 2
+             */
+            adults: number;
+            /**
+             * Kids
+             * @default 0
+             */
+            kids: number;
+            /**
+             * Seniors
+             * @default 0
+             */
+            seniors: number;
+            /**
+             * Days
+             * @default 4
+             */
+            days: number;
+            /**
+             * Pace
+             * @default relaxed
+             */
+            pace: string;
+            /**
+             * When
+             * @default
+             */
+            when: string;
+        };
+        /** MineRead */
+        MineRead: {
+            /** Code */
+            code: string;
+            /** Source Share Code */
+            source_share_code: string;
+            /** Title */
+            title: string;
+            /** Destination Name */
+            destination_name: string;
+            /** Summary */
+            summary: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            creator: components["schemas"]["PublicCreator"];
+            /** Items */
+            items: components["schemas"]["TripItem"][];
+            /** Adults */
+            adults: number;
+            /** Kids */
+            kids: number;
+            /** Seniors */
+            seniors: number;
+            /** Days */
+            days: number;
+            /** Pace */
+            pace: string;
+            /** When */
+            when: string;
+        };
         /** Nearby */
         Nearby: {
             place: components["schemas"]["LocationRef"];
@@ -7643,6 +7751,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatorPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_mine_trips__share_code__make_mine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MineConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_mine_my_trips__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_mine_my_trips__code__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MineConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineRead"];
                 };
             };
             /** @description Validation Error */

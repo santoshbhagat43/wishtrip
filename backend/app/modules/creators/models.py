@@ -201,3 +201,35 @@ class CreatorTrip(UUIDPrimaryKey, Timestamps, Base):
     share_code: Mapped[str | None] = mapped_column(String(64), unique=True)
     # The trip staff feature in the spotlight on the public Creator trips page (one at a time).
     spotlight: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class TravellerTrip(UUIDPrimaryKey, Timestamps, Base):
+    """A creator's trip made the traveller's own ("Make it mine"): who is going, how many days and
+    the pace, kept under a short code so they can come back to it, change it and share it. The
+    creator's stops are copied in, so it stays as it was made even if the creator edits or
+    unpublishes the original."""
+
+    __tablename__ = "traveller_trips"
+
+    # The code in the address: /trip/mine/<code>. Short, random, not guessable by counting.
+    code: Mapped[str] = mapped_column(String(16), unique=True)
+    source_trip_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("creator_trips.id", ondelete="SET NULL"), index=True
+    )
+    source_share_code: Mapped[str] = mapped_column(String(64), default="")
+    title: Mapped[str] = mapped_column(String(255), default="")
+    destination_name: Mapped[str] = mapped_column(String(255), default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    cover_image_key: Mapped[str | None] = mapped_column(String(500))
+    creator_name: Mapped[str] = mapped_column(String(255), default="")
+    creator_handle: Mapped[str | None] = mapped_column(String(100))
+    creator_referral_code: Mapped[str] = mapped_column(String(64), default="")
+    # The creator's stops at the time (same shape as CreatorTrip.items).
+    items: Mapped[list] = mapped_column(JSONB, default=list)
+    adults: Mapped[int] = mapped_column(Integer, default=2)
+    kids: Mapped[int] = mapped_column(Integer, default=0)
+    seniors: Mapped[int] = mapped_column(Integer, default=0)
+    days: Mapped[int] = mapped_column(Integer, default=4)
+    pace: Mapped[str] = mapped_column(String(16), default="relaxed")
+    # What they typed for "When" (free text: "Dec 12–16", "Sometime in March").
+    when_text: Mapped[str] = mapped_column(String(80), default="")

@@ -24,10 +24,12 @@ export const LINKS = {
   destinations: "/destinations",
   destination: "/destination",
   creatorTrip: "/creator-trip",
-  creators: "/creators",
+  creators: "/creators#apply",
   // Paste a reel → book
   reel: "/reel",
   details: "/trip/details",
+  // A creator's trip, shaped around the traveller ("Make it mine")
+  mine: "/trip/mine",
   board: "/trip/board",
   checkout: "/trip/book",
   bookings: "/trip/booked",

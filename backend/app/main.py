@@ -15,6 +15,7 @@ from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router
 from app.modules.chat.router import router as chat_router
 from app.modules.creators.creator_router import router as creator_router
+from app.modules.creators.mine import router as mine_router
 from app.modules.creators.public import router as creators_public_router
 from app.modules.creators.router import router as creators_router
 from app.modules.creators.spotlight import router as spotlight_router
@@ -62,6 +63,7 @@ for router in (
     tripjack_router,
     creators_router,
     creators_public_router,
+    mine_router,
     spotlight_router,
     creator_router,
     menus_router,
