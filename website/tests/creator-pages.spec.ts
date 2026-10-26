@@ -38,8 +38,14 @@ test.describe("Creator trips and creator pages", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Ananya Pages" })).toBeVisible();
     await expect(page.getByText("✓ wishtrip creator")).toBeVisible();
     await expect(page.getByRole("heading", { name: "The trips they actually took" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Make it mine" })).toHaveAttribute("href", /^\/arya\?prompt=/);
+    await expect(page.getByRole("link", { name: "Make it mine" })).toHaveAttribute("href", /^\/trip\/details\?trip=[a-z0-9-]+$/);
     await expect(page.getByText(/6 stops/).first()).toBeVisible();
+
+    // "Make it mine" starts the Make it mine journey, as it does on the trip page.
+    await page.getByRole("link", { name: "Make it mine" }).click();
+    await expect(page).toHaveURL(/\/trip\/details\?trip=[a-z0-9-]+$/);
+    await expect(page.getByRole("heading", { level: 1, name: /^Your .* trip$/ })).toBeVisible();
+    await page.goBack();
 
     await page.getByRole("link", { name: "See day by day" }).click();
     await expect(page).toHaveURL(/\/t\/[a-z0-9-]+$/);

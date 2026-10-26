@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { CreatorPage } from "@/lib/server/creators";
 
 import { B4Header } from "../header";
+import { LINKS } from "../data";
 import { SiteFooter } from "../footer";
 import { Avatar, CHANNEL, Cover, CreatorTile, dayStops, tripHref } from "./creator-parts";
 
@@ -111,7 +112,7 @@ export function CreatorProfileScreen({ data }: { data: CreatorPage }) {
                   <span className="text-[13px] text-[#566E85]">{dayStops(t)}</span>
                   <span className="mt-2 flex flex-wrap gap-2">
                     <Link
-                      href={plan(`Plan a trip like "${t.title}" by ${creator.display_name}`)}
+                      href={`${LINKS.details}?trip=${t.share_code}`}
                       className="rounded-full bg-[#22DDE0] px-5 py-2.5 text-[14px] font-bold text-[#072338] no-underline"
                     >
                       Make it mine
