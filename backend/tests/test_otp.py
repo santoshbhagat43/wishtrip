@@ -1,5 +1,7 @@
 """Creator sign-in codes: the fallback while no provider is set up, and real codes once one is."""
 
+import smtplib
+
 import pytest
 from sqlalchemy import select
 
@@ -189,7 +191,7 @@ def test_the_email_sender_speaks_smtp(monkeypatch):
         def send_message(self, message):
             calls["message"] = message
 
-    monkeypatch.setattr(otp.smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     monkeypatch.setattr(settings, "smtp_host", "smtp.resend.com")
     monkeypatch.setattr(settings, "smtp_port", 587)
     monkeypatch.setattr(settings, "smtp_username", "resend")
@@ -203,4 +205,6 @@ def test_the_email_sender_speaks_smtp(monkeypatch):
     message = calls["message"]
     assert message["To"] == "creator@example.com"
     assert message["Subject"] == "482913 is your WishTrip sign-in code"
-    assert "expires in 10 minutes" in message.get_content()
+    assert "expires in 10 minutes" in message.get_body(("plain",)).get_content()
+    page = message.get_body(("html",)).get_content()  # the same words, in the WishTrip template
+    assert "482913" in page and "expires in 10 minutes</strong>" in page and "{{" not in page

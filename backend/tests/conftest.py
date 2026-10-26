@@ -46,6 +46,16 @@ async def clean_tables():
         await conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
 
 
+@pytest.fixture(autouse=True)
+def outbox(monkeypatch):
+    """Transactional emails are captured, never queued or sent: [(template, to, variables)]."""
+    from app.modules.emails import service as emails
+
+    sent: list[tuple[str, str, dict]] = []
+    monkeypatch.setattr(emails, "deliver", lambda name, to, variables: sent.append((name, to, variables)))
+    return sent
+
+
 @pytest.fixture
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

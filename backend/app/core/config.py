@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "dev-only-change-me"
     jwt_algorithm: str = "HS256"
+    # Key for the bank account numbers kept encrypted; falls back to jwt_secret when unset.
+    bank_encryption_key: str | None = None
     access_token_minutes: int = 30
     refresh_token_days: int = 7
 
@@ -141,6 +143,21 @@ class Settings(BaseSettings):
     # The name of the template variable that holds the code ({{otp}} in the template).
     trustsignal_otp_variable: str = "otp"
 
+    # Transactional email (creator onboarding and sign-in codes: app/modules/emails).
+    # The public addresses of the traveller website and the creator site, for links and the logo;
+    # on a server they come from WEBSITE_DOMAIN / CREATOR_DOMAIN (the same .env as Caddy's).
+    website_url: str | None = None
+    creator_url: str | None = None
+    website_domain: str | None = None
+    creator_domain: str | None = None
+    support_email: str = "support@wishtrip.co"
+    # Timing promised in the emails: configurable, never baked into the copy.
+    creator_review_days: int = 5
+    creator_reapply_days: int = 90
+    creator_bank_reminder_days: int = 3
+    # Send the emails through Celery (a worker must be running); false = in the request's thread.
+    emails_via_worker: bool = True
+
     # TripJack hotels (v3). The key is per environment and tied to whitelisted server IPs; keep it
     # server-side. Unset = hotel search is off. The defaults are the UAT (test) hosts; production
     # uses hms-search.tripjack.com / tripjack.com and needs certification first.
@@ -174,6 +191,18 @@ class Settings(BaseSettings):
     # Searches repeated inside this window come from Redis. Flight priceIds live 15 minutes.
     tripjack_flight_cache_seconds: int = 300
     tripjack_insurance_cache_seconds: int = 600
+
+    @property
+    def site_base(self) -> str:
+        if self.website_url:
+            return self.website_url.rstrip("/")
+        return f"https://{self.website_domain}" if self.website_domain else "http://app.lvh.me:3002"
+
+    @property
+    def creator_base(self) -> str:
+        if self.creator_url:
+            return self.creator_url.rstrip("/")
+        return f"https://{self.creator_domain}" if self.creator_domain else "http://creator.lvh.me:3002"
 
     @property
     def ai_enabled(self) -> bool:

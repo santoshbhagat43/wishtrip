@@ -17,13 +17,12 @@ import hmac
 import json
 import logging
 import secrets
-import smtplib
 import time
-from email.message import EmailMessage
 from typing import Literal, Protocol
 
 from app.core.config import settings
 from app.modules.auth import trustsignal
+from app.modules.emails import service as emails
 
 logger = logging.getLogger(__name__)
 
@@ -142,22 +141,12 @@ def ensure_available(channel: Channel) -> None:
 
 
 def _send_email(to: str, code: str) -> None:
-    message = EmailMessage()
-    message["Subject"] = f"{code} is your WishTrip sign-in code"
-    message["From"] = settings.smtp_from
-    message["To"] = to
-    minutes = settings.otp_ttl_seconds // 60
-    message.set_content(
-        f"Your WishTrip sign-in code is {code}\n\n"
-        f"It works once and expires in {minutes} minutes. "
-        "If you didn't ask for it, you can ignore this email."
+    """The sign-in code, in the WishTrip email template (HTML and plain text). Raises if SMTP fails,
+    so the person is told and can ask again."""
+    subject, body_html, body_text = emails.render(
+        "sign-in-code", code=code, expires_minutes=settings.otp_ttl_seconds // 60
     )
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
-        if settings.smtp_starttls:
-            smtp.starttls()
-        if settings.smtp_username:
-            smtp.login(settings.smtp_username, settings.smtp_password or "")
-        smtp.send_message(message)
+    emails.smtp_send(to, subject, body_html, body_text)
 
 
 async def _deliver(channel: Channel, to: str, code: str) -> None:

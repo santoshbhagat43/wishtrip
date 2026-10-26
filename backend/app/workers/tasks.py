@@ -90,6 +90,18 @@ def sync_region_content_task(region_id: int) -> int:
     return asyncio.run(_hotel_sync("content", region_id))
 
 
+# Transactional emails (creator onboarding, sign-in codes): rendered and sent by SMTP.
+@celery_app.task(name="emails.send", autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def send_email_task(name: str, to: str, variables: dict) -> bool:
+    from app.modules.emails import service as emails
+
+    if not emails.configured():
+        return False  # nothing to send with (logged by deliver_now); retrying would not help
+    if not emails.deliver_now(name, to, variables):
+        raise RuntimeError(f"email {name} to {to} was not sent")  # retried with backoff
+    return True
+
+
 # TripJack photos for the hotels a creator's trip stays at (matched by name once fetched).
 async def _trip_hotel_photos(trip_id: str) -> int:
     from app.modules.creators.models import CreatorTrip

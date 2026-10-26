@@ -22,6 +22,7 @@ dependencies = [
     "pytesseract>=0.3.13",
     "pillow>=12.3.0",
     "yt-dlp>=2026.1.0",
+    "cryptography>=50.0.2",
 ]
 
 [dependency-groups]
@@ -42,6 +43,7 @@ ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "app/scripts/*" = ["E501"]
+"app/modules/emails/copy.py" = ["E501"]  # email copy is prose
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
