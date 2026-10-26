@@ -1012,6 +1012,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/hotel-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Matches
+         * @description Every stay in the creators' trips and the TripJack hotel it was matched to. Stays that
+         *     have not been looked at yet are matched first.
+         */
+        get: operations["list_matches_hotel_matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotel-matches/{match_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Candidates
+         * @description The likeliest TripJack hotels for this stay (or for what staff type), with their photos.
+         */
+        get: operations["candidates_hotel_matches__match_id__candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotel-matches/{match_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Confirm
+         * @description Staff say this stay is this hotel. It is kept, whatever the creator later does.
+         */
+        put: operations["confirm_hotel_matches__match_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotel-matches/{match_id}/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink
+         * @description No TripJack hotel fits this stay: show nothing, and don't try again.
+         */
+        post: operations["unlink_hotel_matches__match_id__unlink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/hotel-matches/{match_id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset
+         * @description Forget a decision and match the stay by name again.
+         */
+        post: operations["reset_hotel_matches__match_id__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/flights/search": {
         parameters: {
             query?: never;
@@ -2365,11 +2466,25 @@ export interface components {
             /** File */
             file?: string | null;
         };
+        /** Candidate */
+        Candidate: {
+            hotel: components["schemas"]["HotelBrief"];
+            /** Score */
+            score: number;
+        };
         /** ChatTurn */
         ChatTurn: {
             session: components["schemas"]["SessionRead"];
             user_message: components["schemas"]["MessageRead"];
             assistant_message: components["schemas"]["MessageDebugRead"];
+        };
+        /** Choice */
+        Choice: {
+            /**
+             * Hotel Id
+             * Format: uuid
+             */
+            hotel_id: string;
         };
         /** CommissionRead */
         CommissionRead: {
@@ -3237,6 +3352,32 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HotelBrief */
+        HotelBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Tj Hotel Id */
+            tj_hotel_id: string;
+            /** Name */
+            name: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Country
+             * @default
+             */
+            country: string;
+            /** Stars */
+            stars?: number | null;
+            /** Hero Image */
+            hero_image?: string | null;
         };
         /** HotelPricing */
         HotelPricing: {
@@ -4108,6 +4249,58 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** MatchList */
+        MatchList: {
+            /** Items */
+            items: components["schemas"]["MatchRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /** MatchRow */
+        MatchRow: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Trip Id
+             * Format: uuid
+             */
+            trip_id: string;
+            /** Trip Title */
+            trip_title: string;
+            /**
+             * Destination
+             * @default
+             */
+            destination: string;
+            /** Share Code */
+            share_code?: string | null;
+            /** Stay Name */
+            stay_name: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "matched" | "review" | "nomatch" | "confirmed" | "unlinked";
+            /** Score */
+            score: number;
+            hotel?: components["schemas"]["HotelBrief"] | null;
+            /**
+             * Decided By
+             * @default
+             */
+            decided_by: string;
         };
         /**
          * MediaKind
@@ -7797,6 +7990,172 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_matches_hotel_matches_get: {
+        parameters: {
+            query?: {
+                state?: ("matched" | "review" | "nomatch" | "confirmed" | "unlinked") | null;
+                /** @description Matches the stay, the trip or the hotel */
+                q?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidates_hotel_matches__match_id__candidates_get: {
+        parameters: {
+            query?: {
+                /** @description A hotel name to search for instead */
+                q?: string | null;
+            };
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Candidate"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_hotel_matches__match_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Choice"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_hotel_matches__match_id__unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_hotel_matches__match_id__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRow"];
                 };
             };
             /** @description Validation Error */

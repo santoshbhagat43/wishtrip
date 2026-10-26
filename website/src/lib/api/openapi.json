@@ -3136,6 +3136,337 @@
     }
    }
   },
+  "/hotel-matches": {
+   "get": {
+    "tags": [
+     "hotel-matches"
+    ],
+    "summary": "List Matches",
+    "description": "Every stay in the creators' trips and the TripJack hotel it was matched to. Stays that\nhave not been looked at yet are matched first.",
+    "operationId": "list_matches_hotel_matches_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "state",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "matched",
+          "review",
+          "nomatch",
+          "confirmed",
+          "unlinked"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "State"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Matches the stay, the trip or the hotel",
+       "title": "Q"
+      },
+      "description": "Matches the stay, the trip or the hotel"
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
+      }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 30,
+       "title": "Page Size"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MatchList"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/hotel-matches/{match_id}/candidates": {
+   "get": {
+    "tags": [
+     "hotel-matches"
+    ],
+    "summary": "Candidates",
+    "description": "The likeliest TripJack hotels for this stay (or for what staff type), with their photos.",
+    "operationId": "candidates_hotel_matches__match_id__candidates_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "match_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Match Id"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "A hotel name to search for instead",
+       "title": "Q"
+      },
+      "description": "A hotel name to search for instead"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Candidate"
+         },
+         "title": "Response Candidates Hotel Matches  Match Id  Candidates Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/hotel-matches/{match_id}": {
+   "put": {
+    "tags": [
+     "hotel-matches"
+    ],
+    "summary": "Confirm",
+    "description": "Staff say this stay is this hotel. It is kept, whatever the creator later does.",
+    "operationId": "confirm_hotel_matches__match_id__put",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "match_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Match Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Choice"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MatchRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/hotel-matches/{match_id}/unlink": {
+   "post": {
+    "tags": [
+     "hotel-matches"
+    ],
+    "summary": "Unlink",
+    "description": "No TripJack hotel fits this stay: show nothing, and don't try again.",
+    "operationId": "unlink_hotel_matches__match_id__unlink_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "match_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Match Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MatchRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/hotel-matches/{match_id}/reset": {
+   "post": {
+    "tags": [
+     "hotel-matches"
+    ],
+    "summary": "Reset",
+    "description": "Forget a decision and match the stay by name again.",
+    "operationId": "reset_hotel_matches__match_id__reset_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "match_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Match Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MatchRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/flights/search": {
    "post": {
     "tags": [
@@ -7100,6 +7431,23 @@
     ],
     "title": "Body_add_media_admin_locations__location_id__media_post"
    },
+   "Candidate": {
+    "properties": {
+     "hotel": {
+      "$ref": "#/components/schemas/HotelBrief"
+     },
+     "score": {
+      "type": "number",
+      "title": "Score"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel",
+     "score"
+    ],
+    "title": "Candidate"
+   },
    "ChatTurn": {
     "properties": {
      "session": {
@@ -7119,6 +7467,20 @@
      "assistant_message"
     ],
     "title": "ChatTurn"
+   },
+   "Choice": {
+    "properties": {
+     "hotel_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Hotel Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel_id"
+    ],
+    "title": "Choice"
    },
    "CommissionRead": {
     "properties": {
@@ -9358,6 +9720,62 @@
     },
     "type": "object",
     "title": "HTTPValidationError"
+   },
+   "HotelBrief": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "tj_hotel_id": {
+      "type": "string",
+      "title": "Tj Hotel Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "city": {
+      "type": "string",
+      "title": "City",
+      "default": ""
+     },
+     "country": {
+      "type": "string",
+      "title": "Country",
+      "default": ""
+     },
+     "stars": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stars"
+     },
+     "hero_image": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hero Image"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "tj_hotel_id",
+     "name"
+    ],
+    "title": "HotelBrief"
    },
    "HotelPricing": {
     "properties": {
@@ -11683,6 +12101,123 @@
      "password"
     ],
     "title": "LoginRequest"
+   },
+   "MatchList": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/MatchRow"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total",
+     "page",
+     "page_size",
+     "counts"
+    ],
+    "title": "MatchList"
+   },
+   "MatchRow": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "trip_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Trip Id"
+     },
+     "trip_title": {
+      "type": "string",
+      "title": "Trip Title"
+     },
+     "destination": {
+      "type": "string",
+      "title": "Destination",
+      "default": ""
+     },
+     "share_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Code"
+     },
+     "stay_name": {
+      "type": "string",
+      "title": "Stay Name"
+     },
+     "state": {
+      "type": "string",
+      "enum": [
+       "matched",
+       "review",
+       "nomatch",
+       "confirmed",
+       "unlinked"
+      ],
+      "title": "State"
+     },
+     "score": {
+      "type": "number",
+      "title": "Score"
+     },
+     "hotel": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HotelBrief"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "decided_by": {
+      "type": "string",
+      "title": "Decided By",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "trip_id",
+     "trip_title",
+     "stay_name",
+     "state",
+     "score"
+    ],
+    "title": "MatchRow"
    },
    "MediaKind": {
     "type": "string",

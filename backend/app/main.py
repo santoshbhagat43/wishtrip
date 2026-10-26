@@ -21,6 +21,7 @@ from app.modules.creators.router import router as creators_router
 from app.modules.creators.spotlight import router as spotlight_router
 from app.modules.explore.router import router as explore_router
 from app.modules.flights.router import router as flights_router
+from app.modules.hotels.matches import router as hotel_matches_router
 from app.modules.hotels.router import router as hotels_router
 from app.modules.insurance.router import router as insurance_router
 from app.modules.knowledge.router import router as knowledge_router
@@ -58,6 +59,7 @@ for router in (
     chat_router,
     reels_router,
     hotels_router,
+    hotel_matches_router,
     flights_router,
     insurance_router,
     tripjack_router,
