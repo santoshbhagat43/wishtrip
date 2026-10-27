@@ -482,3 +482,60 @@ def test_a_screen_that_repeats_is_read_once_but_a_new_caption_is_kept(tmp_path):
         shot("d", "Tower Bridge"),  # an earlier screen coming back
     ]
     assert [f.path.stem for f in media.new_screens(frames)] == ["a", "c"]
+
+
+async def _imports(client, admin, **params):
+    r = await client.get("/reels/admin/imports", params=params, headers=auth(admin))
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def test_staff_page_through_and_search_the_import_list(client, admin, traveler):
+    from datetime import UTC, datetime, timedelta
+
+    from app.modules.reels.models import ImportStatus, ReelImport
+
+    async with SessionLocal() as session:
+        now = datetime.now(UTC)
+        for i in range(7):
+            session.add(
+                ReelImport(
+                    url=f"https://www.instagram.com/reel/Code{i}/",
+                    shortcode=f"Code{i}",
+                    user_id=traveler.id,
+                    status=ImportStatus.FAILED if i % 3 == 0 else ImportStatus.DONE,
+                    error="Instagram said no" if i % 3 == 0 else "",
+                    finished_at=now,
+                    created_at=now - timedelta(minutes=i),  # Code0 is the newest
+                )
+            )
+        await session.commit()
+
+    first = await _imports(client, admin, page=1, page_size=3)
+    assert [i["shortcode"] for i in first["items"]] == ["Code0", "Code1", "Code2"]
+    assert (first["total"], first["page"], first["page_size"]) == (7, 1, 3)
+    last = await _imports(client, admin, page=3, page_size=3)
+    assert [i["shortcode"] for i in last["items"]] == ["Code6"]
+    assert (await _imports(client, admin, page=4, page_size=3))["items"] == []
+
+    # Search by a piece of the link, the error, or who asked; the totals still cover everything.
+    by_code = await _imports(client, admin, q="code4")
+    assert [i["shortcode"] for i in by_code["items"]] == ["Code4"] and by_code["total"] == 1
+    assert by_code["totals"]["total"] == 7
+    by_error = await _imports(client, admin, q="said no")
+    assert sorted(i["shortcode"] for i in by_error["items"]) == ["Code0", "Code3", "Code6"]
+    by_person = await _imports(client, admin, q=traveler.email.split("@")[0])
+    assert by_person["total"] == 7
+    assert (await _imports(client, admin, q="nobody-has-this"))["total"] == 0
+    # A typed % or _ is not a wildcard.
+    assert (await _imports(client, admin, q="%"))["total"] == 0
+    assert (await _imports(client, admin, q="_"))["total"] == 0
+
+    # Filter by state, and combine it with a search.
+    failed = await _imports(client, admin, status="failed")
+    assert failed["total"] == 3 and {i["status"] for i in failed["items"]} == {"failed"}
+    assert (await _imports(client, admin, status="done"))["total"] == 4
+    assert (await _imports(client, admin, status="failed", q="Code3"))["total"] == 1
+    assert (await _imports(client, admin, status="in_progress"))["total"] == 0
+    bad = await client.get("/reels/admin/imports?page_size=1000", headers=auth(admin))
+    assert bad.status_code == 422

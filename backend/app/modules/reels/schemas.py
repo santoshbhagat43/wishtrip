@@ -141,6 +141,10 @@ class ImportTotals(BaseModel):
 class ImportList(BaseModel):
     totals: ImportTotals
     items: list[ImportRow]
+    # How many imports match the search and filter (the totals above cover all of them).
+    total: int
+    page: int
+    page_size: int
 
 
 class ImportDetail(ImportRow):

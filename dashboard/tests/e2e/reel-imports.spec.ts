@@ -44,4 +44,50 @@ test.describe("Reel imports", () => {
       psql(`delete from reel_imports where id = '${id}'`);
     }
   });
+
+  test("staff page through the imports and search them", async ({ page, apiLog: _ }) => {
+    const tag = `pg${Date.now().toString(36)}`;
+    const now = Date.now();
+    const rows = Array.from({ length: 30 }, (_, i) => {
+      const failed = i % 10 === 0;
+      return `('https://www.instagram.com/reel/${tag}${String(i).padStart(2, "0")}/', '${tag}${String(i).padStart(2, "0")}', ${failed ? "'failed'" : "'done'"}, ${failed ? "'Instagram said no'" : "''"}, '${new Date(now - 3_600_000 - i * 1000).toISOString()}')`;
+    });
+    psql(
+      `insert into reel_imports (id, url, shortcode, user_id, kind, status, step, error, log, created_at, updated_at, finished_at) select gen_random_uuid(), v.url, v.code, u.id, 'creator_trip', v.status, 'done', v.error, '[]'::jsonb, v.at::timestamptz, now(), v.at::timestamptz from users u, (values ${rows.join(",")}) as v(url, code, status, error, at) where u.role = 'admin' limit 30`,
+    );
+    try {
+      await page.goto("/reels");
+      await expect(page.getByRole("heading", { level: 1, name: "Reel imports" })).toBeVisible();
+      await page.getByLabel("Search").fill(tag);
+      await page.getByRole("button", { name: "Search" }).click();
+
+      // 30 match; 25 on the first page, the rest on the second.
+      await expect(page.getByText("1–25 of 30")).toBeVisible();
+      await expect(page.getByRole("row")).toHaveCount(26); // header + 25
+      await page.getByRole("button", { name: "Next" }).click();
+      await expect(page.getByText("26–30 of 30")).toBeVisible();
+      await expect(page.getByRole("row")).toHaveCount(6);
+      await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
+
+      // A narrower search goes back to the first page.
+      await page.getByLabel("Search").fill(`${tag}07`);
+      await page.getByRole("button", { name: "Search" }).click();
+      await expect(page.getByText("1–1 of 1")).toBeVisible();
+      await expect(page.getByRole("row").filter({ hasText: `${tag}07` })).toBeVisible();
+
+      // Filter by state, then clear everything.
+      await page.getByLabel("Search").fill(tag);
+      await page.getByRole("button", { name: "Search" }).click();
+      await page.getByLabel("Status").selectOption("failed");
+      await expect(page.getByText("1–3 of 3")).toBeVisible();
+      await expect(page.getByText("Instagram said no").first()).toBeVisible();
+      await page.getByLabel("Search").fill("nothing-matches-this-xyz");
+      await page.getByRole("button", { name: "Search" }).click();
+      await expect(page.getByText("No imports match that search.")).toBeVisible();
+      await page.getByRole("button", { name: "Clear" }).click();
+      await expect(page.getByText("No imports match that search.")).toHaveCount(0);
+    } finally {
+      psql(`delete from reel_imports where shortcode like '${tag}%'`);
+    }
+  });
 });

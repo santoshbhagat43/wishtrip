@@ -851,7 +851,8 @@ export interface paths {
         };
         /**
          * Admin Imports
-         * @description Every reel import, newest first, with its stage and how long each stage took.
+         * @description Reel imports, newest first, a page at a time, with each one's stage and how long each stage
+         *     took. The totals always cover every import, not just the page or the search.
          */
         get: operations["admin_imports_reels_admin_imports_get"];
         put?: never;
@@ -2997,6 +2998,11 @@ export interface components {
             /** Share Code */
             share_code?: string | null;
             /**
+             * Completing
+             * @default false
+             */
+            completing: boolean;
+            /**
              * Created At
              * Format: date-time
              */
@@ -3496,6 +3502,12 @@ export interface components {
             totals: components["schemas"]["ImportTotals"];
             /** Items */
             items: components["schemas"]["ImportRow"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
         };
         /** ImportLogEntry */
         ImportLogEntry: {
@@ -7740,7 +7752,12 @@ export interface operations {
     admin_imports_reels_admin_imports_get: {
         parameters: {
             query?: {
-                limit?: number;
+                page?: number;
+                page_size?: number;
+                /** @description Matches the link, shortcode, error, who asked, creator or destination */
+                q?: string | null;
+                /** @description Only this state (in progress = queued or running) */
+                status?: ("in_progress" | "done" | "failed") | null;
             };
             header?: never;
             path?: never;

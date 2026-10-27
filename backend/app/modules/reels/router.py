@@ -1,8 +1,9 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import case, func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
@@ -255,16 +256,60 @@ async def _row(session: AsyncSession, job: ReelImport) -> dict:
     }
 
 
+def _like(text: str) -> str:
+    """A LIKE pattern that matches the text literally (a typed % or _ is not a wildcard)."""
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 @router.get("/admin/imports", response_model=ImportList)
 async def admin_imports(
-    limit: int = 100,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    q: str | None = Query(
+        None, description="Matches the link, shortcode, error, who asked, creator or destination"
+    ),
+    state: Literal["in_progress", "done", "failed"] | None = Query(
+        None, alias="status", description="Only this state (in progress = queued or running)"
+    ),
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
 ):
-    """Every reel import, newest first, with its stage and how long each stage took."""
+    """Reel imports, newest first, a page at a time, with each one's stage and how long each stage
+    took. The totals always cover every import, not just the page or the search."""
+    query = (
+        select(ReelImport)
+        .join(User, User.id == ReelImport.user_id)
+        .outerjoin(CreatorContent, CreatorContent.id == ReelImport.content_id)
+        .outerjoin(Creator, Creator.id == CreatorContent.creator_id)
+    )
+    if state == "in_progress":
+        query = query.where(ReelImport.status.in_((ImportStatus.QUEUED, ImportStatus.RUNNING)))
+    elif state:
+        query = query.where(ReelImport.status == ImportStatus(state))
+    if q and q.strip():
+        like = _like(q.strip())
+        query = query.where(
+            or_(
+                *(
+                    column.ilike(like, escape="\\")
+                    for column in (
+                        ReelImport.url,
+                        ReelImport.shortcode,
+                        ReelImport.error,
+                        User.email,
+                        Creator.handle,
+                        CreatorContent.destination_name,
+                    )
+                )
+            )
+        )
+    matching = await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     jobs = (
         await session.scalars(
-            select(ReelImport).order_by(ReelImport.created_at.desc()).limit(min(limit, 300))
+            query.order_by(ReelImport.created_at.desc(), ReelImport.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
     ).all()
     rows = [ImportRow(**await _row(session, j)) for j in jobs]
@@ -275,16 +320,23 @@ async def admin_imports(
             )
         ).all()
     )
-    finished = [r.total_seconds for r in rows if r.status == ImportStatus.DONE and r.stages]
+    average = await session.scalar(
+        select(
+            func.avg(func.extract("epoch", ReelImport.finished_at - ReelImport.created_at))
+        ).where(ReelImport.status == ImportStatus.DONE, ReelImport.finished_at.is_not(None))
+    )
     return ImportList(
         totals=ImportTotals(
             total=sum(by_status.values()),
             done=by_status.get(ImportStatus.DONE, 0),
             failed=by_status.get(ImportStatus.FAILED, 0),
             running=by_status.get(ImportStatus.RUNNING, 0) + by_status.get(ImportStatus.QUEUED, 0),
-            average_seconds=round(sum(finished) / len(finished), 1) if finished else None,
+            average_seconds=round(float(average), 1) if average is not None else None,
         ),
         items=rows,
+        total=matching,
+        page=page,
+        page_size=page_size,
     )
 
 

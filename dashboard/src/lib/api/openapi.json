@@ -2750,7 +2750,7 @@
      "reels"
     ],
     "summary": "Admin Imports",
-    "description": "Every reel import, newest first, with its stage and how long each stage took.",
+    "description": "Reel imports, newest first, a page at a time, with each one's stage and how long each stage\ntook. The totals always cover every import, not just the page or the search.",
     "operationId": "admin_imports_reels_admin_imports_get",
     "security": [
      {
@@ -2759,14 +2759,68 @@
     ],
     "parameters": [
      {
-      "name": "limit",
+      "name": "page",
       "in": "query",
       "required": false,
       "schema": {
        "type": "integer",
-       "default": 100,
-       "title": "Limit"
+       "minimum": 1,
+       "default": 1,
+       "title": "Page"
       }
+     },
+     {
+      "name": "page_size",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 100,
+       "minimum": 1,
+       "default": 25,
+       "title": "Page Size"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Matches the link, shortcode, error, who asked, creator or destination",
+       "title": "Q"
+      },
+      "description": "Matches the link, shortcode, error, who asked, creator or destination"
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "in_progress",
+          "done",
+          "failed"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Only this state (in progress = queued or running)",
+       "title": "Status"
+      },
+      "description": "Only this state (in progress = queued or running)"
      }
     ],
     "responses": {
@@ -8751,6 +8805,11 @@
       ],
       "title": "Share Code"
      },
+     "completing": {
+      "type": "boolean",
+      "title": "Completing",
+      "default": false
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -10104,12 +10163,27 @@
       },
       "type": "array",
       "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "page": {
+      "type": "integer",
+      "title": "Page"
+     },
+     "page_size": {
+      "type": "integer",
+      "title": "Page Size"
      }
     },
     "type": "object",
     "required": [
      "totals",
-     "items"
+     "items",
+     "total",
+     "page",
+     "page_size"
     ],
     "title": "ImportList"
    },

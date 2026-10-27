@@ -2,23 +2,41 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, ErrorNote, HeaderStats, PageHeader, Spinner } from "@/components/ui/card";
-import { Table, Td, Th } from "@/components/ui/table";
+import { Input, Select } from "@/components/ui/field";
+import { Pagination, Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap } from "@/lib/api/client";
 import { relativeTime, titleCase } from "@/lib/format";
 import { useMe } from "@/lib/hooks/use-me";
 import { STAGE_LABEL, STATUS_TONE, seconds } from "@/lib/reels";
 
+type State = "" | "in_progress" | "done" | "failed";
+
+const PAGE = 25;
+
 export default function ReelsPage() {
   const { data: me } = useMe();
   const allowed = me?.role === "admin" || me?.role === "editor";
+  const [page, setPage] = useState(1);
+  const [state, setState] = useState<State>("");
+  const [text, setText] = useState("");
+  const [q, setQ] = useState("");
   const imports = useQuery({
-    queryKey: ["reel-imports"],
+    queryKey: ["reel-imports", page, state, q],
     enabled: allowed,
     refetchInterval: 5000,
-    queryFn: async () => unwrap(await api.GET("/reels/admin/imports", { params: { query: { limit: 200 } } })),
+    // Keep showing the page while the next one loads, so the table doesn't flash to a spinner.
+    placeholderData: (previous) => previous,
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/reels/admin/imports", {
+          params: { query: { page, page_size: PAGE, status: state || undefined, q: q || undefined } },
+        }),
+      ),
   });
   if (!me) return <Spinner />;
   if (!allowed) {
@@ -48,7 +66,57 @@ export default function ReelsPage() {
         />
       )}
       <Card>
-        {imports.isLoading ? <Spinner /> : imports.error ? <div className="p-4"><ErrorNote error={imports.error} /></div> : (
+        <form
+          className="flex flex-wrap items-center gap-2 border-b border-border p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setQ(text.trim());
+            setPage(1);
+          }}
+        >
+          <Select
+            className="w-auto"
+            value={state}
+            onChange={(e) => {
+              setState(e.target.value as State);
+              setPage(1);
+            }}
+            aria-label="Status"
+          >
+            <option value="">All imports</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
+            <option value="failed">Failed</option>
+          </Select>
+          <Input
+            className="min-w-[220px] flex-1"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Search the link, creator, destination, who asked or the error…"
+            aria-label="Search"
+          />
+          <Button type="submit" variant="secondary">Search</Button>
+          {(q || state) && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setText("");
+                setQ("");
+                setState("");
+                setPage(1);
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </form>
+        {imports.isLoading ? <Spinner /> : imports.error ? <div className="p-4"><ErrorNote error={imports.error} /></div> : imports.data!.items.length === 0 ? (
+          <p className="m-0 p-8 text-center text-sm text-muted">
+            {q || state ? "No imports match that search." : "No reels have been imported yet."}
+          </p>
+        ) : (
+          <>
           <Table>
             <thead>
               <tr>
@@ -85,6 +153,8 @@ export default function ReelsPage() {
               })}
             </tbody>
           </Table>
+          <Pagination page={page} pageSize={PAGE} total={imports.data!.total} onPage={setPage} />
+          </>
         )}
       </Card>
     </div>
