@@ -172,11 +172,14 @@ def new_screens(frame_list: list[Frame]) -> list[Frame]:
 def ocr(frame_list: list[Frame], workers: int | None = None) -> list[dict]:
     """Text on screen, once per line: overlays stay up across many frames.
 
-    Frames are read in parallel (Tesseract runs as a subprocess, so threads are enough) and
-    merged in frame order, so the result is the same as reading them one by one."""
+    Repeated screens are dropped, and at most REEL_OCR_MAX_FRAMES of the rest are read, spread
+    over the whole video. Frames are read in parallel (Tesseract runs as a subprocess, so threads
+    are enough) and merged in frame order, so the result is the same as reading them one by one."""
     from app.core.config import settings
 
     frame_list = new_screens(frame_list)
+    if settings.reel_ocr_max_frames > 0:
+        frame_list = spread(frame_list, settings.reel_ocr_max_frames)
     if not frame_list:
         return []
     # One Tesseract thread per frame: several frames at once beats one frame on all cores.

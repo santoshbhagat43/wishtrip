@@ -41,6 +41,14 @@ class AIOrchestrator:
             self._query_cache[text] = (await self.embed([text], "query"))[0]
         return self._query_cache[text]
 
+    async def embed_queries(self, texts: list[str]) -> None:
+        """Embed several queries in one call, so the `embed_query` calls that follow are instant
+        (one round trip instead of one per query)."""
+        missing = [t for t in dict.fromkeys(texts) if t not in self._query_cache]
+        if missing:
+            vectors = await self.embed(missing, "query")
+            self._query_cache.update(zip(missing, vectors, strict=True))
+
     async def complete(self, task: str, messages: list[dict[str, Any]], **kwargs: Any) -> str:
         return await self.client.chat(task, messages, **kwargs)
 

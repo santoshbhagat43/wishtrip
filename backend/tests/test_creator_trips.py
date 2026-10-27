@@ -381,6 +381,51 @@ def test_frames_are_spread_over_the_whole_video():
     assert media.spread(frames, 0) == [] and media.spread([], 5) == []
 
 
+def test_ocr_reads_at_most_the_frame_budget_spread_over_the_video(monkeypatch):
+    from pathlib import Path
+
+    from app.modules.reels import media
+
+    frames = [media.Frame(t=float(i), path=Path(f"f{i}.jpg")) for i in range(50)]
+    read: list[str] = []
+    monkeypatch.setattr(media, "new_screens", lambda f: f)  # every frame a new screen
+    monkeypatch.setattr(media, "_languages", lambda: "eng")
+    monkeypatch.setattr(media, "_read_frame", lambda path, lang: read.append(path.name) or "")
+    monkeypatch.setattr(settings, "reel_ocr_max_frames", 5)
+    media.ocr(frames, workers=1)
+    assert sorted(read, key=lambda n: int(n[1:-4])) == [
+        "f0.jpg",
+        "f12.jpg",
+        "f24.jpg",
+        "f37.jpg",
+        "f49.jpg",
+    ]
+    read.clear()
+    monkeypatch.setattr(settings, "reel_ocr_max_frames", 0)  # 0 = read them all
+    media.ocr(frames, workers=1)
+    assert len(read) == 50
+
+
+async def test_several_queries_are_embedded_in_one_call():
+    from app.ai.orchestrator import AIOrchestrator
+
+    calls: list[list[str]] = []
+
+    class Counting:
+        name = "counting"
+
+        async def embed(self, texts, kind="document"):
+            calls.append(list(texts))
+            return [[float(len(t))] for t in texts]
+
+    ai = AIOrchestrator(embedder=Counting())
+    await ai.embed_queries(["Tower Bridge London", "Borough Market London", "Tower Bridge London"])
+    assert calls == [["Tower Bridge London", "Borough Market London"]]
+    assert await ai.embed_query("Borough Market London") == [21.0]
+    await ai.embed_queries(["Tower Bridge London"])  # already known: no call at all
+    assert len(calls) == 1
+
+
 async def _publish_trips(client, headers, urls: list[str]) -> list[dict]:
     """Make and publish one trip per reel URL; return the creator's trips, oldest first."""
     for url in urls:

@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     reel_transcribe_model: str = "google/gemini-2.5-flash"
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
+    # At most this many of those frames are read by OCR, spread over the whole video (after
+    # repeated screens are dropped). OCR is the slow part on a small server: about a second a
+    # frame per core. 0 = read them all.
+    reel_ocr_max_frames: int = 30
     # Frames kept from each video for the creator to choose a cover from (0 = keep none).
     reel_cover_frames: int = 12
     # Frames read by OCR at the same time. 0 = one per CPU. Tesseract is single-threaded per
@@ -83,6 +87,9 @@ class Settings(BaseSettings):
     # Top a creator's itinerary up to a whole trip (at least two full days) from the knowledge
     # base and clearly-labelled AI suggestions. Off only for tests of the bare reading.
     complete_itineraries: bool = True
+    # When the video's own places already make a trip of two days or more, show the creator
+    # those at once and add the rest in the background (a worker), instead of making them wait.
+    complete_trips_in_background: bool = True
     reel_upload_max_mb: int = 120
     # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
     # outside MEDIA_ROOT: everything there is served publicly.
@@ -96,6 +103,9 @@ class Settings(BaseSettings):
     # Unset = no fallback. Keep the key server-side; every use is recorded in download_requests.
     saveapi_key: str | None = None
     saveapi_url: str = "https://api.saveapi.org"
+    # Instagram reels come from SaveAPI only (about 2 s, no Instagram login needed); false = our
+    # own instaloader first, SaveAPI as its fallback. Without a key, instaloader is used either way.
+    instagram_via_saveapi: bool = True
     instagram_username: str | None = None
     instagram_session_file: str | None = None
 

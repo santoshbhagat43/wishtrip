@@ -231,6 +231,8 @@ class CreatorTripRead(BaseModel):
     items: list[TripItem]
     status: TripStatus
     share_code: str | None = None
+    # Suggested stops are still being added in the background; read the trip again shortly.
+    completing: bool = False
     created_at: datetime
     updated_at: datetime
 

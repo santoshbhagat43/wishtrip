@@ -1,7 +1,10 @@
 """Creator-owned itineraries: built from a creator's own reel, edited, then published as a
 shareable, affiliate-tagged link."""
 
+import copy
+import logging
 import secrets
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -13,7 +16,16 @@ from app.core.config import settings
 from app.core.errors import bad_request, not_found
 from app.modules.creators.models import Creator, CreatorLink, CreatorTrip, TripStatus
 from app.modules.media.storage import storage
-from app.modules.reels.complete import Plan, complete, target_days
+from app.modules.reels.complete import (
+    MIN_DAYS,
+    MIN_STOPS_PER_DAY,
+    STOPS_PER_DAY,
+    Plan,
+    complete,
+    target_days,
+)
+
+logger = logging.getLogger(__name__)
 
 ITEM_KINDS = {"stay", "food", "sight", "experience", "area", "note"}
 ORIGINS = {"reel", "kb", "suggested", "creator"}
@@ -88,16 +100,38 @@ def _stay_first(items: list[dict]) -> list[dict]:
     return sorted(items, key=lambda i: (i["kind"] != "stay", i["day"] or 0))
 
 
+def _complete_later(named: list[dict], days_hint: int | None, ai: AIOrchestrator | None) -> bool:
+    """Top the trip up in the background? Only when the video's own places already make a trip
+    of at least two days (so it can be shown as it is) and some are still missing."""
+    if not (settings.complete_itineraries and settings.complete_trips_in_background):
+        return False
+    if ai is None or not ai.enabled:
+        return False
+    stops = [i for i in named if i["kind"] != "stay"]
+    enough = len(stops) >= MIN_DAYS * MIN_STOPS_PER_DAY
+    missing = target_days(days_hint) * STOPS_PER_DAY - len(stops)
+    return enough and missing > 0
+
+
 async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator | None = None):
     """Turn a processed reel into a draft trip owned by the creator who imported it.
 
-    The places the video names are topped up to a whole trip first (see `reels.complete`)."""
+    The places the video names are topped up to a whole trip (see `reels.complete`). That takes
+    two model calls, so when the video's own places already make a trip, the creator gets those
+    straight away and the rest are added in the background (`complete_in_background`)."""
     creator = await session.scalar(select(Creator).where(Creator.user_id == job.user_id))
     if creator is None:
         raise not_found("Creator")
     extracted = content.extracted or {}
     named = [_item_from_place(p) for p in content.places if p.get("kind") != "area"]
-    if settings.complete_itineraries:
+    later = _complete_later(named, extracted.get("days_hint"), ai)
+    if later:
+        stops = [i for i in named if i["kind"] != "stay"]
+        days = max(
+            MIN_DAYS, min(target_days(extracted.get("days_hint")), len(stops) // MIN_STOPS_PER_DAY)
+        )
+        plan = Plan(items=named, days=days)
+    elif settings.complete_itineraries:
         plan = await complete(
             session,
             ai,
@@ -119,14 +153,15 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
         thumbnail_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
         items=_stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days),
+        completing=later,
     )
     session.add(trip)
     await session.flush()
     job.content_id = content.id
     job.creator_trip_id = trip.id
-    # A reel link that asked for it publishes the moment its itinerary exists.
+    # A reel link that asked for it publishes the moment its itinerary exists (once it is whole).
     link = await session.scalar(select(CreatorLink).where(CreatorLink.import_id == job.id))
-    if link is not None and link.auto_publish and trip.items:
+    if link is not None and link.auto_publish and trip.items and not later:
         await publish(session, trip)
     # status/step set DONE by the caller's commit path
     from app.modules.reels.models import ImportStatus, ImportStep
@@ -134,7 +169,102 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
     job.status, job.step, job.error = ImportStatus.DONE, ImportStep.DONE, ""
     job.finished_at = datetime.now(UTC)
     await session.commit()
+    if later:
+        await _queue_completion(session, trip.id, list(trip.items), ai)
     return trip
+
+
+async def _queue_completion(
+    session: AsyncSession, trip_id: uuid.UUID, shown: list[dict], ai: AIOrchestrator | None
+) -> None:
+    if settings.reels_inline:
+        await complete_in_background(session, trip_id, ai, shown)
+        return
+    from app.workers.tasks import complete_trip_task
+
+    try:
+        complete_trip_task.delay(str(trip_id), shown)
+    except Exception:  # noqa: BLE001 - the broker is down: top it up now rather than never
+        logger.exception("Could not queue the top-up of trip %s; doing it now", trip_id)
+        await complete_in_background(session, trip_id, ai, shown)
+
+
+def _stops(items: list[dict] | None) -> list[tuple]:
+    """What the creator can change about the stops, to tell whether they did."""
+    return [
+        (i.get("id"), i.get("name"), i.get("kind"), i.get("day"), i.get("note"))
+        for i in items or []
+    ]
+
+
+async def complete_in_background(
+    session: AsyncSession,
+    trip_id: uuid.UUID,
+    ai: AIOrchestrator | None,
+    shown: list[dict] | None = None,
+) -> None:
+    """Top a trip up to a whole trip after the creator already has the video's own places
+    (`shown`: the stops as they were first shown).
+
+    If the creator changed the stops since, their version wins and nothing is added. Either way
+    the trip stops being 'completing', and a reel link that asked to auto-publish does so."""
+    from app.modules.reels.models import CreatorContent, ReelImport
+
+    trip = await session.get(CreatorTrip, trip_id)
+    if trip is None or not trip.completing:
+        return
+    started = time.monotonic()
+    before = copy.deepcopy(list(trip.items or []))
+    edited = shown is not None and _stops(before) != _stops(shown)
+    content = await session.scalar(
+        select(CreatorContent).where(CreatorContent.shortcode == trip.source_shortcode)
+    )
+    items: list[dict] | None = None
+    if content is not None and not edited:
+        extracted = content.extracted or {}
+        try:
+            plan = await complete(
+                session,
+                ai,
+                destination=trip.destination_name,
+                destination_id=content.destination_id,
+                summary=extracted.get("summary", ""),
+                items=copy.deepcopy(before),
+                days_hint=extracted.get("days_hint"),
+            )
+            items = _stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days)
+        except Exception:  # noqa: BLE001 - the trip stays as the video made it
+            logger.exception("Could not top up trip %s", trip_id)
+    await session.refresh(trip)  # the creator may have edited it while we worked
+    added = 0
+    if items is not None and _stops(trip.items) == _stops(before):
+        trip.items = items
+        added = len(items) - len(before)
+    trip.completing = False
+    job = await session.scalar(select(ReelImport).where(ReelImport.creator_trip_id == trip.id))
+    link = (
+        await session.scalar(select(CreatorLink).where(CreatorLink.import_id == job.id))
+        if job is not None
+        else None
+    )
+    if link is not None and link.auto_publish and trip.items:
+        await publish(session, trip)
+    if job is not None:
+        job.log = [
+            *(job.log or []),
+            {
+                "at": datetime.now(UTC).isoformat(),
+                "message": (
+                    f"Topped up in the background: {added} stops added"
+                    if items is not None and added
+                    else "Not topped up: the creator changed the stops first"
+                    if edited or items is not None
+                    else "Not topped up: the suggestions could not be made"
+                ),
+                "seconds": round(time.monotonic() - started, 1),
+            },
+        ]
+    await session.commit()
 
 
 async def create_from_content(

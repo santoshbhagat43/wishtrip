@@ -349,9 +349,11 @@ test.describe("Reel links", () => {
     await expect(sheet.getByText(/Uluwatu/).first()).toBeVisible();
     await openDayWith(sheet, /From the reel · \d+:\d\d/);
     await expect(sheet.getByText(/From the reel · \d+:\d\d/).first()).toBeVisible();
-    // The video names five places and says "4 days": the itinerary is made whole, and says which
-    // stops are the video's and which were added.
-    await expect(sheet.getByRole("tab", { name: /Day 4/ })).toBeVisible();
+    // The video names five places and says "4 days": those five show straight away, and the
+    // itinerary is made whole in the background, saying which stops are the video's and which
+    // were added.
+    await expect(sheet.getByRole("tab", { name: /Day 4/ })).toBeVisible({ timeout: 120_000 });
+    await expect(sheet.getByText(/We.re adding suggestions/)).toHaveCount(0);
     await openDayWith(sheet, "Wishtrip recommended");
     await expect(sheet.getByText("Wishtrip recommended").first()).toBeVisible();
     if (SHOT) await page.screenshot({ path: `${SHOT}/links-upload.png`, fullPage: true });

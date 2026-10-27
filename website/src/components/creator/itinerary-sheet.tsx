@@ -185,6 +185,8 @@ export function ItinerarySheet({
     enabled: !!link.trip_id,
     queryFn: async () =>
       unwrap(await api.GET("/creator/trips/{trip_id}", { params: { path: { trip_id: link.trip_id! } } })),
+    // While suggested stops are still being added in the background, check back for them.
+    refetchInterval: (query) => (query.state.data?.completing ? 3000 : false),
   });
   const days = daysFromItems(trip.data?.items ?? []);
   const fromReel = days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0);
@@ -346,6 +348,16 @@ export function ItinerarySheet({
               <p className="py-8 text-sm text-muted">Loading your itinerary…</p>
             ) : (
               <>
+                {trip.data?.completing && (
+                  <p
+                    role="status"
+                    className="m-0 flex items-center gap-2.5 rounded-2xl bg-brand-soft px-4 py-3 text-[14px] text-brand"
+                  >
+                    <span className="size-2 shrink-0 animate-pulse rounded-full bg-brand" aria-hidden />
+                    These are the places from your video. We&rsquo;re adding suggestions so every day is full;
+                    they&rsquo;ll appear here in about a minute.
+                  </p>
+                )}
                 <p className="m-0 text-[13px] text-muted">Tap a day to see its stops</p>
                 <div role="tablist" aria-label="Days" className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
                   {days.map((d, i) => {

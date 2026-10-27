@@ -933,3 +933,102 @@ def test_the_same_place_is_not_added_twice_but_neighbours_are():
     assert _already_there("Ubud Palace", have)
     assert not _already_there("Ubud Monkey Forest", have)  # shares only the town's name
     assert not _already_there("Jatiluwih Rice Terraces", have)  # shares only a kind of place
+
+
+# The creator sees the video's places first; the rest is added in the background ---------------
+
+
+@pytest.fixture
+def top_up_later(monkeypatch):
+    """Hold the background top-up instead of running it, so the test sees the trip before it."""
+    from app.modules.creators import trips
+
+    held: list[uuid.UUID] = []
+
+    async def hold(session, trip_id, shown, ai):
+        held.append(trip_id)
+
+    monkeypatch.setattr(trips, "_queue_completion", hold)
+    return held
+
+
+async def _top_up(trip, ai):
+    """Run the held top-up, as the worker would, for the trip as it was first shown."""
+    from app.modules.creators import trips
+
+    async with SessionLocal() as session:
+        await trips.complete_in_background(
+            session, uuid.UUID(trip["id"]), AIOrchestrator(client=ai), trip["items"]
+        )
+
+
+FIVE = ["Ubud Palace", "Campuhan Ridge", "Tegalalang Terrace", "Goa Gajah", "Saraswati Temple"]
+
+
+async def test_a_video_that_makes_a_trip_is_shown_first_and_topped_up_after(
+    client, whole_itineraries, top_up_later
+):
+    whole_itineraries["places"] = _named(*FIVE)
+    ai = Suggester(_suggestions(4))
+    headers = await _creator(client, "fast@creators.example.com")
+    link, trip = await _trip_of(client, headers, ai)
+
+    # Ready straight away with the video's own five places over two days: no model call yet.
+    assert link["status"] == "ready" and trip["completing"] is True
+    assert [i["origin"] for i in trip["items"]] == ["reel"] * 5
+    assert sorted(_by_day(trip)) == [1, 2]
+    assert ai.asked == [] and top_up_later == [uuid.UUID(trip["id"])]
+
+    await _top_up(trip, ai)
+    trip = (await client.get(f"/creator/trips/{trip['id']}", headers=headers)).json()
+    assert trip["completing"] is False
+    days = _by_day(trip)
+    assert sorted(days) == [1, 2, 3] and all(len(s) == 3 for s in days.values())
+    assert [i["origin"] for i in trip["items"]].count("suggested") == 4
+    async with SessionLocal() as session:
+        job = await session.scalar(
+            select(ReelImport).where(ReelImport.creator_trip_id == uuid.UUID(trip["id"]))
+        )
+    notes = [e.get("message") or "" for e in job.log]
+    assert "Topped up in the background: 4 stops added" in notes
+
+
+async def test_the_creators_own_edits_win_over_the_top_up(client, whole_itineraries, top_up_later):
+    whole_itineraries["places"] = _named(*FIVE)
+    ai = Suggester(_suggestions(4))
+    headers = await _creator(client, "edits@creators.example.com")
+    _, trip = await _trip_of(client, headers, ai)
+
+    mine = [{**i, "name": f"{i['name']} (mine)"} for i in trip["items"][:4]]
+    r = await client.patch(f"/creator/trips/{trip['id']}", json={"items": mine}, headers=headers)
+    assert r.status_code == 200
+    await _top_up(trip, ai)
+    trip = (await client.get(f"/creator/trips/{trip['id']}", headers=headers)).json()
+    assert trip["completing"] is False
+    assert [i["name"] for i in trip["items"]] == [i["name"] for i in mine]
+
+
+async def test_a_video_too_thin_for_a_trip_is_still_completed_before_it_is_shown(
+    client, whole_itineraries, top_up_later
+):
+    whole_itineraries["places"] = _named("Ubud Palace", "Campuhan Ridge", "Tegalalang Terrace")
+    headers = await _creator(client, "thin2@creators.example.com")
+    _, trip = await _trip_of(client, headers, Suggester(_suggestions(6)))
+    assert trip["completing"] is False and len(trip["items"]) == 9
+    assert top_up_later == []
+
+
+async def test_an_auto_publishing_link_publishes_once_the_trip_is_whole(
+    client, whole_itineraries, top_up_later
+):
+    whole_itineraries["places"] = _named(*FIVE)
+    ai = Suggester(_suggestions(4))
+    headers = await _creator(client, "auto@creators.example.com")
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    link = await _link_with_reel(client, headers, auto_publish=True)
+    assert link["status"] == "ready" and link["share_code"] is None  # not the half-made trip
+
+    shown = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
+    await _top_up(shown, ai)
+    trip = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
+    assert trip["status"] == "published" and len(trip["items"]) == 9

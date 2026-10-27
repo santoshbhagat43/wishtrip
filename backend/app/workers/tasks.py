@@ -90,6 +90,24 @@ def sync_region_content_task(region_id: int) -> int:
     return asyncio.run(_hotel_sync("content", region_id))
 
 
+async def _complete_trip(trip_id: str, shown: list[dict] | None) -> None:
+    from app.modules.creators import trips
+
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            await trips.complete_in_background(session, uuid.UUID(trip_id), AIOrchestrator(), shown)
+    finally:
+        await engine.dispose()
+
+
+# A creator's trip, topped up after they already have the video's own places. On the default
+# queue (network-bound model calls), not the media queue that is busy reading the next reel.
+@celery_app.task(name="trips.complete", soft_time_limit=300, time_limit=330)
+def complete_trip_task(trip_id: str, shown: list[dict] | None = None) -> None:
+    asyncio.run(_complete_trip(trip_id, shown))
+
+
 # Transactional emails (creator onboarding, sign-in codes): rendered and sent by SMTP.
 @celery_app.task(name="emails.send", autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def send_email_task(name: str, to: str, variables: dict) -> bool:

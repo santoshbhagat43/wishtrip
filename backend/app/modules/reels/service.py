@@ -195,7 +195,8 @@ def _saveapi_error(exc: saveapi.SaveApiError, youtube: bool) -> ReelError | None
 
 
 def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[Attempt]) -> dict:
-    """Our own download failed: try SaveAPI and record the try. Raises what to tell the creator."""
+    """Fetch with SaveAPI (Instagram's way in; YouTube's when our own download failed) and record
+    the try. Raises SaveApiError."""
     url = canonical_url(shortcode)
     attempt = Attempt("saveapi", "youtube" if youtube else "instagram", url, shortcode)
     attempts.append(attempt)
@@ -228,14 +229,26 @@ def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[At
 def download(
     shortcode: str, workdir: Path, attempts: list[Attempt] | None = None
 ) -> dict[str, Any]:
-    """The reel or video: with our own tool first, in its own process and killed if the site makes
-    it wait too long; then, if that failed in a way another route might get round, with SaveAPI.
+    """The reel or video. Instagram comes from SaveAPI (when it is set up). YouTube comes from our
+    own tool first, in its own process and killed if the site makes it wait too long; then, if
+    that failed in a way another route might get round, from SaveAPI.
     Every try is appended to `attempts` (by default the list `produce_content` is keeping)."""
     if attempts is None:
         attempts = _attempts.get()
     if attempts is None:
         attempts = []
     youtube = shortcode.startswith(YOUTUBE_PREFIX)
+    if not youtube and settings.instagram_via_saveapi and saveapi.enabled():
+        # Instagram: SaveAPI only. It answers in about two seconds where our own download takes
+        # ten or more, and needs no signed-in Instagram session. It gives no caption, so the
+        # reading rests on the screen and the voice-over.
+        try:
+            return _ask_saveapi(shortcode, workdir, False, attempts)
+        except saveapi.SaveApiError as exc:
+            raise (
+                _saveapi_error(exc, False)
+                or ReelError("We couldn't download that reel. Try again in a bit.")
+            ) from exc
     module = "app.modules.reels.fetch_youtube" if youtube else "app.modules.reels.fetch"
     target = canonical_url(shortcode) if youtube else shortcode
     attempt = Attempt(
@@ -373,6 +386,14 @@ async def match_places(
     scope = [published, stops]
     if city_ids:
         scope.append(Location.parent_id.in_(city_ids))
+    search_by_meaning = bool(city_ids) and ai.embedder.name != "hashing"
+    if search_by_meaning:
+        # A place not found by name is looked up by meaning: embed every name at once, up front,
+        # rather than one embedding call per place.
+        try:
+            await ai.embed_queries([f"{p['name']} {reading.destination}" for p in reading.places])
+        except Exception:  # noqa: BLE001 - each lookup below then embeds its own name
+            logger.warning("Could not embed the place names in one go", exc_info=True)
     out: list[dict[str, Any]] = []
     for place in reading.places:
         name = place["name"]
@@ -395,7 +416,7 @@ async def match_places(
             ),
             None,
         )
-        if found is None and city_ids and ai.embedder.name != "hashing":
+        if found is None and search_by_meaning:
             hits = await semantic_search(
                 session, ai, f"{name} {reading.destination}", city_ids=city_ids, limit=1,
                 min_similarity=0.8,

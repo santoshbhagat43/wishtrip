@@ -219,6 +219,9 @@ class CreatorTrip(UUIDPrimaryKey, Timestamps, Base):
     share_code: Mapped[str | None] = mapped_column(String(64), unique=True)
     # The trip staff feature in the spotlight on the public Creator trips page (one at a time).
     spotlight: Mapped[bool] = mapped_column(Boolean, default=False)
+    # True while the stops the video named are being topped up to a whole trip in the background
+    # (the creator sees the video's own places first, and the rest arrive a little later).
+    completing: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class TravellerTrip(UUIDPrimaryKey, Timestamps, Base):

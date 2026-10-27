@@ -61,6 +61,8 @@ export default function TripEditorPage() {
   const trip = useQuery({
     queryKey: ["trip", id],
     queryFn: async () => unwrap(await api.GET("/creator/trips/{trip_id}", { params: { path: { trip_id: id } } })),
+    // While suggested stops are still being added in the background, check back for them.
+    refetchInterval: (query) => (query.state.data?.completing ? 3000 : false),
   });
 
   const [title, setTitle] = useState("");
@@ -72,12 +74,17 @@ export default function TripEditorPage() {
   const [choosingCover, setChoosingCover] = useState(false);
   const [choosingThumbnail, setChoosingThumbnail] = useState(false);
 
-  // Fill the form from the loaded trip once (adjust-state-while-rendering, not an effect).
-  if (trip.data && loadedId !== trip.data.id) {
+  const [syncedAt, setSyncedAt] = useState<string | null>(null);
+
+  // Fill the form from the loaded trip (adjust-state-while-rendering, not an effect): once, and
+  // again when the saved trip changes (the background top-up landing) unless the creator has
+  // unsaved edits, which always win.
+  if (trip.data && (loadedId !== trip.data.id || (!dirty && syncedAt !== trip.data.updated_at))) {
     setTitle(trip.data.title);
     setSummary(trip.data.summary);
     setItems(trip.data.items);
     setLoadedId(trip.data.id);
+    setSyncedAt(trip.data.updated_at);
   }
   const loaded = loadedId !== null;
 
@@ -159,6 +166,17 @@ export default function TripEditorPage() {
           </span>
         </span>
       </div>
+
+      {trip.data.completing && (
+        <p
+          role="status"
+          className="mt-4 flex items-center gap-2.5 rounded-2xl bg-brand-soft px-4 py-3 text-[14px] text-brand"
+        >
+          <span className="size-2 shrink-0 animate-pulse rounded-full bg-brand" aria-hidden />
+          These are the places from your video. We&rsquo;re adding suggestions so every day is full; they&rsquo;ll
+          appear here in about a minute. If you change the stops before then, we&rsquo;ll keep your version.
+        </p>
+      )}
 
       <section className="relative isolate mt-4 min-h-[190px] overflow-hidden rounded-[28px] bg-white text-black md:min-h-[220px]">
         {trip.data.cover_image_url ? (
