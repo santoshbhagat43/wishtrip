@@ -539,3 +539,22 @@ async def test_staff_page_through_and_search_the_import_list(client, admin, trav
     assert (await _imports(client, admin, status="in_progress"))["total"] == 0
     bad = await client.get("/reels/admin/imports?page_size=1000", headers=auth(admin))
     assert bad.status_code == 422
+
+
+async def test_an_area_the_reel_mentions_is_not_matched_to_a_stop_so_it_cannot_move_the_trip(client, london):
+    """A Dubai reel says "from Delhi or Mumbai". The area "Delhi" must not be matched to some
+    restaurant called Delhi (here: a place that is in London) and drag the whole trip there."""
+    from app.modules.reels.understand import Reading
+
+    reading = Reading(
+        destination="Dubai",
+        places=[
+            {"name": "Borough Market", "kind": "area", "evidence": "fly from", "source": "voice", "t": None},
+            {"name": "Burj Khalifa", "kind": "sight", "evidence": "caption", "source": "caption", "t": None},
+        ],
+    )
+    async with SessionLocal() as session:
+        destination, places = await service.match_places(session, AIOrchestrator(client=ReelAI()), reading)
+    assert destination is None  # Dubai is not in the knowledge base, and nothing moved it to London
+    area = next(p for p in places if p["kind"] == "area")
+    assert area["verified"] is False and area["location_id"] is None

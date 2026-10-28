@@ -27,6 +27,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import false as sql_false
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -398,10 +399,15 @@ async def match_places(
     for place in reading.places:
         name = place["name"]
         key = _norm(name)
+        # A place that is only an area ("Delhi", where they fly from; "North Goa") is not one of
+        # our stops: matching its name to a restaurant called "Delhi" in Tokyo once moved a Dubai
+        # trip to Tokyo.
+        is_area = place.get("kind") == "area"
         words = [w for w in key.split() if len(w) >= 4] or key.split()
         rows = await session.scalars(
             select(Location).where(
                 *scope,
+                *([sql_false()] if is_area else []),
                 or_(
                     *(func.lower(Location.name).contains(w) for w in words),
                     func.lower(func.array_to_string(Location.aliases, " ")).contains(key),
@@ -416,7 +422,7 @@ async def match_places(
             ),
             None,
         )
-        if found is None and search_by_meaning:
+        if found is None and search_by_meaning and not is_area:
             hits = await semantic_search(
                 session, ai, f"{name} {reading.destination}", city_ids=city_ids, limit=1,
                 min_similarity=0.8,
@@ -440,7 +446,7 @@ async def match_places(
     if destination is None or destination.type != LocationType.CITY:
         # "North Goa" is not a city we know, but the places it names are: use their city.
         parents: Counter[uuid.UUID] = Counter()
-        for p in (p for p in out if p["verified"]):
+        for p in (p for p in out if p["verified"] and p.get("kind") != "area"):
             loc = await session.get(Location, uuid.UUID(p["location_id"]))
             if loc and loc.parent_id:
                 parents[loc.parent_id] += 1
