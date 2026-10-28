@@ -508,12 +508,13 @@ async def test_every_trip_has_travel_a_checkout_and_meals_every_day():
         return [i for i in items if i["day"] == n and (kind is None or i["kind"] == kind)]
 
     # The way in and out, in order, on the first and last day.
-    assert [i["name"] for i in day(1, "travel")] == ["Fly Bengaluru to Bali", "Airport to your stay"]
-    assert [i["name"] for i in day(3, "travel")] == ["Your stay to the airport", "Fly back to Bengaluru"]
+    assert [i["name"] for i in day(1, "travel")][:2] == ["Fly Bengaluru to Bali", "Airport to your stay"]
+    assert [i["name"] for i in day(3, "travel")][-2:] == ["Your stay to the airport", "Fly back to Bengaluru"]
     assert day(1)[0]["name"] == "Fly Bengaluru to Bali" and day(3)[-1]["name"] == "Fly back to Bengaluru"
     assert next(i for i in day(1, "stay"))["slot"] == "afternoon"  # check-in after landing
     assert any(i["name"] == "Check out" for i in day(3))
-    assert not any(i["kind"] == "travel" for i in day(2))
+    # Every day has its rides between stops, and a middle day has nothing but those.
+    assert [i["name"] for i in day(2, "travel")] == [f"Getting around: {', then '.join(i['name'] for i in day(2) if i['kind'] in ('sight', 'experience'))}"]
     # Meals: breakfast is skipped on arrival and dinner on departure; every other mealtime is there.
     slots = lambda n: {i["slot"] for i in day(n, "food")}  # noqa: E731
     assert slots(1) >= {"afternoon", "evening"} and "morning" not in slots(1)
@@ -804,3 +805,79 @@ def test_a_bed_in_a_dormitory_is_never_the_price_of_a_stay():
     assert sp._cheapest(rates)["price"]["total"] == 9000  # the cheapest room of your own
     assert sp._cheapest(rates[:2]) is None  # only shared beds: no room for a couple
     assert sp._cheapest([]) is None
+
+
+async def test_a_trip_through_several_towns_sleeps_in_each_and_travels_between_them():
+    items = [
+        {**p, "id": f"x{i}", "origin": "reel", "note": "", "location_id": None, "verified": False}
+        for i, p in enumerate([
+            {"name": "Bagdogra Airport", "kind": "area", "video_day": 1},
+            {"name": "Phuentsholing", "kind": "area", "video_day": 1},
+            {"name": "Thimphu", "kind": "area", "video_day": 2},
+            {"name": "Paro", "kind": "area", "video_day": 4},
+            {"name": "Buddha Dordenma", "kind": "sight", "video_day": 3},
+            {"name": "Tiger's Nest", "kind": "sight", "video_day": 4},
+        ])
+    ]
+    route = builder.route_from(items)
+    assert [(r["name"], r["day"], r["airport"]) for r in route] == [
+        ("Bagdogra Airport", 1, True), ("Phuentsholing", 1, False), ("Thimphu", 2, False), ("Paro", 4, False)]
+    stops = [i for i in items if i["kind"] != "area"]
+    plan = {"summary": "", "tips": [], "days": [
+        {"day": d, "items": [{"name": i["name"], "kind": "sight", "slot": "morning"} for i in stops if i["video_day"] == d]
+         or [{"name": "Walk", "kind": "sight", "slot": "morning"}]} for d in range(1, 5)]}
+    out = await builder.build(
+        FakeAI(plan), must=stops, destination="Bhutan", days=4, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", origin_city="Bengaluru", route=route,
+    )  # fmt: skip
+    got = out["items"]
+    by = lambda kind: [(i["day"], i["name"]) for i in got if i["kind"] == kind]  # noqa: E731
+    assert by("stay") == [(1, "Stay in Phuentsholing"), (2, "Stay in Thimphu"), (4, "Stay in Paro")]
+    names = [n for _, n in by("travel")]
+    assert "Fly Bengaluru to Bagdogra Airport" in names and "Bagdogra Airport to Phuentsholing" in names
+    assert (2, "Travel from Phuentsholing to Thimphu") in by("travel")
+    assert (4, "Travel from Thimphu to Paro") in by("travel")
+    assert next(i for i in got if i["name"] == "Buddha Dordenma")["day"] == 3  # the video's day
+    assert next(i for i in got if i["name"] == "Tiger's Nest")["day"] == 4
+    for d in range(1, 5):  # every day has a stay to come back to, food, and a way to get about
+        assert any(i["day"] == d and i["kind"] == "travel" for i in got)
+        assert any(i["day"] == d and i["kind"] == "food" for i in got)
+
+
+async def test_a_model_journey_is_kept_once_as_travel_and_its_airport_and_checkout_lines_are_dropped():
+    plan = good_plan()
+    plan["days"][1]["items"] += [
+        {"name": "Travel from Kuta to Ubud", "kind": "note", "slot": "afternoon", "note": "scenic drive"},
+        {"name": "Transfer to Paro International Airport", "kind": "note", "slot": "morning"},
+        {"name": "Hotel check-out", "kind": "note", "slot": "morning"},
+        {"name": "Fly home", "kind": "travel", "slot": "evening"},
+    ]
+    out = await builder.build(
+        FakeAI(plan), must=must(), destination="Bali", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", origin_city="Mumbai",
+        route=[{"name": "Kuta", "day": 1, "airport": False}, {"name": "Ubud", "day": 2, "airport": False}],
+    )  # fmt: skip
+    got = [(i["day"], i["kind"], i["name"]) for i in out["items"]]
+    assert got.count((2, "travel", "Travel from Kuta to Ubud")) == 1  # the model's, once, not doubled
+    assert not any("Paro International" in n or n == "Hotel check-out" for _, _, n in got)
+    assert [n for d, k, n in got if k == "travel" and "Fly" in n] == ["Fly Mumbai to Bali", "Fly back to Mumbai"]
+
+
+async def test_meals_are_asked_for_in_the_town_where_they_sleep_that_day():
+    seen = []
+
+    class Spy(FakeAI):
+        async def complete(self, task, messages, **kwargs):
+            self.sent.append(messages)
+            if "what to eat" in messages[0]["content"]:
+                seen.append(json.loads(messages[1]["content"])["meals"])
+                return json.dumps({"meals": []})
+            return json.dumps(good_plan())
+
+    await builder.build(
+        Spy(None), must=must(), destination="Bhutan", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="",
+        route=[{"name": "Phuentsholing", "day": 1, "airport": False}, {"name": "Thimphu", "day": 2, "airport": False}],
+    )  # fmt: skip
+    towns = {(m["day"], m["town"]) for m in seen[0]}
+    assert (1, "Phuentsholing") in towns and (2, "Thimphu") in towns and (3, "Thimphu") in towns

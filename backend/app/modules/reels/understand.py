@@ -1,12 +1,16 @@
 """Turn what a reel says (voice) and shows (caption + text on screen) into places."""
 
+import asyncio
 import base64
+import logging
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any
 
 from app.ai.orchestrator import AIOrchestrator, parse_json_object
+
+logger = logging.getLogger(__name__)
 
 TRANSCRIBE_PROMPT = """Transcribe the speech in this audio from a short travel video.
 Return JSON only:
@@ -24,6 +28,8 @@ Rules:
 - "evidence" must quote the words from the material that name the place (copy them exactly).
 - "source" is where the evidence is: "caption", "screen" or "voice".
 - "t" is always null: timestamps are worked out separately.
+- Every town or city the creator travels to, stays in or passes through is an "area" place, with
+  the day they reach it. Do not leave one out because no sight is named there.
 - "day" is the day number the creator says the place belongs to ("Day 1", "on the second day"),
   only when the material says so in words. Otherwise null. Never work a day out yourself.
 - kind is one of: "stay" (hotel, villa, homestay), "food" (restaurant, cafe, bar, dish spot),
@@ -243,11 +249,22 @@ def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None 
 async def read_places(
     ai: AIOrchestrator, text: str, ocr_lines: list[dict] | None = None
 ) -> Reading:
-    raw = await ai.complete(
-        "planner",
-        [{"role": "system", "content": EXTRACT_PROMPT}, {"role": "user", "content": text}],
-        json_mode=True,
-        temperature=0.1,
-        max_tokens=2000,
-    )
-    return clean_reading(parse_json_object(raw), text, ocr_lines)
+    """The places in what the reel said and showed. The model provider is now and then at
+    capacity or returns broken JSON: try up to three times before giving the import up."""
+    last: Exception | None = None
+    for attempt in range(3):
+        try:
+            raw = await ai.complete(
+                "planner",
+                [{"role": "system", "content": EXTRACT_PROMPT}, {"role": "user", "content": text}],
+                json_mode=True,
+                temperature=0.1,
+                max_tokens=2000,
+            )
+            return clean_reading(parse_json_object(raw), text, ocr_lines)
+        except Exception as exc:  # noqa: BLE001 - whatever the model does, ask again
+            last = exc
+            logger.warning("Reading the reel's places failed (try %d): %s", attempt + 1, exc)
+            await asyncio.sleep(2 * (attempt + 1))
+    assert last is not None
+    raise last

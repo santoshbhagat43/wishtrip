@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BedDouble, Compass, Landmark, Plane, Utensils } from "lucide-react";
+import { BedDouble, Car, Compass, Landmark, Plane, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { clock, inr, partySize, partyText, livePrices, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
@@ -406,13 +406,24 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                   </span>
                 </div>
                 <h2 className="m-0 -mt-1 mb-1 font-sans text-[26px] font-bold leading-tight tracking-tight md:text-[32px]">
-                  {day.stops
-                    .slice(0, 2)
-                    .map((x) => x.name)
-                    .join(" and ")}
+                  {(() => {
+                    // The day is named for what it is for: its sights and experiences, not the ride or the lunch.
+                    const main = day.stops.filter((x) => ["sight", "experience", "area"].includes(x.kind));
+                    return (main.length ? main : day.stops).slice(0, 2).map((x) => x.name).join(" and ");
+                  })()}
                 </h2>
+                {(() => {
+                  // Where they sleep tonight: the latest stay reached by this day.
+                  const stay = days.slice(0, current + 1).flatMap((d) => d.stops).filter((x) => x.kind === "stay").at(-1);
+                  if (!stay) return null;
+                  return (
+                    <span className="-mt-1 inline-flex w-fit items-center gap-2 rounded-full bg-[#F1EAF8] px-3 py-1 text-[12.5px] font-semibold text-[#6A3FA0]">
+                      <BedDouble className="size-4" /> {current === days.length - 1 ? `Check out of ${stay.name.replace(/^Stay in /, "")}` : `Tonight: ${stay.name}`}
+                    </span>
+                  );
+                })()}
                 {day.stops.map((s, i) => {
-                  const Icon = KIND_ICON[s.kind] ?? Landmark;
+                  const Icon = s.kind === "travel" && !/\bfly\b|airport/i.test(s.name) ? Car : (KIND_ICON[s.kind] ?? Landmark);
                   const kind = KIND_CHIP[s.kind] ?? KIND_CHIP.sight;
                   return (
                     <article key={`${s.name}-${i}`} className="relative flex overflow-hidden rounded-[22px] border border-[#E3E8EE] bg-white hover:border-[#0A7C80]">

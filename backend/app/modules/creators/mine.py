@@ -180,15 +180,18 @@ def _apply(mine: TravellerTrip, config: MineConfig) -> bool:
 # --- Building the plan -------------------------------------------------------------------------
 
 
-async def _what_the_reel_said(session: AsyncSession, mine: TravellerTrip) -> tuple[list[str], str]:
+async def _what_the_reel_said(
+    session: AsyncSession, mine: TravellerTrip
+) -> tuple[list[str], str, str]:
     """The tips the creator's reel gave, and its caption: how the trip should feel (a budget
     plan, a luxury one) and the practical points worth passing on."""
     job = await session.get(ReelImport, mine.source_import_id) if mine.source_import_id else None
     content = await session.get(CreatorContent, job.content_id) if job and job.content_id else None
     if content is None:
-        return [], ""
+        return [], "", ""
     tips = [str(t) for t in (content.extracted or {}).get("tips") or [] if str(t).strip()]
-    return tips, content.caption or ""
+    words = (content.transcript_en or content.transcript or "").strip()
+    return tips, content.caption or "", words
 
 
 async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str) -> None:
@@ -200,10 +203,11 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
     try:
         # Past the hourly cap the trip is arranged by rule, not refused.
         use_ai = ai if await allow("trip-builds", settings.trip_builds_per_hour) else None
-        tips_from_reel, said = await _what_the_reel_said(session, mine)
+        tips_from_reel, said, words = await _what_the_reel_said(session, mine)
         plan = await builder.build(
             use_ai,
             must=[i for i in mine.source_items or [] if i.get("kind") != "area"],
+            route=builder.route_from(mine.source_items or []),
             destination=mine.destination_name,
             days=mine.days,
             adults=mine.adults,
@@ -215,6 +219,7 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
             summary=mine.summary,
             origin_city=mine.origin_city,
             reel_tips=tips_from_reel,
+            creator_words=words,
             domestic=await stays.same_country(session, mine.destination_name, mine.origin_city),
         )
         plan["items"] = await stays.name_the_stay(
@@ -355,7 +360,11 @@ async def build_from_reel(
         creator_handle=creator.handle if creator else None,
         creator_referral_code=creator.referral_code if creator else "",
         items=stops,
-        source_items=stops,
+        # What the plan is built from: the stops, and the towns the video travels through.
+        source_items=[
+            *stops,
+            *(_place_item(p) for p in content.places or [] if p.get("kind") == "area"),
+        ],
     )
     _apply(mine, config)
     session.add(mine)

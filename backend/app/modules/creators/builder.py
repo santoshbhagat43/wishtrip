@@ -80,6 +80,11 @@ Hard requirements for your answer:
   morning, the afternoon and the evening, never a single evening item on its own: add well-known
   real places or general suggestions marked "optional": true to fill it.
 - Do not add flights, airport transfers or hotel check-out: Wishtrip adds those.
+- "creator_words" is what the creator says in the video, in their order: follow its days and its
+  route. When "route_from_video" has towns, the trip travels through them in that order: put each
+  place in the town it belongs to and keep to the days given. Where the trip moves from one town to
+  the next, add a "travel" item that day ("Travel from A to B"), and add a "stay" ("Stay in B") on
+  the day they reach each town, so every night has a hotel in the right town.
 - Mark extra things as "optional": true. Anything you add that is not in must_include is
   "from_reel": false: only well-known real places or general suggestions (a beach walk, a local
   cafe), never an invented venue name, price, opening hour, address or phone number.
@@ -119,6 +124,8 @@ def facts(
     origin_city: str = "",
     reel_tips: list[str] | None = None,
     domestic: bool | None = None,
+    route: list[dict] | None = None,
+    creator_words: str = "",
 ) -> dict[str, Any]:
     return {
         "destination": destination,
@@ -133,6 +140,11 @@ def facts(
         "same_country_trip": "unknown" if domestic is None else domestic,
         "what_the_reel_is_about": summary,
         "reel_tips": list(reel_tips or [])[:8],
+        "creator_words": creator_words[:2500],
+        "route_from_video": [
+            {"town": r["name"], **({"day": r["day"]} if r["day"] else {}), "airport": r["airport"]}
+            for r in route or []
+        ],
         "must_include": [
             {
                 "name": m["name"],
@@ -145,6 +157,26 @@ def facts(
             for m in must
         ],
     }
+
+
+FLIGHT = re.compile(r"\bfly\b|airport", re.I)
+AIRPORT = re.compile(r"\bairport\b|\bairfield\b", re.I)
+
+
+def route_from(source: list[dict]) -> list[dict]:
+    """The towns the video travels through, in the order it names them: {"name", "day",
+    "airport"}. They come from the places the video names only as areas ("Thimphu", "Bagdogra
+    Airport"), which are not stops to plan but are where the trip goes and where it sleeps."""
+    route: list[dict] = []
+    for m in source:
+        name = str(m.get("name") or "").strip()
+        if m.get("kind") != "area" or not name or any(r["name"] == name for r in route):
+            continue
+        route.append(
+            {"name": name, "day": m.get("video_day"), "airport": bool(AIRPORT.search(name))}
+        )
+    route.sort(key=lambda r: r["day"] if r["day"] else 99)  # stable: the video's order within a day
+    return route
 
 
 def _item(
@@ -226,6 +258,11 @@ def clean(plan: Any, must: list[dict], days: int) -> tuple[list[dict], str, list
             kind = str(raw.get("kind") or "sight")
             if source is not None and source["kind"] in KINDS:
                 kind = source["kind"]
+            elif source is None:
+                if re.search(r"\bairport\b|\bcheck[- ]?out\b|^fly\b", name, re.I):
+                    continue  # Wishtrip adds the flights, airport transfers and check-out
+                if re.match(r"(travel|drive|transfer)\b", name, re.I):
+                    kind = "travel"  # the journey between towns, whatever the model called it
             items.append(_item(
                 name, kind, n, str(raw.get("slot") or ""),
                 origin=(source.get("origin") or "reel") if source else "suggested",
@@ -233,12 +270,19 @@ def clean(plan: Any, must: list[dict], days: int) -> tuple[list[dict], str, list
                 optional=bool(raw.get("optional")) and source is None,
                 transfer=str(raw.get("transfer") or "").strip(), source=source,
             ))  # fmt: skip
+    # A day the creator's video states is theirs, whatever the AI decided.
+    for i in items:
+        src = next((m for m in must if m["name"] == i["name"] and m.get("video_day")), None)
+        if src is not None and i["origin"] == "reel":
+            i["day"] = min(days, int(src["video_day"]))
     # Anything the AI dropped goes back in, on the lightest day.
     for m in unmatched:
         load = {
             d: sum(1 for i in items if i["day"] == d and _is_main(i)) for d in range(1, days + 1)
         }
         day = min(load, key=lambda d: load[d]) if m["kind"] != "stay" else 1
+        if m.get("video_day"):
+            day = min(days, int(m["video_day"]))
         items.append(_item(m["name"], m["kind"], day, "afternoon", origin=m.get("origin") or "reel",
                            note=m.get("note") or "", source=m))  # fmt: skip
     # At most three main activities a day: reel places first, then the extras become optional.
@@ -261,9 +305,9 @@ def _activities(items: list[dict], day: int) -> int:
 
 def thin_days(items: list[dict], days: int) -> list[int]:
     """The days that need more: a day in the middle of the trip with fewer than two things to see
-    or do, or a first day with none (meals and travel do not count; optional suggestions do). The
-    last day is for leaving, so it may be bare."""
-    return [d for d in range(1, days) if _activities(items, d) < (2 if d > 1 else 1)]
+    or do (meals and travel do not count; optional suggestions do). The first and last day are for
+    arriving and leaving, so they may be light."""
+    return [d for d in range(2, days) if _activities(items, d) < 2]
 
 
 def _rank(item: dict) -> int:
@@ -286,7 +330,14 @@ def _meal_in(items: list[dict], day: int, word: str, slot: str) -> bool:
     return False
 
 
-def finish(items: list[dict], *, days: int, destination: str, origin_city: str = "") -> list[dict]:
+def finish(
+    items: list[dict],
+    *,
+    days: int,
+    destination: str,
+    origin_city: str = "",
+    route: list[dict] | None = None,
+) -> list[dict]:
     """What the plan always needs, added by rule so it does not depend on the AI remembering: the
     flight in and out with the airport transfers, the hotel check-out, and a meal at each mealtime
     of every day. They are suggestions in general words: no times, prices or venue names."""
@@ -299,14 +350,42 @@ def finish(items: list[dict], *, days: int, destination: str, origin_city: str =
         item["rank"] = rank
         out.append(item)
 
-    if days >= 2 and not any(i["kind"] == "stay" for i in out):
-        add(f"Stay in {where}", "stay", 1, "afternoon",
-            "Check in and settle in.", rank=-1)  # fmt: skip
+    towns = [r for r in route or [] if not r["airport"]]
+    airport = next((r for r in route or [] if r["airport"] and r["day"] in (None, 1)), None)
+    by_town = days >= 2 and len(towns) >= 2 and all(t["day"] for t in towns)
+    if by_town:
+        # A trip through several towns sleeps in each: a stay per town, from the day it arrives.
+        out = [i for i in out if not (i["kind"] == "stay" and i["origin"] != "reel")]
+        seen: set[str] = set()
+        for t in towns:
+            if t["name"] in seen:
+                continue
+            seen.add(t["name"])
+            add(f"Stay in {t['name']}", "stay", min(days, t["day"]), "afternoon",
+                "Check in and settle in.", rank=-1)  # fmt: skip
+        reached = [(min(days, t["day"]), t["name"]) for t in towns]
+        for (a_day, a), (b_day, b) in zip(reached, reached[1:], strict=False):
+            if a != b and b_day >= a_day and not any(
+                i["kind"] in ("travel", "note")
+                and i["day"] in (a_day, b_day)
+                and a in i["name"]
+                and b in i["name"]
+                for i in out
+            ):
+                add(f"Travel from {a} to {b}", "travel", b_day, "morning",
+                    "Allow the day's first part for the journey; your hotel can book a driver.",
+                    rank=-2)  # fmt: skip
+    elif days >= 2 and not any(i["kind"] == "stay" for i in out):
+        add(f"Stay in {where}", "stay", 1, "afternoon", "Check in and settle in.", rank=-1)
     if days >= 2:
-        add(f"Fly {home} to {where}" if origin_city else f"Fly to {where}", "travel", 1,
+        arrive = airport["name"] if airport else where
+        add(f"Fly {home} to {arrive}" if origin_city else f"Fly to {arrive}", "travel", 1,
             "morning", "Flight times and fares are on the trip page.", rank=-3)  # fmt: skip
-        add("Airport to your stay", "travel", 1, "afternoon",
-            "A pre-booked car or a taxi from the airport.", rank=-2)  # fmt: skip
+        first = towns[0]["name"] if towns else ""
+        add(f"{airport['name']} to {first}" if airport and first else "Airport to your stay",
+            "travel", 1, "afternoon",
+            "By road from the airport; a pre-booked car is easiest." if airport and first
+            else "A pre-booked car or a taxi from the airport.", rank=-2)  # fmt: skip
         for i in out:  # arriving in the morning, so check-in is for the afternoon
             if i["kind"] == "stay" and i["day"] == 1:
                 i["slot"] = "afternoon"
@@ -316,6 +395,20 @@ def finish(items: list[dict], *, days: int, destination: str, origin_city: str =
             "Leave plenty of time for check-in and security.", rank=8)  # fmt: skip
         add(f"Fly back to {home}" if origin_city else "Fly home", "travel", days, "evening",
             "Flight times and fares are on the trip page.", rank=9)  # fmt: skip
+    # Every day moves people about: a day with no journey of its own gets the rides between its
+    # stops, in order, so nobody is left to work out how to get from one to the next.
+    for d in range(1, days + 1):
+        ground = [
+            i for i in out
+            if i["day"] == d and i["kind"] == "travel" and not FLIGHT.search(i["name"])
+        ]  # fmt: skip
+        stops = [i["name"] for i in sorted(
+            (i for i in out if i["day"] == d and i["kind"] in ("sight", "experience")),
+            key=lambda i: SLOTS.index(i["slot"]))]  # fmt: skip
+        if not ground and stops:
+            add("Getting around: " + ", then ".join(stops[:4]), "travel", d, "morning",
+                "Short rides between these stops; your hotel can book a driver or a taxi.",
+                rank=0)  # fmt: skip
     for d in range(1, days + 1):
         near = {
             slot: next(
@@ -339,9 +432,9 @@ def finish(items: list[dict], *, days: int, destination: str, origin_city: str =
 MEAL_PROMPT = """You suggest what to eat on a trip. For each meal in "meals", name a dish or a
 cuisine the destination is really known for, and the area to eat it in, near the activity given.
 Never name a restaurant, and give no prices. "area" is a district or neighbourhood only, never an
-activity or a sight. Fit the group ("planning_for": a couple might get a
-romantic dinner, a family kid-friendly food, older travellers easy-to-eat food). Vary the dishes
-across days.
+activity or a sight, in the "town" given for that meal. Fit the group ("planning_for": a couple
+might get a romantic dinner, a family kid-friendly food, older travellers easy-to-eat food). Vary
+the dishes across days.
 Return JSON only:
 {"meals": [{"day": 1, "meal": "lunch", "dish": "Goan fish thali", "area": "Baga"}]}"""
 
@@ -356,6 +449,15 @@ async def name_meals(
     ]
     if not plain:
         return items
+    stays = sorted((i for i in items if i["kind"] == "stay"), key=lambda i: i["day"])
+
+    def town_of(day: int) -> str:
+        """Where they are sleeping on this day: the latest stay reached, named "Stay in <town>"."""
+        if not stays:
+            return destination
+        here = [s for s in stays if s["day"] <= day] or stays
+        return re.sub(r"^stay in\s+", "", here[-1]["name"], flags=re.I)
+
     asked = []
     for i in plain:
         near = [
@@ -363,7 +465,14 @@ async def name_meals(
             for o in items
             if o["day"] == i["day"] and o["kind"] in ("sight", "experience", "area")
         ]
-        asked.append({"day": i["day"], "meal": i["name"].lower(), "near": near[:3]})
+        asked.append(
+            {
+                "day": i["day"],
+                "meal": i["name"].lower(),
+                "near": near[:3],
+                "town": town_of(i["day"]),
+            }
+        )
     try:
         raw = await ai.complete(
             task,
@@ -420,6 +529,8 @@ async def build(
     origin_city: str = "",
     reel_tips: list[str] | None = None,
     domestic: bool | None = None,
+    route: list[dict] | None = None,
+    creator_words: str = "",
 ) -> dict[str, Any]:
     """The plan: {items, summary, tips, persona, ai_built}."""
     days = max(1, min(MAX_DAYS, days))
@@ -428,7 +539,8 @@ async def build(
         context = facts(
             destination=destination, days=days, adults=adults, kids=kids, seniors=seniors,
             pace=pace, when=when, group=group, for_persona=who, summary=summary, must=must,
-            origin_city=origin_city, reel_tips=reel_tips, domestic=domestic,
+            origin_city=origin_city, reel_tips=reel_tips, domestic=domestic, route=route,
+            creator_words=creator_words,
         )  # fmt: skip
         facts_text = json.dumps(context, ensure_ascii=False)
         messages = [
@@ -481,7 +593,9 @@ async def build(
         cleaned = cleaned or thin_first
         if cleaned is not None:
             items, text, tips = cleaned
-            items = finish(items, days=days, destination=destination, origin_city=origin_city)
+            items = finish(
+                items, days=days, destination=destination, origin_city=origin_city, route=route
+            )
             items = await name_meals(ai, task, items, destination=destination, for_persona=who)
             return {
                 "items": items,
@@ -492,7 +606,11 @@ async def build(
             }
     return {
         "items": finish(
-            arrange(must, days), days=days, destination=destination, origin_city=origin_city
+            arrange(must, days),
+            days=days,
+            destination=destination,
+            origin_city=origin_city,
+            route=route,
         ),
         "summary": "",
         "tips": [],
