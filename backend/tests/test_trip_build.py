@@ -881,3 +881,206 @@ async def test_meals_are_asked_for_in_the_town_where_they_sleep_that_day():
     )  # fmt: skip
     towns = {(m["day"], m["town"]) for m in seen[0]}
     assert (1, "Phuentsholing") in towns and (2, "Thimphu") in towns and (3, "Thimphu") in towns
+
+
+async def test_each_town_of_a_trip_is_searched_for_its_own_stay(
+    client, traveler, builds, monkeypatch
+):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    asked = []
+
+    async def search(session, q):
+        asked.append(q)
+        card = lambda tj, name, stars, total, rank: {  # noqa: E731
+            "hotel_id": tj, "name": name, "stars": stars, "rank": rank,
+            "option": {"price": {"total": total}},
+        }
+        return {"region": {"region_id": 99},
+                "hotels": [card("s-villa", "Palace Villas", "5.0", 90000, 90),
+                           card("s-far", "Far Away Hostel", "2.5", 5000, 10),  # a hotel of another city
+                           card("s-dorm", "Backpackers Hostel", "2.5", 4000, 5),  # cheapest, but a hostel
+                           card("s-inn", "City Budget Inn", "3.0", 9000, 20),
+                           card("s-mid", "Mid Hotel", "3.5", 20000, 60)]}
+
+    class Priced(FakeHotels):
+        async def pricing(self, **kw):
+            self.calls.append(kw)
+            return {"hotelName": "x", "options": [{"optionId": "o", "mealBasis": "Room only", "roomInfo": [{"name": "Room"}],
+                    "pricing": {"basePrice": 9000, "taxes": 0, "mf": 0, "mft": 0, "currency": "INR"}}]}
+
+    monkeypatch.setattr(sp.hotel_search, "search", search)
+    monkeypatch.setattr(sp, "tripjack_hotels", Priced())
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:  # content rows for the hotels the search names; no region
+        for tj, name in [("s-villa", "Palace Villas"), ("s-inn", "City Budget Inn"), ("s-mid", "Mid Hotel")]:
+            session.add(SupplierHotel(tj_hotel_id=tj, region_id=99, name=name, hero_image="https://img.example/x.jpg"))
+        session.add(SupplierHotel(tj_hotel_id="s-far", region_id=555, name="Far Away Hostel",
+                                  hero_image="https://img.example/x.jpg"))
+        session.add(SupplierHotel(tj_hotel_id="s-dorm", region_id=99, name="Backpackers Hostel",
+                                  hero_image="https://img.example/x.jpg"))
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.summary = "A budget plan"
+        row.items = [{**i, "name": "Stay in Thimphu", "origin": "suggested"} if i["kind"] == "stay" else i for i in row.items]
+        await session.commit()
+
+    (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
+    assert asked and asked[0].city == "Thimphu" and asked[0].check_in == start
+    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one wins.
+    assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
+
+
+def test_a_bed_in_a_dormitory_is_never_the_price_of_a_stay():
+    from app.modules.creators import stay_prices as sp
+
+    def option(price, room):
+        return {"price": {"total": price}, "rooms": [{"name": room}]}
+
+    rates = [option(4000, "Bed in 8-Bed Mixed Dormitory"), option(5000, "Luxury Shared Dormitory"),
+             option(9000, "Double Room"), option(12000, "Suite")]
+    assert sp._cheapest(rates)["price"]["total"] == 9000  # the cheapest room of your own
+    assert sp._cheapest(rates[:2]) is None  # only shared beds: no room for a couple
+    assert sp._cheapest([]) is None
+
+
+async def test_a_trip_through_several_towns_sleeps_in_each_and_travels_between_them():
+    items = [
+        {**p, "id": f"x{i}", "origin": "reel", "note": "", "location_id": None, "verified": False}
+        for i, p in enumerate([
+            {"name": "Bagdogra Airport", "kind": "area", "video_day": 1},
+            {"name": "Phuentsholing", "kind": "area", "video_day": 1},
+            {"name": "Thimphu", "kind": "area", "video_day": 2},
+            {"name": "Paro", "kind": "area", "video_day": 4},
+            {"name": "Buddha Dordenma", "kind": "sight", "video_day": 3},
+            {"name": "Tiger's Nest", "kind": "sight", "video_day": 4},
+        ])
+    ]
+    route = builder.route_from(items)
+    assert [(r["name"], r["day"], r["airport"]) for r in route] == [
+        ("Bagdogra Airport", 1, True), ("Phuentsholing", 1, False), ("Thimphu", 2, False), ("Paro", 4, False)]
+    stops = [i for i in items if i["kind"] != "area"]
+    plan = {"summary": "", "tips": [], "days": [
+        {"day": d, "items": [{"name": i["name"], "kind": "sight", "slot": "morning"} for i in stops if i["video_day"] == d]
+         or [{"name": "Walk", "kind": "sight", "slot": "morning"}]} for d in range(1, 5)]}
+    out = await builder.build(
+        FakeAI(plan), must=stops, destination="Bhutan", days=4, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", origin_city="Bengaluru", route=route,
+    )  # fmt: skip
+    got = out["items"]
+    by = lambda kind: [(i["day"], i["name"]) for i in got if i["kind"] == kind]  # noqa: E731
+    assert by("stay") == [(1, "Stay in Phuentsholing"), (2, "Stay in Thimphu"), (4, "Stay in Paro")]
+    names = [n for _, n in by("travel")]
+    assert "Fly Bengaluru to Bagdogra Airport" in names and "Bagdogra Airport to Phuentsholing" in names
+    assert (2, "Travel from Phuentsholing to Thimphu") in by("travel")
+    assert (4, "Travel from Thimphu to Paro") in by("travel")
+    assert next(i for i in got if i["name"] == "Buddha Dordenma")["day"] == 3  # the video's day
+    assert next(i for i in got if i["name"] == "Tiger's Nest")["day"] == 4
+    for d in range(1, 5):  # every day has a stay to come back to, food, and a way to get about
+        assert any(i["day"] == d and i["kind"] == "travel" for i in got)
+        assert any(i["day"] == d and i["kind"] == "food" for i in got)
+
+
+async def test_a_model_journey_is_kept_once_as_travel_and_its_airport_and_checkout_lines_are_dropped():
+    plan = good_plan()
+    plan["days"][1]["items"] += [
+        {"name": "Travel from Kuta to Ubud", "kind": "note", "slot": "afternoon", "note": "scenic drive"},
+        {"name": "Transfer to Paro International Airport", "kind": "note", "slot": "morning"},
+        {"name": "Hotel check-out", "kind": "note", "slot": "morning"},
+        {"name": "Fly home", "kind": "travel", "slot": "evening"},
+    ]
+    out = await builder.build(
+        FakeAI(plan), must=must(), destination="Bali", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", origin_city="Mumbai",
+        route=[{"name": "Kuta", "day": 1, "airport": False}, {"name": "Ubud", "day": 2, "airport": False}],
+    )  # fmt: skip
+    got = [(i["day"], i["kind"], i["name"]) for i in out["items"]]
+    assert got.count((2, "travel", "Travel from Kuta to Ubud")) == 1  # the model's, once, not doubled
+    assert not any("Paro International" in n or n == "Hotel check-out" for _, _, n in got)
+    assert [n for d, k, n in got if k == "travel" and "Fly" in n] == ["Fly Mumbai to Bali", "Fly back to Mumbai"]
+
+
+async def test_meals_are_asked_for_in_the_town_where_they_sleep_that_day():
+    seen = []
+
+    class Spy(FakeAI):
+        async def complete(self, task, messages, **kwargs):
+            self.sent.append(messages)
+            if "what to eat" in messages[0]["content"]:
+                seen.append(json.loads(messages[1]["content"])["meals"])
+                return json.dumps({"meals": []})
+            return json.dumps(good_plan())
+
+    await builder.build(
+        Spy(None), must=must(), destination="Bhutan", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="",
+        route=[{"name": "Phuentsholing", "day": 1, "airport": False}, {"name": "Thimphu", "day": 2, "airport": False}],
+    )  # fmt: skip
+    towns = {(m["day"], m["town"]) for m in seen[0]}
+    assert (1, "Phuentsholing") in towns and (2, "Thimphu") in towns and (3, "Thimphu") in towns
+
+
+async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_as_two_fares(
+    client, traveler, builds, monkeypatch
+):
+    import datetime as dt
+
+    from app.modules.creators import flight_prices as fp
+    from app.modules.flights import service as flights_service
+
+    async def none(*a, **k):
+        return None
+
+    class OpenJaw(FakeFlights):
+        async def search(self, query):
+            self.queries.append(query)
+            route = query["routeInfos"][0]
+            origin, destination = route["fromCityOrAirport"]["code"], route["toCityOrAirport"]["code"]
+            seg = {"da": {"code": origin}, "aa": {"code": destination}, "dt": "2027-01-10T08:00",
+                   "at": "2027-01-10T10:00", "fD": {"aI": {"code": "AI", "name": "Air India"}, "fN": "1"},
+                   "duration": 120, "stops": 0}  # fmt: skip
+            price = 3000 if destination == "IXB" else 6000
+            fare = {"fareIdentifier": "PUBLISHED", "id": f"id{price}", "fd": {"ADULT": {"fC": {"BF": price, "TAF": 0}}}}
+            return {"searchResult": {"tripInfos": {"ONWARD": [{"sI": [seg], "totalPriceList": [fare]}]}}}
+
+    fake = OpenJaw()
+    monkeypatch.setattr(flights_service, "tripjack_flights", fake)
+    monkeypatch.setattr(fp, "tripjack_flights", fake)
+    for mod in (fp, flights_service):
+        monkeypatch.setattr(mod, "cache_get", none)
+        monkeypatch.setattr(mod, "cache_set", none)
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 4, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
+            "origin": "BLR", "origin_city": "Bengaluru"}  # fmt: skip
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:  # the video flies to Bagdogra, tours Bhutan, and ends in Paro
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.destination_name = "Bhutan"
+        row.source_items = [
+            *row.source_items,
+            {"id": "a1", "kind": "area", "name": "Bagdogra Airport", "video_day": 1, "origin": "reel"},
+            {"id": "a2", "kind": "area", "name": "Thimphu", "video_day": 2, "origin": "reel"},
+            {"id": "a3", "kind": "area", "name": "Paro", "video_day": 4, "origin": "reel"},
+        ]
+        await session.commit()
+
+    got = (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()
+    assert got["status"] == "priced" and got["destination"] == "IXB"
+    assert [(leg["from_code"], leg["to_code"]) for leg in got["legs"]] == [("BLR", "IXB"), ("PBH", "BLR")]
+    assert got["total"] == 2 * (3000 + 6000)
+    asked = [(q["routeInfos"][0]["fromCityOrAirport"]["code"], q["routeInfos"][0]["toCityOrAirport"]["code"])
+             for q in fake.queries]  # fmt: skip
+    assert asked == [("BLR", "IXB"), ("PBH", "BLR")]

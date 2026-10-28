@@ -18,7 +18,8 @@ AIRPORT_FOR = {
     "kuala lumpur": "KUL", "langkawi": "LGK", "colombo": "CMB", "sri lanka": "CMB",
     "kathmandu": "KTM", "nepal": "KTM", "maldives": "MLE", "male": "MLE", "hong kong": "HKG",
     "london": "LHR", "new york": "JFK", "tokyo": "HND", "paris": "CDG", "istanbul": "IST",
-    "vietnam": "SGN", "hanoi": "HAN", "ho chi minh": "SGN", "da nang": "DAD",
+    "bhutan": "PBH", "paro": "PBH", "thimphu": "PBH", "punakha": "PBH", "bagdogra": "IXB",
+    "siliguri": "IXB", "phuentsholing": "IXB", "vietnam": "SGN", "hanoi": "HAN", "ho chi minh": "SGN", "da nang": "DAD",
 }
 
 

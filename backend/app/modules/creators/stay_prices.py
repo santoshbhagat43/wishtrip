@@ -161,9 +161,17 @@ async def _has_a_room(
     return await _room_total(hotel, window, rooms) is not None
 
 
+def stay_town(stay: dict, destination: str) -> str:
+    """Where a stay is: the town in "Stay in Thimphu" when we wrote it, else the trip's destination.
+    A trip through several towns sleeps in each, and each is priced in its own town."""
+    found = re.match(r"stay in\s+(.+)$", str(stay.get("name") or ""), re.I)
+    return found.group(1).strip() if found and stay.get("origin") != "reel" else destination
+
+
 async def _from_search(
     session: AsyncSession,
     mine: TravellerTrip,
+    town: str,
     window: tuple[dt.date, dt.date],
     rooms: list[Room],
     stars: tuple[float, float],
@@ -176,12 +184,11 @@ async def _from_search(
         found = await hotel_search.search(
             session,
             HotelSearch(
-                city=mine.destination_name, check_in=window[0], check_out=window[1], rooms=rooms,
-                sort="price",
+                city=town, check_in=window[0], check_out=window[1], rooms=rooms, sort="price",
             ),
         )  # fmt: skip
     except Exception:  # noqa: BLE001 - the stay is then left as it is
-        log.warning("hotel search for %s failed", mine.destination_name, exc_info=True)
+        log.warning("hotel search for %s failed", town, exc_info=True)
         return None
 
     def rating(card: dict) -> float | None:
@@ -269,9 +276,17 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
         stars = stay_choice.stars_wanted(*words)
         persona = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors)
         hostels = persona == "solo"
-        for h in await stay_choice.fitting_hotels(
-            session, mine.destination_name, stars, limit=8, hostels=hostels
-        ):
+        town = stay_town(stay, mine.destination_name)
+        # The stay's own town first; the trip's destination when TripJack knows no town of that name.
+        places = [town, *([mine.destination_name] if town != mine.destination_name else [])]
+        fitting: list[SupplierHotel] = []
+        for place in places:
+            fitting = await stay_choice.fitting_hotels(
+                session, place, stars, limit=8, hostels=hostels
+            )
+            if fitting:
+                break
+        for h in fitting:
             if all(h.id != c.id for c in candidates):
                 candidates.append(h)
         if match is not None and match.state in photos.SHOWN and match.hotel is not None:
@@ -293,7 +308,12 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
                 chosen = open_[0][0]
         if chosen is None:  # none held for this destination yet: what TripJack can sell
             cheap = bool(stay_choice.BUDGET.search(" ".join(words)))
-            chosen = await _from_search(session, mine, window, rooms, stars, cheap, hostels)
+            for place in places:
+                chosen = await _from_search(
+                    session, mine, place, window, rooms, stars, cheap, hostels
+                )
+                if chosen is not None:
+                    break
         if chosen is None:
             continue
         for item in items:

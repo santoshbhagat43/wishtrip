@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.modules.creators import builder
 from app.modules.creators.models import TravellerTrip
 from app.modules.creators.stay_prices import IST
 from app.modules.flights import service
@@ -62,6 +63,44 @@ def _cheapest(flights: list[dict], journey: str) -> dict | None:
     return min(pool, key=lambda f: f["cheapest"]["price"]["total"]) if pool else None
 
 
+async def _one_way(
+    origin: str, destination: str, day: dt.date, party: int, kids: int
+) -> FlightLeg | None:
+    found = (await service.search(FlightSearch(
+        legs=[Leg(origin=origin, destination=destination, date=day)], adults=party, children=kids,
+    )))["flights"]
+    best = _cheapest(found, "ONWARD")
+    return _leg(best, origin, destination, day) if best else None
+
+
+async def _open_jaw(
+    base: FlightPrice, mine: TravellerTrip, dest: str, leave: str, start: dt.date, end: dt.date,
+    party: int,
+) -> FlightPrice:
+    """In to one airport and home from another: two one-way fares, added up."""
+    key = cache_key(
+        "trip-flight-oj", mine.origin_code, dest, leave, str(start), str(end), party, mine.kids
+    )
+    cached = await cache_get(key)
+    if cached:
+        return FlightPrice(**cached)
+    try:
+        out = await _one_way(mine.origin_code, dest, start, party, mine.kids)
+        back = await _one_way(leave, mine.origin_code, end, party, mine.kids)
+    except (TripJackError, TripJackNotConfigured):
+        log.warning("open-jaw flight price failed", exc_info=True)
+        return base.model_copy(update={"status": "error"})
+    if not out or not back:
+        return base.model_copy(update={"status": "unavailable"})
+    result = base.model_copy(update={
+        "status": "priced", "legs": [out, back],
+        "total": round((out.price or 0) + (back.price or 0), 2),
+        "checked_at": datetime.now(IST).isoformat(),
+    })
+    await cache_set(key, result.model_dump(mode="json"), FRESH_SECONDS)
+    return result
+
+
 async def flight_price(mine: TravellerTrip) -> FlightPrice:
     base = FlightPrice(status="no_dates")
     party = mine.adults + mine.seniors
@@ -71,7 +110,16 @@ async def flight_price(mine: TravellerTrip) -> FlightPrice:
         return base
     if not mine.origin_code:
         return base.model_copy(update={"status": "no_origin"})
-    dest = airport_for(mine.destination_name)
+    # The trip may arrive at one airport and leave from another (Bagdogra in, Paro out): the airport
+    # the video names, then the destination's own; and the last town's airport on the way out.
+    route = builder.route_from(mine.source_items or [])
+    named = next(
+        (airport_for(r["name"]) for r in route if r["airport"] and airport_for(r["name"])), None
+    )
+    dest = named or airport_for(mine.destination_name)
+    # (an area the video names with no day is not where the trip ends)
+    towns = [r for r in route if not r["airport"] and r["day"]]
+    leave = (airport_for(towns[-1]["name"]) if towns else None) or dest
     if dest is None:
         return base.model_copy(update={"status": "no_airport"})
     base = base.model_copy(update={"origin": mine.origin_code, "destination": dest,
@@ -80,6 +128,8 @@ async def flight_price(mine: TravellerTrip) -> FlightPrice:
         return base.model_copy(update={"status": "same_city"})
     if not tripjack_flights.configured:
         return base.model_copy(update={"status": "error"})
+    if leave != dest:
+        return await _open_jaw(base, mine, dest, leave, start, end, party)
 
     query = FlightSearch(
         legs=[Leg(origin=mine.origin_code, destination=dest, date=start),
