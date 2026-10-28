@@ -1,0 +1,17 @@
+Create a detailed day-by-day itinerary for a solo traveler.
+
+Details:
+- Destination: [City / Country]
+- Duration: [Number of days]
+- Travel style: [Relaxed / Adventure / Cultural / Food-focused / Mixed]
+- Budget: [Budget / Mid-range / Luxury]
+- Interests: [e.g. history, nature, photography, nightlife, local food, etc.]
+- Pace: [Slow / Moderate / Packed]
+- Any special preferences or constraints: [e.g. safety-focused, public transport only, walking-friendly, etc.]
+
+Include:
+- Morning, afternoon, and evening plans for each day
+- Recommended restaurants/cafes suitable for solo dining
+- Safety tips and local transport options
+- Free time / flexibility slots
+- Estimated daily costs

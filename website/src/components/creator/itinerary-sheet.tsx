@@ -48,6 +48,9 @@ export type Stop = {
   imageHotel?: string | null;
   /** Where it came from: the creator's video, WishTrip's checked places, or a suggestion. */
   origin: "reel" | "kb" | "suggested" | "creator";
+  /** In a trip planned for a party: an extra the traveller may skip, and how to get to the next stop. */
+  optional?: boolean;
+  transfer?: string;
 };
 export type ItineraryDay = { n: number; stops: Stop[] };
 
@@ -90,7 +93,7 @@ export function daysFromItems(items: Item[], days?: number): ItineraryDay[] {
       ...day,
       {
         id: s.id,
-        when: WHEN[day.length % WHEN.length],
+        when: s.slot ? s.slot.charAt(0).toUpperCase() + s.slot.slice(1) : WHEN[day.length % WHEN.length],
         kind: s.kind,
         name: s.name,
         note: noteFor(s),
@@ -98,6 +101,8 @@ export function daysFromItems(items: Item[], days?: number): ItineraryDay[] {
         origin: s.origin ?? "reel",
         image: s.image_url ?? null,
         imageHotel: s.image_hotel ?? null,
+        optional: s.optional || undefined,
+        transfer: s.transfer || undefined,
       },
     ]);
   });

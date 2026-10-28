@@ -1,0 +1,81 @@
+/** "Build my trip" on the Details screen of a pasted reel: the trip is planned for the party in the
+ *  background and opens at its own number, filling in until the plan is ready. */
+import { execSync } from "node:child_process";
+import path from "node:path";
+
+import { expect, signUp, test } from "./fixtures";
+
+/** A reel the signed-in traveller has already pasted and we have read (no Instagram needed). */
+function seedImport(email: string, stamp: string): string {
+  const code = `
+import asyncio
+import app.db.models  # noqa
+from sqlalchemy import select
+from app.db.session import SessionLocal
+from app.modules.reels.models import CreatorContent, ImportStatus, ReelImport
+from app.modules.users.models import User
+PLACES = [
+  {"name": "Fort Aguada", "kind": "sight", "evidence": "the old fort", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 3},
+  {"name": "Anjuna fish thali", "kind": "food", "evidence": "lunch", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 8},
+  {"name": "Mandovi sunset cruise", "kind": "experience", "evidence": "sunset", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 14},
+  {"name": "Fontainhas", "kind": "sight", "evidence": "old latin quarter", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 19},
+  {"name": "Old Goa churches", "kind": "sight", "evidence": "churches", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 23},
+  {"name": "Morjim beach", "kind": "experience", "evidence": "beach", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 30},
+]
+async def main():
+    async with SessionLocal() as s:
+        user = (await s.execute(select(User).where(User.email == "${email}"))).scalar_one()
+        c = CreatorContent(shortcode="Dbuild${stamp}", url="https://www.instagram.com/reel/Dbuild${stamp}/", destination_name="Goa",
+                           places=PLACES, extracted={"summary": "A slow Goa trip"})
+        s.add(c); await s.flush()
+        j = ReelImport(url=c.url, shortcode=c.shortcode, user_id=user.id, content_id=c.id, status=ImportStatus.DONE)
+        s.add(j); await s.commit()
+        print(j.id)
+asyncio.run(main())`;
+  return execSync("docker compose exec -T backend python -", { cwd: path.resolve(__dirname, "../.."), input: code }).toString().trim().split("\n").pop()!;
+}
+
+test("Build my trip plans the reel's places for the party and opens the trip at its number", async ({ page, baseURL }) => {
+  test.setTimeout(150_000);
+  const email = await signUp(page);
+  const importId = seedImport(email, Date.now().toString(36));
+
+  await page.goto(`/trip/details?id=${importId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
+  await page.getByRole("radio", { name: /Couple/ }).click();
+  await page.getByRole("button", { name: "More days" }).last().click(); // the days they choose set the price
+  // The estimate on the Details screen (desktop card)…
+  const estimate = await page.locator("strong.tabular-nums").filter({ hasText: /^₹[\d,]+$/ }).last().innerText();
+  await page.getByRole("button", { name: "Build my trip →" }).click();
+
+  // It opens at its own number, and says it is being built (or is already done).
+  await expect(page).toHaveURL(new RegExp(`${baseURL}/trip/mine/[a-z0-9]{8}$`));
+  const tripNo = page.url().split("/").pop()!;
+  await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
+  await expect(page.getByText(/Made for you · from your reel/)).toBeVisible();
+  // …is the total inside the trip, for the same travellers and days.
+  await expect(page.getByText("Total for 2")).toBeVisible();
+  await expect(page.locator("strong.tabular-nums").filter({ hasText: estimate }).first()).toBeVisible();
+
+  // The plan settles: no more "Building…", every place from the reel is in it.
+  await expect(page.getByText("Building your trip…")).toHaveCount(0, { timeout: 90_000 });
+  await expect(page.getByText("We couldn’t build your trip just now")).toHaveCount(0);
+  await expect(page.getByText(/Planned for a couple/)).toBeVisible();
+  const tabs = page.getByRole("tab");
+  expect(await tabs.count()).toBeGreaterThanOrEqual(2);
+  const seen: string[] = [];
+  for (let i = 0; i < (await tabs.count()); i++) {
+    await tabs.nth(i).click();
+    seen.push(await page.getByRole("tabpanel").innerText());
+  }
+  for (const place of ["Fort Aguada", "Anjuna fish thali", "Mandovi sunset cruise", "Fontainhas", "Old Goa churches", "Morjim beach"]) {
+    expect(seen.join("\n"), place).toContain(place);
+  }
+
+  // The number brings it back as it was; Change details goes back to the reel's Details, prefilled.
+  await page.goto(`/trip/mine/${tripNo}`);
+  await expect(page.getByText(/Planned for a couple/)).toBeVisible();
+  await page.getByRole("link", { name: "Change details" }).click();
+  await expect(page).toHaveURL(new RegExp(`/trip/details\\?id=${importId}&mine=${tripNo}`));
+  await expect(page.getByRole("radio", { name: /Couple/ })).toHaveAttribute("aria-checked", "true");
+});

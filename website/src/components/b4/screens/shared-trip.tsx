@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { partySize, partyText, samplePrices, type Party, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
@@ -38,7 +38,32 @@ const KIND_CHIP: Record<string, { label: string; chip: string }> = {
 
 /** What a traveller chose on the Details screen, when the trip is being made theirs. */
 /** `code` is its own trip number; `source` is the creator's trip it was made from. */
-export type Mine = { code: string; source: string; days: number; party: Party; pace: string; when?: string };
+export type Mine = {
+  code: string;
+  source: string;
+  /** The reel it was built from, when it came from one. */
+  importId?: string | null;
+  days: number;
+  party: Party;
+  pace: string;
+  when?: string;
+  /** How the plan for this party is getting on: building, ready or failed, and what it is. */
+  build?: { status: string; error: string; persona: string; aiBuilt: boolean; summary: string; tips: string[]; fromReel: boolean };
+  /** Try the build again (when it failed). */
+  retry?: () => void;
+};
+
+const PERSONA: Record<string, string> = {
+  solo: "a solo traveller",
+  couple: "a couple",
+  family: "a family",
+  elderly: "senior travellers",
+  flexible: "a mixed group",
+};
+
+/** Where "Change details" goes: back to the Details screen of the trip or reel it was built from. */
+const detailsHref = (m: Mine) =>
+  m.importId ? `${LINKS.details}?id=${m.importId}&mine=${m.code}` : `${LINKS.details}?trip=${m.source}&mine=${m.code}`;
 
 const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E3E8EE] bg-white p-3.5";
 
@@ -94,6 +119,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const [dayIx, setDayIx] = useState(0);
   const [openStop, setOpenStop] = useState<string | null>(null);
   const [flights, setFlights] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const router = useRouter();
 
   // Credit the creator once we know who they are.
   const referralCode = (preloaded ?? trip.data)?.creator.referral_code;
@@ -112,7 +139,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
       {...(mine ? { step: 2 } : { nav: true })}
       title={title}
       subtitle={subtitle}
-      back={mine ? `${LINKS.details}?trip=${mine.source}&mine=${mine.code}` : LINKS.home}
+      back={mine ? detailsHref(mine) : LINKS.home}
       signedIn={!!me.data}
       traveller={name}
     />
@@ -144,9 +171,12 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
 
   const who = t.creator.display_name || (t.creator.handle ? `@${t.creator.handle}` : "a creator");
   const where = t.destination_name || "your trip";
-  const days = daysFromItems(t.items, mine?.days);
+  // A trip planned for the party has its own days; an older copy is spread over the days chosen.
+  const days = daysFromItems(t.items, mine && !t.items.some((i) => i.slot) ? mine.days : undefined);
   const travellers = mine ? Math.max(1, partySize(mine.party)) : 3;
-  const prices = samplePrices(travellers, mine ? Math.max(1, days.length - 1) : 4);
+  // Priced for who is going and the days they chose, exactly as the Details screen's estimate is.
+  const nights = mine ? Math.max(1, mine.days - 1) : Math.max(1, days.length - 1);
+  const prices = samplePrices(travellers, mine ? nights : 4);
   const current = Math.min(dayIx, Math.max(0, days.length - 1));
   const day = days[current];
   const stops = days.reduce((n, d) => n + d.stops.length, 0);
@@ -154,6 +184,19 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
     t.items.length ? `. I want to see: ${t.items.filter((i) => i.kind !== "note").map((i) => i.name).slice(0, 10).join(", ")}` : ""
   }.`;
   const plan = (extra = "") => `${LINKS.start}?prompt=${encodeURIComponent(seed + extra)}`;
+  /** On a trip made for the traveller: a chat that already holds the board (who, days, pace, stops),
+   *  with Arya sent the board to plan from. Signed out, it falls back to the sign-in redirect. */
+  async function chatWithArya(extra = "") {
+    if (!mine || opening) return;
+    setOpening(true);
+    const r = await api.POST("/my-trips/{code}/arya", { params: { path: { code: mine.code } } });
+    if (r.error !== undefined || !r.data) {
+      router.push(plan(extra ? `. ${extra}` : ""));
+      return;
+    }
+    const message = [r.data.message, extra].filter(Boolean).join(" ");
+    router.push(`${LINKS.start}?session=${r.data.session_id}&send=${encodeURIComponent(message)}`);
+  }
   const here = typeof window === "undefined" ? "" : window.location.href;
 
   return (
@@ -176,13 +219,13 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                 <span className="mb-1 inline-flex w-fit flex-wrap items-center gap-2 rounded-full bg-white/15 py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-white">
                   Trip no.{" "}
                   <strong className="font-mono tracking-wider">{`${mine.code.slice(0, 4)}-${mine.code.slice(4)}`.toUpperCase()}</strong>
-                  <Link href={`${LINKS.details}?trip=${mine.source}&mine=${mine.code}`} className="rounded-full bg-white px-3 py-1 text-[#0A7C80] no-underline">
+                  <Link href={detailsHref(mine)} className="rounded-full bg-white px-3 py-1 text-[#0A7C80] no-underline">
                     Change details
                   </Link>
                 </span>
               )}
               <span className="text-[13px] font-bold text-[#22DDE0]">
-                {mine ? `Made for you · based on ${who}’s trip` : `A trip by ${who}`}
+                {mine ? (mine.build?.fromReel ? "Made for you · from your reel" : `Made for you · based on ${who}’s trip`) : `A trip by ${who}`}
               </span>
               <h1 className="font-display m-0 text-[36px] font-medium leading-[1.05] md:text-[56px]">{mine ? `Your ${where} trip` : t.title}</h1>
               <p className="m-0 text-[14.5px] text-white/90">
@@ -191,7 +234,14 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                   ? ` · ${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}`
                   : ` · ${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from ${who}’s reel`}
               </p>
-              {t.summary && <p className="m-0 max-w-[640px] text-[14px] text-white/80">{t.summary}</p>}
+              {(mine?.build?.summary || t.summary) && (
+                <p className="m-0 max-w-[640px] text-[14px] text-white/80">{mine?.build?.summary || t.summary}</p>
+              )}
+              {mine?.build?.status === "ready" && mine.build.persona && (
+                <span className="text-[12.5px] text-white/70">
+                  Planned for {PERSONA[mine.build.persona] ?? "your group"} · {mine.build.aiBuilt ? "planned with AI, checked against the places in the reel" : "arranged from the places in the reel"}
+                </span>
+              )}
               <div className="relative mt-2 flex gap-2">
                 <button
                   type="button"
@@ -238,7 +288,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, Math.max(1, days.length - 1), prices).map((b) => {
+              {bookings(where, nights, prices).map((b) => {
                 const flight = b.kind === "FLIGHTS";
                 const Tag = flight ? "button" : "div";
                 return (
@@ -263,6 +313,29 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
               })}
             </div>
           </div>
+
+          {mine?.build?.status === "building" && (
+            <div role="status" className="flex items-center gap-3 rounded-[18px] border border-[#BDEFF0] bg-[#F1FCFC] p-4 text-[14px]">
+              <span className="size-4 flex-none animate-spin rounded-full border-2 border-[#0A7C80] border-t-transparent" aria-hidden="true" />
+              <span>
+                <strong className="block">Building your trip…</strong>
+                <span className="text-[#566E85]">We’re planning each day for {PERSONA[mine.build.persona] ?? "your group"}, around the places in it. This takes a moment.</span>
+              </span>
+            </div>
+          )}
+          {mine?.build?.status === "failed" && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#F2C9C4] bg-[#FDF3F2] p-4 text-[14px]">
+              <span>
+                <strong className="block">We couldn’t build your trip just now</strong>
+                <span className="text-[#566E85]">The places are shown as they are. Try again, or change the details.</span>
+              </span>
+              {mine.retry && (
+                <button type="button" onClick={mine.retry} className="cursor-pointer rounded-full bg-[#072338] px-4 py-2 text-sm font-semibold text-white">
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-3">
             <Kicker>DAY BY DAY</Kicker>
@@ -361,8 +434,10 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                                   : `From the reel${s.at ? ` · ${s.at}` : ""}`}
                             </Why>
                           )}
+                          {s.optional && <span className="rounded-full border border-[#BDEFF0] px-2.5 py-0.5 text-[10.5px] font-bold text-[#0A7C80]">Optional</span>}
                           {s.note && <span className="rounded-full bg-[#F3F6F9] px-2.5 py-0.5 text-[11px] font-semibold text-[#566E85]">{s.note}</span>}
                         </span>
+                        {s.transfer && <span className="text-[12px] text-[#5F6B78]">Next: {s.transfer}</span>}
                       </div>
                     </article>
                   );
@@ -370,6 +445,17 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
               </div>
             )}
           </div>
+
+          {mine?.build?.status === "ready" && mine.build.tips.length > 0 && (
+            <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-[#F9FBFC] p-5">
+              <Kicker>GOOD TO KNOW</Kicker>
+              <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[14px] text-[#3F5A72]">
+                {mine.build.tips.map((tip) => (
+                  <li key={tip} className="flex gap-2"><span aria-hidden="true">•</span><span>{tip}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         <aside className="flex flex-col gap-3.5 md:sticky md:top-[100px]">
@@ -385,12 +471,23 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
               <strong className="text-[15px]">Total for {travellers}</strong>
               <strong className="text-[30px] tabular-nums">{prices.total}</strong>
             </span>
-            <Link
-              href={mine ? plan() : `${LINKS.details}?trip=${code}`}
-              className="rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] no-underline shadow-[0_10px_26px_rgba(18,201,206,.3)]"
-            >
-              {mine ? "Book in one go" : "Make it mine"}
-            </Link>
+            {mine ? (
+              <button
+                type="button"
+                disabled={opening}
+                onClick={() => chatWithArya("I'd like to book this.")}
+                className="rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] shadow-[0_10px_26px_rgba(18,201,206,.3)] disabled:opacity-60"
+              >
+                Book in one go
+              </button>
+            ) : (
+              <Link
+                href={`${LINKS.details}?trip=${code}`}
+                className="rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] no-underline shadow-[0_10px_26px_rgba(18,201,206,.3)]"
+              >
+                Make it mine
+              </Link>
+            )}
             <span className="text-center text-xs text-[#566E85]">Nothing is charged until you choose at checkout</span>
             <span className="text-center text-[11px] text-[#5F6B78]">Sample prices while bookings are being set up.</span>
           </div>
@@ -409,18 +506,40 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
             <span className="text-[13px] text-[#566E85]">Say it in your words. The board and the price update.</span>
             <span className="flex flex-wrap gap-1.5">
               {[
-                ["Add a sunset cruise", ". Add a sunset cruise."],
-                [`Make day ${Math.min(3, days.length)} easier`, `. Make day ${Math.min(3, days.length)} easier.`],
-              ].map(([label, extra]) => (
-                <Link
-                  key={label}
-                  href={plan(extra)}
-                  className="rounded-full border-[1.5px] border-[#BDEFF0] px-[11px] py-[7px] text-[12.5px] font-semibold text-[#0A7C80] no-underline"
-                >
-                  {label}
-                </Link>
-              ))}
+                ["Add a sunset cruise", "Add a sunset cruise."],
+                [`Make day ${Math.min(3, days.length)} easier`, `Make day ${Math.min(3, days.length)} easier.`],
+              ].map(([label, extra]) =>
+                mine ? (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={opening}
+                    onClick={() => chatWithArya(extra)}
+                    className="rounded-full border-[1.5px] border-[#BDEFF0] px-[11px] py-[7px] text-[12.5px] font-semibold text-[#0A7C80] disabled:opacity-60"
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <Link
+                    key={label}
+                    href={plan(`. ${extra}`)}
+                    className="rounded-full border-[1.5px] border-[#BDEFF0] px-[11px] py-[7px] text-[12.5px] font-semibold text-[#0A7C80] no-underline"
+                  >
+                    {label}
+                  </Link>
+                ),
+              )}
             </span>
+            {mine && (
+              <button
+                type="button"
+                disabled={opening}
+                onClick={() => chatWithArya()}
+                className="rounded-full bg-[#072338] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {opening ? "Opening Arya…" : "Chat with Arya"}
+              </button>
+            )}
           </div>
         </aside>
       </main>

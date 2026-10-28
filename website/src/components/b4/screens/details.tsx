@@ -60,7 +60,7 @@ export function DetailsScreen() {
   if (saved && seeded !== saved.code) {
     const match = GROUPS.find((g) => g.c[0] === saved.adults && g.c[1] === saved.kids && g.c[2] === saved.seniors);
     setSeeded(saved.code);
-    setGroup(match?.id ?? "");
+    setGroup(saved.group || (match?.id ?? ""));
     setCount({ adults: saved.adults, kids: saved.kids, seniors: saved.seniors });
     setDays(saved.days);
     setPace(saved.pace);
@@ -68,15 +68,18 @@ export function DetailsScreen() {
   }
 
   const next = async () => {
-    if (!code) return router.push(`${LINKS.board}?id=${id}&days=${days}`);
-    // Make (or update) the trip under its own number, then open it: the number is the way back.
+    if (!code && !id) return router.push(LINKS.reel);
+    // Build the trip for this party under its own number, then open it: the number is the way
+    // back. It is planned in the background, and the trip page shows it filling in.
     setSaving(true);
     setProblem(null);
-    const body = { ...count, days, pace, when: when.trim() };
+    const body = { ...count, days, pace, when: when.trim(), group };
     try {
       const made = mineCode
         ? unwrap(await api.PATCH("/my-trips/{code}", { params: { path: { code: mineCode } }, body }))
-        : unwrap(await api.POST("/trips/{share_code}/make-mine", { params: { path: { share_code: code } }, body }));
+        : code
+          ? unwrap(await api.POST("/trips/{share_code}/make-mine", { params: { path: { share_code: code } }, body }))
+          : unwrap(await api.POST("/reels/imports/{import_id}/build", { params: { path: { import_id: id! } }, body }));
       queryClient.setQueryData(["mine-trip", made.code], made); // the trip page shows what was just saved
       router.push(`${LINKS.mine}/${made.code}`);
     } catch (e) {

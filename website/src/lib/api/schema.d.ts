@@ -1582,6 +1582,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/imports/{import_id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build From Reel
+         * @description "Build my trip" on the Details screen: plan the reel's places for this party. Returns the
+         *     trip (building: poll `/my-trips/{code}` until it is ready).
+         */
+        post: operations["build_from_reel_reels_imports__import_id__build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/my-trips/{code}": {
         parameters: {
             query?: never;
@@ -1604,6 +1625,27 @@ export interface paths {
          * @description Change who is going, the days, the pace or the dates; the code stays the same.
          */
         patch: operations["update_mine_my_trips__code__patch"];
+        trace?: never;
+    };
+    "/my-trips/{code}/arya": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat With Arya
+         * @description Chat with Arya, from the trip board: a new conversation that already knows the trip (where,
+         *     who, how many days, the pace, the stops), so Arya plans from it instead of asking again.
+         */
+        post: operations["chat_with_arya_my_trips__code__arya_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/spotlight": {
@@ -2301,6 +2343,16 @@ export interface components {
             hotel: components["schemas"]["HotelDetail"];
             /** Reason */
             reason: string;
+        };
+        /** AryaStart */
+        AryaStart: {
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /** Message */
+            message: string;
         };
         /** AssignmentLog */
         AssignmentLog: {
@@ -4679,6 +4731,11 @@ export interface components {
              * @default
              */
             when: string;
+            /**
+             * Group
+             * @default
+             */
+            group: string;
         };
         /** MineRead */
         MineRead: {
@@ -4709,6 +4766,43 @@ export interface components {
             pace: string;
             /** When */
             when: string;
+            /**
+             * Group
+             * @default
+             */
+            group: string;
+            /**
+             * Build Status
+             * @default ready
+             */
+            build_status: string;
+            /**
+             * Build Error
+             * @default
+             */
+            build_error: string;
+            /**
+             * Persona
+             * @default
+             */
+            persona: string;
+            /**
+             * Ai Built
+             * @default false
+             */
+            ai_built: boolean;
+            /**
+             * Plan Summary
+             * @default
+             */
+            plan_summary: string;
+            /**
+             * Tips
+             * @default []
+             */
+            tips: string[];
+            /** Import Id */
+            import_id?: string | null;
         };
         /** Nearby */
         Nearby: {
@@ -6207,6 +6301,18 @@ export interface components {
             image_url?: string | null;
             /** Image Hotel */
             image_hotel?: string | null;
+            /** Slot */
+            slot?: ("morning" | "afternoon" | "evening") | null;
+            /**
+             * Optional
+             * @default false
+             */
+            optional: boolean;
+            /**
+             * Transfer
+             * @default
+             */
+            transfer: string;
         };
         /**
          * TripStatus
@@ -9227,6 +9333,41 @@ export interface operations {
             };
         };
     };
+    build_from_reel_reels_imports__import_id__build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MineConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_mine_my_trips__code__get: {
         parameters: {
             query?: never;
@@ -9280,6 +9421,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_with_arya_my_trips__code__arya_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AryaStart"];
                 };
             };
             /** @description Validation Error */

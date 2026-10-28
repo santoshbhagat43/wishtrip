@@ -1,0 +1,17 @@
+Create a romantic and well-balanced itinerary for a couple.
+
+Details:
+- Destination: [City / Country]
+- Duration: [Number of days]
+- Occasion: [Anniversary / Honeymoon / Just a holiday / etc.]
+- Budget: [Budget / Mid-range / Luxury]
+- Interests: [e.g. romantic dinners, beaches, culture, adventure, spa, etc.]
+- Pace: [Relaxed / Moderate]
+- Any special requests: [e.g. private experiences, sunset spots, couple activities]
+
+Include:
+- Day-by-day plan with a mix of shared experiences and some free time
+- Romantic restaurants, viewpoints, and activities
+- Hotel/area recommendations suitable for couples
+- Optional special experiences (couples massage, private tour, etc.)
+- Estimated costs

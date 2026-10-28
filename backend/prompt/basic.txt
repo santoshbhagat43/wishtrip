@@ -1,0 +1,19 @@
+Create a practical and well-structured trip itinerary. Make sure the itinerary always includes these must-have basic elements:
+
+Clear day-by-day plan (Day 1, Day 2, etc.)
+Morning, Afternoon, and Evening breakdown for each day
+Realistic travel/transfer time between places
+Proper meal times (breakfast, lunch, dinner suggestions)
+Buffer/rest time (do not overcrowd the schedule)
+Main activities + optional activities (clearly marked)
+Accommodation check-in and check-out timing
+Important tips (transport, tickets, best time to visit, etc.)
+Estimated cost (if budget is provided)
+Adjustment according to traveler type (Solo / Couple / Family / Senior)
+
+Rules to follow:
+Maximum 2–3 main activities per day
+Keep the pace comfortable and realistic
+Always leave free time for rest or unexpected delays
+Priority to fixed things first (flights, hotel, pre-booked tickets)
+Ask for any missing details (destination, number of days, traveler type, budget, interests) before making the full itinerary.

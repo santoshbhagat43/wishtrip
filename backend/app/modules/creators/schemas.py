@@ -216,6 +216,11 @@ class TripItem(BaseModel):
     # filled in when the trip is read, never saved.
     image_url: str | None = None
     image_hotel: str | None = None
+    # In a trip built for a traveller: the part of the day, an optional extra, and how to get to
+    # the next stop.
+    slot: Literal["morning", "afternoon", "evening"] | None = None
+    optional: bool = False
+    transfer: str = ""
 
 
 class CreatorTripRead(BaseModel):

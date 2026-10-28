@@ -109,6 +109,8 @@ export function useMineTrip(code: string | null) {
     queryKey: ["mine-trip", code],
     enabled: !!code,
     retry: false,
+    // While the plan is being built, look again every couple of seconds.
+    refetchInterval: (query) => (query.state.data?.build_status === "building" ? 2000 : false),
     queryFn: async () => {
       const r = await api.GET("/my-trips/{code}", { params: { path: { code: code! } } });
       return r.response.status === 404 ? null : unwrap(r);

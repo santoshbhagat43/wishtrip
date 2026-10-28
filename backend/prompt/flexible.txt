@@ -1,0 +1,18 @@
+Create a flexible itinerary that works for a mixed group (different ages and energy levels).
+
+Details:
+- Destination: [City / Country]
+- Duration: [Number of days]
+- Group composition: [e.g. seniors + adults + kids / friends of different ages]
+- Budget: [Budget / Mid-range / Luxury]
+- Common interests: [list]
+- Pace: [Balanced – some active, some relaxed options]
+- Special requirements: [accessibility, kid-friendly, etc.]
+
+Include:
+- Day-by-day plan with optional activity choices (active vs relaxed)
+- Shared experiences + free time for different preferences
+- Restaurants that suit different age groups
+- Transport and accessibility notes
+- Flexibility built into the schedule
+- Estimated costs

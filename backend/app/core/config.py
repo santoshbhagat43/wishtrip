@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     reel_ocr_workers: int = 0
     reel_download_timeout_seconds: int = 240
     reel_imports_per_hour: int = 10
+    # Trips built with AI for travellers, across everyone, per hour. Past it, trips are arranged by
+    # rule (no AI) so the cost stays bounded; nobody is refused.
+    trip_builds_per_hour: int = 120
     # Top a creator's itinerary up to a whole trip (at least two full days) from the knowledge
     # base and clearly-labelled AI suggestions. Off only for tests of the bare reading.
     complete_itineraries: bool = True

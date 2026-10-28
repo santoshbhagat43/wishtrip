@@ -1,0 +1,18 @@
+Create a family-friendly itinerary.
+
+Details:
+- Destination: [City / Country]
+- Duration: [Number of days]
+- Family composition: [e.g. 2 adults + 2 kids (ages X and Y)]
+- Budget: [Budget / Mid-range / Luxury]
+- Interests: [e.g. theme parks, nature, educational, beaches, animals, etc.]
+- Pace: [Relaxed – kids-friendly]
+- Any special needs: [e.g. stroller access, kid menus, nap times, etc.]
+
+Include:
+- Day-by-day plan suitable for children
+- Mix of fun activities, educational stops, and downtime
+- Family-friendly restaurants and rest areas
+- Transport recommendations (with kids in mind)
+- Backup indoor options for bad weather
+- Estimated costs

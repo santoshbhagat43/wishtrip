@@ -254,3 +254,20 @@ class TravellerTrip(UUIDPrimaryKey, Timestamps, Base):
     pace: Mapped[str] = mapped_column(String(16), default="relaxed")
     # What they typed for "When" (free text: "Dec 12–16", "Sometime in March").
     when_text: Mapped[str] = mapped_column(String(80), default="")
+    # How the trip was made. `source_items` is what it is built from (the creator's stops, or the
+    # reel's places) and never changes; `items` is the plan built for this party.
+    source_import_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("reel_imports.id", ondelete="SET NULL"), index=True
+    )
+    source_items: Mapped[list] = mapped_column(JSONB, default=list)
+    # The group the plan was written for: solo | couple | family | elderly | flexible.
+    persona: Mapped[str] = mapped_column(String(16), default="")
+    # The group as the Details screen named it (couple, family, friends, seniors…), to come back to.
+    group: Mapped[str] = mapped_column(String(16), default="")
+    # building | ready | failed
+    build_status: Mapped[str] = mapped_column(String(10), default="ready")
+    build_error: Mapped[str] = mapped_column(String(300), default="")
+    # False when the plan was only arranged from the known places (no AI, or the AI failed).
+    ai_built: Mapped[bool] = mapped_column(Boolean, default=False)
+    plan_summary: Mapped[str] = mapped_column(Text, default="")
+    tips: Mapped[list] = mapped_column(JSONB, default=list)

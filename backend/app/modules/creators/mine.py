@@ -1,20 +1,33 @@
-"""Make it mine: a traveller shapes a creator's published trip around themselves (who is going,
-how many days, the pace) and keeps it under a short code, to come back to and change."""
+"""Make it mine: a traveller's trip, built for who is going. It starts from a creator's published
+trip or from a reel the traveller pasted; the places in it are planned day by day for the party
+(solo, couple, family, elderly or flexible: see builder.py), and kept under a short code to come
+back to and change."""
 
+import logging
 import secrets
+import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.orchestrator import AIOrchestrator, get_orchestrator
+from app.core.config import settings
+from app.core.deps import get_current_user
 from app.core.errors import bad_request, not_found
+from app.core.ratelimit import allow
 from app.db.session import get_session
-from app.modules.creators import trips
+from app.modules.chat.models import ChatSession
+from app.modules.creators import builder, trips
 from app.modules.creators.models import Creator, CreatorTrip, TravellerTrip, TripStatus
 from app.modules.creators.schemas import PublicCreator, TripItem
 from app.modules.hotels import photos
 from app.modules.media.storage import storage
+from app.modules.reels.models import CreatorContent, ImportStatus, ReelImport
+from app.modules.users.models import User
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["trips"])
 
@@ -30,6 +43,8 @@ class MineConfig(BaseModel):
     days: int = Field(default=4, ge=1, le=7)
     pace: str = "relaxed"
     when: str = Field(default="", max_length=80)
+    # Who is going, as the Details screen names it: couple, family, friends, seniors, …
+    group: str = Field(default="", max_length=16)
 
 
 class MineRead(BaseModel):
@@ -47,6 +62,18 @@ class MineRead(BaseModel):
     days: int
     pace: str
     when: str
+    group: str = ""
+    # building: being planned now (poll again) · ready · failed (change the details to retry).
+    build_status: str = "ready"
+    build_error: str = ""
+    # The rules the plan follows: solo, couple, family, elderly or flexible.
+    persona: str = ""
+    # False when the days were arranged from the known places without the AI.
+    ai_built: bool = False
+    plan_summary: str = ""
+    tips: list[str] = []
+    # The reel it was built from, when it came from one (for going back to the Details screen).
+    import_id: str | None = None
 
 
 def _check(config: MineConfig) -> None:
@@ -86,13 +113,95 @@ async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
         days=mine.days,
         pace=mine.pace,
         when=mine.when_text,
+        group=mine.group,
+        build_status=mine.build_status,
+        build_error=mine.build_error,
+        persona=mine.persona,
+        ai_built=mine.ai_built,
+        plan_summary=mine.plan_summary,
+        tips=list(mine.tips or []),
+        import_id=str(mine.source_import_id) if mine.source_import_id else None,
     )
 
 
-def _apply(mine: TravellerTrip, config: MineConfig) -> None:
+def _apply(mine: TravellerTrip, config: MineConfig) -> bool:
+    """Take the details. True when they change what the plan should be (so it is built again)."""
+    before = (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
     mine.adults, mine.kids, mine.seniors = config.adults, config.kids, config.seniors
-    mine.days, mine.pace = config.days, config.pace
+    mine.days, mine.pace, mine.group = config.days, config.pace, config.group
     mine.when_text = " ".join(config.when.split())
+    return before != (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
+
+
+# --- Building the plan -------------------------------------------------------------------------
+
+
+async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str) -> None:
+    """Plan the trip for its party and save it. Never raises: a trip that could not be built says
+    so (`build_status` "failed") and keeps the stops it had."""
+    mine = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == code))
+    if mine is None:
+        return
+    try:
+        # Past the hourly cap the trip is arranged by rule, not refused.
+        use_ai = ai if await allow("trip-builds", settings.trip_builds_per_hour) else None
+        plan = await builder.build(
+            use_ai,
+            must=[i for i in mine.source_items or [] if i.get("kind") != "area"],
+            destination=mine.destination_name,
+            days=mine.days,
+            adults=mine.adults,
+            kids=mine.kids,
+            seniors=mine.seniors,
+            pace=mine.pace,
+            when=mine.when_text,
+            group=mine.group,
+            summary=mine.summary,
+        )
+        mine.items = plan["items"]
+        mine.tips = plan["tips"]
+        mine.plan_summary = plan["summary"]
+        mine.persona = plan["persona"]
+        mine.ai_built = plan["ai_built"]
+        mine.build_status, mine.build_error = "ready", ""
+    except Exception as exc:  # noqa: BLE001 - recorded for the traveller, never a 500
+        log.exception("building traveller trip %s failed", code)
+        mine.build_status, mine.build_error = "failed", f"{type(exc).__name__}"[:300]
+    await session.commit()
+
+
+async def mark_failed(session: AsyncSession, code: str) -> None:
+    mine = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == code))
+    if mine is not None and mine.build_status == "building":
+        mine.build_status, mine.build_error = "failed", "The trip could not be built. Try again."
+        await session.commit()
+
+
+async def _enqueue(session: AsyncSession, mine: TravellerTrip) -> None:
+    """Start building (in a worker, or right here when there is none)."""
+    if settings.reels_inline:
+        await run_build(session, get_orchestrator(), mine.code)
+        await session.refresh(mine)
+        return
+    try:
+        from app.workers.tasks import build_traveller_trip_task
+
+        build_traveller_trip_task.delay(mine.code)
+    except Exception:  # noqa: BLE001 - the queue is down: say so instead of waiting forever
+        log.exception("could not queue the build of %s", mine.code)
+        mine.build_status, mine.build_error = "failed", "The trip could not be started. Try again."
+        await session.commit()
+
+
+# Swappable for tests, which build in place (or not at all).
+enqueue = _enqueue
+
+
+async def _start(session: AsyncSession, mine: TravellerTrip) -> None:
+    mine.build_status, mine.build_error = "building", ""
+    mine.persona = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors)
+    await session.commit()
+    await enqueue(session, mine)
 
 
 @router.post("/trips/{share_code}/make-mine", response_model=MineRead, status_code=201)
@@ -120,9 +229,68 @@ async def make_mine(
         creator_referral_code=creator.referral_code,
         items=trips.clean_items(trip.items or []),
     )
+    # What it is built from: the creator's stops. Until the plan is ready, the trip shows them.
+    mine.source_items = list(mine.items)
     _apply(mine, config)
     session.add(mine)
     await session.commit()
+    await _start(session, mine)
+    return await _read(session, mine)
+
+
+def _place_item(place: dict) -> dict:
+    """A place the reel named, as a stop to plan around."""
+    kind = place.get("kind")
+    return {
+        "id": uuid.uuid4().hex,
+        "kind": kind if kind in trips.ITEM_KINDS else "sight",
+        "name": str(place.get("location_name") or place.get("name") or "")[:200],
+        "note": str(place.get("evidence") or "")[:200],
+        "day": None,
+        "location_id": place.get("location_id"),
+        "verified": bool(place.get("verified")),
+        "t": place.get("t"),
+        "origin": "reel",
+    }
+
+
+@router.post("/reels/imports/{import_id}/build", response_model=MineRead, status_code=201)
+async def build_from_reel(
+    import_id: uuid.UUID,
+    config: MineConfig,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """ "Build my trip" on the Details screen: plan the reel's places for this party. Returns the
+    trip (building: poll `/my-trips/{code}` until it is ready)."""
+    _check(config)
+    job = await session.get(ReelImport, import_id)
+    if not job or job.user_id != user.id:
+        raise not_found("Import")
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    if job.status != ImportStatus.DONE or content is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That reel has not been read yet.")
+    creator = await session.get(Creator, content.creator_id) if content.creator_id else None
+    stops = [_place_item(p) for p in content.places or [] if p.get("kind") != "area"]
+    if not [s for s in stops if s["name"]]:
+        raise bad_request("We found no places in that reel to plan a trip around.")
+    mine = TravellerTrip(
+        code=await _unique_code(session),
+        source_import_id=job.id,
+        title=f"{content.destination_name or 'Your'} trip".strip(),
+        destination_name=content.destination_name,
+        summary=str((content.extracted or {}).get("summary") or "")[:500],
+        cover_image_key=content.thumbnail_key,
+        creator_name=(creator.display_name or creator.handle or "") if creator else "",
+        creator_handle=creator.handle if creator else None,
+        creator_referral_code=creator.referral_code if creator else "",
+        items=stops,
+        source_items=stops,
+    )
+    _apply(mine, config)
+    session.add(mine)
+    await session.commit()
+    await _start(session, mine)
     return await _read(session, mine)
 
 
@@ -142,12 +310,159 @@ async def read_mine(code: str, session: AsyncSession = Depends(get_session)):
 
 
 @router.patch("/my-trips/{code}", response_model=MineRead)
-async def update_mine(
-    code: str, config: MineConfig, session: AsyncSession = Depends(get_session)
-):
+async def update_mine(code: str, config: MineConfig, session: AsyncSession = Depends(get_session)):
     """Change who is going, the days, the pace or the dates; the code stays the same."""
     _check(config)
     mine = await _get(session, code)
-    _apply(mine, config)
+    replan = _apply(mine, config) or mine.build_status == "failed"
     await session.commit()
+    if replan:
+        await _start(session, mine)  # new party, days or pace: the plan is made again
     return await _read(session, mine)
+
+
+class AryaStart(BaseModel):
+    session_id: uuid.UUID
+    # The message that opens the chat: the board as the traveller left it, for Arya to plan from.
+    message: str
+
+
+def _companions(mine: TravellerTrip) -> str:
+    if mine.group in ("couple", "family", "friends", "seniors", "solo"):
+        return mine.group
+    if mine.seniors:
+        return "seniors"
+    if mine.kids:
+        return "family"
+    return {1: "solo", 2: "couple"}.get(mine.adults, "friends")
+
+
+def _party_words(mine: TravellerTrip) -> str:
+    part = lambda n, one, many: f"{n} {one if n == 1 else many}" if n else ""  # noqa: E731
+    return ", ".join(
+        w
+        for w in (
+            part(mine.adults, "adult", "adults"),
+            part(mine.kids, "child", "children"),
+            part(mine.seniors, "senior", "seniors"),
+        )
+        if w
+    )
+
+
+def arya_message(mine: TravellerTrip) -> str:
+    """The trip board in words: where, for whom, how fast, then the stops day by day."""
+    head = (
+        f"This is my trip board for {mine.destination_name or 'my trip'}: {mine.days} "
+        f"{'day' if mine.days == 1 else 'days'}, {_party_words(mine) or '1 traveller'}, "
+        f"{mine.pace} pace"
+    )
+    head += f", {mine.when_text}." if mine.when_text else "."
+    by_day: dict[int, list[str]] = {}
+    loose: list[str] = []
+    for item in mine.items or []:
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        if item.get("day"):
+            by_day.setdefault(int(item["day"]), []).append(name)
+        else:
+            loose.append(name)
+    lines = [f"Day {d}: {', '.join(names)}." for d, names in sorted(by_day.items())]
+    if loose:
+        lines.append(f"Also on the board: {', '.join(loose)}.")
+    return (
+        head
+        + " Keep these stops on the same days and put the plan on the board; I'll tell you what to"
+        " change. " + " ".join(lines)
+    ).strip()
+
+
+@router.post("/my-trips/{code}/arya", response_model=AryaStart, status_code=201)
+async def chat_with_arya(
+    code: str,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Chat with Arya, from the trip board: a new conversation that already knows the trip (where,
+    who, how many days, the pace, the stops), so Arya plans from it instead of asking again."""
+    mine = await _get(session, code)
+    places = [
+        {
+            "name": str(i.get("name") or ""),
+            "kind": i.get("kind") or "sight",
+            "evidence": str(i.get("note") or ""),
+            "verified": bool(i.get("verified")),
+            "location_name": i.get("name") if i.get("verified") else None,
+            "location_id": i.get("location_id"),
+        }
+        for i in mine.items or []
+        if i.get("name")
+    ]
+    state: dict = {
+        "destination": mine.destination_name or None,
+        "duration_days": mine.days,
+        "companions": _companions(mine),
+        "energy_level": {"relaxed": 2, "balanced": 3, "packed": 4}.get(mine.pace, 3),
+        "my_trip": mine.code,
+        "reel": {
+            "import_id": str(mine.source_import_id or ""),
+            "url": "",
+            "handle": mine.creator_handle or "",
+            "summary": mine.summary,
+            "places": places,
+            "tips": list(mine.tips or []),
+        },
+    }
+    state = {k: v for k, v in state.items() if v not in (None, "")}
+    chat = ChatSession(user_id=user.id, title=(mine.title or "My trip")[:255], state=state)
+    session.add(chat)
+    await session.commit()
+    return AryaStart(session_id=chat.id, message=arya_message(mine))
+
+
+# Location types, as a trip board names them.
+_KIND_OF_TYPE = {
+    "hotel": "stay",
+    "restaurant": "food",
+    "activity": "experience",
+    "experience": "experience",
+    "route": "experience",
+}
+
+
+async def sync_from_chat(session: AsyncSession, code: str, suggestions: list[dict]) -> bool:
+    """Arya changed the plan in the chat: put it on the trip board it was started from. Stops that
+    are already on the board keep their id, note and place in the reel; new ones come in as
+    WishTrip's checked places or as Arya's suggestions. True when the board changed."""
+    mine = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == code))
+    planned = [s for s in suggestions if str(s.get("name") or "").strip() and s.get("day")]
+    if mine is None or not planned:
+        return False
+    known = {str(i.get("name") or "").strip().casefold(): i for i in mine.items or []}
+    items: list[dict] = []
+    for s in sorted(planned, key=lambda s: int(s["day"])):
+        name = str(s["name"]).strip()[:200]
+        old = known.get(name.casefold())
+        if old is not None:
+            items.append({**old, "day": int(s["day"])})
+            continue
+        checked = bool(s.get("from_knowledge_base")) and not s.get("is_placeholder")
+        items.append(
+            {
+                "id": uuid.uuid4().hex,
+                "kind": _KIND_OF_TYPE.get(str(s.get("type")), "sight"),
+                "name": name,
+                "note": str(s.get("why") or "")[:200],
+                "day": int(s["day"]),
+                "location_id": str(s["location_id"]) if s.get("location_id") else None,
+                "verified": checked,
+                "t": None,
+                "origin": "kb" if checked else "suggested",
+            }
+        )
+    days = min(7, max(int(i["day"]) for i in items))
+    if items == list(mine.items or []) and days == mine.days:
+        return False
+    mine.items, mine.days = items, days
+    return True

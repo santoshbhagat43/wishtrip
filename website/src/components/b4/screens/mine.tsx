@@ -1,19 +1,38 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+
+import { api, unwrap } from "@/lib/api/client";
 
 import { LINKS } from "../data";
 import { FlowHeader } from "../flow";
 import { useMineTrip } from "../trip-journey";
 import { SharedTripScreen } from "./shared-trip";
 
-/** "Make it mine", step two, at /trip/mine/<trip number>: a creator's trip shaped around the
- *  traveller's own details. The trip number brings back exactly what they made. */
+/** "Make it mine", step two, at /trip/mine/<trip number>: a trip planned for the traveller's own
+ *  party (solo, couple, family, elderly or a mixed group). It is built in the background, so the
+ *  page shows it filling in and settles when the plan is ready. The trip number brings it back. */
 export function MineScreen() {
   const { code } = useParams<{ code: string }>();
+  const queryClient = useQueryClient();
   const mine = useMineTrip(code);
   const m = mine.data;
+
+  // The same details again: plans the trip afresh (after a failure).
+  const retry = useMutation({
+    mutationFn: async () => {
+      if (!m) return null;
+      return unwrap(
+        await api.PATCH("/my-trips/{code}", {
+          params: { path: { code } },
+          body: { adults: m.adults, kids: m.kids, seniors: m.seniors, days: m.days, pace: m.pace, when: m.when, group: m.group },
+        }),
+      );
+    },
+    onSuccess: (fresh) => fresh && queryClient.setQueryData(["mine-trip", code], fresh),
+  });
 
   if (!m) {
     return (
@@ -39,10 +58,21 @@ export function MineScreen() {
       mine={{
         code: m.code,
         source: m.source_share_code,
+        importId: m.import_id,
         days: m.days,
         party: { adults: m.adults, kids: m.kids, seniors: m.seniors },
         pace: m.pace,
         when: m.when || undefined,
+        build: {
+          status: m.build_status,
+          error: m.build_error,
+          persona: m.persona,
+          aiBuilt: m.ai_built,
+          summary: m.plan_summary,
+          tips: m.tips ?? [],
+          fromReel: !m.source_share_code,
+        },
+        retry: () => retry.mutate(),
       }}
     />
   );

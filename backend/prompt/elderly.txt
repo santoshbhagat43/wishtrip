@@ -1,0 +1,19 @@
+Create a comfortable and well-paced itinerary for senior / elderly travelers.
+
+Details:
+- Destination: [City / Country]
+- Duration: [Number of days]
+- Number of people: [e.g. 1 or 2 seniors]
+- Mobility level: [Fully mobile / Prefer limited walking / Need accessible options]
+- Budget: [Budget / Mid-range / Luxury]
+- Interests: [e.g. culture, history, nature, food, light sightseeing, etc.]
+- Pace: [Very relaxed]
+- Any health or accessibility considerations: [e.g. avoid stairs, prefer elevators, short walking distances]
+
+Include:
+- Day-by-day plan with plenty of rest time
+- Accessible attractions and transport options
+- Comfortable restaurants with good seating
+- Avoid long walks, steep areas, or rushed schedules
+- Suggestions for rest spots and shorter activity windows
+- Estimated costs

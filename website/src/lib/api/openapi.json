@@ -4977,6 +4977,65 @@
     }
    }
   },
+  "/reels/imports/{import_id}/build": {
+   "post": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Build From Reel",
+    "description": "\"Build my trip\" on the Details screen: plan the reel's places for this party. Returns the\ntrip (building: poll `/my-trips/{code}` until it is ready).",
+    "operationId": "build_from_reel_reels_imports__import_id__build_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MineConfig"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/my-trips/{code}": {
    "get": {
     "tags": [
@@ -5054,6 +5113,54 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/my-trips/{code}/arya": {
+   "post": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Chat With Arya",
+    "description": "Chat with Arya, from the trip board: a new conversation that already knows the trip (where,\nwho, how many days, the pace, the stops), so Arya plans from it instead of asking again.",
+    "operationId": "chat_with_arya_my_trips__code__arya_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AryaStart"
         }
        }
       }
@@ -7177,6 +7284,25 @@
      "reason"
     ],
     "title": "Alternative"
+   },
+   "AryaStart": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Session Id"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id",
+     "message"
+    ],
+    "title": "AryaStart"
    },
    "AssignmentLog": {
     "properties": {
@@ -13174,6 +13300,12 @@
       "maxLength": 80,
       "title": "When",
       "default": ""
+     },
+     "group": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Group",
+      "default": ""
      }
     },
     "type": "object",
@@ -13245,6 +13377,55 @@
      "when": {
       "type": "string",
       "title": "When"
+     },
+     "group": {
+      "type": "string",
+      "title": "Group",
+      "default": ""
+     },
+     "build_status": {
+      "type": "string",
+      "title": "Build Status",
+      "default": "ready"
+     },
+     "build_error": {
+      "type": "string",
+      "title": "Build Error",
+      "default": ""
+     },
+     "persona": {
+      "type": "string",
+      "title": "Persona",
+      "default": ""
+     },
+     "ai_built": {
+      "type": "boolean",
+      "title": "Ai Built",
+      "default": false
+     },
+     "plan_summary": {
+      "type": "string",
+      "title": "Plan Summary",
+      "default": ""
+     },
+     "tips": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tips",
+      "default": []
+     },
+     "import_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Import Id"
      }
     },
     "type": "object",
@@ -17415,6 +17596,32 @@
        }
       ],
       "title": "Image Hotel"
+     },
+     "slot": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "morning",
+         "afternoon",
+         "evening"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Slot"
+     },
+     "optional": {
+      "type": "boolean",
+      "title": "Optional",
+      "default": false
+     },
+     "transfer": {
+      "type": "string",
+      "title": "Transfer",
+      "default": ""
      }
     },
     "type": "object",

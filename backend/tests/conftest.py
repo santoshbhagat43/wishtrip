@@ -57,6 +57,22 @@ def outbox(monkeypatch):
     return sent
 
 
+@pytest.fixture(autouse=True)
+def builds(monkeypatch):
+    """Trips built for a traveller are queued to a worker in real life; here they are recorded
+    (tests that want the plan run `mine.run_build` themselves)."""
+    from app.modules.creators import builder, mine
+
+    monkeypatch.setattr(builder, "RETRY_SECONDS", 0)
+    queued: list[str] = []
+
+    async def record(session, trip):
+        queued.append(trip.code)
+
+    monkeypatch.setattr(mine, "enqueue", record)
+    return queued
+
+
 @pytest.fixture
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

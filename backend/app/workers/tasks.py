@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -118,6 +119,27 @@ def send_email_task(name: str, to: str, variables: dict) -> bool:
     if not emails.deliver_now(name, to, variables):
         raise RuntimeError(f"email {name} to {to} was not sent")  # retried with backoff
     return True
+
+
+# A traveller's trip, planned for their party (see creators/builder.py).
+async def _build_traveller_trip(code: str) -> None:
+    from app.modules.creators import mine
+
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            await mine.run_build(session, AIOrchestrator(), code)
+    except Exception:  # noqa: BLE001 - never leave a trip "building" for ever
+        logging.getLogger(__name__).exception("trip build %s crashed", code)
+        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+            await mine.mark_failed(session, code)
+    finally:
+        await engine.dispose()
+
+
+@celery_app.task(name="trips.build_traveller_trip")
+def build_traveller_trip_task(code: str) -> None:
+    asyncio.run(_build_traveller_trip(code))
 
 
 # TripJack photos for the hotels a creator's trip stays at (matched by name once fetched).

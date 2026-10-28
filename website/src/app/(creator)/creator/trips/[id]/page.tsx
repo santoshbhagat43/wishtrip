@@ -27,6 +27,8 @@ const kindOf = (value: string) => KINDS.find((k) => k.value === value) ?? KINDS[
 
 const blank = (day: number): Item => ({
   id: `new-${crypto.randomUUID()}`,
+  optional: false,
+  transfer: "",
   kind: "sight",
   name: "",
   note: "",
