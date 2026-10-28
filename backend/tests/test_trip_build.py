@@ -431,7 +431,7 @@ async def test_a_stay_with_no_hotel_is_swapped_for_one_with_a_room_so_the_price_
     assert got["all_priced"] and got["total"] == 13200
     board = (await client.get(f"/my-trips/{trip['code']}")).json()
     swapped = next(i for i in board["items"] if i["kind"] == "stay")
-    assert swapped["name"] == stay["hotel"]["name"] and "Mega Beach Lodge" in swapped["note"]
+    assert swapped["name"] == stay["hotel"]["name"] and "Mega Beach Lodge" not in swapped["note"]
     assert swapped["name"] != "Mega Beach Lodge"
     calls = len(fake.calls)
     again = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
@@ -1043,6 +1043,8 @@ async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_a
     async def none(*a, **k):
         return None
 
+    PRICES = {("BLR", "IXB"): 3000, ("PBH", "BLR"): 6000, ("IXB", "BLR"): 6000}
+
     class OpenJaw(FakeFlights):
         async def search(self, query):
             self.queries.append(query)
@@ -1051,9 +1053,16 @@ async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_a
             seg = {"da": {"code": origin}, "aa": {"code": destination}, "dt": "2027-01-10T08:00",
                    "at": "2027-01-10T10:00", "fD": {"aI": {"code": "AI", "name": "Air India"}, "fN": "1"},
                    "duration": 120, "stops": 0}  # fmt: skip
-            price = 3000 if destination == "IXB" else 6000
+            price = PRICES[(origin, destination)]
             fare = {"fareIdentifier": "PUBLISHED", "id": f"id{price}", "fd": {"ADULT": {"fC": {"BF": price, "TAF": 0}}}}
-            return {"searchResult": {"tripInfos": {"ONWARD": [{"sI": [seg], "totalPriceList": [fare]}]}}}
+            trips = {"ONWARD": [{"sI": [seg], "totalPriceList": [fare]}]}
+            if len(query["routeInfos"]) == 2:  # a return search: the way back too
+                back = query["routeInfos"][1]
+                o2, d2 = back["fromCityOrAirport"]["code"], back["toCityOrAirport"]["code"]
+                seg2 = {**seg, "da": {"code": o2}, "aa": {"code": d2}}
+                fare2 = {**fare, "id": "back", "fd": {"ADULT": {"fC": {"BF": PRICES[(o2, d2)], "TAF": 0}}}}
+                trips["RETURN"] = [{"sI": [seg2], "totalPriceList": [fare2]}]
+            return {"searchResult": {"tripInfos": trips}}
 
     fake = OpenJaw()
     monkeypatch.setattr(flights_service, "tripjack_flights", fake)
@@ -1079,11 +1088,20 @@ async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_a
 
     got = (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()
     assert got["status"] == "priced" and got["destination"] == "IXB"
-    assert [(leg["from_code"], leg["to_code"]) for leg in got["legs"]] == [("BLR", "IXB"), ("PBH", "BLR")]
+    assert [(leg["from_code"], leg["to_code"]) for leg in got["legs"]] in (
+        [("BLR", "IXB"), ("PBH", "BLR")], [("BLR", "IXB"), ("IXB", "BLR")]
+    )
     assert got["total"] == 2 * (3000 + 6000)
     asked = [(q["routeInfos"][0]["fromCityOrAirport"]["code"], q["routeInfos"][0]["toCityOrAirport"]["code"])
              for q in fake.queries]  # fmt: skip
-    assert asked == [("BLR", "IXB"), ("PBH", "BLR")]
+    assert ("BLR", "IXB") in asked and ("PBH", "BLR") in asked  # both ways home were priced
+
+    # Flying home from Paro is dearer than flying back from where they landed: the cheaper is used.
+    PRICES[("PBH", "BLR")] = 40000
+    cheaper = (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()
+    assert cheaper["total"] == 2 * (3000 + 6000)
+    assert [(leg["from_code"], leg["to_code"]) for leg in cheaper["legs"]] == [("BLR", "IXB"), ("IXB", "BLR")]
+
 
 
 async def test_a_city_spelt_a_little_differently_still_finds_its_tripjack_region():

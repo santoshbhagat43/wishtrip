@@ -129,7 +129,20 @@ async def flight_price(mine: TravellerTrip) -> FlightPrice:
     if not tripjack_flights.configured:
         return base.model_copy(update={"status": "error"})
     if leave != dest:
-        return await _open_jaw(base, mine, dest, leave, start, end, party)
+        # Two ways home: from the last town's airport, or back from the one they flew into. The
+        # cheaper is the price (a road trip can end by driving back to the first airport).
+        opened = await _open_jaw(base, mine, dest, leave, start, end, party)
+        round_trip = await _round_trip(base, mine, dest, start, end, party)
+        priced = [p for p in (opened, round_trip) if p.status == "priced" and p.total]
+        if not priced:
+            return opened if opened.status != "unavailable" else round_trip
+        return min(priced, key=lambda p: p.total or 0)
+    return await _round_trip(base, mine, dest, start, end, party)
+
+
+async def _round_trip(
+    base: FlightPrice, mine: TravellerTrip, dest: str, start: dt.date, end: dt.date, party: int
+) -> FlightPrice:
 
     query = FlightSearch(
         legs=[Leg(origin=mine.origin_code, destination=dest, date=start),

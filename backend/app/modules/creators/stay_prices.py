@@ -324,10 +324,7 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
             if str(item.get("id"))[:40] == item_id:
                 item["was"] = item.get("was") or item["name"]
                 item["name"] = chosen.name[:200]
-                item["note"] = (
-                    f"Swapped from “{item['was']}” for a hotel with a room for your dates "
-                    "and a live price."
-                )[:500]
+                item["note"] = "Check in. A hotel with a room for your dates and a live price."
                 item["origin"] = "suggested"
                 item["verified"] = False
         changed = True
