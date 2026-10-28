@@ -731,7 +731,7 @@ async def test_a_stay_we_wrote_as_an_area_goes_by_the_trips_budget_not_by_matchi
     assert budget["hotel"]["name"] != "Downtown Villas"  # "Downtown" in the name is no reason to pick it
     # Not a budget trip: the best presented hotel of the right class that has a room.
     again = await make("A slow trip around Bali")
-    assert again["status"] == "priced"
+    assert again["status"] == "priced" and again["hotel"]["name"] == "Mid Hotel"  # the middle rate, not the villa
 
 
 async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_live_search(
@@ -1084,3 +1084,20 @@ async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_a
     asked = [(q["routeInfos"][0]["fromCityOrAirport"]["code"], q["routeInfos"][0]["toCityOrAirport"]["code"])
              for q in fake.queries]  # fmt: skip
     assert asked == [("BLR", "IXB"), ("PBH", "BLR")]
+
+
+async def test_a_city_spelt_a_little_differently_still_finds_its_tripjack_region():
+    from app.modules.hotels import service as hotel_service
+    from app.modules.hotels.models import SupplierRegion
+    from app.modules.hotels.schemas import HotelSearch
+
+    async with SessionLocal() as session:
+        session.add(SupplierRegion(region_id=622618, city_name="PHUNTSHOLING", country_name="BHUTAN", full_name="x"))
+        session.add(SupplierRegion(region_id=18172, city_name="THIMPHU", country_name="BHUTAN", full_name="x"))
+        await session.commit()
+        start = __import__("datetime").date.today() + __import__("datetime").timedelta(days=30)
+        q = lambda city: HotelSearch(city=city, check_in=start, check_out=start + __import__("datetime").timedelta(days=1))  # noqa: E731
+        assert (await hotel_service.resolve_region(session, q("Phuentsholing"))).region_id == 622618
+        assert (await hotel_service.resolve_region(session, q("Thimphu"))).region_id == 18172  # exact first
+        with pytest.raises(hotel_service.NoDestination):
+            await hotel_service.resolve_region(session, q("Atlantis"))

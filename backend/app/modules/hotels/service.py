@@ -55,6 +55,17 @@ async def resolve_region(session: AsyncSession, q: HotelSearch) -> SupplierRegio
         ).scalars().first()
     else:
         raise NoDestination("Give a region_id, location_id or city")
+    if region is None and q.city and not (q.region_id or q.location_id):
+        # A spelling that differs a little from TripJack's ("Phuentsholing" for PHUNTSHOLING).
+        wanted = q.city.strip().lower()
+        close = func.similarity(func.lower(SupplierRegion.city_name), wanted)
+        region = (
+            await session.execute(
+                select(SupplierRegion)
+                .where(close >= 0.6)
+                .order_by(close.desc(), SupplierRegion.hotel_count.desc())
+            )
+        ).scalars().first()
     if region is None:
         raise NoDestination("No hotel region matches that destination")
     return region

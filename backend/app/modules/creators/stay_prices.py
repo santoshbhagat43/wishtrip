@@ -298,14 +298,18 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
 
         totals = await asyncio.gather(*(total(h, window) for h in candidates))
         open_ = [(h, t) for h, t in zip(candidates, totals, strict=True) if t is not None]
-        # The first with a room, in order of fit; but a budget trip takes the cheapest of them
-        # and a luxury one the best presented, so the price is the one the trip is about.
+        # A budget trip takes the cheapest with a room, a luxury one the best presented, and any
+        # other the middle rate, so the price is the one the trip is about.
         chosen = None
         if open_:
-            if stay_choice.BUDGET.search(" ".join(words)):
-                chosen = min(open_, key=lambda pair: pair[1])[0]
+            by_price = sorted(open_, key=lambda pair: pair[1])
+            said = " ".join(words)
+            if stay_choice.BUDGET.search(said):
+                chosen = by_price[0][0]
+            elif stay_choice.LUXURY.search(said):
+                chosen = open_[0][0]  # the best presented of the class
             else:
-                chosen = open_[0][0]
+                chosen = by_price[(len(by_price) - 1) // 2][0]  # the middle rate, never the dearest of two
         if chosen is None:  # none held for this destination yet: what TripJack can sell
             cheap = bool(stay_choice.BUDGET.search(" ".join(words)))
             for place in places:
