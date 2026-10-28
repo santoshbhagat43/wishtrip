@@ -16914,6 +16914,77 @@
     ],
     "title": "SpotlightTrip"
    },
+   "StayAlternative": {
+    "properties": {
+     "hotel": {
+      "$ref": "#/components/schemas/StayHotel"
+     },
+     "stars": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stars"
+     },
+     "image_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Url"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason",
+      "default": ""
+     },
+     "total": {
+      "type": "number",
+      "title": "Total"
+     },
+     "meal_basis": {
+      "type": "string",
+      "title": "Meal Basis",
+      "default": ""
+     },
+     "room": {
+      "type": "string",
+      "title": "Room",
+      "default": ""
+     },
+     "free_cancellation_until": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Free Cancellation Until"
+     },
+     "checked_at": {
+      "type": "string",
+      "title": "Checked At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel",
+     "total",
+     "checked_at"
+    ],
+    "title": "StayAlternative",
+    "description": "A hotel near what the stay's name looked like, priced for the same nights. Not the hotel the\nstay named: it is shown as a suggestion."
+   },
    "StayHotel": {
     "properties": {
      "id": {
@@ -17033,6 +17104,14 @@
        }
       ],
       "title": "Checked At"
+     },
+     "alternatives": {
+      "items": {
+       "$ref": "#/components/schemas/StayAlternative"
+      },
+      "type": "array",
+      "title": "Alternatives",
+      "default": []
      }
     },
     "type": "object",

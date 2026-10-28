@@ -9,11 +9,13 @@ import logging
 from datetime import datetime
 
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.modules.creators.models import TravellerTrip
-from app.modules.hotels import photos
+from app.modules.creators.stop_details import alternatives as nearest_hotels
+from app.modules.hotels import matching, photos
 from app.modules.hotels.client import (
     TripJackError,
     TripJackNotConfigured,
@@ -21,6 +23,7 @@ from app.modules.hotels.client import (
     tripjack_hotels,
 )
 from app.modules.hotels.pricing import IST, normalise_options
+from app.modules.hotels.models import SupplierHotel
 from app.modules.hotels.schemas import Room
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
 
@@ -31,11 +34,28 @@ FRESH_SECONDS = 600
 # Age TripJack is told for a child: the trip does not know it, so it is said on the page.
 ASSUMED_CHILD_AGE = 8
 PARALLEL = 4
+# How many of the closest hotels are priced for a stay that matches none.
+ALTERNATIVES = 3
 
 
 class StayHotel(BaseModel):
     id: str
     name: str
+
+
+class StayAlternative(BaseModel):
+    """A hotel near what the stay's name looked like, priced for the same nights. Not the hotel the
+    stay named: it is shown as a suggestion."""
+
+    hotel: StayHotel
+    stars: float | None = None
+    image_url: str | None = None
+    reason: str = ""
+    total: float
+    meal_basis: str = ""
+    room: str = ""
+    free_cancellation_until: str | None = None
+    checked_at: str
 
 
 class StayPrice(BaseModel):
@@ -52,6 +72,8 @@ class StayPrice(BaseModel):
     room: str = ""
     free_cancellation_until: str | None = None
     checked_at: str | None = None
+    # When the stay named no hotel we hold: the closest hotels that have a room, priced.
+    alternatives: list[StayAlternative] = []
 
 
 class StayPrices(BaseModel):
@@ -123,11 +145,48 @@ async def stay_prices(session: AsyncSession, mine: TravellerTrip) -> StayPrices:
     gate = asyncio.Semaphore(PARALLEL)
     configured = tripjack_hotels.configured
 
+    # The closest hotels for each stay that names none we hold (read here: the session is not
+    # shared between the parallel price calls below).
+    near: dict[str, list[tuple[SupplierHotel, str]]] = {}
+    for stay in wanted:
+        item_id = str(stay["id"])[:40]
+        match = found.get(item_id)
+        if start and rooms and configured and (match is None or match.state in ("review", "nomatch")):
+            options = await nearest_hotels(
+                session, matching.clean_name(stay["name"]), mine.destination_name, limit=ALTERNATIVES
+            )
+            ids = [a.hotel.id for a in options]
+            hotels = {h.id: h for h in await session.scalars(
+                select(SupplierHotel).where(SupplierHotel.id.in_(ids)))} if ids else {}
+            near[item_id] = [(hotels[a.hotel.id], a.reason) for a in options if a.hotel.id in hotels]
+
+    async def alternative(hotel: SupplierHotel, reason: str, window: tuple[dt.date, dt.date]):
+        try:
+            async with gate:
+                got = await _price(hotel.tj_hotel_id, *window, rooms)
+        except (TripJackError, TripJackNotConfigured):
+            return None
+        o = got.get("option")
+        if o is None:
+            return None
+        return StayAlternative(
+            hotel=StayHotel(id=hotel.tj_hotel_id, name=hotel.name), stars=hotel.star_rating,
+            image_url=hotel.hero_image, reason=reason, total=o["price"]["total"],
+            meal_basis=o["meal_basis"], room=(o["rooms"][0]["name"] if o["rooms"] else ""),
+            free_cancellation_until=o["cancellation"]["free_until"], checked_at=got["checked_at"],
+        )
+
     async def one(stay: dict) -> dict:
         item_id = str(stay["id"])[:40]
         row: dict = {"item_id": item_id, "name": stay["name"], "status": "not_matched"}
         match = found.get(item_id)
         if match is None or match.hotel is None or match.state not in photos.SHOWN:
+            window = nights.get(item_id)
+            if item_id in near and window and window[1] > window[0] >= dt.date.today():
+                priced = await asyncio.gather(*(alternative(h, why, window) for h, why in near[item_id]))
+                row["alternatives"] = [a.model_dump(mode="json") for a in priced if a]
+                row.update(check_in=window[0].isoformat(), check_out=window[1].isoformat(),
+                           nights=(window[1] - window[0]).days)
             return row
         row["hotel"] = {"id": match.hotel.tj_hotel_id, "name": match.hotel.name}
         if start is None or item_id not in nights or not rooms:

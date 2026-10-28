@@ -21,6 +21,7 @@ PLACES = [
   {"name": "Fontainhas", "kind": "sight", "evidence": "old latin quarter", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 19},
   {"name": "Old Goa churches", "kind": "sight", "evidence": "churches", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 23},
   {"name": "Morjim beach", "kind": "experience", "evidence": "beach", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 30},
+  {"name": "Zzyzx Lagoon Retreat", "kind": "stay", "evidence": "where they slept", "source": "video", "location_id": None, "location_name": None, "location_type": None, "verified": False, "t": 33},
 ]
 async def main():
     async with SessionLocal() as s:
@@ -84,14 +85,29 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
     status: "priced", origin: "DEL", destination: "GOI", adults: 2, children: 0, total: 18400, checked_at: now,
     legs: [{ from_code: "DEL", to_code: "GOI", date: "2027-01-10", airline: "IndiGo", flight_number: "6E101", stops: 0, price: 10200 }],
   } }));
-  await page.route("**/my-trips/*/stay-prices", (r) => r.fulfill({ json: {
-    currency: "INR", total: 13200, checked_at: now, rooms: 1, all_priced: false,
-    stays: [{ item_id: "x", name: "A stay", status: "priced", total: 13200, nights: 2, meal_basis: "Breakfast" },
-            { item_id: "y", name: "Another", status: "not_matched" }],
-  } }));
+  // The stays are the trip's own (their ids come from the real answer); the prices are TripJack's.
+  const stayAnswer = (make: (id: string) => object[]) => async (r: import("@playwright/test").Route) => {
+    const res = await r.fetch();
+    const real = (await res.json()) as { stays: { item_id: string }[] };
+    await r.fulfill({ json: { currency: "INR", total: 13200, checked_at: now, rooms: 1, all_priced: false, stays: make(real.stays[0].item_id) } });
+  };
+  await page.route("**/my-trips/*/stay-prices", stayAnswer((id) => [
+    { item_id: id, name: "A stay", status: "priced", total: 13200, nights: 2, meal_basis: "Breakfast" },
+    { item_id: "other", name: "Another", status: "not_matched" },
+  ]));
   await page.goto(`/trip/mine/${tripNo}`);
   await expect(page.getByText("Total so far for 2")).toBeVisible();
   await expect(page.locator("strong.tabular-nums").filter({ hasText: "₹31,600" }).first()).toBeVisible(); // 18,400 + 13,200
   await expect(page.getByText("1 not priced")).toBeVisible();
   await expect(page.getByText(/Experiences, meals and transfers are priced at checkout/)).toBeVisible();
+
+  // A stay that names no hotel we hold shows its closest hotels, priced, and not in the total.
+  await page.unroute("**/my-trips/*/stay-prices");
+  await page.route("**/my-trips/*/stay-prices", stayAnswer((id) => [
+    { item_id: id, name: "A stay", status: "not_matched", nights: 2, alternatives: [
+      { hotel: { id: "h9", name: "Beach Inn Goa" }, stars: 4, total: 9100, checked_at: now, reason: "Close to the name in the reel" }] },
+  ]));
+  await page.goto(`/trip/mine/${tripNo}`);
+  await expect(page.getByText("Beach Inn Goa").first()).toBeVisible();
+  await expect(page.getByText(/Suggestions only: they are not in your total/).first()).toBeVisible();
 });

@@ -439,7 +439,22 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                         )}
                         {s.kind === "stay" && (() => {
                           const p = stayPrice(s.id);
-                          if (!p || p.status === "not_matched") return null;
+                          if (!p) return null;
+                          if (p.status === "not_matched") {
+                            if (!p.alternatives?.length) return null;
+                            return (
+                              <span className="flex flex-col gap-1 rounded-xl bg-[#F3F6F9] p-2.5 text-[12.5px] text-[#3F5A72]">
+                                <strong className="text-[12px]">Not the hotel in the reel · closest with a room, live from TripJack</strong>
+                                {p.alternatives.map((a) => (
+                                  <span key={a.hotel.id} className="flex justify-between gap-2">
+                                    <span className="min-w-0 truncate">{a.hotel.name}{a.stars ? ` · ${a.stars}★` : ""}</span>
+                                    <span className="flex-none font-bold tabular-nums text-[#0D2436]">{inr(a.total)}{p.nights ? ` · ${p.nights} ${p.nights === 1 ? "night" : "nights"}` : ""}</span>
+                                  </span>
+                                ))}
+                                <span className="text-[11px]">Suggestions only: they are not in your total.</span>
+                              </span>
+                            );
+                          }
                           if (p.status === "priced")
                             return (
                               <span className="-mt-1 text-[13px] font-bold text-[#0B7A57]">

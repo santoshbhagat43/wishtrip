@@ -6113,6 +6113,39 @@ export interface components {
             /** Spotlight */
             spotlight: boolean;
         };
+        /**
+         * StayAlternative
+         * @description A hotel near what the stay's name looked like, priced for the same nights. Not the hotel the
+         *     stay named: it is shown as a suggestion.
+         */
+        StayAlternative: {
+            hotel: components["schemas"]["StayHotel"];
+            /** Stars */
+            stars?: number | null;
+            /** Image Url */
+            image_url?: string | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Total */
+            total: number;
+            /**
+             * Meal Basis
+             * @default
+             */
+            meal_basis: string;
+            /**
+             * Room
+             * @default
+             */
+            room: string;
+            /** Free Cancellation Until */
+            free_cancellation_until?: string | null;
+            /** Checked At */
+            checked_at: string;
+        };
         /** StayHotel */
         StayHotel: {
             /** Id */
@@ -6151,6 +6184,11 @@ export interface components {
             free_cancellation_until?: string | null;
             /** Checked At */
             checked_at?: string | null;
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["StayAlternative"][];
         };
         /** StayPrices */
         StayPrices: {

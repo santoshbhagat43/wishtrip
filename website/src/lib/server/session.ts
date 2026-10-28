@@ -94,6 +94,7 @@ const ALLOWED: [method: string, pattern: RegExp][] = [
   ["POST", /^flights\/(search|fare-rules)$/],
   ["GET", /^my-trips\/[a-z0-9]{6,16}$/],
   ["PATCH", /^my-trips\/[a-z0-9]{6,16}$/],
+  ["GET", /^my-trips\/[a-z0-9]{6,16}\/(stay-prices|flight-price)$/],
   ["POST", /^my-trips\/[a-z0-9]{6,16}\/arya$/],
   ["GET", /^reels\/imports\/[0-9a-f-]{36}$/],
   ["GET", /^explore\/(destinations|tags|menus)$/],

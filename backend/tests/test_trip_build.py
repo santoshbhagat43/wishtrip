@@ -388,3 +388,39 @@ async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler
         await session.commit()
     await client.patch(f"/my-trips/{trip['code']}", json=body)
     assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == "no_airport"
+
+
+async def test_a_stay_with_no_hotel_gets_its_closest_hotels_priced(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    fake = FakeHotels()
+    monkeypatch.setattr(sp, "tripjack_hotels", fake)
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:
+        session.add_all([
+            SupplierHotel(tj_hotel_id=f"h{i}", region_id=1, name=name, hero_image="https://img.example/x.jpg")
+            for i, name in enumerate(["Mega Palace Hotel", "Grand Mega Resort Kuta", "Mega Beach Inn", "Mega Villas"])
+        ])
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:  # the reel's stay names a hotel we do not hold
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.items = [{**i, "name": "Mega Beach Lodge"} if i["kind"] == "stay" else i for i in row.items]
+        await session.commit()
+
+    (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
+    assert stay["status"] == "not_matched" and stay.get("total") is None
+    alts = stay["alternatives"]
+    assert 1 <= len(alts) <= 3 and all(a["total"] == 13200 and a["hotel"]["id"].startswith("h") for a in alts)
+    assert len({a["hotel"]["id"] for a in alts}) == len(alts)
+    assert len(fake.calls) == len(alts)  # only the alternatives were priced
