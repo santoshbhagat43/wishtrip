@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clock, inr, partySize, partyText, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
+import { clock, inr, partySize, partyText, livePrices, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
 import { daysFromItems, type ItineraryDay } from "@/components/creator/itinerary-sheet";
@@ -80,13 +80,13 @@ const FLIGHT_WHY: Record<string, string> = {
   error: "Live fare not available right now",
 };
 
-function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>, flight?: FlightPrice, from?: string) {
+function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>, flight?: FlightPrice, from?: string, real?: ReturnType<typeof livePrices>) {
   const live = flight?.status === "priced" && flight.total != null;
   const seats = flight ? `${flight.adults} ${flight.adults === 1 ? "adult" : "adults"}${flight.children ? ` + ${flight.children} ${flight.children === 1 ? "child" : "children"}` : ""}` : "";
   return [
     {
       kind: "FLIGHTS",
-      price: live ? inr(flight.total!) : prices.flights,
+      price: live ? inr(flight.total!) : real ? "Not priced" : prices.flights,
       title: `${from || "Your city"} ⇄ ${where}`,
       detail: live
         ? `Return · ${seats} · live from TripJack${flight.checked_at ? `, checked ${clock(flight.checked_at)}` : ""}`
@@ -95,7 +95,7 @@ function bookings(where: string, nights: number, prices: ReturnType<typeof sampl
     },
     {
       kind: "STAY",
-      price: prices.stay,
+      price: real ? real.rows[1][1].split(" · ")[0] : prices.stay,
       title: `A stay in ${where}`,
       detail: `${nights} ${nights === 1 ? "night" : "nights"} · rooms at checkout`,
       chip: "Ground floor on request",
@@ -103,7 +103,7 @@ function bookings(where: string, nights: number, prices: ReturnType<typeof sampl
     },
     {
       kind: "TRANSFERS",
-      price: prices.transfers,
+      price: real ? "At checkout" : prices.transfers,
       title: "Private car, same driver",
       detail: "Airport both ways + day trips",
       chip: "Short drives only",
@@ -196,6 +196,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   // Priced for who is going and the days they chose, exactly as the Details screen's estimate is.
   const nights = mine ? Math.max(1, mine.days - 1) : Math.max(1, days.length - 1);
   const prices = samplePrices(travellers, mine ? nights : 4);
+  // On a trip made for the traveller, the card is the live flight and hotel prices when TripJack has any.
+  const real = mine ? livePrices(flightLive, live, travellers) : null;
   const current = Math.min(dayIx, Math.max(0, days.length - 1));
   const day = days[current];
   const stops = days.reduce((n, d) => n + d.stops.length, 0);
@@ -307,7 +309,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, nights, prices, flightLive, mine?.originCity).map((b) => {
+              {bookings(where, nights, prices, flightLive, mine?.originCity, real).map((b) => {
                 const flight = b.kind === "FLIGHTS";
                 const Tag = flight ? "button" : "div";
                 return (
@@ -499,15 +501,15 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
         <aside className="flex flex-col gap-3.5 md:sticky md:top-[100px]">
           <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-5">
             <Kicker>ONE PRICE, EVERYTHING IN</Kicker>
-            {prices.rows.map(([label, price]) => (
+            {(real ?? prices).rows.map(([label, price]) => (
               <span key={label} className="flex justify-between text-[13.5px] text-[#3F5A72]">
                 <span>{label}</span>
                 <span className="font-semibold tabular-nums text-[#0D2436]">{price}</span>
               </span>
             ))}
             <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
-              <strong className="text-[15px]">Total for {travellers}</strong>
-              <strong className="text-[30px] tabular-nums">{prices.total}</strong>
+              <strong className="text-[15px]">{real ? `${real.complete ? "Total" : "Total so far"} for ${travellers}` : `Total for ${travellers}`}</strong>
+              <strong className="text-[30px] tabular-nums">{real?.total ?? prices.total}</strong>
             </span>
             {mine ? (
               <button
@@ -527,7 +529,11 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
               </Link>
             )}
             <span className="text-center text-xs text-[#566E85]">Nothing is charged until you choose at checkout</span>
-            <span className="text-center text-[11px] text-[#5F6B78]">Sample prices while bookings are being set up.</span>
+            <span className="text-center text-[11px] text-[#5F6B78]">
+              {real
+                ? `Live from TripJack${real.checkedAt ? `, checked ${clock(real.checkedAt)}` : ""}, taxes included. Experiences, meals and transfers are priced at checkout.`
+                : "Sample prices while bookings are being set up."}
+            </span>
           </div>
 
           <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-4">

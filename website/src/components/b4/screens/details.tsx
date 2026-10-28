@@ -256,7 +256,7 @@ export function DetailsScreen() {
                   <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">ESTIMATE FOR {travellers}</span>
                   <strong className="text-[32px] tabular-nums">{estimate}</strong>
                   <span className="text-xs text-[#A9C2D4]">
-                    {days} days · {partyText(count) || travellers.toLowerCase()}. A sample while bookings are being set up; your board shows the final price.
+                    {days} days · {partyText(count) || travellers.toLowerCase()}. A sample; your trip then shows live flight and hotel prices for your dates.
                   </span>
                 </span>
                 <button

@@ -132,6 +132,32 @@ export function useFlightPrice(code: string | null) {
   });
 }
 
+type StayPrices = Schemas["StayPrices"];
+
+/** The price card from what TripJack answered, or null when it priced nothing (then the card shows
+ *  the labelled samples). Only flights and hotels have a live price; transfers, experiences and
+ *  meals are priced at checkout, and a stay with no price is said to be unpriced, never filled in. */
+export function livePrices(flight: FlightPrice | undefined, stays: StayPrices | undefined, travellers: number) {
+  const flightTotal = flight?.status === "priced" ? (flight.total ?? 0) : 0;
+  const priced = stays?.stays.filter((s) => s.status === "priced") ?? [];
+  const stayTotal = priced.reduce((n, s) => n + (s.total ?? 0), 0);
+  if (!flightTotal && !stayTotal) return null;
+  const missing = (stays?.stays.length ?? 0) - priced.length;
+  const times = [flight?.checked_at, stays?.checked_at].filter((t): t is string => !!t).sort();
+  return {
+    rows: [
+      [`Flights · ${travellers} ${travellers === 1 ? "seat" : "seats"}`, flightTotal ? inr(flightTotal) : "Not priced"],
+      ["Stay", stayTotal ? `${inr(stayTotal)}${missing ? ` · ${missing} not priced` : ""}` : "Not priced"],
+      ["Experiences & meals", "At checkout"],
+      ["Transfers", "At checkout"],
+    ] as const,
+    total: inr(flightTotal + stayTotal),
+    // The oldest of the answers: the figure is as fresh as its stalest part.
+    checkedAt: times[0] ?? null,
+    complete: !!flightTotal && !missing && priced.length > 0,
+  };
+}
+
 /** "14:05" in the traveller's own clock, from the time TripJack was asked. */
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
 

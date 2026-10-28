@@ -78,4 +78,20 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   await page.getByRole("link", { name: "Change details" }).click();
   await expect(page).toHaveURL(new RegExp(`/trip/details\\?id=${importId}&mine=${tripNo}`));
   await expect(page.getByRole("radio", { name: /Couple/ })).toHaveAttribute("aria-checked", "true");
+  // With live answers from TripJack, the price card is those, and says what is not priced.
+  const now = new Date().toISOString();
+  await page.route("**/my-trips/*/flight-price", (r) => r.fulfill({ json: {
+    status: "priced", origin: "DEL", destination: "GOI", adults: 2, children: 0, total: 18400, checked_at: now,
+    legs: [{ from_code: "DEL", to_code: "GOI", date: "2027-01-10", airline: "IndiGo", flight_number: "6E101", stops: 0, price: 10200 }],
+  } }));
+  await page.route("**/my-trips/*/stay-prices", (r) => r.fulfill({ json: {
+    currency: "INR", total: 13200, checked_at: now, rooms: 1, all_priced: false,
+    stays: [{ item_id: "x", name: "A stay", status: "priced", total: 13200, nights: 2, meal_basis: "Breakfast" },
+            { item_id: "y", name: "Another", status: "not_matched" }],
+  } }));
+  await page.goto(`/trip/mine/${tripNo}`);
+  await expect(page.getByText("Total so far for 2")).toBeVisible();
+  await expect(page.locator("strong.tabular-nums").filter({ hasText: "₹31,600" }).first()).toBeVisible(); // 18,400 + 13,200
+  await expect(page.getByText("1 not priced")).toBeVisible();
+  await expect(page.getByText(/Experiences, meals and transfers are priced at checkout/)).toBeVisible();
 });
