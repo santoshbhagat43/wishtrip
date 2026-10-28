@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ActingProvider } from "@/components/creator-reels/acting";
@@ -16,6 +16,7 @@ import { api, unwrap, type Schemas } from "@/lib/api/client";
 import { CREATOR_STATUS, referralLink, rupees } from "@/lib/creators";
 import { relativeTime, titleCase } from "@/lib/format";
 import { copyText } from "@/lib/clipboard";
+import { useMe } from "@/lib/hooks/use-me";
 
 type Creator = Schemas["CreatorDetail"];
 type Status = Creator["status"];
@@ -88,6 +89,7 @@ export default function CreatorPage() {
           </Card>
 
           <Onboarding creator={c} onChange={refresh} />
+          <DeleteCreator creator={c} />
 
           <ActingProvider creatorId={id}>
             <ReelsCard
@@ -160,6 +162,49 @@ const dateOf = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day:
 
 /** Where this creator is in onboarding, and the buttons that move it on. Each one sends the
  *  creator the matching email. */
+/** Admins only: remove a creator and their account entirely, so a test email can apply again. */
+function DeleteCreator({ creator }: { creator: Creator }) {
+  const { data: me } = useMe();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [asking, setAsking] = useState(false);
+  const remove = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.DELETE("/creators/{creator_id}", { params: { path: { creator_id: creator.id } } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["creators"] });
+      router.push("/creators");
+    },
+  });
+  if (me?.role !== "admin") return null;
+  return (
+    <Card>
+      <CardHeader
+        title="Delete this creator"
+        description="Removes the creator, their trips, reels and links, and their sign-in account, so the same email can apply again from the start. It can't be undone."
+      />
+      <div className="flex flex-wrap items-center gap-3 px-5 pb-5">
+        {asking ? (
+          <>
+            <span className="text-sm">Delete {creator.email ?? creator.handle ?? "this creator"} for good?</span>
+            <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
+              {remove.isPending ? "Deleting…" : "Yes, delete"}
+            </Button>
+            <Button variant="secondary" disabled={remove.isPending} onClick={() => setAsking(false)}>
+              Keep
+            </Button>
+          </>
+        ) : (
+          <Button variant="danger" onClick={() => setAsking(true)}>
+            Delete creator
+          </Button>
+        )}
+        <ErrorNote error={remove.error} />
+      </div>
+    </Card>
+  );
+}
+
 function Onboarding({ creator, onChange }: { creator: Creator; onChange: (c: Creator) => void }) {
   const { onboarding: o } = creator;
   const [revealed, setRevealed] = useState<string | null>(null);

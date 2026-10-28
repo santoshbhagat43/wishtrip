@@ -228,7 +228,51 @@ async def apply_as_creator(
             creator.application_emailed_at = None  # a fresh application: acknowledge it again
         if creator.status not in (CreatorStatus.ACTIVE, CreatorStatus.PAUSED):
             creator.status = CreatorStatus.PENDING
+    await register_account(session, creator)
     return creator
+
+
+async def register_account(session: AsyncSession, creator: Creator) -> User | None:
+    """Give an applicant their account the moment they apply, so that signing in later finds it.
+    Staff approval then only changes what the account may do (the creator's status), never whether
+    it exists. A traveller who applies keeps their account and history and becomes a creator;
+    a team member's email can't be used."""
+    if not creator.email:
+        return None
+    email = creator.email.strip().lower()
+    user = await session.scalar(select(User).where(func.lower(User.email) == email))
+    if user is None:
+        user = User(
+            email=email,
+            hashed_password=hash_password(secrets.token_urlsafe(24)),
+            full_name=creator.display_name or "",
+            role=Role.CREATOR,
+        )
+        session.add(user)
+        await session.flush()
+    elif user.role == Role.TRAVELER:
+        user.role = Role.CREATOR
+    elif user.role != Role.CREATOR:
+        raise conflict("This email belongs to a WishTrip team account. Use a different email.")
+    if creator.user_id is None:
+        creator.user_id = user.id
+    return user
+
+
+async def delete_creator(session: AsyncSession, creator: Creator) -> None:
+    """Remove a creator entirely, with their trips, reels and links, and their sign-in account, so
+    the same email can apply again from scratch. Travellers they brought in stay (they just lose
+    the creator they were credited to)."""
+    from sqlalchemy import delete
+
+    user = await session.get(User, creator.user_id) if creator.user_id else None
+    if user is None and creator.email:
+        user = await session.scalar(
+            select(User).where(func.lower(User.email) == creator.email.lower())
+        )
+    await session.execute(delete(Creator).where(Creator.id == creator.id))
+    if user is not None and user.role in (Role.CREATOR, Role.TRAVELER):
+        await session.execute(delete(User).where(User.id == user.id))
 
 
 async def by_code(session: AsyncSession, code: str) -> Creator | None:

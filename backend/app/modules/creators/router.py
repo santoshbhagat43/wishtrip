@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user, require_staff
+from app.core.deps import get_current_user, require_roles, require_staff
 from app.core.errors import bad_request, not_found
 from app.core.pagination import Page
 from app.db.session import get_session
@@ -422,6 +422,29 @@ async def remind_bank_details(creator_id: uuid.UUID, session: AsyncSession = Dep
     await onboarding.remind_bank_details(creator)
     await session.commit()
     return await _detail(session, creator)
+
+
+@router.delete("/creators/{creator_id}", status_code=204)
+async def delete_creator(
+    creator_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Admin only: remove a creator entirely (trips, reels, links and their account), so a test
+    email can apply again from scratch. It can't be undone, and it is recorded in the audit log."""
+    from app.modules.audit import service as audit
+
+    creator = await _get(session, creator_id)
+    await audit.record(
+        session,
+        admin,
+        "delete",
+        "creator",
+        creator.id,
+        {"email": creator.email, "handle": creator.handle, "status": creator.status.value},
+    )
+    await service.delete_creator(session, creator)
+    await session.commit()
 
 
 @router.post(

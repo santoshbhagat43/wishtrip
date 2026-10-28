@@ -1389,7 +1389,12 @@ export interface paths {
         get: operations["get_creator_creators__creator_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Creator
+         * @description Admin only: remove a creator entirely (trips, reels, links and their account), so a test
+         *     email can apply again from scratch. It can't be undone, and it is recorded in the audit log.
+         */
+        delete: operations["delete_creator_creators__creator_id__delete"];
         options?: never;
         head?: never;
         /** Update Creator */
@@ -9311,6 +9316,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CreatorDetail"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_creator_creators__creator_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                creator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -49,6 +49,16 @@ async def get_or_create_passwordless_user(
 
     user = await get_by_email(session, email)
     if user:
+        if user.role == Role.TRAVELER:
+            # A traveller who applied as a creator before accounts were linked signs in as one.
+            creator = await session.scalar(
+                select(Creator).where(
+                    func.lower(Creator.email) == email.lower(), Creator.user_id.is_(None)
+                )
+            )
+            if creator:
+                user.role = Role.CREATOR
+                creator.user_id = user.id
         return user, False
     # Someone who applied as a creator with this email signs in as that creator, not as a new
     # traveller (which would also lock them out of their creator account).

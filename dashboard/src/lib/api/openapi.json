@@ -4510,6 +4510,46 @@
       }
      }
     }
+   },
+   "delete": {
+    "tags": [
+     "creators"
+    ],
+    "summary": "Delete Creator",
+    "description": "Admin only: remove a creator entirely (trips, reels, links and their account), so a test\nemail can apply again from scratch. It can't be undone, and it is recorded in the audit log.",
+    "operationId": "delete_creator_creators__creator_id__delete",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "creator_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Creator Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/creators/{creator_id}/bank-details/remind": {

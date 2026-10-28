@@ -126,7 +126,9 @@ def test_the_local_testing_proxy_is_off_by_default_and_never_used_in_production(
     from app.core.config import settings
     from app.modules.tripjack import http
 
-    assert settings.tripjack_proxy in (None, "")  # off unless someone turns it on
+    monkeypatch.setattr(settings, "tripjack_proxy", None)  # off unless someone turns it on
+    monkeypatch.setattr(settings, "environment", "development")
+    assert http._proxy() is None
     monkeypatch.setattr(settings, "tripjack_proxy", "socks5://host.docker.internal:1080")
     monkeypatch.setattr(settings, "environment", "development")
     assert http._proxy() == "socks5://host.docker.internal:1080"
