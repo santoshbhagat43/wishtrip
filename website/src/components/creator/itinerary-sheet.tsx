@@ -13,6 +13,7 @@ import {
   Play,
   Share2,
   Utensils,
+  Plane,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -61,6 +62,7 @@ const KIND: Record<string, { label: string; Icon: typeof Landmark; chip: string 
   experience: { label: "Experience", Icon: Compass, chip: "bg-warn-soft text-warn" },
   area: { label: "Explore", Icon: Compass, chip: "bg-info-soft text-info" },
   note: { label: "Note", Icon: Landmark, chip: "bg-surface-2 text-muted" },
+  travel: { label: "Travel", Icon: Plane, chip: "bg-info-soft text-info" },
 };
 const WHEN = ["Morning", "Midday", "Afternoon", "Evening"];
 

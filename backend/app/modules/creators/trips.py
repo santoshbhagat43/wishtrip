@@ -27,7 +27,7 @@ from app.modules.reels.complete import (
 
 logger = logging.getLogger(__name__)
 
-ITEM_KINDS = {"stay", "food", "sight", "experience", "area", "note"}
+ITEM_KINDS = {"stay", "food", "sight", "experience", "area", "note", "travel"}
 ORIGINS = {"reel", "kb", "suggested", "creator"}
 
 

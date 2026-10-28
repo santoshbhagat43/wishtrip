@@ -43,6 +43,7 @@ def test_provider_resolution(monkeypatch):
     assert cfg.models == {
         "intent": settings.ollama_intent_model,
         "planner": settings.ollama_chat_model,
+        "builder": settings.ollama_chat_model,  # the trip builder: the chat model unless set apart
     }
     monkeypatch.setattr(settings, "llm_provider", "openrouter")
     monkeypatch.setattr(settings, "openrouter_api_key", "")

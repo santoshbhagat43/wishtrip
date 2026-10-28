@@ -16,7 +16,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-Task = str  # "intent" | "planner" | "transcribe" (audio in, OpenRouter only)
+Task = str  # "intent" | "planner" | "builder" | "transcribe" (audio in, OpenRouter only)
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,11 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
     provider = provider or settings.llm_provider
     if provider == "auto":
         provider = "openrouter" if settings.openrouter_api_key else "none"
-    reasoning = {"intent": settings.intent_reasoning, "planner": settings.planner_reasoning}
+    reasoning = {
+        "intent": settings.intent_reasoning,
+        "planner": settings.planner_reasoning,
+        "builder": settings.trip_build_reasoning,
+    }
     if provider == "openrouter":
         if not settings.openrouter_api_key:
             return None
@@ -45,6 +49,7 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
             {
                 "intent": settings.intent_model,
                 "planner": settings.chat_model,
+                "builder": settings.trip_build_model or settings.chat_model,
                 "transcribe": settings.reel_transcribe_model,
             },
             reasoning,
@@ -54,7 +59,11 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
             "ollama",
             f"{settings.ollama_base_url.rstrip('/')}/v1",
             None,
-            {"intent": settings.ollama_intent_model, "planner": settings.ollama_chat_model},
+            {
+                "intent": settings.ollama_intent_model,
+                "planner": settings.ollama_chat_model,
+                "builder": settings.trip_build_model or settings.ollama_chat_model,
+            },
             reasoning,
         )
     if provider == "none":

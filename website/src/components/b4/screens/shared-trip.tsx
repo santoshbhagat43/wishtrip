@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
+import { BedDouble, Compass, Landmark, Plane, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { clock, inr, partySize, partyText, livePrices, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
@@ -24,6 +24,7 @@ const KIND_ICON: Record<string, typeof Landmark> = {
   experience: Compass,
   area: Compass,
   note: Landmark,
+  travel: Plane,
 };
 
 /** The kind of stop, as the trip board labels it. */
@@ -34,6 +35,7 @@ const KIND_CHIP: Record<string, { label: string; chip: string }> = {
   experience: { label: "Experience", chip: "bg-[#FDF0D9] text-[#B86E00]" },
   area: { label: "Explore", chip: "bg-[#E3F5EE] text-[#0B7A57]" },
   note: { label: "Note", chip: "bg-[#F3F6F9] text-[#566E85]" },
+  travel: { label: "Travel", chip: "bg-[#E6F3FB] text-[#1A6094]" },
 };
 
 /** What a traveller chose on the Details screen, when the trip is being made theirs. */

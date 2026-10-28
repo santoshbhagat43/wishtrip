@@ -21,7 +21,7 @@ from app.core.errors import bad_request, not_found
 from app.core.ratelimit import allow
 from app.db.session import get_session
 from app.modules.chat.models import ChatSession
-from app.modules.creators import builder, flight_prices, stay_prices, trips
+from app.modules.creators import builder, flight_prices, stay_prices, stays, trips
 from app.modules.creators.models import Creator, CreatorTrip, TravellerTrip, TripStatus
 from app.modules.creators.schemas import PublicCreator, TripItem
 from app.modules.hotels import photos
@@ -180,6 +180,17 @@ def _apply(mine: TravellerTrip, config: MineConfig) -> bool:
 # --- Building the plan -------------------------------------------------------------------------
 
 
+async def _what_the_reel_said(session: AsyncSession, mine: TravellerTrip) -> tuple[list[str], str]:
+    """The tips the creator's reel gave, and its caption: how the trip should feel (a budget
+    plan, a luxury one) and the practical points worth passing on."""
+    job = await session.get(ReelImport, mine.source_import_id) if mine.source_import_id else None
+    content = await session.get(CreatorContent, job.content_id) if job and job.content_id else None
+    if content is None:
+        return [], ""
+    tips = [str(t) for t in (content.extracted or {}).get("tips") or [] if str(t).strip()]
+    return tips, content.caption or ""
+
+
 async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str) -> None:
     """Plan the trip for its party and save it. Never raises: a trip that could not be built says
     so (`build_status` "failed") and keeps the stops it had."""
@@ -189,6 +200,7 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
     try:
         # Past the hourly cap the trip is arranged by rule, not refused.
         use_ai = ai if await allow("trip-builds", settings.trip_builds_per_hour) else None
+        tips_from_reel, said = await _what_the_reel_said(session, mine)
         plan = await builder.build(
             use_ai,
             must=[i for i in mine.source_items or [] if i.get("kind") != "area"],
@@ -201,6 +213,11 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
             when=mine.when_text,
             group=mine.group,
             summary=mine.summary,
+            origin_city=mine.origin_city,
+            reel_tips=tips_from_reel,
+        )
+        plan["items"] = await stays.name_the_stay(
+            session, plan["items"], mine.destination_name, mine.summary, said
         )
         mine.items = plan["items"]
         mine.tips = plan["tips"]

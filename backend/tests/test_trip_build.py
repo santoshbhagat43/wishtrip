@@ -127,10 +127,14 @@ async def test_a_place_the_ai_leaves_out_is_put_back_and_extras_stay_within_the_
 async def test_without_a_usable_answer_the_places_are_arranged_by_rule(answer):
     plan = await build(FakeAI(answer))
     assert plan["ai_built"] is False and plan["tips"] == []
-    names = {i["name"] for i in plan["items"]}
+    places = [i for i in plan["items"] if i["kind"] in ("sight", "experience", "stay") or i["origin"] == "reel"]
+    names = {i["name"] for i in places}
     assert names == {m["name"] for m in must()}  # every place, once, and no invented ones
     assert {i["day"] for i in plan["items"]} <= {1, 2, 3}
-    assert all(i["origin"] == "reel" for i in plan["items"])
+    # Besides the reel's places, only the plain things every trip needs: travel, meals, check-out.
+    extras = [i for i in plan["items"] if i not in places]
+    assert {i["kind"] for i in extras} <= {"travel", "food", "note"}
+    assert all(i["origin"] == "suggested" for i in extras)
     stay = next(i for i in plan["items"] if i["kind"] == "stay")
     assert stay["day"] == 1
     for d in (1, 2, 3):
@@ -424,3 +428,113 @@ async def test_a_stay_with_no_hotel_gets_its_closest_hotels_priced(client, trave
     assert 1 <= len(alts) <= 3 and all(a["total"] == 13200 and a["hotel"]["id"].startswith("h") for a in alts)
     assert len({a["hotel"]["id"] for a in alts}) == len(alts)
     assert len(fake.calls) == len(alts)  # only the alternatives were priced
+
+
+async def test_every_trip_has_travel_a_checkout_and_meals_every_day():
+    out = await builder.build(
+        FakeAI(good_plan()), must=must(), destination="Bali", days=3, adults=2, kids=0, seniors=0,
+        pace="relaxed", when="", group="couple", summary="A Bali trip", origin_city="Bengaluru",
+    )  # fmt: skip
+    items = out["items"]
+
+    def day(n, kind=None):
+        return [i for i in items if i["day"] == n and (kind is None or i["kind"] == kind)]
+
+    # The way in and out, in order, on the first and last day.
+    assert [i["name"] for i in day(1, "travel")] == ["Fly Bengaluru to Bali", "Airport to your stay"]
+    assert [i["name"] for i in day(3, "travel")] == ["Your stay to the airport", "Fly back to Bengaluru"]
+    assert day(1)[0]["name"] == "Fly Bengaluru to Bali" and day(3)[-1]["name"] == "Fly back to Bengaluru"
+    assert next(i for i in day(1, "stay"))["slot"] == "afternoon"  # check-in after landing
+    assert any(i["name"] == "Check out" for i in day(3))
+    assert not any(i["kind"] == "travel" for i in day(2))
+    # Meals: breakfast is skipped on arrival and dinner on departure; every other mealtime is there.
+    slots = lambda n: {i["slot"] for i in day(n, "food")}  # noqa: E731
+    assert slots(1) >= {"afternoon", "evening"} and "morning" not in slots(1)
+    assert slots(2) == {"morning", "afternoon", "evening"}
+    assert slots(3) >= {"morning", "afternoon"} and "evening" not in slots(3)
+    # A meal the AI already named is kept, not doubled.
+    assert sum(1 for i in day(2, "food") if i["slot"] == "evening") == 1
+    assert next(i for i in day(2, "food") if i["name"] == "Locavore")["origin"] == "reel"
+    # No prices or times are invented in anything added.
+    added = [i for i in items if i["origin"] == "suggested" and i["kind"] in ("travel", "food", "note")]
+    assert not any(ch in (i["name"] + i["note"]) for i in added for ch in "₹$")
+
+
+async def test_the_ai_is_given_where_they_fly_from_and_the_reels_tips():
+    ai = FakeAI(good_plan())
+    await builder.build(
+        ai, must=must(), destination="Bali", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="A Bali trip", origin_city="Bengaluru",
+        reel_tips=["Take a scooter taxi"],
+    )  # fmt: skip
+    facts = json.loads(ai.sent[0][1]["content"].split("Facts:\n", 1)[1])
+    assert facts["travelling_from"] == "Bengaluru" and facts["reel_tips"] == ["Take a scooter taxi"]
+    system = ai.sent[0][0]["content"]
+    assert "visa" in system and "Name the dish or cuisine" in system and "close together" in system
+
+
+async def test_a_stay_without_a_hotel_becomes_a_hotel_we_hold_that_fits_the_budget():
+    from app.modules.creators import stays
+    from app.modules.hotels.models import SupplierHotel, SupplierRegion
+
+    async with SessionLocal() as session:
+        session.add(SupplierRegion(region_id=7, city_name="BALI", country_name="INDONESIA", full_name="Bali"))
+        for n, (name, stars, rank) in enumerate(
+            [("Kuta Backpackers Inn", 2.5, 50), ("Sea View Resort Bali", 4.0, 60), ("Grand Palace Bali", 5.0, 90)]
+        ):
+            session.add(SupplierHotel(tj_hotel_id=f"s{n}", region_id=7, name=name, star_rating=stars, rank=rank,
+                                      hero_image=f"https://img.example/s{n}.jpg", city="Bali", country="Indonesia"))  # fmt: skip
+        await session.commit()
+
+        def trip():
+            return [
+                {"id": "a", "kind": "stay", "name": "Stay in Seminyak", "day": 1, "origin": "suggested", "note": ""},
+                {"id": "b", "kind": "sight", "name": "Tanah Lot", "day": 1, "origin": "reel", "note": ""},
+            ]
+
+        budget = await stays.name_the_stay(session, trip(), "Bali", "Bali under 50k budget plan")
+        assert budget[0]["name"] == "Kuta Backpackers Inn" and budget[0]["origin"] == "suggested"
+        assert budget[1]["name"] == "Tanah Lot"  # nothing else is touched
+        default = await stays.name_the_stay(session, trip(), "Bali", "A slow Bali trip")
+        assert default[0]["name"] == "Sea View Resort Bali"
+        luxury = await stays.name_the_stay(session, trip(), "Bali", "luxury 5 star Bali")
+        assert luxury[0]["name"] == "Grand Palace Bali"
+        # A stay the reel named is the traveller's choice: left as it is. So is one we already hold.
+        named = trip()
+        named[0].update(origin="reel", name="Some reel hotel")
+        assert (await stays.name_the_stay(session, named, "Bali"))[0]["name"] == "Some reel hotel"
+        held = trip()
+        held[0]["name"] = "Grand Palace Bali"
+        assert (await stays.name_the_stay(session, held, "Bali", "budget"))[0]["name"] == "Grand Palace Bali"
+        # No hotels for the destination: the stay stays as written.
+        assert (await stays.name_the_stay(session, trip(), "Atlantis"))[0]["name"] == "Stay in Seminyak"
+
+
+async def test_a_plan_with_bare_middle_days_is_asked_again_once_and_the_fuller_one_is_kept():
+    bare = good_plan(days=4)
+    bare["days"][2]["items"] = [{"name": "Nusa Penida", "kind": "experience", "slot": "morning"}]
+    bare["days"][1]["items"] = [{"name": "Tegalalang Rice Terrace", "kind": "sight", "slot": "morning"},
+                                {"name": "Locavore", "kind": "food", "slot": "evening"}]  # fmt: skip
+    bare["days"].append({"day": 4, "title": "Home", "items": [{"name": "Sunset point", "kind": "sight", "slot": "morning"}]})
+    full = json.loads(json.dumps(bare))
+    full["days"][1]["items"].append({"name": "Monkey Forest", "kind": "sight", "slot": "afternoon", "optional": True})
+    full["days"][2]["items"].append({"name": "Waterfall", "kind": "sight", "slot": "afternoon", "optional": True})
+
+    class TwoAnswers(FakeAI):
+        async def complete(self, task, messages, **kwargs):
+            self.sent.append(messages)
+            return json.dumps(bare if len(self.sent) == 1 else full)
+
+    ai = TwoAnswers(None)
+    out = await build(ai, days=4)
+    assert len(ai.sent) == 2 and "has too little to do" in ai.sent[1][-1]["content"]
+    assert builder.thin_days(out["items"], 4) == []
+    assert {"Monkey Forest", "Waterfall"} <= {i["name"] for i in out["items"]}
+
+    class Stubborn(FakeAI):
+        async def complete(self, task, messages, **kwargs):
+            self.sent.append(messages)
+            return json.dumps(bare)
+
+    again = await build(Stubborn(None), days=4)
+    assert again["ai_built"] is True  # the plan is still used; it is not thrown away for being thin

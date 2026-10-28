@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # A hung intent call must not stall the chat: give up and use keyword understanding.
     intent_timeout_seconds: float = 20
     planner_reasoning: str | None = None
+    # "Build my trip" writes a whole itinerary in one go. It does not need long thinking, which is
+    # most of the wait; None for the model = the same one as the chat.
+    trip_build_model: str | None = None
+    trip_build_reasoning: str | None = "none"
     # After the feasibility engine changes a plan, ask the planner to rewrite its reply to match
     # (one extra LLM call). Off = append a short "plan check" note instead.
     feasibility_rewrite: bool = True
