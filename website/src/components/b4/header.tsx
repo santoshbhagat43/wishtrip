@@ -8,7 +8,8 @@ import { IMG, LINKS, MENU as MENU_GROUPS } from "./data";
 import { ARROW, CLOSE, MENU, Path } from "./icons";
 import { HeaderSearch, type SearchEntry } from "./header-search";
 import { menuBySlug, useMenus } from "./menus";
-import { Avatar, useTraveller } from "./traveller";
+import { AccountMenu, AccountPanel } from "./account-menu";
+import { useTraveller } from "./traveller";
 
 export const NAV = [
   { href: "/#b4-arya", label: "How it works" },
@@ -64,6 +65,7 @@ export function MenuDrawer({ onClose, search, focusSearch = false }: { onClose: 
             <HeaderSearch index={search} drawer autoFocus={focusSearch} onNavigate={onClose} />
           </div>
         )}
+        {signedIn && <AccountPanel onNavigate={onClose} />}
         {!signedIn && (
         <div className="flex flex-col gap-2.5 rounded-[18px] border border-[#E3E8EE] bg-white p-4">
           <strong className="text-base">Sign in to wishtrip</strong>
@@ -146,9 +148,8 @@ export function B4Header({ solid = false, search }: { solid?: boolean; search?: 
         </nav>
         {search && <HeaderSearch index={search} />}
         {who.signedIn ? (
-          <span className="hidden items-center gap-2 text-[14.5px] font-semibold text-[#0D2436] md:flex">
-            <Avatar letter={(who.name ?? "W").charAt(0).toUpperCase()} />
-            {who.name}
+          <span className="hidden md:block">
+            <AccountMenu name={who.name} />
           </span>
         ) : (
           <Link href={LINKS.signIn} className="hidden px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline md:block">

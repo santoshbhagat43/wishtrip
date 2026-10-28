@@ -7,7 +7,8 @@ import { Fragment, useState } from "react";
 import { IMG, LINKS } from "./data";
 import { MenuDrawer, NAV, RoundButton } from "./header";
 import { CHECK, MENU, Path } from "./icons";
-import { Avatar, useTraveller } from "./traveller";
+import { AccountMenu } from "./account-menu";
+import { useTraveller } from "./traveller";
 
 const STEPS = ["Start", "Shape your board", "Book"];
 
@@ -86,10 +87,7 @@ export function FlowHeader({
           )}
           <span className="flex items-center gap-3.5">
             {isIn ? (
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <Avatar letter={(name ?? "W").charAt(0).toUpperCase()} />
-                {name}
-              </span>
+              <AccountMenu name={name} />
             ) : (
               <Link href={LINKS.signIn} className="px-1.5 py-2.5 text-[14.5px] font-semibold text-[#0D2436] no-underline">
                 Sign in

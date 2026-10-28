@@ -67,15 +67,21 @@ export function AryaPlanner() {
   // The reply whose plan is on the board: picked by the traveller, else the latest plan.
   const [picked, setPicked] = useState<{ chat: string | null; message: string } | null>(null);
 
-  const sessions = useQuery({ queryKey: ["chats"], queryFn: async () => unwrap(await api.GET("/chat/sessions")) });
+  useEffect(() => {
+    if (me.isFetched && !me.data) {
+      void fetch("/api/auth/logout", { method: "POST" }).finally(() => window.location.replace(window.location.href));
+    }
+  }, [me.isFetched, me.data]);
+
+  const sessions = useQuery({ queryKey: ["chats"], enabled: !!me.data, queryFn: async () => unwrap(await api.GET("/chat/sessions")) });
   const activeId = selected === undefined ? (sessions.data?.[0]?.id ?? null) : selected;
   const chat = useQuery({
     queryKey: ["chat", activeId],
-    enabled: !!activeId,
+    enabled: !!me.data && !!activeId,
     queryFn: async () => unwrap(await api.GET("/chat/sessions/{chat_id}", { params: { path: { chat_id: activeId! } } })),
   });
-  const profile = useQuery({ queryKey: ["profile"], queryFn: async () => unwrap(await api.GET("/profiles/me")) });
-  const saved = useQuery({ queryKey: ["saved"], queryFn: async () => unwrap(await api.GET("/profiles/me/saved")) });
+  const profile = useQuery({ queryKey: ["profile"], enabled: !!me.data, queryFn: async () => unwrap(await api.GET("/profiles/me")) });
+  const saved = useQuery({ queryKey: ["saved"], enabled: !!me.data, queryFn: async () => unwrap(await api.GET("/profiles/me/saved")) });
 
   // Show the start of the latest turn (the traveller's message, then the reply below it), so a
   // long plan reads top-down. Opening a conversation jumps there; a new reply glides there.
@@ -191,6 +197,11 @@ export function AryaPlanner() {
   const state = chat.data?.state ?? {};
   const empty = !activeId && !pending;
   const name = me.data?.full_name || me.data?.email?.split("@")[0] || undefined;
+
+  // Arya starts only once the traveller is signed in. The proxy sends a visitor with no session
+  // to sign-in; a stale session (cookie kept, sign-in expired) is cleared here, which sends them
+  // there too.
+  if (!me.data) return <div className="min-h-dvh bg-white" aria-busy />;
 
   return (
     <div className="min-h-dvh bg-white text-[#0D2436]">
