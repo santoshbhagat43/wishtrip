@@ -56,10 +56,17 @@ def _item_from_place(place: dict) -> dict:
         "verified": bool(place.get("verified")),
         # Where in the reel it was seen, in seconds.
         "t": place.get("t"),
+        # The day the video itself says it is on, when it does.
+        "video_day": place.get("video_day"),
         # Where the stop came from: "reel" (the creator's video), "kb" (WishTrip's checked
         # knowledge base) or "suggested" (the AI's suggestion, neither from the video nor checked).
         "origin": "reel",
     }
+
+
+def stated_days(items: list[dict]) -> int:
+    """The last day the video says any of its places is on (0 when it states none)."""
+    return max((i.get("video_day") or 0 for i in items if i["kind"] != "stay"), default=0)
 
 
 def assign_days(items: list[dict], days: int) -> list[dict]:
@@ -72,15 +79,27 @@ def assign_days(items: list[dict], days: int) -> list[dict]:
     stops = [i for i in items if i["kind"] != "stay"]
     named = [i for i in stops if i.get("origin", "reel") == "reel"]
     added = [i for i in stops if i.get("origin", "reel") != "reel"]
-    days = max(1, min(days, len(stops) or 1))
+    # A day the creator's video states is theirs: that place goes on that day, and the days run at
+    # least that far. A place the video names with no day sits with the one mentioned before it
+    # (or the next one, at the very start), so it stays with the part of the video it came from.
+    stated = stated_days(items)
+    days = max(1, min(max(days, stated), len(stops) or 1))
     counts = [0] * days
-    base, extra = divmod(len(named), days)
-    n = 0
-    for d in range(days):
-        for _ in range(base + (1 if d < extra else 0)):
-            named[n]["day"] = d + 1
-            counts[d] += 1
-            n += 1
+    if stated:
+        current = next(i["video_day"] for i in named if i.get("video_day"))
+        for item in named:
+            current = item.get("video_day") or current
+            d = min(current, days)
+            item["day"] = d
+            counts[d - 1] += 1
+    else:
+        base, extra = divmod(len(named), days)
+        n = 0
+        for d in range(days):
+            for _ in range(base + (1 if d < extra else 0)):
+                named[n]["day"] = d + 1
+                counts[d] += 1
+                n += 1
     for item in added:
         d = counts.index(min(counts))
         item["day"] = d + 1
@@ -128,7 +147,9 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
     if later:
         stops = [i for i in named if i["kind"] != "stay"]
         days = max(
-            MIN_DAYS, min(target_days(extracted.get("days_hint")), len(stops) // MIN_STOPS_PER_DAY)
+            MIN_DAYS,
+            stated_days(named),
+            min(target_days(extracted.get("days_hint")), len(stops) // MIN_STOPS_PER_DAY),
         )
         plan = Plan(items=named, days=days)
     elif settings.complete_itineraries:
@@ -334,6 +355,7 @@ def clean_items(items: list) -> list:
                 "location_id": raw.get("location_id"),
                 "verified": bool(raw.get("verified")),
                 "t": raw.get("t") if isinstance(raw.get("t"), int | float) else None,
+                "video_day": raw.get("video_day") if isinstance(raw.get("video_day"), int) else None,
                 "origin": raw.get("origin") if raw.get("origin") in ORIGINS else "reel",
             }
         )

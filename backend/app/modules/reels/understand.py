@@ -24,6 +24,8 @@ Rules:
 - "evidence" must quote the words from the material that name the place (copy them exactly).
 - "source" is where the evidence is: "caption", "screen" or "voice".
 - "t" is always null: timestamps are worked out separately.
+- "day" is the day number the creator says the place belongs to ("Day 1", "on the second day"),
+  only when the material says so in words. Otherwise null. Never work a day out yourself.
 - kind is one of: "stay" (hotel, villa, homestay), "food" (restaurant, cafe, bar, dish spot),
   "sight" (beach, fort, church, viewpoint, market), "experience" (cruise, tour, activity),
   "area" (a town or neighbourhood).
@@ -35,7 +37,8 @@ Return JSON only:
  "country": "<country or empty>",
  "summary": "<one sentence on what the reel is about>",
  "days_hint": <number of days the creator suggests, or null>,
- "places": [{"name": "...", "kind": "...", "evidence": "...", "source": "...", "t": null}],
+ "places": [{"name": "...", "kind": "...", "evidence": "...", "source": "...",
+              "day": null, "t": null}],
  "tips": ["..."]}"""
 
 KINDS = {"stay", "food", "sight", "experience", "area"}
@@ -121,6 +124,32 @@ def _norm(text: str) -> str:
     return re.sub(r"[\W_]+", " ", text.lower()).strip()
 
 
+_DAY_WORDS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+_ORDINALS = [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+]
+
+
+def stated_day(value: Any, corpus: str) -> int | None:
+    """A day the model gives a place, kept only when the material really says that day ("day 2",
+    "day two", "second day"): a model's own idea of the order is not the creator's."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 30:
+        return None
+    patterns = [rf"\bday\s*(?:no\s*)?{value}\b"]
+    if value <= len(_DAY_WORDS):
+        patterns += [rf"\bday\s*{_DAY_WORDS[value - 1]}\b", rf"\b{_ORDINALS[value - 1]}\s+day\b"]
+    return value if any(re.search(p, corpus) for p in patterns) else None
+
+
 def grounded(place: dict[str, Any], corpus: str) -> bool:
     """The place must really be in the material: its evidence or a word of its name."""
     evidence = _norm(str(place.get("evidence") or ""))
@@ -196,6 +225,7 @@ def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None 
                 "kind": p.get("kind") if p.get("kind") in KINDS else "sight",
                 "evidence": str(p.get("evidence") or "").strip()[:300],
                 "source": p.get("source") if p.get("source") in SOURCES else "caption",
+                "video_day": stated_day(p.get("day"), corpus),
                 "t": t,
             }
         )

@@ -319,6 +319,7 @@ def _place_item(place: dict) -> dict:
         "location_id": place.get("location_id"),
         "verified": bool(place.get("verified")),
         "t": place.get("t"),
+        "video_day": place.get("video_day"),  # the day the creator's video puts it on, if it does
         "origin": "reel",
     }
 

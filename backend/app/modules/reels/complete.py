@@ -213,7 +213,8 @@ async def complete(
     days_hint: int | None,
 ) -> Plan:
     """The video's places, topped up to a whole trip, and how many days it spans."""
-    days = target_days(days_hint)
+    stated = max((i.get("video_day") or 0 for i in items if i["kind"] != "stay"), default=0)
+    days = max(target_days(days_hint), min(stated, MAX_DAYS))
     stops = [i for i in items if i["kind"] != "stay"]
     need = days * STOPS_PER_DAY - len(stops)
     extra: list[dict[str, Any]] = []
@@ -228,10 +229,16 @@ async def complete(
         )
     # Short of the target (the AI was unavailable, say): fewer days, but never fewer than two,
     # and never a day with just one stop.
-    days = max(MIN_DAYS, min(days, total // MIN_STOPS_PER_DAY))
+    days = max(MIN_DAYS, stated, min(days, total // MIN_STOPS_PER_DAY))
     everything = [*items, *extra]
     # Added stops are scattered across the destination: group the days by where things are.
-    arranged = bool(extra) and ai is not None and await _arrange(ai, destination, everything, days)
+    # (Not when the video states its own days: they are kept, and the rest goes around them.)
+    arranged = (
+        bool(extra)
+        and not stated
+        and ai is not None
+        and await _arrange(ai, destination, everything, days)
+    )
     return Plan(items=everything, days=days, arranged=arranged)
 
 

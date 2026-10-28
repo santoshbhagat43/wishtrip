@@ -67,7 +67,8 @@ the details you need are in the Facts.
 Hard requirements for your answer:
 - Plan exactly the number of days in the Facts, numbered from 1.
 - Every place in "must_include" appears exactly once, with its name written exactly as given. They
-  are the fixed things: plan the days around them, grouping places that are close together.
+  are the fixed things. A place with a "day" is on that day in the creator's own video: keep it
+  on that day. Plan the days around them, grouping places that are close together.
 - Each day has a morning, an afternoon and an evening part ("slot"). At most 3 main activities a
   day (sights and experiences that are not optional). Meals ("food") and rest or transfer notes
   ("note") do not count.
@@ -133,7 +134,14 @@ def facts(
         "what_the_reel_is_about": summary,
         "reel_tips": list(reel_tips or [])[:8],
         "must_include": [
-            {"name": m["name"], "kind": m["kind"], "why": (m.get("note") or "")[:120]}
+            {
+                "name": m["name"],
+                "kind": m["kind"],
+                "why": (m.get("note") or "")[:120],
+                **(
+                    {"day": m["video_day"]} if m.get("video_day") and m["video_day"] <= days else {}
+                ),
+            }
             for m in must
         ],
     }
@@ -176,6 +184,8 @@ def arrange(must: list[dict], days: int) -> list[dict]:
     per = max(1, -(-len(rest) // max(1, days)))
     for i, m in enumerate(rest):
         day = min(days, i // per + 1)
+        if m.get("video_day"):
+            day = min(days, m["video_day"])
         n = sum(1 for o in out if o["day"] == day)
         food = m["kind"] == "food"
         slot = "afternoon" if food else SLOTS[min(n, 2) if n < 3 else 2]
@@ -253,11 +263,7 @@ def thin_days(items: list[dict], days: int) -> list[int]:
     """The days that need more: a day in the middle of the trip with fewer than two things to see
     or do, or a first day with none (meals and travel do not count; optional suggestions do). The
     last day is for leaving, so it may be bare."""
-    return [
-        d
-        for d in range(1, days)
-        if _activities(items, d) < (2 if d > 1 else 1)
-    ]
+    return [d for d in range(1, days) if _activities(items, d) < (2 if d > 1 else 1)]
 
 
 def _rank(item: dict) -> int:
@@ -280,9 +286,7 @@ def _meal_in(items: list[dict], day: int, word: str, slot: str) -> bool:
     return False
 
 
-def finish(
-    items: list[dict], *, days: int, destination: str, origin_city: str = ""
-) -> list[dict]:
+def finish(items: list[dict], *, days: int, destination: str, origin_city: str = "") -> list[dict]:
     """What the plan always needs, added by rule so it does not depend on the AI remembering: the
     flight in and out with the airport transfers, the hotel check-out, and a meal at each mealtime
     of every day. They are suggestions in general words: no times, prices or venue names."""
@@ -382,8 +386,17 @@ async def name_meals(
         m = by_key.get((i["day"], i["name"].lower()))
         dish = re.sub(r"\s+", " ", str((m or {}).get("dish") or "")).strip()
         area = re.sub(r"\s+", " ", str((m or {}).get("area") or "")).strip()
-        near = [n.lower() for n in next((a["near"] for a in asked if a["day"] == i["day"]
-                                         and a["meal"] == i["name"].lower()), [])]
+        near = [
+            n.lower()
+            for n in next(
+                (
+                    a["near"]
+                    for a in asked
+                    if a["day"] == i["day"] and a["meal"] == i["name"].lower()
+                ),
+                [],
+            )
+        ]
         if any(n in area.lower() or area.lower() in n for n in near if area):
             area = ""  # the model gave the activity back as the place: say only the dish
         if dish and not re.search(r"[₹$€£]|\d", dish):
@@ -437,8 +450,10 @@ async def build(
                 if cleaned is not None:
                     bare = thin_days(cleaned[0], days)
                     log.info("trip build try %s: days with too little to do: %s", attempt + 1, bare)
-                    if attempt == 1 and thin_first is not None and len(bare) > len(
-                        thin_days(thin_first[0], days)
+                    if (
+                        attempt == 1
+                        and thin_first is not None
+                        and len(bare) > len(thin_days(thin_first[0], days))
                     ):
                         cleaned = thin_first  # the redo is thinner than the first plan: keep that
                     if not bare or attempt == 1:

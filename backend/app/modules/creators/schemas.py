@@ -209,6 +209,8 @@ class TripItem(BaseModel):
     verified: bool = False
     # Seconds into the reel where this place showed up.
     t: float | None = None
+    # The day the creator's video says this place is on ("Day 2"), when it says one.
+    video_day: int | None = None
     # reel: named in the creator's video · kb: WishTrip's checked place · suggested: the AI's
     # suggestion, neither from the video nor checked · creator: a stop the creator added by hand.
     origin: Literal["reel", "kb", "suggested", "creator"] = "reel"
