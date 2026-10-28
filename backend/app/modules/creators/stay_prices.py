@@ -179,7 +179,20 @@ async def _from_search(
         except (TypeError, ValueError):
             return None
 
-    cards = [c for c in found.get("hotels") or [] if c.get("option")]
+    # Only hotels of the region that was searched: a card whose hotel we hold elsewhere (an id that
+    # means another city) is not for this trip.
+    region_id = (found.get("region") or {}).get("region_id")
+    cards = [c for c in found.get("hotels") or [] if c.get("option") and c.get("hotel_id")]
+    rows = {
+        h.tj_hotel_id: h
+        for h in await session.scalars(
+            select(SupplierHotel).where(
+                SupplierHotel.tj_hotel_id.in_([c["hotel_id"] for c in cards]),
+                SupplierHotel.region_id == region_id,
+            )
+        )
+    }
+    cards = [c for c in cards if c["hotel_id"] in rows]
     fitting = [c for c in cards if (r := rating(c)) is not None and stars[0] <= r <= stars[1]]
     pool = fitting or cards
     if not pool:
@@ -188,9 +201,7 @@ async def _from_search(
         pick = min(pool, key=lambda c: c["option"]["price"]["total"])
     else:
         pick = max(pool, key=lambda c: c.get("rank") or 0)
-    return await session.scalar(
-        select(SupplierHotel).where(SupplierHotel.tj_hotel_id == pick["hotel_id"])
-    )
+    return rows[pick["hotel_id"]]
 
 
 async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[Room]) -> bool:

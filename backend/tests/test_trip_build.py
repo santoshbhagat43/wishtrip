@@ -752,7 +752,9 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
             "hotel_id": tj, "name": name, "stars": stars, "rank": rank,
             "option": {"price": {"total": total}},
         }
-        return {"hotels": [card("s-villa", "Palace Villas", "5.0", 90000, 90),
+        return {"region": {"region_id": 99},
+                "hotels": [card("s-villa", "Palace Villas", "5.0", 90000, 90),
+                           card("s-far", "Far Away Hostel", "2.5", 5000, 10),  # a hotel of another city
                            card("s-inn", "City Budget Inn", "3.0", 9000, 20),
                            card("s-mid", "Mid Hotel", "3.5", 20000, 60)]}
 
@@ -769,6 +771,8 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
     async with SessionLocal() as session:  # content rows for the hotels the search names; no region
         for tj, name in [("s-villa", "Palace Villas"), ("s-inn", "City Budget Inn"), ("s-mid", "Mid Hotel")]:
             session.add(SupplierHotel(tj_hotel_id=tj, region_id=99, name=name, hero_image="https://img.example/x.jpg"))
+        session.add(SupplierHotel(tj_hotel_id="s-far", region_id=555, name="Far Away Hostel",
+                                  hero_image="https://img.example/x.jpg"))
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
@@ -782,4 +786,5 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
 
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
     assert asked and asked[0].city == "Bali" and asked[0].check_in == start
+    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one wins.
     assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
