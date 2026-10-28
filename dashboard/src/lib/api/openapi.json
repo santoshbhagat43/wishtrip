@@ -5130,6 +5130,49 @@
     }
    }
   },
+  "/my-trips/{code}/stay-prices": {
+   "get": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Read Stay Prices",
+    "description": "Live TripJack price of each stay that matches a hotel, for the trip's dates and party.\nRead separately from the trip so the trip opens at once; a stay that is not priced says why.",
+    "operationId": "read_stay_prices_my_trips__code__stay_prices_get",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StayPrices"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/my-trips/{code}/arya": {
    "post": {
     "tags": [
@@ -16692,6 +16735,193 @@
      "spotlight"
     ],
     "title": "SpotlightTrip"
+   },
+   "StayHotel": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "StayHotel"
+   },
+   "StayPrice": {
+    "properties": {
+     "item_id": {
+      "type": "string",
+      "title": "Item Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "hotel": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/StayHotel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "check_in": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Check In"
+     },
+     "check_out": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Check Out"
+     },
+     "nights": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nights"
+     },
+     "total": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total"
+     },
+     "meal_basis": {
+      "type": "string",
+      "title": "Meal Basis",
+      "default": ""
+     },
+     "room": {
+      "type": "string",
+      "title": "Room",
+      "default": ""
+     },
+     "free_cancellation_until": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Free Cancellation Until"
+     },
+     "checked_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Checked At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "item_id",
+     "name",
+     "status"
+    ],
+    "title": "StayPrice"
+   },
+   "StayPrices": {
+    "properties": {
+     "currency": {
+      "type": "string",
+      "title": "Currency"
+     },
+     "stays": {
+      "items": {
+       "$ref": "#/components/schemas/StayPrice"
+      },
+      "type": "array",
+      "title": "Stays"
+     },
+     "total": {
+      "type": "number",
+      "title": "Total"
+     },
+     "checked_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Checked At"
+     },
+     "rooms": {
+      "type": "integer",
+      "title": "Rooms"
+     },
+     "children_assumed_age": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Children Assumed Age"
+     },
+     "all_priced": {
+      "type": "boolean",
+      "title": "All Priced"
+     }
+    },
+    "type": "object",
+    "required": [
+     "currency",
+     "stays",
+     "total",
+     "rooms",
+     "all_priced"
+    ],
+    "title": "StayPrices"
    },
    "StopDetails": {
     "properties": {

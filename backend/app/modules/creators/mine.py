@@ -21,7 +21,7 @@ from app.core.errors import bad_request, not_found
 from app.core.ratelimit import allow
 from app.db.session import get_session
 from app.modules.chat.models import ChatSession
-from app.modules.creators import builder, trips
+from app.modules.creators import builder, stay_prices, trips
 from app.modules.creators.models import Creator, CreatorTrip, TravellerTrip, TripStatus
 from app.modules.creators.schemas import PublicCreator, TripItem
 from app.modules.hotels import photos
@@ -358,6 +358,13 @@ async def _get(session: AsyncSession, code: str) -> TravellerTrip:
 async def read_mine(code: str, session: AsyncSession = Depends(get_session)):
     """Public (the code is the key): a trip made for a traveller, as they left it."""
     return await _read(session, await _get(session, code))
+
+
+@router.get("/my-trips/{code}/stay-prices", response_model=stay_prices.StayPrices)
+async def read_stay_prices(code: str, session: AsyncSession = Depends(get_session)):
+    """Live TripJack price of each stay that matches a hotel, for the trip's dates and party.
+    Read separately from the trip so the trip opens at once; a stay that is not priced says why."""
+    return await stay_prices.stay_prices(session, await _get(session, code))
 
 
 @router.patch("/my-trips/{code}", response_model=MineRead)

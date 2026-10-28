@@ -103,6 +103,24 @@ export function buildDays(places: ReelPlace[], days: number): Day[] {
 
 export const kindLabel = (k: string) => KIND_WORD[k] ?? "Visit";
 
+export type StayPrice = Schemas["StayPrice"];
+
+/** What TripJack charges now for each stay that matches a hotel, for the trip's dates and party.
+ * Read on its own so the trip opens at once; kept for a few minutes, then asked again. */
+export function useStayPrices(code: string | null) {
+  return useQuery({
+    queryKey: ["stay-prices", code],
+    enabled: !!code,
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    queryFn: async () => unwrap(await api.GET("/my-trips/{code}/stay-prices", { params: { path: { code: code! } } })),
+  });
+}
+
+/** "14:05" in the traveller's own clock, from the time TripJack was asked. */
+export const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
+
 /** A trip made for the traveller ("Make it mine"), by its code: how they left it. */
 export function useMineTrip(code: string | null) {
   return useQuery({

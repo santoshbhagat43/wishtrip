@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { partySize, partyText, samplePrices, type Party, type PublicTrip } from "../trip-journey";
+import { clock, inr, partySize, partyText, samplePrices, useStayPrices, type Party, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
 import { daysFromItems, type ItineraryDay } from "@/components/creator/itinerary-sheet";
@@ -107,6 +107,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const params = useParams<{ code?: string }>();
   const code = mine?.source ?? params.code ?? "";
   const me = useMe();
+  // Live hotel prices, once the plan is ready (the stays are final) and not while it is being made.
+  const live = useStayPrices(mine?.build?.status === "ready" ? mine.code : null).data;
   const trip = useQuery({
     queryKey: ["public-trip", code],
     retry: false,
@@ -175,6 +177,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const where = t.destination_name || "your trip";
   // A trip planned for the party has its own days; an older copy is spread over the days chosen.
   const days = daysFromItems(t.items, mine && !t.items.some((i) => i.slot) ? mine.days : undefined);
+  const stayPrice = (id?: string) => (id ? live?.stays.find((p) => p.item_id === id.slice(0, 40)) : undefined);
   const travellers = mine ? Math.max(1, partySize(mine.party)) : 3;
   // Priced for who is going and the days they chose, exactly as the Details screen's estimate is.
   const nights = mine ? Math.max(1, mine.days - 1) : Math.max(1, days.length - 1);
@@ -418,6 +421,25 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                         {s.image && s.imageHotel && (
                           <span className="-mt-1 text-[11.5px] text-[#5F6B78]">Photo: {s.imageHotel} · via TripJack</span>
                         )}
+                        {s.kind === "stay" && (() => {
+                          const p = stayPrice(s.id);
+                          if (!p || p.status === "not_matched") return null;
+                          if (p.status === "priced")
+                            return (
+                              <span className="-mt-1 text-[13px] font-bold text-[#0B7A57]">
+                                {inr(p.total ?? 0)} for {p.nights} {p.nights === 1 ? "night" : "nights"}
+                                <span className="font-semibold text-[#5F6B78]">
+                                  {p.meal_basis ? ` · ${p.meal_basis}` : ""} · live from TripJack{p.checked_at ? `, checked ${clock(p.checked_at)}` : ""}
+                                </span>
+                              </span>
+                            );
+                          const why: Record<string, string> = {
+                            no_dates: "Add a start date to see the live price",
+                            unavailable: "No room at this hotel for these dates",
+                            error: "Live price not available right now",
+                          };
+                          return <span className="-mt-1 text-[12.5px] font-semibold text-[#B86E00]">{why[p.status] ?? ""}</span>;
+                        })()}
                         {s.kind === "stay" && !s.image && s.id && (
                           <span className="-mt-1 text-[12.5px] font-semibold text-[#B86E00]">No exact hotel match · see alternatives</span>
                         )}

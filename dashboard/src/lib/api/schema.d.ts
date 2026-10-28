@@ -1627,6 +1627,27 @@ export interface paths {
         patch: operations["update_mine_my_trips__code__patch"];
         trace?: never;
     };
+    "/my-trips/{code}/stay-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Stay Prices
+         * @description Live TripJack price of each stay that matches a hotel, for the trip's dates and party.
+         *     Read separately from the trip so the trip opens at once; a stay that is not priced says why.
+         */
+        get: operations["read_stay_prices_my_trips__code__stay_prices_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/my-trips/{code}/arya": {
         parameters: {
             query?: never;
@@ -6004,6 +6025,62 @@ export interface components {
             /** Spotlight */
             spotlight: boolean;
         };
+        /** StayHotel */
+        StayHotel: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** StayPrice */
+        StayPrice: {
+            /** Item Id */
+            item_id: string;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+            hotel?: components["schemas"]["StayHotel"] | null;
+            /** Check In */
+            check_in?: string | null;
+            /** Check Out */
+            check_out?: string | null;
+            /** Nights */
+            nights?: number | null;
+            /** Total */
+            total?: number | null;
+            /**
+             * Meal Basis
+             * @default
+             */
+            meal_basis: string;
+            /**
+             * Room
+             * @default
+             */
+            room: string;
+            /** Free Cancellation Until */
+            free_cancellation_until?: string | null;
+            /** Checked At */
+            checked_at?: string | null;
+        };
+        /** StayPrices */
+        StayPrices: {
+            /** Currency */
+            currency: string;
+            /** Stays */
+            stays: components["schemas"]["StayPrice"][];
+            /** Total */
+            total: number;
+            /** Checked At */
+            checked_at?: string | null;
+            /** Rooms */
+            rooms: number;
+            /** Children Assumed Age */
+            children_assumed_age?: number | null;
+            /** All Priced */
+            all_priced: boolean;
+        };
         /** StopDetails */
         StopDetails: {
             /** Id */
@@ -9557,6 +9634,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_stay_prices_my_trips__code__stay_prices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StayPrices"];
                 };
             };
             /** @description Validation Error */

@@ -252,3 +252,71 @@ async def test_the_trip_knows_when_it_starts_and_where_from(client, traveler, bu
     past = (dt.date.today() - dt.timedelta(days=1)).isoformat()
     for bad in ({"start_date": past}, {"origin": "DELHI"}, {"origin": "D3L"}):  # too long: 422; not letters: 400
         assert (await client.patch(f"/my-trips/{trip['code']}", json={**body, **bad})).status_code in (400, 422), bad
+
+
+def test_rooms_and_nights_follow_the_party_and_where_they_sleep():
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+
+    assert [r.adults for r in sp.rooms_for(2, 0)] == [2]
+    assert [r.adults for r in sp.rooms_for(5, 2)] == [2, 2, 1]
+    assert sp.rooms_for(2, 2)[0].child_ages == [sp.ASSUMED_CHILD_AGE] * 2 and sp.rooms_for(4, 2)[1].child_ages == []
+    start = dt.date(2027, 1, 10)
+    one = sp.stay_nights([{"id": "a", "day": 1}], start, 4)
+    assert one["a"] == (start, dt.date(2027, 1, 13))  # a 4-day plan: 3 nights
+    two = sp.stay_nights([{"id": "b", "day": 3}, {"id": "a", "day": 1}], start, 5)
+    assert two["a"] == (start, dt.date(2027, 1, 12)) and two["b"] == (dt.date(2027, 1, 12), dt.date(2027, 1, 14))
+
+
+class FakeHotels:
+    configured = True
+
+    def __init__(self):
+        self.calls = []
+
+    async def pricing(self, **kw):
+        self.calls.append(kw)
+        return {"hotelName": "x", "options": [
+            {"optionId": "dear", "mealBasis": "Room only", "roomInfo": [{"name": "Deluxe"}],
+             "pricing": {"basePrice": 20000, "taxes": 2000, "mf": 0, "mft": 0, "currency": "INR"}},
+            {"optionId": "cheap", "mealBasis": "Breakfast", "roomInfo": [{"name": "Standard"}],
+             "pricing": {"basePrice": 12000, "taxes": 1200, "mf": 0, "mft": 0, "currency": "INR"}},
+        ]}
+
+
+async def test_a_matched_stay_is_priced_live_for_the_dates_and_party(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    fake = FakeHotels()
+    monkeypatch.setattr(sp, "tripjack_hotels", fake)
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:
+        session.add(SupplierHotel(tj_hotel_id="h1", region_id=1, name="Grand Mega Resort & Spa",
+                                  hero_image="https://img.example/mega.jpg"))
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "kids": 1, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+
+    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    (stay,) = got["stays"]
+    assert stay["status"] == "priced" and stay["hotel"]["id"] == "h1" and stay["nights"] == 2
+    assert stay["check_in"] == start.isoformat() and stay["check_out"] == (start + dt.timedelta(days=2)).isoformat()
+    assert stay["total"] == 13200 and stay["room"] == "Standard" and got["total"] == 13200  # the cheapest rate
+    assert got["all_priced"] and got["rooms"] == 1 and got["children_assumed_age"] == sp.ASSUMED_CHILD_AGE
+    assert fake.calls[0]["rooms"] == [{"adults": 2, "children": 1, "childAge": [sp.ASSUMED_CHILD_AGE]}]
+
+    # No dates: the stay is matched but not priced, and TripJack is not asked.
+    fake.calls.clear()
+    await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None})
+    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    assert got["stays"][0]["status"] == "no_dates" and got["total"] == 0 and not got["all_priced"] and fake.calls == []
