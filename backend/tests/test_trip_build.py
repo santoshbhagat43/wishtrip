@@ -755,6 +755,7 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
         return {"region": {"region_id": 99},
                 "hotels": [card("s-villa", "Palace Villas", "5.0", 90000, 90),
                            card("s-far", "Far Away Hostel", "2.5", 5000, 10),  # a hotel of another city
+                           card("s-dorm", "Backpackers Hostel", "2.5", 4000, 5),  # cheapest, but a hostel
                            card("s-inn", "City Budget Inn", "3.0", 9000, 20),
                            card("s-mid", "Mid Hotel", "3.5", 20000, 60)]}
 
@@ -773,6 +774,8 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
             session.add(SupplierHotel(tj_hotel_id=tj, region_id=99, name=name, hero_image="https://img.example/x.jpg"))
         session.add(SupplierHotel(tj_hotel_id="s-far", region_id=555, name="Far Away Hostel",
                                   hero_image="https://img.example/x.jpg"))
+        session.add(SupplierHotel(tj_hotel_id="s-dorm", region_id=99, name="Backpackers Hostel",
+                                  hero_image="https://img.example/x.jpg"))
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
@@ -788,3 +791,16 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
     assert asked and asked[0].city == "Bali" and asked[0].check_in == start
     # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one wins.
     assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
+
+
+def test_a_bed_in_a_dormitory_is_never_the_price_of_a_stay():
+    from app.modules.creators import stay_prices as sp
+
+    def option(price, room):
+        return {"price": {"total": price}, "rooms": [{"name": room}]}
+
+    rates = [option(4000, "Bed in 8-Bed Mixed Dormitory"), option(5000, "Luxury Shared Dormitory"),
+             option(9000, "Double Room"), option(12000, "Suite")]
+    assert sp._cheapest(rates)["price"]["total"] == 9000  # the cheapest room of your own
+    assert sp._cheapest(rates[:2]) is None  # only shared beds: no room for a couple
+    assert sp._cheapest([]) is None

@@ -70,8 +70,16 @@ async def name_the_stay(
     return out
 
 
+def is_hostel(hotel: SupplierHotel) -> bool:
+    return "hostel" in f"{hotel.name} {hotel.property_type}".lower()
+
+
 async def fitting_hotels(
-    session: AsyncSession, destination: str, stars: tuple[float, float], limit: int = 5
+    session: AsyncSession,
+    destination: str,
+    stars: tuple[float, float],
+    limit: int = 5,
+    hostels: bool = False,
 ) -> list[SupplierHotel]:
     """The best-presented hotels of the destination within the star range, best first (the
     best-presented of any rating when none has a rating in the range)."""
@@ -84,6 +92,10 @@ async def fitting_hotels(
         SupplierHotel.is_active.is_(True),
         SupplierHotel.hero_image.is_not(None),
     )
+    if not hostels:
+        base = base.where(
+            ~SupplierHotel.name.ilike("%hostel%"), ~SupplierHotel.property_type.ilike("%hostel%")
+        )
     rows = list(
         await session.scalars(
             base.where(SupplierHotel.star_rating.between(low, high))

@@ -6,6 +6,7 @@ no match, no dates or no room says so, and is never given a number of ours."""
 import asyncio
 import datetime as dt
 import logging
+import re
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.modules.creators import builder
 from app.modules.creators import stays as stay_choice
 from app.modules.creators.models import TravellerTrip
 from app.modules.creators.stop_details import alternatives as nearest_hotels
@@ -109,8 +111,16 @@ def stay_nights(stays: list[dict], start: dt.date, days: int) -> dict[str, tuple
     return out
 
 
+SHARED_ROOM = re.compile(r"dorm|shared|bunk|capsule|\bpod\b|bed in", re.I)
+
+
 def _cheapest(options: list[dict]) -> dict | None:
-    return options[0] if options else None  # normalise_options sorts cheapest first
+    """The cheapest rate with a room of your own: a bed in a dormitory is not a room for a couple
+    or a family, so it is not what a stay is priced at. (normalise_options sorts cheapest first.)"""
+    for option in options:
+        if not any(SHARED_ROOM.search(r.get("name") or "") for r in option.get("rooms") or []):
+            return option
+    return None
 
 
 async def _price(hotel_id: str, check_in: dt.date, check_out: dt.date, rooms: list[Room]) -> dict:
@@ -158,6 +168,7 @@ async def _from_search(
     rooms: list[Room],
     stars: tuple[float, float],
     budget: bool,
+    hostels: bool = False,
 ) -> SupplierHotel | None:
     """When we hold no hotels for the destination yet, ask TripJack what it can sell for these
     nights: the cheapest of the right class for a budget trip, else the best presented."""
@@ -193,6 +204,8 @@ async def _from_search(
         )
     }
     cards = [c for c in cards if c["hotel_id"] in rows]
+    if not hostels:  # a hostel is no stay for a couple, a family or older travellers
+        cards = [c for c in cards if not stay_choice.is_hostel(rows[c["hotel_id"]])]
     fitting = [c for c in cards if (r := rating(c)) is not None and stars[0] <= r <= stars[1]]
     pool = fitting or cards
     if not pool:
@@ -254,7 +267,11 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
                 candidates += [by_id[i] for i in ids if i in by_id]
         words = (mine.summary, mine.plan_summary, " ".join(mine.tips or []))
         stars = stay_choice.stars_wanted(*words)
-        for h in await stay_choice.fitting_hotels(session, mine.destination_name, stars, limit=8):
+        persona = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors)
+        hostels = persona == "solo"
+        for h in await stay_choice.fitting_hotels(
+            session, mine.destination_name, stars, limit=8, hostels=hostels
+        ):
             if all(h.id != c.id for c in candidates):
                 candidates.append(h)
         if match is not None and match.state in photos.SHOWN and match.hotel is not None:
@@ -276,7 +293,7 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
                 chosen = open_[0][0]
         if chosen is None:  # none held for this destination yet: what TripJack can sell
             cheap = bool(stay_choice.BUDGET.search(" ".join(words)))
-            chosen = await _from_search(session, mine, window, rooms, stars, cheap)
+            chosen = await _from_search(session, mine, window, rooms, stars, cheap, hostels)
         if chosen is None:
             continue
         for item in items:
