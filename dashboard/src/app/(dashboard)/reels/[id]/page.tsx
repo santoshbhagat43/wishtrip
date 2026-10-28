@@ -115,14 +115,16 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
       <Card>
         <CardHeader title={`Places found (${r.place_list.length})`} description={r.caption ? `Caption: ${r.caption.slice(0, 200)}` : undefined} />
         <Table>
-          <thead><tr><Th>Place</Th><Th>Kind</Th><Th>Matched</Th><Th>Seen in</Th></tr></thead>
+          <thead><tr><Th>Place</Th><Th>Kind</Th><Th>Matched</Th><Th>At</Th><Th>Seen in</Th><Th>What it said</Th></tr></thead>
           <tbody>
             {r.place_list.map((p, i) => (
               <tr key={i}>
                 <Td>{String(p.name ?? "")}</Td>
                 <Td className="text-muted">{String(p.kind ?? "")}</Td>
                 <Td>{p.verified ? <Badge tone="ok">{String(p.location_name ?? "in our places")}</Badge> : <Badge tone="warn">not in our places</Badge>}</Td>
+                <Td className="whitespace-nowrap tabular-nums">{typeof p.t === "number" ? `${Math.floor(p.t / 60)}:${String(Math.floor(p.t % 60)).padStart(2, "0")}` : <span className="text-muted">—</span>}</Td>
                 <Td className="text-muted">{String(p.source ?? "")}</Td>
+                <Td className="max-w-80 text-xs text-muted">{String(p.evidence ?? "")}</Td>
               </tr>
             ))}
           </tbody>
