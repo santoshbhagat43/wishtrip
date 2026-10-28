@@ -89,8 +89,10 @@ Hard requirements for your answer:
   are confident; otherwise leave it empty.
 - "tips": four to six short practical tips: how to get around, what to book ahead, the best time
   of day for the big sights and the weather for the dates. If "travelling_from" is in another
-  country than the destination, one tip tells them to check entry and visa rules on the official
-  government site (no costs, no promises). Use "reel_tips" where they help.
+  country than the destination ("same_country_trip" is false), one tip tells them to check entry and
+  visa rules on the official government site (no costs, no promises). When "same_country_trip" is
+  true, never mention visas or entry rules. When it is "unknown", mention them only if you are
+  sure the destination is abroad. Use "reel_tips" where they help.
 - No prices or costs anywhere.
 Return JSON only:
 {"summary": "one or two sentences on the shape of the trip",
@@ -115,6 +117,7 @@ def facts(
     must: list[dict],
     origin_city: str = "",
     reel_tips: list[str] | None = None,
+    domestic: bool | None = None,
 ) -> dict[str, Any]:
     return {
         "destination": destination,
@@ -126,6 +129,7 @@ def facts(
         "when": when or "not decided",
         "budget": "not given (give no costs)",
         "travelling_from": origin_city or "not given",
+        "same_country_trip": "unknown" if domestic is None else domestic,
         "what_the_reel_is_about": summary,
         "reel_tips": list(reel_tips or [])[:8],
         "must_include": [
@@ -200,6 +204,7 @@ def clean(plan: Any, must: list[dict], days: int) -> tuple[list[dict], str, list
             if not isinstance(raw, dict):
                 continue
             name = re.sub(r"\s+", " ", str(raw.get("name") or "")).strip()
+            name = re.sub(r"^optional\s*[:\-–]\s*", "", name, flags=re.I)  # the flag says it
             if not name:
                 continue
             source = next((m for m in unmatched if _same(name, m["name"])), None)
@@ -218,10 +223,6 @@ def clean(plan: Any, must: list[dict], days: int) -> tuple[list[dict], str, list
                 optional=bool(raw.get("optional")) and source is None,
                 transfer=str(raw.get("transfer") or "").strip(), source=source,
             ))  # fmt: skip
-    # Every day has something to do: a day with no main activity means the days were not shared out.
-    for d in range(1, days + 1):
-        if not any(i["day"] == d and i["kind"] in ("sight", "experience", "area") for i in items):
-            return None
     # Anything the AI dropped goes back in, on the lightest day.
     for m in unmatched:
         load = {
@@ -244,15 +245,18 @@ def clean(plan: Any, must: list[dict], days: int) -> tuple[list[dict], str, list
     return items, str(plan.get("summary") or "").strip()[:400], tips
 
 
+def _activities(items: list[dict], day: int) -> int:
+    return sum(1 for i in items if i["day"] == day and i["kind"] in ("sight", "experience", "area"))
+
+
 def thin_days(items: list[dict], days: int) -> list[int]:
-    """The days in the middle of the trip with fewer than two things to see or do (meals and
-    travel do not count; optional suggestions do). The first and last day are for arriving and
-    leaving."""
+    """The days that need more: a day in the middle of the trip with fewer than two things to see
+    or do, or a first day with none (meals and travel do not count; optional suggestions do). The
+    last day is for leaving, so it may be bare."""
     return [
         d
-        for d in range(2, days)
-        if sum(1 for i in items if i["day"] == d and i["kind"] in ("sight", "experience", "area"))
-        < 2
+        for d in range(1, days)
+        if _activities(items, d) < (2 if d > 1 else 1)
     ]
 
 
@@ -291,6 +295,9 @@ def finish(
         item["rank"] = rank
         out.append(item)
 
+    if days >= 2 and not any(i["kind"] == "stay" for i in out):
+        add(f"Stay in {where}", "stay", 1, "afternoon",
+            "Check in and settle in.", rank=-1)  # fmt: skip
     if days >= 2:
         add(f"Fly {home} to {where}" if origin_city else f"Fly to {where}", "travel", 1,
             "morning", "Flight times and fares are on the trip page.", rank=-3)  # fmt: skip
@@ -325,6 +332,65 @@ def finish(
     return out
 
 
+MEAL_PROMPT = """You suggest what to eat on a trip. For each meal in "meals", name a dish or a
+cuisine the destination is really known for, and the area to eat it in, near the activity given.
+Never name a restaurant, and give no prices. "area" is a district or neighbourhood only, never an
+activity or a sight. Fit the group ("planning_for": a couple might get a
+romantic dinner, a family kid-friendly food, older travellers easy-to-eat food). Vary the dishes
+across days.
+Return JSON only:
+{"meals": [{"day": 1, "meal": "lunch", "dish": "Goan fish thali", "area": "Baga"}]}"""
+
+
+async def name_meals(
+    ai: AIOrchestrator, task: str, items: list[dict], *, destination: str, for_persona: str
+) -> list[dict]:
+    """Turn the plain "Lunch: a local place near X" entries into a dish and an area ("Lunch: Goan
+    fish thali in Baga"), in one small AI call. Whatever goes wrong, the plain entries stay."""
+    plain = [
+        i for i in items if i["kind"] == "food" and i["name"] in ("Breakfast", "Lunch", "Dinner")
+    ]
+    if not plain:
+        return items
+    asked = []
+    for i in plain:
+        near = [
+            o["name"]
+            for o in items
+            if o["day"] == i["day"] and o["kind"] in ("sight", "experience", "area")
+        ]
+        asked.append({"day": i["day"], "meal": i["name"].lower(), "near": near[:3]})
+    try:
+        raw = await ai.complete(
+            task,
+            [
+                {"role": "system", "content": MEAL_PROMPT},
+                {"role": "user", "content": json.dumps(
+                    {"destination": destination, "planning_for": for_persona, "meals": asked},
+                    ensure_ascii=False)},
+            ],
+            json_mode=True, temperature=0.4, max_tokens=1500,
+        )  # fmt: skip
+        named = parse_json_object(raw).get("meals") or []
+    except Exception:  # noqa: BLE001 - the plain entries are fine
+        log.warning("naming the meals failed", exc_info=True)
+        return items
+    by_key = {
+        (m.get("day"), str(m.get("meal", "")).lower()): m for m in named if isinstance(m, dict)
+    }
+    for i in plain:
+        m = by_key.get((i["day"], i["name"].lower()))
+        dish = re.sub(r"\s+", " ", str((m or {}).get("dish") or "")).strip()
+        area = re.sub(r"\s+", " ", str((m or {}).get("area") or "")).strip()
+        near = [n.lower() for n in next((a["near"] for a in asked if a["day"] == i["day"]
+                                         and a["meal"] == i["name"].lower()), [])]
+        if any(n in area.lower() or area.lower() in n for n in near if area):
+            area = ""  # the model gave the activity back as the place: say only the dish
+        if dish and not re.search(r"[₹$€£]|\d", dish):
+            i["name"] = f"{i['name']}: {dish}" + (f" in {area}" if area else "")
+    return items
+
+
 async def build(
     ai: AIOrchestrator | None,
     *,
@@ -340,6 +406,7 @@ async def build(
     summary: str = "",
     origin_city: str = "",
     reel_tips: list[str] | None = None,
+    domestic: bool | None = None,
 ) -> dict[str, Any]:
     """The plan: {items, summary, tips, persona, ai_built}."""
     days = max(1, min(MAX_DAYS, days))
@@ -348,7 +415,7 @@ async def build(
         context = facts(
             destination=destination, days=days, adults=adults, kids=kids, seniors=seniors,
             pace=pace, when=when, group=group, for_persona=who, summary=summary, must=must,
-            origin_city=origin_city, reel_tips=reel_tips,
+            origin_city=origin_city, reel_tips=reel_tips, domestic=domestic,
         )  # fmt: skip
         facts_text = json.dumps(context, ensure_ascii=False)
         messages = [
@@ -369,6 +436,11 @@ async def build(
                 cleaned = clean(parse_json_object(raw), must, days)
                 if cleaned is not None:
                     bare = thin_days(cleaned[0], days)
+                    log.info("trip build try %s: days with too little to do: %s", attempt + 1, bare)
+                    if attempt == 1 and thin_first is not None and len(bare) > len(
+                        thin_days(thin_first[0], days)
+                    ):
+                        cleaned = thin_first  # the redo is thinner than the first plan: keep that
                     if not bare or attempt == 1:
                         break
                     thin_first, cleaned = cleaned, None
@@ -377,8 +449,9 @@ async def build(
                             f"Day {', '.join(map(str, bare))} has too little to do. Every day "
                             "except the first and last needs at least two things to see or do, "
                             "besides meals: add well-known real places or general suggestions "
-                            'near the others, marked "optional": true. Answer again with the '
-                            "whole plan as JSON only."
+                            'near the others, marked "optional": true. Do not repeat a place that '
+                            "is already in the plan, and keep every must_include place. Answer "
+                            "again with the whole plan as JSON only."
                         )}]  # fmt: skip
                     continue
                 messages = [*messages, {"role": "user", "content": (
@@ -393,8 +466,10 @@ async def build(
         cleaned = cleaned or thin_first
         if cleaned is not None:
             items, text, tips = cleaned
+            items = finish(items, days=days, destination=destination, origin_city=origin_city)
+            items = await name_meals(ai, task, items, destination=destination, for_persona=who)
             return {
-                "items": finish(items, days=days, destination=destination, origin_city=origin_city),
+                "items": items,
                 "summary": text,
                 "tips": tips,
                 "persona": who,

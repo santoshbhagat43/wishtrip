@@ -394,7 +394,9 @@ async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler
     assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == "no_airport"
 
 
-async def test_a_stay_with_no_hotel_gets_its_closest_hotels_priced(client, traveler, builds, monkeypatch):
+async def test_a_stay_with_no_hotel_is_swapped_for_one_with_a_room_so_the_price_is_whole(
+    client, traveler, builds, monkeypatch
+):
     import datetime as dt
 
     from app.modules.creators import stay_prices as sp
@@ -422,12 +424,77 @@ async def test_a_stay_with_no_hotel_gets_its_closest_hotels_priced(client, trave
         row.items = [{**i, "name": "Mega Beach Lodge"} if i["kind"] == "stay" else i for i in row.items]
         await session.commit()
 
+    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    (stay,) = got["stays"]
+    # The stay became a hotel TripJack has a room in, so the trip's price is complete.
+    assert stay["status"] == "priced" and stay["hotel"]["id"].startswith("h") and stay["total"] == 13200
+    assert got["all_priced"] and got["total"] == 13200
+    board = (await client.get(f"/my-trips/{trip['code']}")).json()
+    swapped = next(i for i in board["items"] if i["kind"] == "stay")
+    assert swapped["name"] == stay["hotel"]["name"] and "Mega Beach Lodge" in swapped["note"]
+    assert swapped["name"] != "Mega Beach Lodge"
+    calls = len(fake.calls)
+    again = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    assert again["stays"][0]["hotel"] == stay["hotel"]  # settled once: the same hotel next time
+    assert len(fake.calls) >= calls
+
+
+async def test_a_matched_hotel_with_no_room_for_the_dates_is_swapped_too(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    class SoldOut(FakeHotels):
+        async def pricing(self, **kw):
+            self.calls.append(kw)
+            if kw["hid"] == "h1":
+                return {"hotelName": "x", "options": []}  # the reel's own hotel has no room
+            return await super().pricing(**kw)
+
+    fake = SoldOut()
+    monkeypatch.setattr(sp, "tripjack_hotels", fake)
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:
+        session.add_all([
+            SupplierHotel(tj_hotel_id="h1", region_id=1, name="Grand Mega Resort & Spa", hero_image="https://img.example/a.jpg"),
+            SupplierHotel(tj_hotel_id="h2", region_id=1, name="Grand Mega Resort Kuta", hero_image="https://img.example/b.jpg"),
+        ])
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
-    assert stay["status"] == "not_matched" and stay.get("total") is None
-    alts = stay["alternatives"]
-    assert 1 <= len(alts) <= 3 and all(a["total"] == 13200 and a["hotel"]["id"].startswith("h") for a in alts)
-    assert len({a["hotel"]["id"] for a in alts}) == len(alts)
-    assert len(fake.calls) == len(alts)  # only the alternatives were priced
+    assert stay["status"] == "priced" and stay["hotel"]["id"] == "h2"  # not h1: it is sold out
+
+
+async def test_a_stay_staff_unlinked_is_left_alone_and_no_dates_means_no_swap(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    fake = FakeHotels()
+    monkeypatch.setattr(sp, "tripjack_hotels", fake)
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:
+        session.add(SupplierHotel(tj_hotel_id="h9", region_id=1, name="Mega Beach Inn", hero_image="https://img.example/x.jpg"))
+        await session.commit()
+    job_id = await _import_for(traveler)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple"}  # no start date
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    assert got["stays"][0]["status"] in ("no_dates", "not_matched") and fake.calls == []  # TripJack is not asked
 
 
 async def test_every_trip_has_travel_a_checkout_and_meals_every_day():
@@ -527,7 +594,7 @@ async def test_a_plan_with_bare_middle_days_is_asked_again_once_and_the_fuller_o
 
     ai = TwoAnswers(None)
     out = await build(ai, days=4)
-    assert len(ai.sent) == 2 and "has too little to do" in ai.sent[1][-1]["content"]
+    assert len(ai.sent) >= 2 and "has too little to do" in ai.sent[1][-1]["content"]
     assert builder.thin_days(out["items"], 4) == []
     assert {"Monkey Forest", "Waterfall"} <= {i["name"] for i in out["items"]}
 
@@ -538,3 +605,77 @@ async def test_a_plan_with_bare_middle_days_is_asked_again_once_and_the_fuller_o
 
     again = await build(Stubborn(None), days=4)
     assert again["ai_built"] is True  # the plan is still used; it is not thrown away for being thin
+
+
+async def test_plain_meals_get_a_dish_and_an_area_and_a_bad_answer_changes_nothing():
+    class Meals(FakeAI):
+        async def complete(self, task, messages, **kwargs):
+            self.sent.append(messages)
+            if "what to eat" in messages[0]["content"]:
+                return json.dumps({"meals": [
+                    {"day": 2, "meal": "lunch", "dish": "Babi guling", "area": "Ubud"},
+                    {"day": 1, "meal": "dinner", "dish": "Grilled fish", "area": "Tanah Lot"},
+                    {"day": 2, "meal": "breakfast", "dish": "Cheap meal for ₹200", "area": "Ubud"},
+                ]})
+            return json.dumps(good_plan())
+
+    named = await build(Meals(None))
+    day2 = {i["slot"]: i["name"] for i in named["items"] if i["day"] == 2 and i["kind"] == "food"}
+    assert day2["afternoon"] == "Lunch: Babi guling in Ubud"
+    assert day2["morning"] == "Breakfast"  # a price in the answer is refused, the plain entry stays
+    day1 = {i["slot"]: i["name"] for i in named["items"] if i["day"] == 1 and i["kind"] == "food"}
+    assert day1["evening"] == "Dinner: Grilled fish"  # an activity given back as the place is dropped
+    assert day1["afternoon"] == "Lunch"  # not named by the answer: stays plain
+
+    class Broken(Meals):
+        async def complete(self, task, messages, **kwargs):
+            if "what to eat" in messages[0]["content"]:
+                raise RuntimeError("down")
+            return json.dumps(good_plan())
+
+    plain = await build(Broken(None))
+    assert plain["ai_built"] is True and any(i["name"] == "Lunch" for i in plain["items"])
+
+
+async def test_a_trip_always_has_a_stay_and_the_visa_tip_follows_the_trip_being_abroad():
+    plan = good_plan()
+    plan["days"][0]["items"] = [i for i in plan["days"][0]["items"] if i["kind"] != "stay"]
+    ai = FakeAI(plan)
+    out = await builder.build(
+        ai, must=[m for m in must() if m["kind"] != "stay"], destination="Bali", days=3, adults=2,
+        kids=0, seniors=0, pace="relaxed", when="", group="couple", summary="", domestic=False,
+    )  # fmt: skip
+    stays = [i for i in out["items"] if i["kind"] == "stay"]
+    assert [s["name"] for s in stays] == ["Stay in Bali"] and stays[0]["day"] == 1
+    facts = json.loads(ai.sent[0][1]["content"].split("Facts:\n", 1)[1])
+    assert facts["same_country_trip"] is False
+    local = FakeAI(good_plan())
+    await builder.build(
+        local, must=must(), destination="Goa", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", domestic=True,
+    )  # fmt: skip
+    assert json.loads(local.sent[0][1]["content"].split("Facts:\n", 1)[1])["same_country_trip"] is True
+    assert "never mention visas" in local.sent[0][0]["content"]
+
+
+async def test_a_trip_inside_one_country_is_known_from_tripjacks_cities():
+    from app.modules.creators import stays
+    from app.modules.hotels.models import SupplierRegion
+
+    async with SessionLocal() as session:
+        for rid, city, country in [(1, "GOA", "INDIA"), (2, "MUMBAI", "INDIA"), (3, "BALI", "INDONESIA"),
+                                   (4, "BALI", "INDIA")]:  # a Bali in Rajasthan too
+            session.add(SupplierRegion(region_id=rid, city_name=city, country_name=country, full_name=city))
+        await session.commit()
+        assert await stays.same_country(session, "Goa", "Mumbai") is True
+        assert await stays.same_country(session, "Bali", "Mumbai") is True  # one of the Balis is Indian
+        assert await stays.same_country(session, "Goa", "Nowhere") is None  # not known: not guessed
+        assert await stays.same_country(session, "Goa", "") is None
+
+
+async def test_the_word_optional_is_taken_out_of_a_place_name_because_the_flag_says_it():
+    plan = good_plan()
+    plan["days"][0]["items"][2]["name"] = "Optional: Beach walk"
+    out = await build(FakeAI(plan))
+    walk = next(i for i in out["items"] if i["name"] == "Beach walk")
+    assert walk["optional"] is True

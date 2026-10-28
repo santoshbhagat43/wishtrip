@@ -68,3 +68,48 @@ async def name_the_stay(
         item["note"] = "Check in. A hotel we picked for this trip; you can swap it."
         item["origin"] = "suggested"
     return out
+
+
+async def fitting_hotels(
+    session: AsyncSession, destination: str, stars: tuple[float, float], limit: int = 5
+) -> list[SupplierHotel]:
+    """The best-presented hotels of the destination within the star range, best first."""
+    regions = await photos._regions_for(session, destination, [])
+    if not regions:
+        return []
+    low, high = stars
+    rows = await session.scalars(
+        select(SupplierHotel)
+        .where(
+            SupplierHotel.region_id.in_([r.region_id for r in regions]),
+            SupplierHotel.is_active.is_(True),
+            SupplierHotel.hero_image.is_not(None),
+            SupplierHotel.star_rating.between(low, high),
+        )
+        .order_by(SupplierHotel.rank.desc())
+        .limit(limit)
+    )
+    return list(rows)
+
+
+async def same_country(session: AsyncSession, destination: str, origin_city: str) -> bool | None:
+    """Is the trip inside one country (no visa, no passport)? Read from TripJack's cities: None
+    when either place is not one we know."""
+    from sqlalchemy import func
+
+    from app.modules.hotels.models import SupplierRegion
+
+    async def countries(name: str) -> set[str]:
+        rows = await session.scalars(
+            select(SupplierRegion.country_name).where(
+                func.upper(SupplierRegion.city_name) == name.strip().upper()
+            )
+        )
+        return set(rows)
+
+    if not destination.strip() or not origin_city.strip():
+        return None
+    there, here = await countries(destination), await countries(origin_city)
+    if not there or not here:
+        return None
+    return bool(there & here)

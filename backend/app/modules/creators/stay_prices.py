@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.modules.creators import stays as stay_choice
 from app.modules.creators.models import TravellerTrip
 from app.modules.creators.stop_details import alternatives as nearest_hotels
 from app.modules.hotels import matching, photos
@@ -22,8 +23,8 @@ from app.modules.hotels.client import (
     new_correlation_id,
     tripjack_hotels,
 )
-from app.modules.hotels.pricing import IST, normalise_options
 from app.modules.hotels.models import SupplierHotel
+from app.modules.hotels.pricing import IST, normalise_options
 from app.modules.hotels.schemas import Room
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
 
@@ -131,17 +132,101 @@ async def _price(hotel_id: str, check_in: dt.date, check_out: dt.date, rooms: li
     return found
 
 
+async def _has_a_room(
+    hotel: SupplierHotel, window: tuple[dt.date, dt.date], rooms: list[Room]
+) -> bool:
+    try:
+        got = await _price(hotel.tj_hotel_id, *window, rooms)
+    except (TripJackError, TripJackNotConfigured):
+        return False
+    return got.get("option") is not None
+
+
+async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[Room]) -> bool:
+    """Make every stay a hotel TripJack can sell for these nights, so the trip's price is whole.
+
+    A stay that is no hotel we hold (or only a likely match), and one whose hotel has no room for
+    the dates, is swapped for the closest hotel that does have a room: first by name, then by what
+    fits the reel's budget. The reel's own words are kept in the note. Stays staff unlinked are
+    left alone, and nothing changes when TripJack cannot be asked. True when the trip changed."""
+    start = mine.start_date
+    if not (start and rooms and tripjack_hotels.configured):
+        return False
+    items = [dict(i) for i in mine.items or []]  # copies: the saved list must differ to be saved
+    wanted = photos.stays(items)
+    if not wanted:
+        return False
+    found = await photos.resolve(
+        session, mine.source_trip_id, items, mine.destination_name, persist=False
+    )
+    nights = stay_nights(wanted, start, mine.days)
+    gate = asyncio.Semaphore(PARALLEL)
+    changed = False
+    for stay in wanted:
+        item_id = str(stay["id"])[:40]
+        match = found.get(item_id)
+        window = nights.get(item_id)
+        if match is not None and match.state == "unlinked":
+            continue
+        if not window or window[1] <= window[0] or window[0] < dt.date.today():
+            continue
+        if match is not None and match.state in photos.SHOWN and match.hotel is not None:
+            async with gate:
+                if await _has_a_room(match.hotel, window, rooms):
+                    continue  # a hotel we hold, with a room: priced as it is
+        candidates: list[SupplierHotel] = []
+        near = await nearest_hotels(
+            session, matching.clean_name(stay["name"]), mine.destination_name, limit=ALTERNATIVES
+        )
+        ids = [a.hotel.id for a in near if a.reason.startswith("Close")]
+        if ids:
+            close = await session.scalars(select(SupplierHotel).where(SupplierHotel.id.in_(ids)))
+            by_id = {h.id: h for h in close}
+            candidates += [by_id[i] for i in ids if i in by_id]
+        stars = stay_choice.stars_wanted(mine.summary, mine.plan_summary, " ".join(mine.tips or []))
+        for h in await stay_choice.fitting_hotels(session, mine.destination_name, stars, limit=5):
+            if all(h.id != c.id for c in candidates):
+                candidates.append(h)
+        if match is not None and match.state in photos.SHOWN and match.hotel is not None:
+            candidates = [c for c in candidates if c.id != match.hotel.id]  # it has no room
+
+        async def check(h: SupplierHotel, nights_: tuple[dt.date, dt.date]) -> bool:
+            async with gate:
+                return await _has_a_room(h, nights_, rooms)
+
+        rooms_open = await asyncio.gather(*(check(h, window) for h in candidates))
+        chosen = next((h for h, ok in zip(candidates, rooms_open, strict=True) if ok), None)
+        if chosen is None:
+            continue
+        for item in items:
+            if str(item.get("id"))[:40] == item_id:
+                item["was"] = item.get("was") or item["name"]
+                item["name"] = chosen.name[:200]
+                item["note"] = (
+                    f"Swapped from “{item['was']}” for a hotel with a room for your dates "
+                    "and a live price."
+                )[:500]
+                item["origin"] = "suggested"
+                item["verified"] = False
+        changed = True
+    if changed:
+        mine.items = items
+        await session.commit()
+    return changed
+
+
 async def stay_prices(session: AsyncSession, mine: TravellerTrip) -> StayPrices:
     """One row per stay: priced, unavailable (TripJack has no room), not_matched, no_dates or
     error. `total` adds up the priced stays only."""
+    party = mine.adults + mine.seniors
+    rooms = rooms_for(party, mine.kids) if party else []
+    await settle_stays(session, mine, rooms)  # first: every stay a hotel with a room
     items = list(mine.items or [])
     wanted = photos.stays(items)
     found = await photos.resolve(session, mine.source_trip_id, items, mine.destination_name,
                                  persist=False)
     start = mine.start_date
     nights = stay_nights(wanted, start, mine.days) if start else {}
-    party = mine.adults + mine.seniors
-    rooms = rooms_for(party, mine.kids) if party else []
     gate = asyncio.Semaphore(PARALLEL)
     configured = tripjack_hotels.configured
 

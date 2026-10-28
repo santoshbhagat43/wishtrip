@@ -215,6 +215,7 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
             summary=mine.summary,
             origin_city=mine.origin_city,
             reel_tips=tips_from_reel,
+            domestic=await stays.same_country(session, mine.destination_name, mine.origin_city),
         )
         plan["items"] = await stays.name_the_stay(
             session, plan["items"], mine.destination_name, mine.summary, said
