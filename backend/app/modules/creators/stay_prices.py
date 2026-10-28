@@ -17,6 +17,7 @@ from app.modules.creators import stays as stay_choice
 from app.modules.creators.models import TravellerTrip
 from app.modules.creators.stop_details import alternatives as nearest_hotels
 from app.modules.hotels import matching, photos
+from app.modules.hotels import service as hotel_search
 from app.modules.hotels.client import (
     TripJackError,
     TripJackNotConfigured,
@@ -25,7 +26,7 @@ from app.modules.hotels.client import (
 )
 from app.modules.hotels.models import SupplierHotel
 from app.modules.hotels.pricing import IST, normalise_options
-from app.modules.hotels.schemas import Room
+from app.modules.hotels.schemas import HotelSearch, Room
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
 
 log = logging.getLogger(__name__)
@@ -150,6 +151,48 @@ async def _has_a_room(
     return await _room_total(hotel, window, rooms) is not None
 
 
+async def _from_search(
+    session: AsyncSession,
+    mine: TravellerTrip,
+    window: tuple[dt.date, dt.date],
+    rooms: list[Room],
+    stars: tuple[float, float],
+    budget: bool,
+) -> SupplierHotel | None:
+    """When we hold no hotels for the destination yet, ask TripJack what it can sell for these
+    nights: the cheapest of the right class for a budget trip, else the best presented."""
+    try:
+        found = await hotel_search.search(
+            session,
+            HotelSearch(
+                city=mine.destination_name, check_in=window[0], check_out=window[1], rooms=rooms,
+                sort="price",
+            ),
+        )  # fmt: skip
+    except Exception:  # noqa: BLE001 - the stay is then left as it is
+        log.warning("hotel search for %s failed", mine.destination_name, exc_info=True)
+        return None
+
+    def rating(card: dict) -> float | None:
+        try:
+            return float(card.get("stars"))
+        except (TypeError, ValueError):
+            return None
+
+    cards = [c for c in found.get("hotels") or [] if c.get("option")]
+    fitting = [c for c in cards if (r := rating(c)) is not None and stars[0] <= r <= stars[1]]
+    pool = fitting or cards
+    if not pool:
+        return None
+    if budget:
+        pick = min(pool, key=lambda c: c["option"]["price"]["total"])
+    else:
+        pick = max(pool, key=lambda c: c.get("rank") or 0)
+    return await session.scalar(
+        select(SupplierHotel).where(SupplierHotel.tj_hotel_id == pick["hotel_id"])
+    )
+
+
 async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[Room]) -> bool:
     """Make every stay a hotel TripJack can sell for these nights, so the trip's price is whole.
 
@@ -220,6 +263,9 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
                 chosen = min(open_, key=lambda pair: pair[1])[0]
             else:
                 chosen = open_[0][0]
+        if chosen is None:  # none held for this destination yet: what TripJack can sell
+            cheap = bool(stay_choice.BUDGET.search(" ".join(words)))
+            chosen = await _from_search(session, mine, window, rooms, stars, cheap)
         if chosen is None:
             continue
         for item in items:

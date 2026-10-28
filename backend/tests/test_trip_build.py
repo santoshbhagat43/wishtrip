@@ -731,3 +731,55 @@ async def test_a_stay_we_wrote_as_an_area_goes_by_the_trips_budget_not_by_matchi
     # Not a budget trip: the best presented hotel of the right class that has a room.
     again = await make("A slow trip around Bali")
     assert again["status"] == "priced"
+
+
+async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_live_search(
+    client, traveler, builds, monkeypatch
+):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    asked = []
+
+    async def search(session, q):
+        asked.append(q)
+        card = lambda tj, name, stars, total, rank: {  # noqa: E731
+            "hotel_id": tj, "name": name, "stars": stars, "rank": rank,
+            "option": {"price": {"total": total}},
+        }
+        return {"hotels": [card("s-villa", "Palace Villas", "5.0", 90000, 90),
+                           card("s-inn", "City Budget Inn", "3.0", 9000, 20),
+                           card("s-mid", "Mid Hotel", "3.5", 20000, 60)]}
+
+    class Priced(FakeHotels):
+        async def pricing(self, **kw):
+            self.calls.append(kw)
+            return {"hotelName": "x", "options": [{"optionId": "o", "mealBasis": "Room only", "roomInfo": [{"name": "Room"}],
+                    "pricing": {"basePrice": 9000, "taxes": 0, "mf": 0, "mft": 0, "currency": "INR"}}]}
+
+    monkeypatch.setattr(sp.hotel_search, "search", search)
+    monkeypatch.setattr(sp, "tripjack_hotels", Priced())
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:  # content rows for the hotels the search names; no region
+        for tj, name in [("s-villa", "Palace Villas"), ("s-inn", "City Budget Inn"), ("s-mid", "Mid Hotel")]:
+            session.add(SupplierHotel(tj_hotel_id=tj, region_id=99, name=name, hero_image="https://img.example/x.jpg"))
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.summary = "A budget plan"
+        row.items = [{**i, "name": "Stay in Bali", "origin": "suggested"} if i["kind"] == "stay" else i for i in row.items]
+        await session.commit()
+
+    (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
+    assert asked and asked[0].city == "Bali" and asked[0].check_in == start
+    assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
