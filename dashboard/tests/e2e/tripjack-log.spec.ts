@@ -61,3 +61,39 @@ test.describe("TripJack log", () => {
     expect(file.suggestedFilename()).toMatch(/^tripjack-log-.*\.txt$/);
   });
 });
+
+/** A flight search whose answer the log cut short, kept whole as the backend now keeps it. */
+function seedLong(stamp: string) {
+  const code = `
+import asyncio, gzip, json
+from app.db.session import SessionLocal
+from app.modules.tripjack.models import TripJackLog
+whole = json.dumps({"searchResult": {"tripInfos": {"ONWARD": [{"id": i} for i in range(400)]}}, "end": "last ${stamp}"})
+async def main():
+    async with SessionLocal() as s:
+        s.add(TripJackLog(product="flights", method="POST", url="https://apitest.tripjack.com/fms/v1/air-search-all",
+            path="/fms/v1/air-search-all", request_headers={"apikey": "…6789"}, request_body={"searchQuery": {}},
+            status=200, response_body=whole[:200], response_bytes=len(whole), response_truncated=True,
+            response_full=gzip.compress(whole.encode()), ms=900, ok=True, trace_id="long${stamp}",
+            environment="UAT (TripJack test environment)"))
+        await s.commit()
+asyncio.run(main())`;
+  execSync("docker compose exec -T backend python -", { cwd: path.resolve(__dirname, "../../.."), input: code, stdio: ["pipe", "ignore", "inherit"] });
+}
+
+test("a cut answer can be opened in full and downloaded", async ({ page, apiLog: _ }) => {
+  const stamp = Date.now().toString(36);
+  seedLong(stamp);
+  await page.goto(`/tripjack/log?q=long${stamp}`);
+  await page.locator("tr", { hasText: "/fms/v1/air-search-all" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "TripJack call" });
+  await expect(dialog).toContainText("Cut short");
+  await expect(dialog.getByTestId("response-body")).not.toContainText(`last ${stamp}`);
+
+  await dialog.getByRole("button", { name: "Show full response" }).click();
+  await expect(dialog.getByTestId("response-body")).toContainText(`"end": "last ${stamp}"`);
+  await expect(dialog).toContainText("Showing the full response");
+
+  const [file] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "Download (.json)" }).click()]);
+  expect(file.suggestedFilename()).toMatch(/^tripjack-flights-.*\.json$/);
+});

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +31,8 @@ class TripJackLog(UUIDPrimaryKey, Base):
     response_body: Mapped[str] = mapped_column(Text, default="")
     response_bytes: Mapped[int] = mapped_column(Integer, default=0)
     response_truncated: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When the answer was cut: all of it, gzip-compressed (read only when asked for).
+    response_full: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
     ms: Mapped[int] = mapped_column(Integer, default=0)
     attempts: Mapped[int] = mapped_column(Integer, default=1)
     ok: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

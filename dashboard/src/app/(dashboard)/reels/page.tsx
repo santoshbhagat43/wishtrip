@@ -132,6 +132,15 @@ export default function ReelsPage() {
                       <Link href={`/reels/${row.id}`} className="font-medium text-brand">
                         {row.creator_handle ? `@${row.creator_handle}` : row.shortcode}
                       </Link>
+                      <a
+                        href={row.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block max-w-72 truncate text-xs text-brand hover:underline"
+                        title={row.url}
+                      >
+                        {row.url} ↗
+                      </a>
                       <div className="text-xs text-muted">
                         {row.destination_name || "—"} · {row.places} places · {row.kind === "creator_trip" ? "creator" : "traveller"} · {row.requested_by}
                       </div>

@@ -92,6 +92,37 @@ async def test_personal_details_and_long_answers_are_handled(monkeypatch):
     assert row.response_truncated and len(row.response_body) == 50 and row.response_bytes > 500
 
 
+async def test_a_cut_answer_can_still_be_read_and_downloaded_whole(client, admin, monkeypatch):
+    monkeypatch.setattr(settings, "tripjack_log_body_bytes", 50)
+    answer = {**LISTING, "pad": "x" * 500}
+    upstream(monkeypatch, lambda r: httpx.Response(200, json=answer))
+    trace.start()
+    await search()
+    staff = auth(admin)
+    item = (await client.get("/tripjack/logs", headers=staff)).json()["items"][0]
+    detail = (await client.get(f"/tripjack/logs/{item['id']}", headers=staff)).json()
+    assert detail["response_truncated"] and detail["response_full"]
+
+    whole = await client.get(f"/tripjack/logs/{item['id']}/response", headers=staff)
+    assert whole.status_code == 200 and json.loads(whole.text) == answer
+    saved = await client.get(f"/tripjack/logs/{item['id']}/response", params={"download": True}, headers=staff)
+    assert "attachment" in saved.headers["content-disposition"] and json.loads(saved.text) == answer
+    assert (await client.get(f"/tripjack/logs/{item['id']}/response")).status_code == 401
+
+
+async def test_an_answer_that_fits_is_not_kept_twice(client, admin, monkeypatch):
+    upstream(monkeypatch, lambda r: httpx.Response(200, json=LISTING))
+    trace.start()
+    await search()
+    staff = auth(admin)
+    item = (await client.get("/tripjack/logs", headers=staff)).json()["items"][0]
+    detail = (await client.get(f"/tripjack/logs/{item['id']}", headers=staff)).json()
+    assert not detail["response_full"]
+    # The endpoint still answers with what the log holds, which is all of it.
+    whole = await client.get(f"/tripjack/logs/{item['id']}/response", headers=staff)
+    assert json.loads(whole.text) == LISTING
+
+
 async def test_staff_read_the_log_filter_it_and_export_it(client, admin, monkeypatch):
     upstream(monkeypatch, lambda r: httpx.Response(200, json=LISTING))
     trace.start()

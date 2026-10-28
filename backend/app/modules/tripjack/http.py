@@ -98,8 +98,9 @@ class TripJackHTTP:
             await self._http.aclose()
             self._http = None
 
-    async def _request(self, method: str, url: str, **kwargs: Any) -> Any:
-        """One call to TripJack, timed and recorded (the answer, or why there was none)."""
+    async def _request(self, method: str, url: str, once: bool = False, **kwargs: Any) -> Any:
+        """One call to TripJack, timed and recorded (the answer, or why there was none). `once`:
+        never sent twice (a booking), so a timeout or a busy answer is not retried."""
         started = time.monotonic()
         parsed = urlparse(url)
         call = trace.Call(
@@ -108,7 +109,7 @@ class TripJackHTTP:
             request={"json": kwargs.get("json"), "params": kwargs.get("params")},
         )  # fmt: skip
         try:
-            body = await self._send(method, url, call, **kwargs)
+            body = await self._send(method, url, call, once, **kwargs)
         except TripJackError as exc:
             call.error = f"{exc.code}: {exc.message}"[:300]
             raise
@@ -124,20 +125,23 @@ class TripJackHTTP:
             trace.record(call)
             await logs.save(call, self.api_key())
 
-    async def _send(self, method: str, url: str, call: "trace.Call", **kwargs: Any) -> Any:
+    async def _send(
+        self, method: str, url: str, call: "trace.Call", once: bool = False, **kwargs: Any
+    ) -> Any:
         attempt = 0
+        retries = 0 if once else len(BACKOFF_SECONDS)
         while True:
             call.attempts = attempt + 1
             try:
                 response = await self._client().request(method, url, **kwargs)
             except (httpx.TimeoutException, httpx.TransportError) as exc:
-                if attempt < len(BACKOFF_SECONDS):
+                if attempt < retries:
                     await asyncio.sleep(BACKOFF_SECONDS[attempt])
                     attempt += 1
                     continue
                 raise TripJackError("TRANSPORT", str(exc) or exc.__class__.__name__) from exc
 
-            if response.status_code == 429 and attempt < len(BACKOFF_SECONDS):
+            if response.status_code == 429 and attempt < retries:
                 wait = float(response.headers.get("Retry-After") or BACKOFF_SECONDS[attempt])
                 await asyncio.sleep(min(wait, 10))
                 attempt += 1
@@ -154,7 +158,7 @@ class TripJackHTTP:
             error = self.read_error(body, response.status_code, response.text)
             if error is None:
                 return body
-            if error.retryable and attempt < len(BACKOFF_SECONDS):
+            if error.retryable and attempt < retries:
                 await asyncio.sleep(BACKOFF_SECONDS[attempt])
                 attempt += 1
                 continue

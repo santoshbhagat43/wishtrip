@@ -61,6 +61,8 @@ class LogDetail(LogRow):
     response_headers: dict
     response_body: str
     response_truncated: bool
+    # The whole answer can be read at /tripjack/logs/{id}/response (it was cut here).
+    response_full: bool = False
 
 
 Outcome = Literal["all", "ok", "failed"]
@@ -151,7 +153,29 @@ async def read_log(
     log_id: str, session: AsyncSession = Depends(get_session), _: User = Depends(require_staff)
 ):
     row = await _get(session, log_id)
-    return LogDetail(**{**row.__dict__, "id": str(row.id)})
+    kept = await session.scalar(
+        select(TripJackLog.response_full.is_not(None)).where(TripJackLog.id == row.id)
+    )
+    return LogDetail(**{**row.__dict__, "id": str(row.id), "response_full": bool(kept)})
+
+
+@router.get("/logs/{log_id}/response", response_class=PlainTextResponse)
+async def read_full_response(
+    log_id: str,
+    download: bool = False,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_staff),
+):
+    """The whole answer TripJack sent for this call, as it sent it (what the log shows is cut
+    when it is long). With `download`, as a file."""
+    row = await _get(session, log_id)
+    whole = await session.scalar(select(TripJackLog.response_full).where(TripJackLog.id == row.id))
+    headers = {}
+    if download:
+        when = row.created_at.strftime("%Y%m%d-%H%M%S")
+        name = f"tripjack-{row.product}-{when}-{str(row.id)[:8]}"
+        headers["Content-Disposition"] = f'attachment; filename="{name}.json"'
+    return PlainTextResponse(logs.full_text(row, whole), headers=headers)
 
 
 def format_entry(r: TripJackLog) -> str:

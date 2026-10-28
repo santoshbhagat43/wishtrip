@@ -199,6 +199,9 @@ class Settings(BaseSettings):
     # (content/…) keep only their first few KB.
     tripjack_log_body_bytes: int = 200_000
     tripjack_log_sync_bytes: int = 3_000
+    # An answer cut for the log is also kept whole (compressed) up to this size, so staff can open
+    # or download all of it. The catalogue sync's answers are not: there are thousands of them.
+    tripjack_log_full_bytes: int = 30_000_000
     # Repeat searches inside this window are served from Redis. Prices are live, so keep it short.
     tripjack_listing_cache_seconds: int = 180
     # Hotels sent to Listing per search, best-first (star rating, photos). Chunks of 100 run in

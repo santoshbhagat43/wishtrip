@@ -152,13 +152,35 @@ function CallDialog({ id, onClose }: { id: string; onClose: () => void }) {
   });
   const c = call.data;
   const [copied, setCopied] = useState("");
+  // The whole answer, once asked for (the log shows only the first part of a long one).
+  const [full, setFull] = useState<string | null>(null);
+  const [loadingFull, setLoadingFull] = useState(false);
+  const fetchFull = async () =>
+    String((await api.GET("/tripjack/logs/{log_id}/response", { params: { path: { log_id: id } }, parseAs: "text" })).data ?? "");
+  const showFull = async () => {
+    setLoadingFull(true);
+    try {
+      setFull(pretty(await fetchFull()));
+    } finally {
+      setLoadingFull(false);
+    }
+  };
+  const downloadFull = async () => {
+    const text = full ?? (await fetchFull());
+    const blob = new Blob([text], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `tripjack-${c?.product ?? "call"}-${id.slice(0, 8)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   const copy = (label: string, value: string) => {
     copyText(value);
     setCopied(label);
     setTimeout(() => setCopied(""), 1500);
   };
   const request = c ? (c.request_body != null ? json(c.request_body) : c.request_params ? json(c.request_params) : "(no body)") : "";
-  const response = c ? (c.response_body ? pretty(c.response_body) : "(empty)") : "";
+  const response = full ?? (c ? (c.response_body ? pretty(c.response_body) : "(empty)") : "");
 
   return (
     <div
@@ -198,8 +220,26 @@ function CallDialog({ id, onClose }: { id: string; onClose: () => void }) {
               >
                 {c.error && <p className="m-0 mb-2 text-xs text-danger">{c.error}</p>}
                 <pre className="m-0 whitespace-pre-wrap break-all text-xs" data-testid="response-body">{response}</pre>
-                {c.response_truncated && (
-                  <p className="m-0 mt-2 text-xs text-warn">Cut short: showing the first part of {size(c.response_bytes)}.</p>
+                {c.response_truncated && full === null && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 font-sans">
+                    <p className="m-0 text-xs text-warn">Cut short: showing the first part of {size(c.response_bytes)}.</p>
+                    {c.response_full ? (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={showFull} disabled={loadingFull}>
+                          {loadingFull ? "Loading…" : "Show full response"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={downloadFull}>Download (.json)</Button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted">The whole answer was not kept for this call (catalogue sync, or logged before this was added).</span>
+                    )}
+                  </div>
+                )}
+                {full !== null && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 font-sans">
+                    <p className="m-0 text-xs text-ok">Showing the full response, {size(c.response_bytes)}.</p>
+                    <Button size="sm" variant="ghost" onClick={downloadFull}>Download (.json)</Button>
+                  </div>
                 )}
               </Panel>
             </>

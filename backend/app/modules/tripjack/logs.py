@@ -2,6 +2,7 @@
 what TripJack answered (dashboard → TripJack log). Never breaks a call: a failure to record is only
 logged."""
 
+import gzip
 import json
 import logging
 import random
@@ -40,6 +41,19 @@ def _limit(path: str) -> int:
     return settings.tripjack_log_sync_bytes if sync else settings.tripjack_log_body_bytes
 
 
+def _whole(text: str, limit: int, path: str) -> bytes | None:
+    """The whole answer, compressed, when the log cuts it (not for the catalogue sync)."""
+    if len(text) <= limit or "/content/" in path:
+        return None
+    data = text.encode()
+    return gzip.compress(data, 6) if len(data) <= settings.tripjack_log_full_bytes else None
+
+
+def full_text(row: TripJackLog, whole: bytes | None) -> str:
+    """The answer as TripJack sent it: all of it when it was kept, else what the log holds."""
+    return gzip.decompress(whole).decode() if whole else row.response_body
+
+
 def _row(call: "trace.Call", key: str | None) -> TripJackLog:
     text = call.response_text or ""
     limit = _limit(call.path)
@@ -57,6 +71,7 @@ def _row(call: "trace.Call", key: str | None) -> TripJackLog:
         response_body=text[:limit],
         response_bytes=call.bytes or len(text.encode()),
         response_truncated=len(text) > limit,
+        response_full=_whole(text, limit, call.path),
         ms=call.ms,
         attempts=call.attempts,
         ok=call.ok,

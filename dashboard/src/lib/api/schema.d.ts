@@ -1151,6 +1151,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/flights/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review
+         * @description Check a fare again with TripJack: its total now, whether it can be held, how long the
+         *     review stays good, and what the booking form needs (PAN, passport, dates of birth, GST).
+         */
+        post: operations["review_flights_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/book": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book
+         * @description Hold the reviewed fare (no payment) or book it outright. Sent to TripJack once.
+         */
+        post: operations["book_flights_book_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/bookings/{booking_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Booking Details
+         * @description The booking as TripJack has it: status, PNRs, tickets and when a hold runs out.
+         */
+        get: operations["booking_details_flights_bookings__booking_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/bookings/{booking_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Hold
+         * @description Ticket a held booking (TripJack re-checks the fare first).
+         */
+        post: operations["confirm_hold_flights_bookings__booking_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flights/bookings/{booking_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Hold
+         * @description Give up a hold: TripJack releases the PNR and the booking becomes UNCONFIRMED.
+         */
+        post: operations["release_hold_flights_bookings__booking_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/insurance/search": {
         parameters: {
             query?: never;
@@ -1244,6 +1345,27 @@ export interface paths {
         };
         /** Read Log */
         get: operations["read_log_tripjack_logs__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tripjack/logs/{log_id}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Full Response
+         * @description The whole answer TripJack sent for this call, as it sent it (what the log shows is cut
+         *     when it is long). With `download`, as a file.
+         */
+        get: operations["read_full_response_tripjack_logs__log_id__response_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2615,6 +2737,25 @@ export interface components {
             /** File */
             file?: string | null;
         };
+        /** BookQuery */
+        BookQuery: {
+            /** Booking Id */
+            booking_id: string;
+            /**
+             * Mode
+             * @default hold
+             * @enum {string}
+             */
+            mode: "hold" | "book";
+            /** Amount */
+            amount?: number | null;
+            /** Travellers */
+            travellers: components["schemas"]["Traveller"][];
+            /** Email */
+            email: string;
+            /** Phone */
+            phone: string;
+        };
         /** Candidate */
         Candidate: {
             hotel: components["schemas"]["HotelBrief"];
@@ -2673,6 +2814,11 @@ export interface components {
          * @enum {string}
          */
         Companions: "solo" | "couple" | "family" | "friends" | "seniors";
+        /** ConfirmQuery */
+        ConfirmQuery: {
+            /** Amount */
+            amount: number;
+        };
         /** CoverOption */
         CoverOption: {
             /** Key */
@@ -4490,6 +4636,11 @@ export interface components {
             response_body: string;
             /** Response Truncated */
             response_truncated: boolean;
+            /**
+             * Response Full
+             * @default false
+             */
+            response_full: boolean;
         };
         /** LogRow */
         LogRow: {
@@ -5765,6 +5916,11 @@ export interface components {
          * @enum {string}
          */
         RelationType: "near" | "route_to" | "pairs_with" | "similar_to" | "alternative_to";
+        /** ReleaseQuery */
+        ReleaseQuery: {
+            /** Pnrs */
+            pnrs?: string[];
+        };
         /** ReplyCreate */
         ReplyCreate: {
             /** Body */
@@ -5824,6 +5980,11 @@ export interface components {
             checks: components["schemas"]["ReviewCheck"][];
             /** Reference Keys */
             reference_keys: string[];
+        };
+        /** ReviewQuery */
+        ReviewQuery: {
+            /** Price Ids */
+            price_ids: string[];
         };
         /**
          * ReviewQueue
@@ -6574,6 +6735,44 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["SupportMessageRead"][];
         };
+        /** Traveller */
+        Traveller: {
+            /**
+             * Type
+             * @default ADULT
+             * @enum {string}
+             */
+            type: "ADULT" | "CHILD" | "INFANT";
+            /**
+             * Title
+             * @default Mr
+             * @enum {string}
+             */
+            title: "Mr" | "Mrs" | "Ms" | "Master";
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /** Dob */
+            dob?: string | null;
+            /**
+             * Pan
+             * @default
+             */
+            pan: string;
+            /**
+             * Passport Number
+             * @default
+             */
+            passport_number: string;
+            /** Passport Expiry */
+            passport_expiry?: string | null;
+            /**
+             * Passport Nationality
+             * @default
+             */
+            passport_nationality: string;
+        };
         /**
          * TripContext
          * @description What we actually hold about this traveler, for the agent's side panel.
@@ -6635,6 +6834,8 @@ export interface components {
             verified: boolean;
             /** T */
             t?: number | null;
+            /** Video Day */
+            video_day?: number | null;
             /**
              * Origin
              * @default reel
@@ -8864,6 +9065,173 @@ export interface operations {
             };
         };
     };
+    review_flights_review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    book_flights_book_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    booking_details_flights_bookings__booking_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_hold_flights_bookings__booking_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_hold_flights_bookings__booking_id__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                booking_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_insurance_search_post: {
         parameters: {
             query?: never;
@@ -9018,6 +9386,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_full_response_tripjack_logs__log_id__response_get: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */

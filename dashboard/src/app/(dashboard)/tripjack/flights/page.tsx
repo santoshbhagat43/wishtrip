@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { BookFare, FindBooking, type Party } from "@/components/tripjack/flight-booking";
 import { SupplierNote } from "@/components/tripjack/supplier-note";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ export default function TripJackFlightsPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : Array.isArray(body.detail) ? body.detail.map((d: { msg: string }) => d.msg).join("; ") : "The search failed");
-      return body as FlightSearchResult;
+      return { ...(body as FlightSearchResult), party: { adults, children, infants } as Party };
     },
   });
   const result = search.data;
@@ -55,8 +56,11 @@ export default function TripJackFlightsPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="TripJack flights"
-        description="Search flights live and see the fares as travellers would. Prices are for the whole party and include our markup."
+        description="Search flights live and see the fares as travellers would. Prices are for the whole party and include our markup. Open a fare to hold or book it on TripJack's test environment."
       />
+      <Card className="mb-5">
+        <FindBooking />
+      </Card>
       <Card>
         <form
           className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4"
@@ -120,7 +124,7 @@ export default function TripJackFlightsPage() {
               <>
                 <p className="m-0 border-b border-border px-4 py-2.5 text-sm text-muted">{result.total} {result.total === 1 ? "option" : "options"} for {from} → {to}{back ? " and back" : ""}</p>
                 <ul className="m-0 list-none divide-y divide-border p-0">
-                  {result.flights.map((t, i) => <TripRow key={`${t.journey}-${t.cheapest.price_id}-${i}`} trip={t} />)}
+                  {result.flights.map((t, i) => <TripRow key={`${t.journey}-${t.cheapest.price_id}-${i}`} trip={t} party={result.party} />)}
                 </ul>
               </>
             )}
@@ -131,7 +135,7 @@ export default function TripJackFlightsPage() {
   );
 }
 
-function TripRow({ trip }: { trip: FlightTrip }) {
+function TripRow({ trip, party }: { trip: FlightTrip; party: Party }) {
   const [open, setOpen] = useState(false);
   const names = trip.airlines.map((a) => a.name || a.code).join(" + ");
   return (
@@ -170,7 +174,7 @@ function TripRow({ trip }: { trip: FlightTrip }) {
             ))}
           </div>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {trip.fares.map((f) => <FareRow key={f.price_id} fare={f} />)}
+            {trip.fares.map((f) => <FareRow key={f.price_id} fare={f} party={party} />)}
           </ul>
         </div>
       )}
@@ -178,7 +182,7 @@ function TripRow({ trip }: { trip: FlightTrip }) {
   );
 }
 
-function FareRow({ fare }: { fare: Fare }) {
+function FareRow({ fare, party }: { fare: Fare; party: Party }) {
   const [rules, setRules] = useState(false);
   const load = useMutation({
     mutationFn: async () => {
@@ -233,6 +237,7 @@ function FareRow({ fare }: { fare: Fare }) {
           ))}
         </div>
       )}
+      <BookFare priceId={fare.price_id} party={party} />
     </li>
   );
 }

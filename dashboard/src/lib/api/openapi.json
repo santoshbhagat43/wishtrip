@@ -3610,6 +3610,254 @@
     ]
    }
   },
+  "/flights/review": {
+   "post": {
+    "tags": [
+     "flights"
+    ],
+    "summary": "Review",
+    "description": "Check a fare again with TripJack: its total now, whether it can be held, how long the\nreview stays good, and what the booking form needs (PAN, passport, dates of birth, GST).",
+    "operationId": "review_flights_review_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReviewQuery"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/flights/book": {
+   "post": {
+    "tags": [
+     "flights"
+    ],
+    "summary": "Book",
+    "description": "Hold the reviewed fare (no payment) or book it outright. Sent to TripJack once.",
+    "operationId": "book_flights_book_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BookQuery"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/flights/bookings/{booking_id}": {
+   "get": {
+    "tags": [
+     "flights"
+    ],
+    "summary": "Booking Details",
+    "description": "The booking as TripJack has it: status, PNRs, tickets and when a hold runs out.",
+    "operationId": "booking_details_flights_bookings__booking_id__get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "booking_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Booking Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/flights/bookings/{booking_id}/confirm": {
+   "post": {
+    "tags": [
+     "flights"
+    ],
+    "summary": "Confirm Hold",
+    "description": "Ticket a held booking (TripJack re-checks the fare first).",
+    "operationId": "confirm_hold_flights_bookings__booking_id__confirm_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "booking_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Booking Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConfirmQuery"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/flights/bookings/{booking_id}/release": {
+   "post": {
+    "tags": [
+     "flights"
+    ],
+    "summary": "Release Hold",
+    "description": "Give up a hold: TripJack releases the PNR and the booking becomes UNCONFIRMED.",
+    "operationId": "release_hold_flights_bookings__booking_id__release_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "booking_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Booking Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReleaseQuery"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/insurance/search": {
    "post": {
     "tags": [
@@ -3986,6 +4234,64 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/LogDetail"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tripjack/logs/{log_id}/response": {
+   "get": {
+    "tags": [
+     "tripjack"
+    ],
+    "summary": "Read Full Response",
+    "description": "The whole answer TripJack sent for this call, as it sent it (what the log shows is cut\nwhen it is long). With `download`, as a file.",
+    "operationId": "read_full_response_tripjack_logs__log_id__response_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "log_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Log Id"
+      }
+     },
+     {
+      "name": "download",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Download"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
         }
        }
       }
@@ -7855,6 +8161,66 @@
     ],
     "title": "Body_add_media_admin_locations__location_id__media_post"
    },
+   "BookQuery": {
+    "properties": {
+     "booking_id": {
+      "type": "string",
+      "minLength": 3,
+      "title": "Booking Id"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "hold",
+       "book"
+      ],
+      "title": "Mode",
+      "default": "hold"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "travellers": {
+      "items": {
+       "$ref": "#/components/schemas/Traveller"
+      },
+      "type": "array",
+      "maxItems": 9,
+      "minItems": 1,
+      "title": "Travellers"
+     },
+     "email": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 3,
+      "title": "Email"
+     },
+     "phone": {
+      "type": "string",
+      "maxLength": 16,
+      "minLength": 8,
+      "pattern": "^\\+\\d{7,15}$",
+      "title": "Phone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "booking_id",
+     "travellers",
+     "email",
+     "phone"
+    ],
+    "title": "BookQuery"
+   },
    "Candidate": {
     "properties": {
      "hotel": {
@@ -7991,6 +8357,20 @@
      "seniors"
     ],
     "title": "Companions"
+   },
+   "ConfirmQuery": {
+    "properties": {
+     "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "title": "Amount"
+     }
+    },
+    "type": "object",
+    "required": [
+     "amount"
+    ],
+    "title": "ConfirmQuery"
    },
    "CoverOption": {
     "properties": {
@@ -12655,6 +13035,11 @@
      "response_truncated": {
       "type": "boolean",
       "title": "Response Truncated"
+     },
+     "response_full": {
+      "type": "boolean",
+      "title": "Response Full",
+      "default": false
      }
     },
     "type": "object",
@@ -16011,6 +16396,20 @@
     ],
     "title": "RelationType"
    },
+   "ReleaseQuery": {
+    "properties": {
+     "pnrs": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 6,
+      "title": "Pnrs"
+     }
+    },
+    "type": "object",
+    "title": "ReleaseQuery"
+   },
    "ReplyCreate": {
     "properties": {
      "body": {
@@ -16159,6 +16558,24 @@
      "reference_keys"
     ],
     "title": "ReviewItem"
+   },
+   "ReviewQuery": {
+    "properties": {
+     "price_ids": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Price Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "price_ids"
+    ],
+    "title": "ReviewQuery"
    },
    "ReviewQueue": {
     "properties": {
@@ -18185,6 +18602,91 @@
     "title": "TravelerTicketRead",
     "description": "Ticket thread for the traveler who owns it \u2014 no staff context or internal notes."
    },
+   "Traveller": {
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "ADULT",
+       "CHILD",
+       "INFANT"
+      ],
+      "title": "Type",
+      "default": "ADULT"
+     },
+     "title": {
+      "type": "string",
+      "enum": [
+       "Mr",
+       "Mrs",
+       "Ms",
+       "Master"
+      ],
+      "title": "Title",
+      "default": "Mr"
+     },
+     "first_name": {
+      "type": "string",
+      "maxLength": 50,
+      "minLength": 1,
+      "title": "First Name"
+     },
+     "last_name": {
+      "type": "string",
+      "maxLength": 50,
+      "minLength": 1,
+      "title": "Last Name"
+     },
+     "dob": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dob"
+     },
+     "pan": {
+      "type": "string",
+      "maxLength": 10,
+      "title": "Pan",
+      "default": ""
+     },
+     "passport_number": {
+      "type": "string",
+      "maxLength": 20,
+      "title": "Passport Number",
+      "default": ""
+     },
+     "passport_expiry": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Passport Expiry"
+     },
+     "passport_nationality": {
+      "type": "string",
+      "maxLength": 2,
+      "title": "Passport Nationality",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "first_name",
+     "last_name"
+    ],
+    "title": "Traveller"
+   },
    "TripContext": {
     "properties": {
      "companions": {
@@ -18374,6 +18876,17 @@
        }
       ],
       "title": "T"
+     },
+     "video_day": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Video Day"
      },
      "origin": {
       "type": "string",
