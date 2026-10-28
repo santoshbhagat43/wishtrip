@@ -17,9 +17,12 @@ import { SupplierNote } from "./supplier-note";
 
 export type Party = { adults: number; children: number; infants: number };
 type PaxType = "ADULT" | "CHILD" | "INFANT";
+/** TripJack's price (what we pay) and the traveller's price with our markup on the base fare. */
+type Price = { tripjack: number | null; base: number | null; taxes: number | null; with_markup: number | null; currency: string };
 type Review = {
   booking_id: string;
   total: number | null;
+  price: Price;
   hold_allowed: boolean;
   session_seconds: number | null;
   needs: Record<"pan" | "passport" | "passport_expiry" | "dob_adult" | "dob_child" | "dob_infant" | "gst" | "emergency_contact", boolean>;
@@ -32,6 +35,7 @@ type Booking = {
   status: string | null;
   amount: number | null;
   total: number | null;
+  price: Price;
   pnrs: string[];
   tickets: string[];
   travellers: { name: string; type: string }[];
@@ -91,6 +95,30 @@ function untilText(value: unknown): string {
   return `${when.toLocaleString("en-IN")} · ${Math.floor(minutes / 60)} h ${minutes % 60} min from now`;
 }
 
+/** The price, both ways: TripJack's (what we pay) and the traveller's (with our markup). */
+function PriceLine({ price, label, note }: { price: Price; label: string; note?: string }) {
+  return (
+    <div className="rounded-md bg-surface-2/60 p-2 text-xs" data-testid="tripjack-price">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <strong className="text-sm">{label}</strong>
+        <span>
+          TripJack <strong className="text-sm tabular-nums">{price.tripjack != null ? inr(price.tripjack) : "—"}</strong>{" "}
+          <span className="text-muted">(what we pay)</span>
+        </span>
+        {price.with_markup != null && (
+          <span>
+            Traveller pays <strong className="text-sm tabular-nums">{inr(price.with_markup)}</strong>{" "}
+            <span className="text-muted">(with our markup)</span>
+          </span>
+        )}
+      </div>
+      {price.base != null && price.taxes != null && (
+        <div className="mt-0.5 text-muted">TripJack base {inr(price.base)} + taxes {inr(price.taxes)}{note ? ` · ${note}` : ""}</div>
+      )}
+    </div>
+  );
+}
+
 function Raw({ value, label = "TripJack's answer" }: { value: unknown; label?: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -106,7 +134,7 @@ export function BookFare({ priceId, party }: { priceId: string; party: Party }) 
   const review = useMutation({ mutationFn: () => call<Review>("POST", "review", { price_ids: [priceId] }) });
   const [made, setMade] = useState<string | null>(null);
 
-  if (made) return <BookingCard bookingId={made} />;
+  if (made) return <BookingCard bookingId={made} quoted={review.data?.price} />;
   return (
     <div className="mt-2 rounded-lg border border-dashed border-border p-3">
       {!review.data && (
@@ -153,10 +181,10 @@ function ReviewedFare({ review, party, onMade }: { review: Review; party: Party;
       <SupplierNote supplier={review.supplier} />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span>TripJack booking <code>{review.booking_id}</code></span>
-        <span>TripJack total <strong>{review.total != null ? inr(review.total) : "—"}</strong> <span className="text-xs text-muted">(what TripJack charges us)</span></span>
         <Badge tone={review.hold_allowed ? "ok" : "danger"}>{review.hold_allowed ? "Hold allowed" : "No hold on this fare"}</Badge>
         {review.session_seconds != null && <span className="text-xs text-muted">Review good for {Math.round(review.session_seconds / 60)} min</span>}
       </div>
+      <PriceLine price={review.price} label="Price now" />
       {review.alerts.length > 0 && <p className="m-0 text-xs text-warn">The fare changed since the search: {JSON.stringify(review.alerts)}</p>}
       <p className="m-0 text-xs text-muted">This fare needs: {asked.length ? asked.join(", ") : "names and a contact only"}.</p>
 
@@ -227,7 +255,7 @@ function ReviewedFare({ review, party, onMade }: { review: Review; party: Party;
 }
 
 /** A TripJack booking: status, PNRs, when a hold runs out, and ticket or release a hold. */
-export function BookingCard({ bookingId }: { bookingId: string }) {
+export function BookingCard({ bookingId, quoted }: { bookingId: string; quoted?: Price }) {
   const details = useQuery({
     queryKey: ["tripjack-booking", bookingId],
     queryFn: () => call<Booking>("GET", `bookings/${encodeURIComponent(bookingId)}`),
@@ -238,7 +266,7 @@ export function BookingCard({ bookingId }: { bookingId: string }) {
   });
   const b = details.data;
   const confirm = useMutation({
-    mutationFn: () => call("POST", `bookings/${encodeURIComponent(bookingId)}/confirm`, { amount: b?.total }),
+    mutationFn: () => call("POST", `bookings/${encodeURIComponent(bookingId)}/confirm`, { amount: b?.price.tripjack ?? quoted?.tripjack }),
     onSettled: () => details.refetch(),
   });
   const release = useMutation({
@@ -261,10 +289,16 @@ export function BookingCard({ bookingId }: { bookingId: string }) {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span>PNR {b.pnrs.length ? b.pnrs.join(", ") : "—"}</span>
             <span>Tickets {b.tickets.length ? b.tickets.join(", ") : "—"}</span>
-            <span>Total {b.total != null ? inr(b.total) : "—"}</span>
             {b.created_on && <span>Made {b.created_on}</span>}
             {b.travellers.length > 0 && <span>{b.travellers.map((t) => t.name).join(", ")}</span>}
           </div>
+          {b.price.tripjack != null ? (
+            <PriceLine price={b.price} label={b.status === "ON_HOLD" ? "Hold price" : "Booking price"} note="from TripJack's booking" />
+          ) : quoted ? (
+            <PriceLine price={quoted} label={b.status === "ON_HOLD" ? "Hold price" : "Booking price"} note="as TripJack quoted it at review (its booking answer names no fare)" />
+          ) : (
+            <p className="m-0 text-xs text-warn">TripJack&apos;s booking answer names no fare. Open TripJack&apos;s answer below to see it.</p>
+          )}
           {b.status === "ON_HOLD" && (
             <div className="rounded-md bg-warn-soft p-2 text-xs">
               <strong>Hold runs out:</strong>{" "}
@@ -284,8 +318,8 @@ export function BookingCard({ bookingId }: { bookingId: string }) {
                 <Button
                   size="sm"
                   variant="accent"
-                  disabled={confirm.isPending || b.total == null}
-                  onClick={() => window.confirm(`Ticket this hold for ${inr(b.total ?? 0)} from the TripJack test wallet?`) && confirm.mutate()}
+                  disabled={confirm.isPending || (b.price.tripjack ?? quoted?.tripjack) == null}
+                  onClick={() => window.confirm(`Ticket this hold for ${inr(b.price.tripjack ?? quoted?.tripjack ?? 0)} from the TripJack test wallet?`) && confirm.mutate()}
                 >
                   {confirm.isPending ? "Ticketing…" : "Ticket the hold"}
                 </Button>

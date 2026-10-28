@@ -68,6 +68,7 @@ async def test_review_hold_details_confirm_and_release(client, admin, monkeypatc
         "/oms/v1/booking-details": HELD, "/oms/v1/air/fare-validate": OK,
         "/oms/v1/air/confirm-book": {**OK, "bookingId": "TJS100"}, "/oms/v1/air/unhold": OK,
     }, sent)  # fmt: skip
+    monkeypatch.setattr(settings, "tripjack_flight_markup_percent", 10)
     staff = auth(admin)
 
     reviewed = (
@@ -75,6 +76,9 @@ async def test_review_hold_details_confirm_and_release(client, admin, monkeypatc
     ).json()
     assert reviewed["booking_id"] == "TJS100" and reviewed["total"] == 9200
     assert reviewed["hold_allowed"] and reviewed["session_seconds"] == 900
+    # TripJack's price (what we pay) and the traveller's, with our markup on the base fare only.
+    assert reviewed["price"] == {"tripjack": 9200, "base": 8000, "taxes": 1200,
+                                 "with_markup": 10000, "currency": "INR"}
     assert reviewed["needs"]["dob_infant"] and not reviewed["needs"]["pan"]
 
     held = await client.post("/flights/book", headers=staff, json={
@@ -89,6 +93,7 @@ async def test_review_hold_details_confirm_and_release(client, admin, monkeypatc
 
     got = (await client.get("/flights/bookings/TJS100", headers=staff)).json()
     assert got["status"] == "ON_HOLD" and got["pnrs"] == ["ABC123"] and got["total"] == 9200
+    assert got["price"]["tripjack"] == 9200  # the hold's price, from TripJack's booking
     assert got["hold_deadlines"] == {"itemInfos.AIR.timeLimit": "2026-10-28T22:00:00"}
 
     confirmed = await client.post(

@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.modules.flights.client import tripjack_flights
+from app.modules.flights.pricing import apply_markup
 
 # Keys in a booking's answer that can carry when a hold runs out. TripJack's documentation names
 # none, so every key that looks like a deadline is shown as it came.
@@ -86,10 +87,35 @@ def _money(value: Any) -> float | None:
         return None
 
 
+def _fare_detail(value: Any) -> dict:
+    """The fare of the whole booking (`totalFareDetail.fC`), wherever TripJack put it: at the top
+    of a review, under `itemInfos.AIR` in a booking."""
+    if isinstance(value, dict):
+        fc = (value.get("totalFareDetail") or {}).get("fC")
+        if isinstance(fc, dict) and fc.get("TF") is not None:
+            return fc
+        for v in value.values():
+            if found := _fare_detail(v):
+                return found
+    elif isinstance(value, list):
+        for v in value:
+            if found := _fare_detail(v):
+                return found
+    return {}
+
+
+def price(body: dict) -> dict:
+    """TripJack's price (what we pay: TF, with base BF and taxes TAF) and the traveller's price
+    with our flight markup on the base (taxes pass through), as the search shows it."""
+    fc = _fare_detail(body)
+    total, base, taxes = _money(fc.get("TF")), _money(fc.get("BF")), _money(fc.get("TAF"))
+    ours = round(apply_markup(base) + (total - base), 2) if total is not None and base else total
+    return {"tripjack": total, "base": base, "taxes": taxes, "with_markup": ours, "currency": "INR"}
+
+
 def _total(body: dict) -> float | None:
     """TripJack's total fare (TF) in a review or a booking."""
-    info = body.get("totalPriceInfo") or {}
-    return _money(((info.get("totalFareDetail") or {}).get("fC") or {}).get("TF"))
+    return price(body)["tripjack"]
 
 
 def deadlines(value: Any, path: str = "") -> dict[str, Any]:
@@ -116,6 +142,7 @@ def review_summary(body: dict) -> dict:
         "booking_id": body.get("bookingId"),
         "total": _total(body),
         "currency": "INR",
+        "price": price(body),
         "hold_allowed": bool(c.get("isBA")),
         "session_seconds": c.get("st"),
         "session_started": c.get("sct"),
@@ -146,7 +173,9 @@ def booking_summary(body: dict) -> dict:
         "booking_id": order.get("bookingId"),
         "status": order.get("status"),
         "amount": _money(order.get("amount")),
-        "total": _total(air),
+        "total": _total(body),
+        # What the booking costs: TripJack's total (what we pay) and with our markup.
+        "price": price(body),
         "pnrs": pnrs,
         "tickets": tickets,
         "travellers": [

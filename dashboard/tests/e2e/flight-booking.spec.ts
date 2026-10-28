@@ -17,13 +17,15 @@ const FLIGHTS = {
   }],
 };
 const REVIEW = {
-  booking_id: "TJS100", total: 5150, currency: "INR", hold_allowed: true, session_seconds: 900, session_started: null,
+  booking_id: "TJS100", total: 5150, currency: "INR",
+  price: { tripjack: 5150, base: 4050, taxes: 1100, with_markup: 5555, currency: "INR" }, hold_allowed: true, session_seconds: 900, session_started: null,
   needs: { pan: false, passport: false, passport_expiry: false, dob_adult: false, dob_child: false, dob_infant: false, gst: false, emergency_contact: false },
   alerts: [], raw: { bookingId: "TJS100" }, supplier: SUPPLIER,
 };
 const later = new Date(Date.now() + 6 * 3600_000 + 5 * 60_000).toISOString();
 const HELD = {
-  booking_id: "TJS100", status: "ON_HOLD", amount: 0, total: 5150, pnrs: ["ABC123"], tickets: [],
+  booking_id: "TJS100", status: "ON_HOLD", amount: 0, total: 5150,
+  price: { tripjack: 5150, base: 4050, taxes: 1100, with_markup: 5555, currency: "INR" }, pnrs: ["ABC123"], tickets: [],
   travellers: [{ name: "Asha Rao", type: "ADULT" }], created_on: "2026-10-28",
   hold_deadlines: { "itemInfos.AIR.timeLimit": later }, raw: {}, supplier: SUPPLIER,
 };
@@ -64,6 +66,10 @@ test("staff review a fare, hold it, see when the hold runs out and release it", 
   await expect(card).toContainText("ON_HOLD");
   await expect(card).toContainText("PNR ABC123");
   await expect(card).toContainText("Hold runs out");
+  // The hold's price: TripJack's and the traveller's with our markup.
+  await expect(card.getByTestId("tripjack-price")).toContainText("Hold price");
+  await expect(card.getByTestId("tripjack-price")).toContainText("₹5,150");
+  await expect(card.getByTestId("tripjack-price")).toContainText("₹5,555");
   await expect(card).toContainText(/6 h \d+ min from now/);
 
   page.on("dialog", (d) => d.accept());
