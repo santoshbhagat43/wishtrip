@@ -73,23 +73,27 @@ async def name_the_stay(
 async def fitting_hotels(
     session: AsyncSession, destination: str, stars: tuple[float, float], limit: int = 5
 ) -> list[SupplierHotel]:
-    """The best-presented hotels of the destination within the star range, best first."""
+    """The best-presented hotels of the destination within the star range, best first (the
+    best-presented of any rating when none has a rating in the range)."""
     regions = await photos._regions_for(session, destination, [])
     if not regions:
         return []
     low, high = stars
-    rows = await session.scalars(
-        select(SupplierHotel)
-        .where(
-            SupplierHotel.region_id.in_([r.region_id for r in regions]),
-            SupplierHotel.is_active.is_(True),
-            SupplierHotel.hero_image.is_not(None),
-            SupplierHotel.star_rating.between(low, high),
-        )
-        .order_by(SupplierHotel.rank.desc())
-        .limit(limit)
+    base = select(SupplierHotel).where(
+        SupplierHotel.region_id.in_([r.region_id for r in regions]),
+        SupplierHotel.is_active.is_(True),
+        SupplierHotel.hero_image.is_not(None),
     )
-    return list(rows)
+    rows = list(
+        await session.scalars(
+            base.where(SupplierHotel.star_rating.between(low, high))
+            .order_by(SupplierHotel.rank.desc())
+            .limit(limit)
+        )
+    )
+    if rows:
+        return rows
+    return list(await session.scalars(base.order_by(SupplierHotel.rank.desc()).limit(limit)))
 
 
 async def same_country(session: AsyncSession, destination: str, origin_city: str) -> bool | None:

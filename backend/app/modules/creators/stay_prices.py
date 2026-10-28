@@ -132,14 +132,22 @@ async def _price(hotel_id: str, check_in: dt.date, check_out: dt.date, rooms: li
     return found
 
 
-async def _has_a_room(
+async def _room_total(
     hotel: SupplierHotel, window: tuple[dt.date, dt.date], rooms: list[Room]
-) -> bool:
+) -> float | None:
+    """The cheapest rate TripJack has for these nights, or None when there is no room."""
     try:
         got = await _price(hotel.tj_hotel_id, *window, rooms)
     except (TripJackError, TripJackNotConfigured):
-        return False
-    return got.get("option") is not None
+        return None
+    option = got.get("option")
+    return option["price"]["total"] if option else None
+
+
+async def _has_a_room(
+    hotel: SupplierHotel, window: tuple[dt.date, dt.date], rooms: list[Room]
+) -> bool:
+    return await _room_total(hotel, window, rooms) is not None
 
 
 async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[Room]) -> bool:
@@ -175,27 +183,43 @@ async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[R
                 if await _has_a_room(match.hotel, window, rooms):
                     continue  # a hotel we hold, with a room: priced as it is
         candidates: list[SupplierHotel] = []
-        near = await nearest_hotels(
-            session, matching.clean_name(stay["name"]), mine.destination_name, limit=ALTERNATIVES
-        )
-        ids = [a.hotel.id for a in near if a.reason.startswith("Close")]
-        if ids:
-            close = await session.scalars(select(SupplierHotel).where(SupplierHotel.id.in_(ids)))
-            by_id = {h.id: h for h in close}
-            candidates += [by_id[i] for i in ids if i in by_id]
-        stars = stay_choice.stars_wanted(mine.summary, mine.plan_summary, " ".join(mine.tips or []))
-        for h in await stay_choice.fitting_hotels(session, mine.destination_name, stars, limit=5):
+        # A stay the reel named is matched by its name. One we wrote ourselves ("Stay in Downtown
+        # Dubai") names an area, not a hotel: matching its words would pick any hotel with
+        # "Downtown" in its name, so it goes by what fits the trip.
+        if stay.get("origin") == "reel":
+            near = await nearest_hotels(
+                session, matching.clean_name(stay["name"]), mine.destination_name,
+                limit=ALTERNATIVES,
+            )  # fmt: skip
+            ids = [a.hotel.id for a in near if a.reason.startswith("Close")]
+            if ids:
+                close = await session.scalars(
+                    select(SupplierHotel).where(SupplierHotel.id.in_(ids))
+                )
+                by_id = {h.id: h for h in close}
+                candidates += [by_id[i] for i in ids if i in by_id]
+        words = (mine.summary, mine.plan_summary, " ".join(mine.tips or []))
+        stars = stay_choice.stars_wanted(*words)
+        for h in await stay_choice.fitting_hotels(session, mine.destination_name, stars, limit=8):
             if all(h.id != c.id for c in candidates):
                 candidates.append(h)
         if match is not None and match.state in photos.SHOWN and match.hotel is not None:
             candidates = [c for c in candidates if c.id != match.hotel.id]  # it has no room
 
-        async def check(h: SupplierHotel, nights_: tuple[dt.date, dt.date]) -> bool:
+        async def total(h: SupplierHotel, nights_: tuple[dt.date, dt.date]) -> float | None:
             async with gate:
-                return await _has_a_room(h, nights_, rooms)
+                return await _room_total(h, nights_, rooms)
 
-        rooms_open = await asyncio.gather(*(check(h, window) for h in candidates))
-        chosen = next((h for h, ok in zip(candidates, rooms_open, strict=True) if ok), None)
+        totals = await asyncio.gather(*(total(h, window) for h in candidates))
+        open_ = [(h, t) for h, t in zip(candidates, totals, strict=True) if t is not None]
+        # The first with a room, in order of fit; but a budget trip takes the cheapest of them
+        # and a luxury one the best presented, so the price is the one the trip is about.
+        chosen = None
+        if open_:
+            if stay_choice.BUDGET.search(" ".join(words)):
+                chosen = min(open_, key=lambda pair: pair[1])[0]
+            else:
+                chosen = open_[0][0]
         if chosen is None:
             continue
         for item in items:
