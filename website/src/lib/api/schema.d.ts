@@ -1820,6 +1820,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/{share_code}/stops/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Stop
+         * @description One stop of a shared trip, in detail: the hotel behind a stay (or the closest alternatives
+         *     when the reel's name matches none), and what WishTrip knows about a place.
+         */
+        get: operations["public_stop_trips__share_code__stops__item_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/creator/links": {
         parameters: {
             query?: never;
@@ -2274,6 +2295,12 @@ export interface components {
             position?: number | null;
             /** Handles */
             handles?: string[] | null;
+        };
+        /** Alternative */
+        Alternative: {
+            hotel: components["schemas"]["HotelDetail"];
+            /** Reason */
+            reason: string;
         };
         /** AssignmentLog */
         AssignmentLog: {
@@ -3384,6 +3411,68 @@ export interface components {
             stars?: number | null;
             /** Hero Image */
             hero_image?: string | null;
+        };
+        /** HotelDetail */
+        HotelDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Stars */
+            stars?: number | null;
+            /**
+             * Property Type
+             * @default
+             */
+            property_type: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Country
+             * @default
+             */
+            country: string;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Amenities
+             * @default []
+             */
+            amenities: string[];
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["HotelPhoto"][];
+        };
+        /** HotelPhoto */
+        HotelPhoto: {
+            /** Url */
+            url: string;
+            /**
+             * Caption
+             * @default
+             */
+            caption: string;
         };
         /** HotelPricing */
         HotelPricing: {
@@ -4795,6 +4884,51 @@ export interface components {
              */
             nearby: components["schemas"]["Nearby"][];
         };
+        /** PlaceFacts */
+        PlaceFacts: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /**
+             * Best Times
+             * @default []
+             */
+            best_times: string[];
+            /**
+             * Price Note
+             * @default
+             */
+            price_note: string;
+            /**
+             * Pros
+             * @default []
+             */
+            pros: string[];
+            /**
+             * Cons
+             * @default []
+             */
+            cons: string[];
+            /**
+             * Tips
+             * @default
+             */
+            tips: string;
+        };
         /** PreferenceSummary */
         PreferenceSummary: {
             /** Energy Level */
@@ -5639,6 +5773,34 @@ export interface components {
             creator_trips: number;
             /** Spotlight */
             spotlight: boolean;
+        };
+        /** StopDetails */
+        StopDetails: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Origin
+             * @default reel
+             */
+            origin: string;
+            /** At Seconds */
+            at_seconds?: number | null;
+            hotel?: components["schemas"]["HotelDetail"] | null;
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["Alternative"][];
+            place?: components["schemas"]["PlaceFacts"] | null;
         };
         /** Suggestion */
         Suggestion: {
@@ -9488,6 +9650,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_stop_trips__share_code__stops__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_code: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopDetails"];
                 };
             };
             /** @description Validation Error */

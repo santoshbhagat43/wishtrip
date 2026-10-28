@@ -194,3 +194,37 @@ async def test_a_renamed_stay_is_matched_again(client, admin, fake_reel, catalog
         assert len(trips) == 1
         [row] = (await session.scalars(select(StayMatch))).all()
         assert row.stay_name == "Amankila"
+
+
+async def _publish(client, headers, trip) -> str:
+    r = await client.patch(f"/creator/trips/{trip['id']}", json={"publish": True}, headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()["share_code"]
+
+
+async def test_opening_a_stay_shows_its_hotel(client, admin, fake_reel, catalogue):  # noqa: F811
+    headers, trip, _ = await _trip_with_stay(client, admin, fake_reel, "Alila Seminyak or similar")
+    code = await _publish(client, headers, trip)
+    r = await client.get(f"/trips/{code}/stops/stay1")  # public, like the trip itself
+    assert r.status_code == 200, r.text
+    stop = r.json()
+    assert stop["hotel"]["name"] == "Alila Seminyak" and stop["alternatives"] == []
+    assert stop["hotel"]["images"][0]["url"] == "https://img.example/1.jpg"
+
+
+async def test_a_stay_that_matches_no_hotel_gets_alternatives(client, admin, fake_reel, catalogue):  # noqa: F811
+    headers, trip, _ = await _trip_with_stay(client, admin, fake_reel, "Hotel Paradise")
+    code = await _publish(client, headers, trip)
+    stop = (await client.get(f"/trips/{code}/stops/stay1")).json()
+    assert stop["hotel"] is None  # a likely match waits for staff: it is not claimed as the hotel
+    assert 1 <= len(stop["alternatives"]) <= 3
+    assert stop["alternatives"][0]["hotel"]["name"] == "BALI PARADISE BEACH"
+    assert stop["alternatives"][0]["reason"] == "Close to the name in the reel"
+
+
+async def test_a_sight_has_no_hotel_and_a_missing_stop_is_404(client, admin, fake_reel, catalogue):  # noqa: F811
+    headers, trip, _ = await _trip_with_stay(client, admin, fake_reel, "Alila Seminyak")
+    code = await _publish(client, headers, trip)
+    sight = (await client.get(f"/trips/{code}/stops/sight1")).json()
+    assert sight["name"] == "Tanah Lot" and sight["hotel"] is None and sight["alternatives"] == []
+    assert (await client.get(f"/trips/{code}/stops/nope")).status_code == 404

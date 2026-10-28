@@ -39,6 +39,7 @@ from app.modules.creators.schemas import (
     TripImportStart,
     TripItem,
 )
+from app.modules.creators.stop_details import StopDetails
 from app.modules.knowledge.models import Location
 from app.modules.media.storage import storage
 from app.modules.reels import service as reels
@@ -294,6 +295,22 @@ async def public_trip(share_code: str, session: AsyncSession = Depends(get_sessi
         ),
         items=[TripItem(**i) for i in await stay_photos(session, trip)],
     )
+
+
+@router.get("/trips/{share_code}/stops/{item_id}", response_model=StopDetails)
+async def public_stop(share_code: str, item_id: str, session: AsyncSession = Depends(get_session)):
+    """One stop of a shared trip, in detail: the hotel behind a stay (or the closest alternatives
+    when the reel's name matches none), and what WishTrip knows about a place."""
+    from app.modules.creators.models import TripStatus
+    from app.modules.creators.stop_details import stop_details
+
+    trip = await session.scalar(select(CreatorTrip).where(CreatorTrip.share_code == share_code))
+    if not trip or trip.status != TripStatus.PUBLISHED:
+        raise not_found("Trip")
+    found = await stop_details(session, trip, item_id)
+    if found is None:
+        raise not_found("Stop")
+    return found
 
 
 # --- Reel links ---------------------------------------------------------------------------------

@@ -36,6 +36,8 @@ import { copyText } from "@/lib/clipboard";
 type Item = Schemas["TripItem"];
 type Link = Schemas["CreatorLinkRead"];
 export type Stop = {
+  /** The trip item's id, to open its details. */
+  id?: string;
   when: string;
   kind: string;
   name: string;
@@ -87,6 +89,7 @@ export function daysFromItems(items: Item[], days?: number): ItineraryDay[] {
     byDay.set(dayOf(i), [
       ...day,
       {
+        id: s.id,
         when: WHEN[day.length % WHEN.length],
         kind: s.kind,
         name: s.name,

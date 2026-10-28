@@ -12,6 +12,8 @@ import { api, unwrap } from "@/lib/api/client";
 import { useMe } from "@/lib/session";
 
 import { LINKS } from "../data";
+import { FlightDialog } from "../flight-details";
+import { StopDetailsDialog } from "../stop-details";
 import { FlowHeader, Kicker, Why } from "../flow";
 import { copyText } from "@/lib/clipboard";
 
@@ -90,6 +92,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [dayIx, setDayIx] = useState(0);
+  const [openStop, setOpenStop] = useState<string | null>(null);
+  const [flights, setFlights] = useState(false);
 
   // Credit the creator once we know who they are.
   const referralCode = (preloaded ?? trip.data)?.creator.referral_code;
@@ -234,8 +238,15 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, Math.max(1, days.length - 1), prices).map((b) => (
-                <div key={b.kind} className={BOOKING}>
+              {bookings(where, Math.max(1, days.length - 1), prices).map((b) => {
+                const flight = b.kind === "FLIGHTS";
+                const Tag = flight ? "button" : "div";
+                return (
+                <Tag
+                  key={b.kind}
+                  {...(flight ? { type: "button" as const, onClick: () => setFlights(true), "aria-haspopup": "dialog" as const } : {})}
+                  className={`${BOOKING} ${flight ? "cursor-pointer text-left hover:border-[#0A7C80]" : ""}`}
+                >
                   <span className="flex items-center justify-between">
                     <Kicker>{b.kind}</Kicker>
                     <strong className="text-sm tabular-nums">{b.price}</strong>
@@ -245,9 +256,11 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                   <span className="flex flex-col items-start gap-1.5">
                     <Why>{b.chip}</Why>
                     {b.swap && <span className="text-[12.5px] font-semibold text-[#0A7C80]">{b.swap}</span>}
+                    {flight && <span className="text-[12.5px] font-semibold text-[#0A7C80]">See live flights</span>}
                   </span>
-                </div>
-              ))}
+                </Tag>
+                );
+              })}
             </div>
           </div>
 
@@ -306,7 +319,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                   const Icon = KIND_ICON[s.kind] ?? Landmark;
                   const kind = KIND_CHIP[s.kind] ?? KIND_CHIP.sight;
                   return (
-                    <article key={`${s.name}-${i}`} className="flex overflow-hidden rounded-[22px] border border-[#E3E8EE] bg-white">
+                    <article key={`${s.name}-${i}`} className="relative flex overflow-hidden rounded-[22px] border border-[#E3E8EE] bg-white hover:border-[#0A7C80]">
                       <div className="relative grid w-[104px] flex-none place-items-center bg-gradient-to-br from-[#F3F6F9] to-[#E3F5F5] text-[#0A7C80] md:w-[240px]">
                         {s.image ? (
                           // eslint-disable-next-line @next/next/no-img-element -- TripJack hotel photo
@@ -318,10 +331,22 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 md:p-5">
                         <span className={`w-fit rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${kind.chip}`}>{kind.label}</span>
-                        <strong className="text-[18px] leading-snug md:text-[22px]">{s.name}</strong>
+                        <strong className="text-[18px] leading-snug md:text-[22px]">
+                          {s.id ? (
+                            <button type="button" aria-haspopup="dialog" onClick={() => setOpenStop(s.id!)} className="text-left after:absolute after:inset-0 after:content-['']">
+                              {s.name}
+                            </button>
+                          ) : (
+                            s.name
+                          )}
+                        </strong>
                         {s.image && s.imageHotel && (
                           <span className="-mt-1 text-[11.5px] text-[#5F6B78]">Photo: {s.imageHotel} · via TripJack</span>
                         )}
+                        {s.kind === "stay" && !s.image && s.id && (
+                          <span className="-mt-1 text-[12.5px] font-semibold text-[#B86E00]">No exact hotel match · see alternatives</span>
+                        )}
+                        {s.id && <span className="-mt-1 text-[12.5px] font-semibold text-[#0A7C80]">See details</span>}
                         <span className="flex flex-wrap items-center gap-1.5">
                           {s.origin === "suggested" ? (
                             <span className="inline-flex max-w-full items-center truncate rounded-full bg-[#EEF2F6] px-[9px] py-0.5 text-[10.5px] font-bold text-[#3F5A72]">
@@ -399,6 +424,8 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           </div>
         </aside>
       </main>
+      {openStop && <StopDetailsDialog code={code} itemId={openStop} onClose={() => setOpenStop(null)} />}
+      {flights && <FlightDialog where={where} nights={Math.max(1, days.length - 1)} signedIn={!!me.data} onClose={() => setFlights(false)} />}
     </div>
   );
 }
