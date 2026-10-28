@@ -20,6 +20,8 @@ from app.modules.emails.copy import SUBJECTS, TEMPLATES, TEXTS
 log = logging.getLogger(__name__)
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+LOGO = Path(__file__).parent / "assets" / "wishtrip-logo.png"
+LOGO_CID = "wishtrip-logo"
 FILES = {
     "application-received": "01-application-received.html",
     "approved": "02-approved.html",
@@ -88,7 +90,13 @@ def smtp_send(to: str, subject: str, body_html: str, body_text: str) -> None:
     domain = address.rsplit("@", 1)[-1] if "@" in address else None
     message["Message-ID"] = make_msgid(domain=domain)
     message.set_content(body_text)
-    message.add_alternative(body_html, subtype="html")
+    # The logo travels inside the email (an inline image), so it shows even where remote images are
+    # blocked or the site is not reachable by the mail client.
+    logo_url = common_variables()["logo_url"]
+    inline = logo_url in body_html and LOGO.is_file()
+    message.add_alternative(body_html.replace(logo_url, f"cid:{LOGO_CID}") if inline else body_html, subtype="html")
+    if inline:
+        message.get_payload()[1].add_related(LOGO.read_bytes(), "image", "png", cid=f"<{LOGO_CID}>", filename="wishtrip-logo.png")
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
         if settings.smtp_starttls:
             smtp.starttls()

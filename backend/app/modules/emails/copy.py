@@ -8,7 +8,7 @@ PROGRAM = "[Travel Inspiration Creator Program]"
 SIGNATURE = """Regards,
 Prateek Jawalkar
 Co-founder
-wishtrip — https://wishtrip.co/"""
+Wishtrip — https://wishtrip.co/"""
 
 FOOTER = """—
 You're receiving this email because you applied to the Wishtrip Travel Inspiration Creator Program.
@@ -33,7 +33,7 @@ Our team is now reviewing your profile and content. You'll hear back from us wit
 
 Your onboarding: [✓] Apply  →  [2] Review  →  [3] Bank details  →  [4] Trip links live
 
-A QUICK BRIEF ABOUT WISHTRIP
+A quick brief about Wishtrip
 Wishtrip is an inspiration-led travel platform that transforms the trips people discover and dream about into personalised, bookable travel experiences.
 We believe travel creators do much more than create content — they inspire people to explore the world. And we want to bridge the gap between that inspiration and the actual travel experience.
 
