@@ -120,3 +120,15 @@ async def test_staff_read_the_log_filter_it_and_export_it(client, admin, monkeyp
 
     assert (await client.get("/tripjack/logs/00000000-0000-0000-0000-000000000000", headers=staff)).status_code == 404
     assert (await client.get("/tripjack/logs")).status_code == 401
+
+
+def test_the_local_testing_proxy_is_off_by_default_and_never_used_in_production(monkeypatch):
+    from app.core.config import settings
+    from app.modules.tripjack import http
+
+    assert settings.tripjack_proxy in (None, "")  # off unless someone turns it on
+    monkeypatch.setattr(settings, "tripjack_proxy", "socks5://host.docker.internal:1080")
+    monkeypatch.setattr(settings, "environment", "development")
+    assert http._proxy() == "socks5://host.docker.internal:1080"
+    monkeypatch.setattr(settings, "environment", "production")
+    assert http._proxy() is None  # the server's own calls can never be rerouted

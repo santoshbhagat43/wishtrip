@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.core.config import settings
 from app.modules.tripjack import logs, trace
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,17 @@ class TripJackError(Exception):
 
 class TripJackNotConfigured(Exception):
     pass
+
+
+def _proxy() -> str | None:
+    """The tunnel to the server for local testing (TRIPJACK_PROXY), when it is set. Never used in
+    production."""
+    if not settings.tripjack_proxy:
+        return None
+    if settings.environment == "production":
+        log.warning("TRIPJACK_PROXY is ignored in production")
+        return None
+    return settings.tripjack_proxy
 
 
 class TripJackHTTP:
@@ -69,6 +81,7 @@ class TripJackHTTP:
             raise TripJackNotConfigured("TripJack API key is not set")
         if self._http is None or self._http.is_closed or key != self._key_in_use:
             self._http = httpx.AsyncClient(
+                proxy=_proxy(),
                 headers={
                     "apikey": key,
                     "Content-Type": "application/json",

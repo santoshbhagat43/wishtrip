@@ -184,6 +184,11 @@ class Settings(BaseSettings):
     # TripJack countryId of the guest's nationality when the traveller has not said (106 = India).
     tripjack_nationality: str = "106"
     tripjack_request_timeout_ms: int = 13000
+    # FOR LOCAL TESTING ONLY. TripJack answers only from the whitelisted server address, so a laptop
+    # can send its TripJack calls through an SSH tunnel to the server (deploy/tripjack-tunnel.sh),
+    # e.g. TRIPJACK_PROXY=socks5://host.docker.internal:1080. Empty = off (the default). It is
+    # ignored when ENVIRONMENT=production, so it can never reroute the server's own calls.
+    tripjack_proxy: str | None = None
     # The record of every TripJack call (request and answer) is kept this many days.
     tripjack_log_days: int = 14
     # Longest answer kept whole, in bytes (a hotel listing can be megabytes). Catalogue-sync answers
