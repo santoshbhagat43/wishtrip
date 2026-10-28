@@ -4977,6 +4977,65 @@
     }
    }
   },
+  "/reels/imports/{import_id}/build": {
+   "post": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Build From Reel",
+    "description": "\"Build my trip\" on the Details screen: plan the reel's places for this party. Returns the\ntrip (building: poll `/my-trips/{code}` until it is ready).",
+    "operationId": "build_from_reel_reels_imports__import_id__build_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MineConfig"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/my-trips/{code}": {
    "get": {
     "tags": [
@@ -5630,6 +5689,58 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/PublicTripRead"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/trips/{share_code}/stops/{item_id}": {
+   "get": {
+    "tags": [
+     "creator"
+    ],
+    "summary": "Public Stop",
+    "description": "One stop of a shared trip, in detail: the hotel behind a stay (or the closest alternatives\nwhen the reel's name matches none), and what WishTrip knows about a place.",
+    "operationId": "public_stop_trips__share_code__stops__item_id__get",
+    "parameters": [
+     {
+      "name": "share_code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Share Code"
+      }
+     },
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Item Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StopDetails"
         }
        }
       }
@@ -7108,6 +7219,23 @@
     },
     "type": "object",
     "title": "AgentRoutingUpdate"
+   },
+   "Alternative": {
+    "properties": {
+     "hotel": {
+      "$ref": "#/components/schemas/HotelDetail"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "hotel",
+     "reason"
+    ],
+    "title": "Alternative"
    },
    "AssignmentLog": {
     "properties": {
@@ -9835,6 +9963,100 @@
      "name"
     ],
     "title": "HotelBrief"
+   },
+   "HotelDetail": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "stars": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stars"
+     },
+     "property_type": {
+      "type": "string",
+      "title": "Property Type",
+      "default": ""
+     },
+     "address": {
+      "type": "string",
+      "title": "Address",
+      "default": ""
+     },
+     "city": {
+      "type": "string",
+      "title": "City",
+      "default": ""
+     },
+     "country": {
+      "type": "string",
+      "title": "Country",
+      "default": ""
+     },
+     "headline": {
+      "type": "string",
+      "title": "Headline",
+      "default": ""
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "amenities": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Amenities",
+      "default": []
+     },
+     "images": {
+      "items": {
+       "$ref": "#/components/schemas/HotelPhoto"
+      },
+      "type": "array",
+      "title": "Images",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "HotelDetail"
+   },
+   "HotelPhoto": {
+    "properties": {
+     "url": {
+      "type": "string",
+      "title": "Url"
+     },
+     "caption": {
+      "type": "string",
+      "title": "Caption",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "required": [
+     "url"
+    ],
+    "title": "HotelPhoto"
    },
    "HotelPricing": {
     "properties": {
@@ -13011,6 +13233,12 @@
       "maxLength": 80,
       "title": "When",
       "default": ""
+     },
+     "group": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Group",
+      "default": ""
      }
     },
     "type": "object",
@@ -13082,6 +13310,55 @@
      "when": {
       "type": "string",
       "title": "When"
+     },
+     "group": {
+      "type": "string",
+      "title": "Group",
+      "default": ""
+     },
+     "build_status": {
+      "type": "string",
+      "title": "Build Status",
+      "default": "ready"
+     },
+     "build_error": {
+      "type": "string",
+      "title": "Build Error",
+      "default": ""
+     },
+     "persona": {
+      "type": "string",
+      "title": "Persona",
+      "default": ""
+     },
+     "ai_built": {
+      "type": "boolean",
+      "title": "Ai Built",
+      "default": false
+     },
+     "plan_summary": {
+      "type": "string",
+      "title": "Plan Summary",
+      "default": ""
+     },
+     "tips": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Tips",
+      "default": []
+     },
+     "import_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Import Id"
      }
     },
     "type": "object",
@@ -13632,6 +13909,72 @@
      "difficulty"
     ],
     "title": "PlaceDetail"
+   },
+   "PlaceFacts": {
+    "properties": {
+     "summary": {
+      "type": "string",
+      "title": "Summary",
+      "default": ""
+     },
+     "description": {
+      "type": "string",
+      "title": "Description",
+      "default": ""
+     },
+     "address": {
+      "type": "string",
+      "title": "Address",
+      "default": ""
+     },
+     "duration_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Minutes"
+     },
+     "best_times": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Best Times",
+      "default": []
+     },
+     "price_note": {
+      "type": "string",
+      "title": "Price Note",
+      "default": ""
+     },
+     "pros": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Pros",
+      "default": []
+     },
+     "cons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Cons",
+      "default": []
+     },
+     "tips": {
+      "type": "string",
+      "title": "Tips",
+      "default": ""
+     }
+    },
+    "type": "object",
+    "title": "PlaceFacts"
    },
    "PreferenceSummary": {
     "properties": {
@@ -15999,6 +16342,78 @@
     ],
     "title": "SpotlightTrip"
    },
+   "StopDetails": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "note": {
+      "type": "string",
+      "title": "Note",
+      "default": ""
+     },
+     "origin": {
+      "type": "string",
+      "title": "Origin",
+      "default": "reel"
+     },
+     "at_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "At Seconds"
+     },
+     "hotel": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HotelDetail"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "alternatives": {
+      "items": {
+       "$ref": "#/components/schemas/Alternative"
+      },
+      "type": "array",
+      "title": "Alternatives",
+      "default": []
+     },
+     "place": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PlaceFacts"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "name"
+    ],
+    "title": "StopDetails"
+   },
    "Suggestion": {
     "properties": {
      "name": {
@@ -17114,6 +17529,32 @@
        }
       ],
       "title": "Image Hotel"
+     },
+     "slot": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "morning",
+         "afternoon",
+         "evening"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Slot"
+     },
+     "optional": {
+      "type": "boolean",
+      "title": "Optional",
+      "default": false
+     },
+     "transfer": {
+      "type": "string",
+      "title": "Transfer",
+      "default": ""
      }
     },
     "type": "object",

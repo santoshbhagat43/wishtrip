@@ -29,7 +29,7 @@ test.describe("TripJack log", () => {
   test("staff read what we sent TripJack and what it answered, and download the log", async ({ page, apiLog: _ }) => {
     const stamp = Date.now().toString(36);
     seed(stamp);
-    await page.goto("/tripjack");
+    await page.goto("/tripjack/log");
     await expect(page.getByRole("heading", { name: "TripJack log" })).toBeVisible();
 
     // Search finds the call by what TripJack answered.

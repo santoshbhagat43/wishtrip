@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   Activity,
+  BedDouble,
+  Plane,
   FolderTree,
   LifeBuoy,
   Clapperboard,
@@ -60,12 +62,16 @@ const NAV: { section: string; items: Item[] }[] = [
     { href: "/reels", label: "Reel imports", icon: Film, roles: ["admin", "editor"] },
     { href: "/support", label: "Support inbox", icon: LifeBuoy, badge: "support", roles: ["admin", "editor", "support"] },
   ]},
+  { section: "TripJack", items: [
+    { href: "/tripjack/flights", label: "Flights", icon: Plane, roles: ["admin", "editor"] },
+    { href: "/tripjack/hotels", label: "Hotels", icon: BedDouble, roles: ["admin", "editor"] },
+    { href: "/hotel-matches", label: "Hotel matches", icon: Hotel, roles: ["admin", "editor"] },
+    { href: "/tripjack/log", label: "Call log", icon: Plug, roles: ["admin", "editor"] },
+  ]},
   { section: "Admin", items: [
     { href: "/users", label: "Staff users", icon: UserCog, roles: ["admin"] },
     { href: "/roles", label: "Roles & permissions", icon: ShieldCheck, roles: ["admin", "editor"] },
     { href: "/system", label: "System health", icon: Activity, roles: ["admin", "editor"] },
-    { href: "/hotel-matches", label: "Hotel matches", icon: Hotel, roles: ["admin", "editor"] },
-    { href: "/tripjack", label: "TripJack log", icon: Plug, roles: ["admin", "editor"] },
     { href: "/audit-log", label: "Audit log", icon: ScrollText, roles: ["admin"] },
   ]},
 ];

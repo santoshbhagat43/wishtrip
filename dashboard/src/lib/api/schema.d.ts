@@ -1582,6 +1582,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/imports/{import_id}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build From Reel
+         * @description "Build my trip" on the Details screen: plan the reel's places for this party. Returns the
+         *     trip (building: poll `/my-trips/{code}` until it is ready).
+         */
+        post: operations["build_from_reel_reels_imports__import_id__build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/my-trips/{code}": {
         parameters: {
             query?: never;
@@ -1812,6 +1833,27 @@ export interface paths {
          * @description The shareable affiliate link. Public, so a creator can put it in their video.
          */
         get: operations["public_trip_trips__share_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trips/{share_code}/stops/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Stop
+         * @description One stop of a shared trip, in detail: the hotel behind a stay (or the closest alternatives
+         *     when the reel's name matches none), and what WishTrip knows about a place.
+         */
+        get: operations["public_stop_trips__share_code__stops__item_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2274,6 +2316,12 @@ export interface components {
             position?: number | null;
             /** Handles */
             handles?: string[] | null;
+        };
+        /** Alternative */
+        Alternative: {
+            hotel: components["schemas"]["HotelDetail"];
+            /** Reason */
+            reason: string;
         };
         /** AssignmentLog */
         AssignmentLog: {
@@ -3384,6 +3432,68 @@ export interface components {
             stars?: number | null;
             /** Hero Image */
             hero_image?: string | null;
+        };
+        /** HotelDetail */
+        HotelDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Stars */
+            stars?: number | null;
+            /**
+             * Property Type
+             * @default
+             */
+            property_type: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Country
+             * @default
+             */
+            country: string;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Amenities
+             * @default []
+             */
+            amenities: string[];
+            /**
+             * Images
+             * @default []
+             */
+            images: components["schemas"]["HotelPhoto"][];
+        };
+        /** HotelPhoto */
+        HotelPhoto: {
+            /** Url */
+            url: string;
+            /**
+             * Caption
+             * @default
+             */
+            caption: string;
         };
         /** HotelPricing */
         HotelPricing: {
@@ -4590,6 +4700,11 @@ export interface components {
              * @default
              */
             when: string;
+            /**
+             * Group
+             * @default
+             */
+            group: string;
         };
         /** MineRead */
         MineRead: {
@@ -4620,6 +4735,43 @@ export interface components {
             pace: string;
             /** When */
             when: string;
+            /**
+             * Group
+             * @default
+             */
+            group: string;
+            /**
+             * Build Status
+             * @default ready
+             */
+            build_status: string;
+            /**
+             * Build Error
+             * @default
+             */
+            build_error: string;
+            /**
+             * Persona
+             * @default
+             */
+            persona: string;
+            /**
+             * Ai Built
+             * @default false
+             */
+            ai_built: boolean;
+            /**
+             * Plan Summary
+             * @default
+             */
+            plan_summary: string;
+            /**
+             * Tips
+             * @default []
+             */
+            tips: string[];
+            /** Import Id */
+            import_id?: string | null;
         };
         /** Nearby */
         Nearby: {
@@ -4794,6 +4946,51 @@ export interface components {
              * @default []
              */
             nearby: components["schemas"]["Nearby"][];
+        };
+        /** PlaceFacts */
+        PlaceFacts: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /**
+             * Best Times
+             * @default []
+             */
+            best_times: string[];
+            /**
+             * Price Note
+             * @default
+             */
+            price_note: string;
+            /**
+             * Pros
+             * @default []
+             */
+            pros: string[];
+            /**
+             * Cons
+             * @default []
+             */
+            cons: string[];
+            /**
+             * Tips
+             * @default
+             */
+            tips: string;
         };
         /** PreferenceSummary */
         PreferenceSummary: {
@@ -5640,6 +5837,34 @@ export interface components {
             /** Spotlight */
             spotlight: boolean;
         };
+        /** StopDetails */
+        StopDetails: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Origin
+             * @default reel
+             */
+            origin: string;
+            /** At Seconds */
+            at_seconds?: number | null;
+            hotel?: components["schemas"]["HotelDetail"] | null;
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["Alternative"][];
+            place?: components["schemas"]["PlaceFacts"] | null;
+        };
         /** Suggestion */
         Suggestion: {
             /** Name */
@@ -6045,6 +6270,18 @@ export interface components {
             image_url?: string | null;
             /** Image Hotel */
             image_hotel?: string | null;
+            /** Slot */
+            slot?: ("morning" | "afternoon" | "evening") | null;
+            /**
+             * Optional
+             * @default false
+             */
+            optional: boolean;
+            /**
+             * Transfer
+             * @default
+             */
+            transfer: string;
         };
         /**
          * TripStatus
@@ -9065,6 +9302,41 @@ export interface operations {
             };
         };
     };
+    build_from_reel_reels_imports__import_id__build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MineConfig"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_mine_my_trips__code__get: {
         parameters: {
             query?: never;
@@ -9488,6 +9760,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicTripRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_stop_trips__share_code__stops__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_code: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StopDetails"];
                 };
             };
             /** @description Validation Error */
