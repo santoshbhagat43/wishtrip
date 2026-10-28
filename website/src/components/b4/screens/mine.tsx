@@ -27,7 +27,8 @@ export function MineScreen() {
       return unwrap(
         await api.PATCH("/my-trips/{code}", {
           params: { path: { code } },
-          body: { adults: m.adults, kids: m.kids, seniors: m.seniors, days: m.days, pace: m.pace, when: m.when, group: m.group },
+          body: { adults: m.adults, kids: m.kids, seniors: m.seniors, days: m.days, pace: m.pace, when: m.when, group: m.group, arya: false,
+            start_date: m.start_date ?? null, origin: m.origin ?? "", origin_city: m.origin_city ?? "" },
         }),
       );
     },
@@ -63,6 +64,7 @@ export function MineScreen() {
         party: { adults: m.adults, kids: m.kids, seniors: m.seniors },
         pace: m.pace,
         when: m.when || undefined,
+        originCity: m.origin_city || undefined,
         build: {
           status: m.build_status,
           error: m.build_error,

@@ -47,6 +47,8 @@ export type Mine = {
   party: Party;
   pace: string;
   when?: string;
+  /** Where they travel from, when they said. */
+  originCity?: string;
   /** How the plan for this party is getting on: building, ready or failed, and what it is. */
   build?: { status: string; error: string; persona: string; aiBuilt: boolean; summary: string; tips: string[]; fromReel: boolean };
   /** Try the build again (when it failed). */
@@ -231,7 +233,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
               <p className="m-0 text-[14.5px] text-white/90">
                 {days.length} {days.length === 1 ? "day" : "days"} · {stops} stops
                 {mine
-                  ? ` · ${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}`
+                  ? ` · ${partyText(mine.party) || "1 traveller"} · ${mine.pace} pace${mine.when ? ` · ${mine.when}` : ""}${mine.originCity ? ` · from ${mine.originCity}` : ""}`
                   : ` · ${days.reduce((n, d) => n + d.stops.filter((s) => s.origin === "reel").length, 0)} from ${who}’s reel`}
               </p>
               {(mine?.build?.summary || t.summary) && (

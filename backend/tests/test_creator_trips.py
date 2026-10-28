@@ -166,11 +166,16 @@ async def test_pick_a_cover_from_the_videos_frames(client, admin, fake_reel):
     trip = await _make_trip(client, headers)
     async with SessionLocal() as session:
         content = await session.scalar(select(CreatorContent))
-        content.frames = [{"t": 2.0, "key": "reels/frames/a.jpg"}, {"t": 9.5, "key": "reels/frames/b.jpg"}]
+        content.frames = [
+            {"t": 2.0, "key": "reels/frames/a.jpg"},
+            {"t": 9.5, "key": "reels/frames/b.jpg"},
+        ]
         content.thumbnail_key = "reels/cover.jpg"
         await session.commit()
 
-    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    options = (
+        await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)
+    ).json()
     assert [(o["source"], o["key"]) for o in options] == [
         ("video", "reels/frames/a.jpg"),
         ("video", "reels/frames/b.jpg"),
@@ -179,15 +184,21 @@ async def test_pick_a_cover_from_the_videos_frames(client, admin, fake_reel):
     assert options[1]["t"] == 9.5 and options[1]["url"].endswith("reels/frames/b.jpg")
 
     r = await client.patch(
-        f"/creator/trips/{trip['id']}", json={"cover_image_key": "reels/frames/b.jpg"}, headers=headers
+        f"/creator/trips/{trip['id']}",
+        json={"cover_image_key": "reels/frames/b.jpg"},
+        headers=headers,
     )
     assert r.status_code == 200 and r.json()["cover_image_url"].endswith("reels/frames/b.jpg")
-    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    options = (
+        await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)
+    ).json()
     assert [o["key"] for o in options if o["current"]] == ["reels/frames/b.jpg"]
 
     # Only the images offered for this trip: not someone else's file, not an arbitrary path.
     for bad in ("reels/frames/other.jpg", "../../etc/passwd", "creator-covers/someone-else/x.png"):
-        r = await client.patch(f"/creator/trips/{trip['id']}", json={"cover_image_key": bad}, headers=headers)
+        r = await client.patch(
+            f"/creator/trips/{trip['id']}", json={"cover_image_key": bad}, headers=headers
+        )
         assert r.status_code == 400, bad
 
 
@@ -205,7 +216,9 @@ async def test_upload_an_image_as_the_cover(client, admin, fake_reel):
     )
     assert r.status_code == 200, r.text
     assert f"creator-covers/{trip['id']}/" in r.json()["cover_image_url"]
-    options = (await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)).json()
+    options = (
+        await client.get(f"/creator/trips/{trip['id']}/cover-options", headers=headers)
+    ).json()
     assert any(o["source"] == "upload" and o["current"] for o in options)
 
     for body in (
@@ -218,7 +231,9 @@ async def test_upload_an_image_as_the_cover(client, admin, fake_reel):
 
     other = await _approved_creator(client, admin, "other@creators.example.com")
     r = await client.post(
-        f"/creator/trips/{trip['id']}/cover", json={"filename": "a.png", "data_base64": png}, headers=other
+        f"/creator/trips/{trip['id']}/cover",
+        json={"filename": "a.png", "data_base64": png},
+        headers=other,
     )
     assert r.status_code == 404
 
@@ -234,7 +249,10 @@ async def test_a_trip_has_a_cover_and_a_separate_reel_thumbnail(client, admin, f
     trip = await _make_trip(client, headers)
     async with SessionLocal() as session:
         content = await session.scalar(select(CreatorContent))
-        content.frames = [{"t": 2.0, "key": "reels/frames/a.jpg"}, {"t": 9.5, "key": "reels/frames/b.jpg"}]
+        content.frames = [
+            {"t": 2.0, "key": "reels/frames/a.jpg"},
+            {"t": 9.5, "key": "reels/frames/b.jpg"},
+        ]
         await session.commit()
     path = f"/creator/trips/{trip['id']}"
 
@@ -242,8 +260,12 @@ async def test_a_trip_has_a_cover_and_a_separate_reel_thumbnail(client, admin, f
     r = await client.patch(path, json={"cover_image_key": "reels/frames/a.jpg"}, headers=headers)
     assert r.json()["cover_image_url"].endswith("a.jpg")
     before = r.json()["thumbnail_image_url"]
-    r = await client.patch(path, json={"thumbnail_image_key": "reels/frames/b.jpg"}, headers=headers)
-    assert r.json()["thumbnail_image_url"].endswith("b.jpg") and r.json()["cover_image_url"].endswith("a.jpg")
+    r = await client.patch(
+        path, json={"thumbnail_image_key": "reels/frames/b.jpg"}, headers=headers
+    )
+    assert r.json()["thumbnail_image_url"].endswith("b.jpg") and r.json()[
+        "cover_image_url"
+    ].endswith("a.jpg")
     assert r.json()["thumbnail_image_url"] != before
 
     options = (await client.get(f"{path}/cover-options", headers=headers)).json()
@@ -252,10 +274,16 @@ async def test_a_trip_has_a_cover_and_a_separate_reel_thumbnail(client, admin, f
 
     # Uploading a thumbnail doesn't touch the cover.
     png = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
-    r = await client.post(f"{path}/thumbnail", json={"filename": "t.png", "data_base64": png}, headers=headers)
-    assert r.status_code == 200 and f"creator-covers/{trip['id']}/" in r.json()["thumbnail_image_url"]
+    r = await client.post(
+        f"{path}/thumbnail", json={"filename": "t.png", "data_base64": png}, headers=headers
+    )
+    assert (
+        r.status_code == 200 and f"creator-covers/{trip['id']}/" in r.json()["thumbnail_image_url"]
+    )
     assert r.json()["cover_image_url"].endswith("a.jpg")
-    r = await client.patch(path, json={"thumbnail_image_key": "reels/frames/other.jpg"}, headers=headers)
+    r = await client.patch(
+        path, json={"thumbnail_image_key": "reels/frames/other.jpg"}, headers=headers
+    )
     assert r.status_code == 400
 
 
@@ -349,7 +377,9 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
     assert again == mine
 
     # Changing it keeps the code.
-    r = await client.patch(f"/my-trips/{mine['code']}", json={"adults": 1, "days": 2, "pace": "packed"})
+    r = await client.patch(
+        f"/my-trips/{mine['code']}", json={"adults": 1, "days": 2, "pace": "packed"}
+    )
     assert r.status_code == 200 and r.json()["code"] == mine["code"]
     assert (r.json()["adults"], r.json()["kids"], r.json()["days"]) == (1, 0, 2)
 
@@ -358,8 +388,16 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
     assert (await client.get(f"/my-trips/{mine['code']}")).json()["title"] == "Slow North Goa"
 
     # Bad input and unknown trips.
-    for bad in ({"adults": 0, "kids": 0, "seniors": 0}, {"pace": "fast"}, {"days": 9}, {"adults": 12}):
-        assert (await client.post(f"/trips/{share_code}/make-mine", json=bad)).status_code in (400, 422)
+    for bad in (
+        {"adults": 0, "kids": 0, "seniors": 0},
+        {"pace": "fast"},
+        {"days": 9},
+        {"adults": 12},
+    ):
+        assert (await client.post(f"/trips/{share_code}/make-mine", json=bad)).status_code in (
+            400,
+            422,
+        )
     assert (await client.post("/trips/nope-0000/make-mine", json={})).status_code == 404
     assert (await client.get("/my-trips/zzzzzzzz")).status_code == 404
 
@@ -476,7 +514,12 @@ async def test_the_spotlight_is_a_trip_staff_choose_with_the_most_trips_as_the_f
         )
     [solo] = await _publish_trips(client, one, [REEL])
     first, second = await _publish_trips(
-        client, two, ["https://www.instagram.com/reel/DTwoA000001/", "https://www.instagram.com/reel/DTwoB000002/"]
+        client,
+        two,
+        [
+            "https://www.instagram.com/reel/DTwoA000001/",
+            "https://www.instagram.com/reel/DTwoB000002/",
+        ],
     )
 
     # Nothing chosen: the page shows the creator who actually has the most trips.
@@ -523,14 +566,20 @@ async def test_only_published_trips_by_approved_creators_can_be_featured(client,
     r = await client.put(f"/spotlight/trips/{trip['id']}", json={"on": True}, headers=staff)
     assert r.status_code == 400  # a paused creator isn't shown
     await client.patch(f"/creators/{me['id']}", json={"status": "active"}, headers=staff)
-    assert (await client.put(f"/spotlight/trips/{trip['id']}", json={"on": True}, headers=staff)).status_code == 200
+    assert (
+        await client.put(f"/spotlight/trips/{trip['id']}", json={"on": True}, headers=staff)
+    ).status_code == 200
 
     # Staff only.
     assert (await client.get("/spotlight", headers=headers)).status_code == 403
-    assert (await client.put(f"/spotlight/trips/{trip['id']}", json={"on": False}, headers=headers)).status_code == 403
+    assert (
+        await client.put(f"/spotlight/trips/{trip['id']}", json={"on": False}, headers=headers)
+    ).status_code == 403
     assert (await client.get("/spotlight")).status_code == 401
     missing = "00000000-0000-0000-0000-000000000000"
-    assert (await client.put(f"/spotlight/trips/{missing}", json={"on": True}, headers=staff)).status_code == 404
+    assert (
+        await client.put(f"/spotlight/trips/{missing}", json={"on": True}, headers=staff)
+    ).status_code == 404
 
 
 def _image(width: int, height: int) -> str:
@@ -553,13 +602,19 @@ async def test_creator_adds_a_profile_photo_and_a_cover_photo(client, admin, fak
     assert me["avatar_url"] is None and me["cover_url"] is None
     png = _image(1600, 600)  # big enough for a cover photo (and so for a profile photo)
 
-    r = await client.post("/creators/me/avatar", json={"filename": "me.png", "data_base64": png}, headers=headers)
+    r = await client.post(
+        "/creators/me/avatar", json={"filename": "me.png", "data_base64": png}, headers=headers
+    )
     assert r.status_code == 200 and f"creator-pages/{me['id']}/" in r.json()["avatar_url"]
     first = r.json()["avatar_url"]
-    r = await client.post("/creators/me/cover", json={"filename": "beach.JPG", "data_base64": png}, headers=headers)
+    r = await client.post(
+        "/creators/me/cover", json={"filename": "beach.JPG", "data_base64": png}, headers=headers
+    )
     assert r.status_code == 200 and r.json()["cover_url"].endswith(".jpg")
     # Replacing a photo gives a new one (and drops the old file).
-    r = await client.post("/creators/me/avatar", json={"filename": "me2.webp", "data_base64": png}, headers=headers)
+    r = await client.post(
+        "/creators/me/avatar", json={"filename": "me2.webp", "data_base64": png}, headers=headers
+    )
     assert r.json()["avatar_url"] != first
     overview = (await client.get("/creators/me/overview", headers=headers)).json()
     assert overview["avatar_url"] and overview["cover_url"]
@@ -569,22 +624,46 @@ async def test_creator_adds_a_profile_photo_and_a_cover_photo(client, admin, fak
         {"filename": "a.png", "data_base64": "not base64!!"},
         {"filename": "a.png", "data_base64": ""},
     ):
-        assert (await client.post("/creators/me/avatar", json=body, headers=headers)).status_code == 400
+        assert (
+            await client.post("/creators/me/avatar", json=body, headers=headers)
+        ).status_code == 400
 
     # Sizes: a cover photo needs 1200×400, a profile photo 200×200; the fake "PNG" can't be read.
     small = _image(800, 300)
-    r = await client.post("/creators/me/cover", json={"filename": "s.png", "data_base64": small}, headers=headers)
-    assert r.status_code == 400 and "800×300px" in r.json()["detail"] and "1200×400px" in r.json()["detail"]
+    r = await client.post(
+        "/creators/me/cover", json={"filename": "s.png", "data_base64": small}, headers=headers
+    )
+    assert (
+        r.status_code == 400
+        and "800×300px" in r.json()["detail"]
+        and "1200×400px" in r.json()["detail"]
+    )
     tiny = _image(100, 100)
-    r = await client.post("/creators/me/avatar", json={"filename": "t.png", "data_base64": tiny}, headers=headers)
+    r = await client.post(
+        "/creators/me/avatar", json={"filename": "t.png", "data_base64": tiny}, headers=headers
+    )
     assert r.status_code == 400 and "200×200px" in r.json()["detail"]
     fake = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 64).decode()
-    assert (await client.post("/creators/me/cover", json={"filename": "f.png", "data_base64": fake}, headers=headers)).status_code == 400
-    assert (await client.post("/creators/me/avatar", json={"filename": "ok.png", "data_base64": _image(200, 200)}, headers=headers)).status_code == 200
+    assert (
+        await client.post(
+            "/creators/me/cover", json={"filename": "f.png", "data_base64": fake}, headers=headers
+        )
+    ).status_code == 400
+    assert (
+        await client.post(
+            "/creators/me/avatar",
+            json={"filename": "ok.png", "data_base64": _image(200, 200)},
+            headers=headers,
+        )
+    ).status_code == 200
 
     # Their photos show on their public page, once they have a published trip.
     staff = auth(admin)
-    await client.patch(f"/creators/{me['id']}", json={"handle": "photos.one", "display_name": "Photo One"}, headers=staff)
+    await client.patch(
+        f"/creators/{me['id']}",
+        json={"handle": "photos.one", "display_name": "Photo One"},
+        headers=staff,
+    )
     trip = await _make_trip(client, headers)
     await client.patch(f"/creator/trips/{trip['id']}", json={"publish": True}, headers=headers)
     card = (await client.get("/explore/creators/photos.one")).json()["creator"]
@@ -594,7 +673,9 @@ async def test_creator_adds_a_profile_photo_and_a_cover_photo(client, admin, fak
     assert r.status_code == 200 and r.json()["cover_url"] is None
     r = await client.delete("/creators/me/avatar", headers=headers)
     assert r.json()["avatar_url"] is None
-    assert (await client.post("/creators/me/avatar", json={"filename": "a.png", "data_base64": png})).status_code == 401
+    assert (
+        await client.post("/creators/me/avatar", json={"filename": "a.png", "data_base64": png})
+    ).status_code == 401
 
 
 async def test_creator_edits_the_name_on_their_page(client, admin, fake_reel):
@@ -604,18 +685,32 @@ async def test_creator_edits_the_name_on_their_page(client, admin, fake_reel):
     trip = await _make_trip(client, headers)
     await client.patch(f"/creator/trips/{trip['id']}", json={"publish": True}, headers=headers)
 
-    r = await client.patch("/creators/me", json={"display_name": "  Meera   Kamat "}, headers=headers)
+    r = await client.patch(
+        "/creators/me", json={"display_name": "  Meera   Kamat "}, headers=headers
+    )
     assert r.status_code == 200 and r.json()["display_name"] == "Meera Kamat"
     assert r.json()["handle"] == "rename.me"  # the handle is staff's to set
     page = (await client.get("/explore/creators/rename.me")).json()["creator"]
     assert page["display_name"] == "Meera Kamat"
 
     for bad in ("", " ", "A", "x" * 81):
-        assert (await client.patch("/creators/me", json={"display_name": bad}, headers=headers)).status_code == 422
+        assert (
+            await client.patch("/creators/me", json={"display_name": bad}, headers=headers)
+        ).status_code == 422
     # Not a way to change anything else.
-    r = await client.patch("/creators/me", json={"display_name": "Meera K", "handle": "taken", "status": "paused"}, headers=headers)
-    assert r.status_code == 200 and r.json()["handle"] == "rename.me" and r.json()["status"] == "active"
-    assert (await client.patch("/creators/me", json={"display_name": "No Login"})).status_code == 401
+    r = await client.patch(
+        "/creators/me",
+        json={"display_name": "Meera K", "handle": "taken", "status": "paused"},
+        headers=headers,
+    )
+    assert (
+        r.status_code == 200
+        and r.json()["handle"] == "rename.me"
+        and r.json()["status"] == "active"
+    )
+    assert (
+        await client.patch("/creators/me", json={"display_name": "No Login"})
+    ).status_code == 401
 
 
 async def test_creator_adds_and_updates_their_channels(client, admin):
@@ -630,7 +725,9 @@ async def test_creator_adds_and_updates_their_channels(client, admin):
     assert r.json()["youtube_url"] == "https://www.youtube.com/@meerakamat"
 
     r = await client.patch(
-        "/creators/me", json={"instagram_url": "https://instagram.com/meera/?hl=en"}, headers=headers
+        "/creators/me",
+        json={"instagram_url": "https://instagram.com/meera/?hl=en"},
+        headers=headers,
     )
     assert r.json()["profile_url"] == "https://www.instagram.com/meera/"
     assert r.json()["youtube_url"] == "https://www.youtube.com/@meerakamat"  # not sent: kept
@@ -638,9 +735,13 @@ async def test_creator_adds_and_updates_their_channels(client, admin):
     for bad in ("https://example.com/meera", "not a link"):
         r = await client.patch("/creators/me", json={"instagram_url": bad}, headers=headers)
         assert r.status_code == 400
-    assert (await client.patch("/creators/me", json={"youtube_url": "https://x.com/y"}, headers=headers)).status_code == 400
+    assert (
+        await client.patch("/creators/me", json={"youtube_url": "https://x.com/y"}, headers=headers)
+    ).status_code == 400
 
-    r = await client.patch("/creators/me", json={"instagram_url": "", "youtube_url": ""}, headers=headers)
+    r = await client.patch(
+        "/creators/me", json={"instagram_url": "", "youtube_url": ""}, headers=headers
+    )
     assert r.json()["profile_url"] == "" and r.json()["youtube_url"] is None
 
 
@@ -662,16 +763,29 @@ async def test_destinations_show_the_creator_trips_that_went_there(client, admin
     ).json()
     await client.post(
         "/admin/locations",
-        json={"type": "attraction", "name": "Fort Aguada", "parent_id": goa["id"], "status": "published"},
+        json={
+            "type": "attraction",
+            "name": "Fort Aguada",
+            "parent_id": goa["id"],
+            "status": "published",
+        },
         headers=staff,
     )
-    before = [d for d in (await client.get("/explore/destinations")).json() if d["name"] == "Goa"][0]
-    assert before["creator_trips"] == 0 and before["cover_image_url"] is None and before["top_creator"] is None
+    before = [d for d in (await client.get("/explore/destinations")).json() if d["name"] == "Goa"][
+        0
+    ]
+    assert (
+        before["creator_trips"] == 0
+        and before["cover_image_url"] is None
+        and before["top_creator"] is None
+    )
 
     headers = await _approved_creator(client, admin, "goa@creators.example.com")
     me = (await client.get("/creators/me", headers=headers)).json()
     await client.patch(
-        f"/creators/{me['id']}", json={"handle": "goa.diaries", "display_name": "Goa Diaries"}, headers=staff
+        f"/creators/{me['id']}",
+        json={"handle": "goa.diaries", "display_name": "Goa Diaries"},
+        headers=staff,
     )
     await _publish_trips(client, headers, [REEL])  # the canned reel is a Goa trip
     after = [d for d in (await client.get("/explore/destinations")).json() if d["name"] == "Goa"][0]
@@ -707,11 +821,17 @@ async def test_a_creator_without_a_handle_is_shown_at_their_referral_code(client
     assert row["creator_name"] == "Santosh Bhagat" and row["creator_handle"] is None
     r = await client.put(f"/spotlight/trips/{trip['id']}", json={"on": True}, headers=staff)
     assert r.status_code == 200 and r.json()["chosen_trip_id"] == trip["id"]
-    assert (await client.get("/explore/creators")).json()["spotlight"]["slug"] == me["referral_code"]
+    assert (await client.get("/explore/creators")).json()["spotlight"]["slug"] == me[
+        "referral_code"
+    ]
 
     # Once a handle is set, the page moves to it.
     await client.patch(f"/creators/{me['id']}", json={"handle": "santosh.b"}, headers=staff)
-    card = next(c for c in (await client.get("/explore/creators")).json()["all"] if c["display_name"] == "Santosh Bhagat")
+    card = next(
+        c
+        for c in (await client.get("/explore/creators")).json()["all"]
+        if c["display_name"] == "Santosh Bhagat"
+    )
     assert card["slug"] == "santosh.b" and card["handle"] == "santosh.b"
 
 
@@ -731,10 +851,14 @@ async def test_staff_add_reels_for_a_creator_the_way_the_creator_would(client, a
     link = r.json()
     mine = (await client.get("/creator/links", headers=headers)).json()
     assert [x["id"] for x in mine] == [link["id"]] and mine[0]["label"] == "Goa for Mum"
-    assert [x["id"] for x in (await client.get("/creator/links", headers=staff)).json()] == [link["id"]]
+    assert [x["id"] for x in (await client.get("/creator/links", headers=staff)).json()] == [
+        link["id"]
+    ]
 
     # Staff add the reel; it is read into an itinerary under the creator's account.
-    r = await client.patch(f"/creator/links/{link['id']}", json={"instagram_url": REEL}, headers=staff)
+    r = await client.patch(
+        f"/creator/links/{link['id']}", json={"instagram_url": REEL}, headers=staff
+    )
     assert r.status_code == 200, r.text
     trips = (await client.get("/creator/trips", headers=headers)).json()
     assert len(trips) == 1 and [i["name"] for i in trips[0]["items"]] == ["Fort Aguada", "Thalassa"]
@@ -743,7 +867,9 @@ async def test_staff_add_reels_for_a_creator_the_way_the_creator_would(client, a
     # …and publish it, change its cover options, exactly as the creator could.
     r = await client.patch(f"/creator/links/{link['id']}", json={"published": True}, headers=staff)
     assert r.status_code == 200 and r.json()["status"] == "published"
-    assert (await client.get(f"/creator/trips/{trips[0]['id']}/cover-options", headers=staff)).status_code == 200
+    assert (
+        await client.get(f"/creator/trips/{trips[0]['id']}/cover-options", headers=staff)
+    ).status_code == 200
 
     # Every change staff made is on the audit trail, with who did it.
     async with SessionLocal() as session:
@@ -760,7 +886,11 @@ async def test_only_staff_can_act_as_a_creator(client, admin, fake_reel, travele
 
     # Another creator, or a traveller, cannot work in someone else's workspace.
     for who in (two, auth(traveler)):
-        r = await client.post("/creator/links", json={"label": "Not mine"}, headers={**who, "X-Act-As-Creator": one_me["id"]})
+        r = await client.post(
+            "/creator/links",
+            json={"label": "Not mine"},
+            headers={**who, "X-Act-As-Creator": one_me["id"]},
+        )
         assert r.status_code == 403, r.text
     assert (await client.get("/creator/links", headers=one)).json() == []
 
@@ -772,16 +902,26 @@ async def test_only_staff_can_act_as_a_creator(client, admin, fake_reel, travele
         assert r.status_code == 404, bad
 
 
-async def test_staff_cannot_work_for_an_unapproved_creator_or_one_with_no_account(client, admin, fake_reel):
+async def test_staff_cannot_work_for_an_unapproved_creator_or_one_with_no_account(
+    client, admin, fake_reel
+):
     from app.db.session import SessionLocal
     from app.modules.creators.models import Creator
 
     staff = auth(admin)
     # Waiting for approval: the same refusal the creator would get, but worded for staff.
     await client.post("/auth/creator/request-otp", json={"email": "waiting@creators.example.com"})
-    r = await client.post("/auth/creator/verify", json={"email": "waiting@creators.example.com", "code": OTP})
-    pending = (await client.get("/creators/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"})).json()
-    r = await client.post("/creator/links", json={"label": "x"}, headers={**staff, "X-Act-As-Creator": pending["id"]})
+    r = await client.post(
+        "/auth/creator/verify", json={"email": "waiting@creators.example.com", "code": OTP}
+    )
+    pending = (
+        await client.get(
+            "/creators/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"}
+        )
+    ).json()
+    r = await client.post(
+        "/creator/links", json={"label": "x"}, headers={**staff, "X-Act-As-Creator": pending["id"]}
+    )
     assert r.status_code == 403 and "creator's creator account" in r.json()["detail"]
 
     # A creator staff added by hand, who has never signed in, has no account to keep trips under.
@@ -835,7 +975,9 @@ async def test_chat_with_arya_starts_from_the_board(client, admin, fake_reel, tr
     assert "7–9 May" in start["message"] and "Fort Aguada" in start["message"]
 
     # The conversation already knows the trip, so Arya does not ask for it again.
-    chat = (await client.get(f"/chat/sessions/{start['session_id']}", headers=auth(traveler))).json()
+    chat = (
+        await client.get(f"/chat/sessions/{start['session_id']}", headers=auth(traveler))
+    ).json()
     state = chat["state"]
     assert state["destination"] == "Goa" and state["duration_days"] == 2
     assert state["companions"] == "couple" and state["my_trip"] == mine["code"]
@@ -886,3 +1028,52 @@ async def test_a_change_made_in_the_arya_chat_lands_on_the_board(client, admin, 
     assert board["days"] == 2
     kept = next(i for i in board["items"] if i["name"] == "Fort Aguada")
     assert kept["note"] == "Sunset"  # a stop already on the board keeps what it had
+
+
+async def test_arya_choice_arranges_by_rule_and_staff_see_what_travellers_pick(  # noqa: F811
+    client, admin, fake_reel, traveler
+):
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.creators.models import CreatorTrip
+
+    headers = await _approved_creator(client, admin, "pick@creators.example.com")
+    trip = await _make_trip(client, headers)
+    await client.patch(
+        f"/creator/trips/{trip['id']}",
+        json={"title": "Slow North Goa", "publish": True,
+              "items": [{"id": "a", "kind": "sight", "name": "Fort Aguada", "day": 1},
+                        {"id": "b", "kind": "food", "name": "Thalassa", "day": 2}]},
+        headers=headers,
+    )  # fmt: skip
+    async with SessionLocal() as session:
+        share_code = (await session.scalar(select(CreatorTrip.share_code))) or ""
+
+    # Choosing Arya on the Details screen: ready at once (no background build), stops on days.
+    made = (
+        await client.post(
+            f"/trips/{share_code}/make-mine", json={"days": 2, "arya": True, "group": "couple"}
+        )
+    ).json()
+    assert made["build_status"] == "ready" and made["ai_built"] is False
+    assert {i["day"] for i in made["items"]} <= {1, 2} and None not in {
+        i["day"] for i in made["items"]
+    }
+    await client.post(f"/my-trips/{made['code']}/arya", headers=auth(traveler))
+    other = (
+        await client.post(f"/trips/{share_code}/make-mine", json={"days": 3, "arya": True})
+    ).json()
+
+    assert (await client.get("/admin/mine-trips", headers=auth(traveler))).status_code == 403
+    summary = (await client.get("/admin/mine-trips", headers=auth(admin))).json()
+    assert (
+        summary["total"] == 2
+        and summary["from_creator_trips"] == 2
+        and summary["talked_to_arya"] == 1
+    )
+    assert summary["top_sources"][0]["made"] == 2
+    assert summary["top_sources"][0]["source"] == "Slow North Goa"
+    rows = {r["code"]: r for r in summary["items"]}
+    assert rows[made["code"]]["arya_chats"] == 1 and rows[other["code"]]["arya_chats"] == 0
+    assert rows[made["code"]]["source_share_code"] == share_code and rows[made["code"]]["days"] == 2

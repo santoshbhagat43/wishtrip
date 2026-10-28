@@ -3,9 +3,11 @@ trip or from a reel the traveller pasted; the places in it are planned day by da
 (solo, couple, family, elderly or flexible: see builder.py), and kept under a short code to come
 back to and change."""
 
+import datetime as dt
 import logging
 import secrets
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -14,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
 from app.core.config import settings
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_staff
 from app.core.errors import bad_request, not_found
 from app.core.ratelimit import allow
 from app.db.session import get_session
@@ -45,6 +47,13 @@ class MineConfig(BaseModel):
     when: str = Field(default="", max_length=80)
     # Who is going, as the Details screen names it: couple, family, friends, seniors, …
     group: str = Field(default="", max_length=16)
+    # When they leave and from where: needed to ask for real prices. Optional until they choose.
+    start_date: dt.date | None = None
+    origin: str = Field(default="", max_length=3)
+    origin_city: str = Field(default="", max_length=100)
+    # The traveller chose to shape the trip in the Arya chat: arrange the stops by rule now and
+    # let the chat do the planning, instead of building it with the AI in the background.
+    arya: bool = False
 
 
 class MineRead(BaseModel):
@@ -72,11 +81,39 @@ class MineRead(BaseModel):
     ai_built: bool = False
     plan_summary: str = ""
     tips: list[str] = []
+    # When and from where, for real prices: the start date, the last day of the plan, and the
+    # airport or city code and name they travel from.
+    start_date: dt.date | None = None
+    end_date: dt.date | None = None
+    origin: str = ""
+    origin_city: str = ""
     # The reel it was built from, when it came from one (for going back to the Details screen).
     import_id: str | None = None
 
 
+def trip_dates(mine: TravellerTrip) -> tuple[dt.date | None, dt.date | None]:
+    """Leaving and coming back: the start date, and the last day of the plan."""
+    if mine.start_date is None:
+        return None, None
+    return mine.start_date, mine.start_date + dt.timedelta(days=max(0, mine.days - 1))
+
+
+def _when_text(start: dt.date | None, days: int, typed: str) -> str:
+    """What the page says about the dates: the range they picked, else what they typed."""
+    if start is None:
+        return " ".join(typed.split())
+    end = start + dt.timedelta(days=max(0, days - 1))
+    if start == end:
+        return f"{start.day} {start:%b %Y}"
+    first = f"{start.day} {start:%b}" if start.year == end.year else f"{start.day} {start:%b %Y}"
+    return f"{first} – {end.day} {end:%b %Y}"
+
+
 def _check(config: MineConfig) -> None:
+    if config.start_date is not None and config.start_date < dt.date.today():
+        raise bad_request("Choose a start date that is today or later.")
+    if config.origin and not (len(config.origin) == 3 and config.origin.isalpha()):
+        raise bad_request("Pick the city you are travelling from.")
     if config.adults + config.kids + config.seniors < 1:
         raise bad_request("Add at least one traveller.")
     if config.pace not in PACES:
@@ -119,6 +156,10 @@ async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
         persona=mine.persona,
         ai_built=mine.ai_built,
         plan_summary=mine.plan_summary,
+        start_date=trip_dates(mine)[0],
+        end_date=trip_dates(mine)[1],
+        origin=mine.origin_code,
+        origin_city=mine.origin_city,
         tips=list(mine.tips or []),
         import_id=str(mine.source_import_id) if mine.source_import_id else None,
     )
@@ -129,7 +170,10 @@ def _apply(mine: TravellerTrip, config: MineConfig) -> bool:
     before = (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
     mine.adults, mine.kids, mine.seniors = config.adults, config.kids, config.seniors
     mine.days, mine.pace, mine.group = config.days, config.pace, config.group
-    mine.when_text = " ".join(config.when.split())
+    mine.start_date = config.start_date
+    mine.origin_code = config.origin.upper()
+    mine.origin_city = " ".join(config.origin_city.split())
+    mine.when_text = _when_text(config.start_date, config.days, config.when)
     return before != (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
 
 
@@ -197,9 +241,16 @@ async def _enqueue(session: AsyncSession, mine: TravellerTrip) -> None:
 enqueue = _enqueue
 
 
-async def _start(session: AsyncSession, mine: TravellerTrip) -> None:
-    mine.build_status, mine.build_error = "building", ""
+async def _start(session: AsyncSession, mine: TravellerTrip, *, quick: bool = False) -> None:
     mine.persona = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors)
+    if quick:
+        must = [i for i in mine.source_items or [] if i.get("kind") != "area"]
+        mine.items = builder.arrange(must, mine.days) if must else list(mine.items or [])
+        mine.ai_built = False
+        mine.build_status, mine.build_error = "ready", ""
+        await session.commit()
+        return
+    mine.build_status, mine.build_error = "building", ""
     await session.commit()
     await enqueue(session, mine)
 
@@ -234,7 +285,7 @@ async def make_mine(
     _apply(mine, config)
     session.add(mine)
     await session.commit()
-    await _start(session, mine)
+    await _start(session, mine, quick=config.arya)
     return await _read(session, mine)
 
 
@@ -290,7 +341,7 @@ async def build_from_reel(
     _apply(mine, config)
     session.add(mine)
     await session.commit()
-    await _start(session, mine)
+    await _start(session, mine, quick=config.arya)
     return await _read(session, mine)
 
 
@@ -317,7 +368,7 @@ async def update_mine(code: str, config: MineConfig, session: AsyncSession = Dep
     replan = _apply(mine, config) or mine.build_status == "failed"
     await session.commit()
     if replan:
-        await _start(session, mine)  # new party, days or pace: the plan is made again
+        await _start(session, mine, quick=config.arya)  # new party, days or pace: planned again
     return await _read(session, mine)
 
 
@@ -466,3 +517,127 @@ async def sync_from_chat(session: AsyncSession, code: str, suggestions: list[dic
         return False
     mine.items, mine.days = items, days
     return True
+
+
+# --- For staff: which itineraries travellers make their own ------------------------------------
+
+
+class MineRow(BaseModel):
+    code: str
+    created_at: datetime
+    title: str
+    destination: str
+    # The itinerary it was made from: a creator's published trip, or a reel the traveller pasted.
+    source: str
+    source_share_code: str = ""
+    creator: str = ""
+    party: str
+    days: int
+    pace: str
+    when: str
+    group: str
+    build_status: str
+    ai_built: bool
+    arya_chats: int
+    stops: int
+
+
+class MineSource(BaseModel):
+    source: str
+    source_share_code: str = ""
+    creator: str = ""
+    destination: str
+    made: int
+    last_made: datetime
+
+
+class MineSummary(BaseModel):
+    total: int
+    from_creator_trips: int
+    from_own_reels: int
+    talked_to_arya: int
+    top_sources: list[MineSource]
+    items: list[MineRow]
+
+
+def _party(t: TravellerTrip) -> str:
+    return _party_words(t) or "1 traveller"
+
+
+@router.get("/admin/mine-trips", response_model=MineSummary)
+async def mine_trips(
+    limit: int = 100,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_staff),
+):
+    """Every trip a traveller made their own, newest first: the itinerary it came from, what they
+    chose (who, days, pace) and whether they went on to talk to Arya. Plus which itineraries are
+    chosen most."""
+    from sqlalchemy import func
+
+    rows = list(
+        await session.scalars(
+            select(TravellerTrip).order_by(TravellerTrip.created_at.desc()).limit(min(limit, 300))
+        )
+    )
+    from sqlalchemy import literal_column
+
+    trip_of = literal_column("chat_sessions.state ->> 'my_trip'")
+    chats = dict(
+        (
+            await session.execute(
+                select(trip_of, func.count())
+                .select_from(ChatSession)
+                .where(trip_of.is_not(None))
+                .group_by(trip_of)
+            )
+        ).all()
+    )
+    everything = list(await session.scalars(select(TravellerTrip)))
+    sources: dict[str, MineSource] = {}
+    for t in everything:
+        key = t.source_share_code or f"reel:{t.source_import_id}"
+        seen = sources.get(key)
+        if seen is None:
+            sources[key] = MineSource(
+                source=t.title,
+                source_share_code=t.source_share_code,
+                creator=t.creator_handle or t.creator_name,
+                destination=t.destination_name,
+                made=1,
+                last_made=t.created_at,
+            )
+        else:
+            seen.made += 1
+            seen.last_made = max(seen.last_made, t.created_at)
+    own = sum(1 for t in everything if not t.source_share_code)
+    return MineSummary(
+        total=len(everything),
+        from_creator_trips=len(everything) - own,
+        from_own_reels=own,
+        talked_to_arya=sum(1 for t in everything if chats.get(t.code)),
+        top_sources=sorted(sources.values(), key=lambda s: (-s.made, -s.last_made.timestamp()))[
+            :10
+        ],
+        items=[
+            MineRow(
+                code=t.code,
+                created_at=t.created_at,
+                title=t.title,
+                destination=t.destination_name,
+                source=t.title if t.source_share_code else "A reel they pasted",
+                source_share_code=t.source_share_code,
+                creator=t.creator_handle or t.creator_name,
+                party=_party(t),
+                days=t.days,
+                pace=t.pace,
+                when=t.when_text,
+                group=t.group,
+                build_status=t.build_status,
+                ai_built=t.ai_built,
+                arya_chats=int(chats.get(t.code, 0)),
+                stops=len(t.items or []),
+            )
+            for t in rows
+        ],
+    )

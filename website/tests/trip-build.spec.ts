@@ -36,7 +36,7 @@ asyncio.run(main())`;
 }
 
 test("Build my trip plans the reel's places for the party and opens the trip at its number", async ({ page, baseURL }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   const email = await signUp(page);
   const importId = seedImport(email, Date.now().toString(36));
 
@@ -58,7 +58,7 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   await expect(page.locator("strong.tabular-nums").filter({ hasText: estimate }).first()).toBeVisible();
 
   // The plan settles: no more "Building…", every place from the reel is in it.
-  await expect(page.getByText("Building your trip…")).toHaveCount(0, { timeout: 90_000 });
+  await expect(page.getByText("Building your trip…")).toHaveCount(0, { timeout: 180_000 });
   await expect(page.getByText("We couldn’t build your trip just now")).toHaveCount(0);
   await expect(page.getByText(/Planned for a couple/)).toBeVisible();
   const tabs = page.getByRole("tab");

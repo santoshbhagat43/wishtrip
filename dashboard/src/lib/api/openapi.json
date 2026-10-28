@@ -5130,6 +5130,103 @@
     }
    }
   },
+  "/my-trips/{code}/arya": {
+   "post": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Chat With Arya",
+    "description": "Chat with Arya, from the trip board: a new conversation that already knows the trip (where,\nwho, how many days, the pace, the stops), so Arya plans from it instead of asking again.",
+    "operationId": "chat_with_arya_my_trips__code__arya_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AryaStart"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/mine-trips": {
+   "get": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Mine Trips",
+    "description": "Every trip a traveller made their own, newest first: the itinerary it came from, what they\nchose (who, days, pace) and whether they went on to talk to Arya. Plus which itineraries are\nchosen most.",
+    "operationId": "mine_trips_admin_mine_trips_get",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 100,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MineSummary"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/spotlight": {
    "get": {
     "tags": [
@@ -7236,6 +7333,25 @@
      "reason"
     ],
     "title": "Alternative"
+   },
+   "AryaStart": {
+    "properties": {
+     "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Session Id"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     }
+    },
+    "type": "object",
+    "required": [
+     "session_id",
+     "message"
+    ],
+    "title": "AryaStart"
    },
    "AssignmentLog": {
     "properties": {
@@ -13239,6 +13355,35 @@
       "maxLength": 16,
       "title": "Group",
       "default": ""
+     },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "origin": {
+      "type": "string",
+      "maxLength": 3,
+      "title": "Origin",
+      "default": ""
+     },
+     "origin_city": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Origin City",
+      "default": ""
+     },
+     "arya": {
+      "type": "boolean",
+      "title": "Arya",
+      "default": false
      }
     },
     "type": "object",
@@ -13349,6 +13494,40 @@
       "title": "Tips",
       "default": []
      },
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     },
+     "end_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Date"
+     },
+     "origin": {
+      "type": "string",
+      "title": "Origin",
+      "default": ""
+     },
+     "origin_city": {
+      "type": "string",
+      "title": "Origin City",
+      "default": ""
+     },
      "import_id": {
       "anyOf": [
        {
@@ -13378,6 +13557,178 @@
      "when"
     ],
     "title": "MineRead"
+   },
+   "MineRow": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "destination": {
+      "type": "string",
+      "title": "Destination"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "source_share_code": {
+      "type": "string",
+      "title": "Source Share Code",
+      "default": ""
+     },
+     "creator": {
+      "type": "string",
+      "title": "Creator",
+      "default": ""
+     },
+     "party": {
+      "type": "string",
+      "title": "Party"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "pace": {
+      "type": "string",
+      "title": "Pace"
+     },
+     "when": {
+      "type": "string",
+      "title": "When"
+     },
+     "group": {
+      "type": "string",
+      "title": "Group"
+     },
+     "build_status": {
+      "type": "string",
+      "title": "Build Status"
+     },
+     "ai_built": {
+      "type": "boolean",
+      "title": "Ai Built"
+     },
+     "arya_chats": {
+      "type": "integer",
+      "title": "Arya Chats"
+     },
+     "stops": {
+      "type": "integer",
+      "title": "Stops"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "created_at",
+     "title",
+     "destination",
+     "source",
+     "party",
+     "days",
+     "pace",
+     "when",
+     "group",
+     "build_status",
+     "ai_built",
+     "arya_chats",
+     "stops"
+    ],
+    "title": "MineRow"
+   },
+   "MineSource": {
+    "properties": {
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "source_share_code": {
+      "type": "string",
+      "title": "Source Share Code",
+      "default": ""
+     },
+     "creator": {
+      "type": "string",
+      "title": "Creator",
+      "default": ""
+     },
+     "destination": {
+      "type": "string",
+      "title": "Destination"
+     },
+     "made": {
+      "type": "integer",
+      "title": "Made"
+     },
+     "last_made": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Last Made"
+     }
+    },
+    "type": "object",
+    "required": [
+     "source",
+     "destination",
+     "made",
+     "last_made"
+    ],
+    "title": "MineSource"
+   },
+   "MineSummary": {
+    "properties": {
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "from_creator_trips": {
+      "type": "integer",
+      "title": "From Creator Trips"
+     },
+     "from_own_reels": {
+      "type": "integer",
+      "title": "From Own Reels"
+     },
+     "talked_to_arya": {
+      "type": "integer",
+      "title": "Talked To Arya"
+     },
+     "top_sources": {
+      "items": {
+       "$ref": "#/components/schemas/MineSource"
+      },
+      "type": "array",
+      "title": "Top Sources"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/MineRow"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "total",
+     "from_creator_trips",
+     "from_own_reels",
+     "talked_to_arya",
+     "top_sources",
+     "items"
+    ],
+    "title": "MineSummary"
    },
    "Nearby": {
     "properties": {

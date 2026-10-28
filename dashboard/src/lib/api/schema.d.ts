@@ -1627,6 +1627,49 @@ export interface paths {
         patch: operations["update_mine_my_trips__code__patch"];
         trace?: never;
     };
+    "/my-trips/{code}/arya": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat With Arya
+         * @description Chat with Arya, from the trip board: a new conversation that already knows the trip (where,
+         *     who, how many days, the pace, the stops), so Arya plans from it instead of asking again.
+         */
+        post: operations["chat_with_arya_my_trips__code__arya_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/mine-trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mine Trips
+         * @description Every trip a traveller made their own, newest first: the itinerary it came from, what they
+         *     chose (who, days, pace) and whether they went on to talk to Arya. Plus which itineraries are
+         *     chosen most.
+         */
+        get: operations["mine_trips_admin_mine_trips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spotlight": {
         parameters: {
             query?: never;
@@ -2322,6 +2365,16 @@ export interface components {
             hotel: components["schemas"]["HotelDetail"];
             /** Reason */
             reason: string;
+        };
+        /** AryaStart */
+        AryaStart: {
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /** Message */
+            message: string;
         };
         /** AssignmentLog */
         AssignmentLog: {
@@ -4705,6 +4758,23 @@ export interface components {
              * @default
              */
             group: string;
+            /** Start Date */
+            start_date?: string | null;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Origin City
+             * @default
+             */
+            origin_city: string;
+            /**
+             * Arya
+             * @default false
+             */
+            arya: boolean;
         };
         /** MineRead */
         MineRead: {
@@ -4770,8 +4840,105 @@ export interface components {
              * @default []
              */
             tips: string[];
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Origin City
+             * @default
+             */
+            origin_city: string;
             /** Import Id */
             import_id?: string | null;
+        };
+        /** MineRow */
+        MineRow: {
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Title */
+            title: string;
+            /** Destination */
+            destination: string;
+            /** Source */
+            source: string;
+            /**
+             * Source Share Code
+             * @default
+             */
+            source_share_code: string;
+            /**
+             * Creator
+             * @default
+             */
+            creator: string;
+            /** Party */
+            party: string;
+            /** Days */
+            days: number;
+            /** Pace */
+            pace: string;
+            /** When */
+            when: string;
+            /** Group */
+            group: string;
+            /** Build Status */
+            build_status: string;
+            /** Ai Built */
+            ai_built: boolean;
+            /** Arya Chats */
+            arya_chats: number;
+            /** Stops */
+            stops: number;
+        };
+        /** MineSource */
+        MineSource: {
+            /** Source */
+            source: string;
+            /**
+             * Source Share Code
+             * @default
+             */
+            source_share_code: string;
+            /**
+             * Creator
+             * @default
+             */
+            creator: string;
+            /** Destination */
+            destination: string;
+            /** Made */
+            made: number;
+            /**
+             * Last Made
+             * Format: date-time
+             */
+            last_made: string;
+        };
+        /** MineSummary */
+        MineSummary: {
+            /** Total */
+            total: number;
+            /** From Creator Trips */
+            from_creator_trips: number;
+            /** From Own Reels */
+            from_own_reels: number;
+            /** Talked To Arya */
+            talked_to_arya: number;
+            /** Top Sources */
+            top_sources: components["schemas"]["MineSource"][];
+            /** Items */
+            items: components["schemas"]["MineRow"][];
         };
         /** Nearby */
         Nearby: {
@@ -9390,6 +9557,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_with_arya_my_trips__code__arya_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AryaStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mine_trips_admin_mine_trips_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MineSummary"];
                 };
             };
             /** @description Validation Error */

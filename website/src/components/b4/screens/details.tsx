@@ -10,6 +10,7 @@ import { CARD, FlowHeader, Kicker, MobileBar, SELECTED, UNSELECTED } from "../fl
 import { GROUPS, PACES, PEOPLE } from "../flow-data";
 import { Path } from "../icons";
 import { api, errorMessage, unwrap } from "@/lib/api/client";
+import { AIRPORTS, airportFrom, airportLabel } from "../airports";
 
 import { partyText, samplePrices, useMineTrip, usePublicTrip, useReelImport } from "../trip-journey";
 
@@ -51,7 +52,10 @@ export function DetailsScreen() {
   const estimate = samplePrices(Math.max(1, n), Math.max(1, days - 1)).total;
   const bump = (k: Count, by: number) => setCount({ ...count, [k]: Math.max(0, Math.min(9, count[k] + by)) });
 
-  const [when, setWhen] = useState("");
+  const [start, setStart] = useState(""); // the day they leave (yyyy-mm-dd)
+  const [fromText, setFromText] = useState(""); // where from, as picked: "Delhi (DEL)"
+  const from = airportFrom(fromText);
+  const today = new Date().toISOString().slice(0, 10);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -64,16 +68,22 @@ export function DetailsScreen() {
     setCount({ adults: saved.adults, kids: saved.kids, seniors: saved.seniors });
     setDays(saved.days);
     setPace(saved.pace);
-    setWhen(saved.when);
+    setStart(saved.start_date ?? "");
+    setFromText(saved.origin ? airportLabel(airportFrom(saved.origin) ?? { code: saved.origin, city: saved.origin_city || saved.origin }) : "");
   }
 
-  const next = async () => {
+  const next = async (viaArya = false) => {
     if (!code && !id) return router.push(LINKS.reel);
     // Build the trip for this party under its own number, then open it: the number is the way
     // back. It is planned in the background, and the trip page shows it filling in.
     setSaving(true);
     setProblem(null);
-    const body = { ...count, days, pace, when: when.trim(), group };
+    if (fromText.trim() && !from) {
+      setProblem("Pick the city you are travelling from from the list.");
+      setSaving(false);
+      return;
+    }
+    const body = { ...count, days, pace, when: "", group, arya: viaArya, start_date: start || null, origin: from?.code ?? "", origin_city: from?.city ?? "" };
     try {
       const made = mineCode
         ? unwrap(await api.PATCH("/my-trips/{code}", { params: { path: { code: mineCode } }, body }))
@@ -81,6 +91,12 @@ export function DetailsScreen() {
           ? unwrap(await api.POST("/trips/{share_code}/make-mine", { params: { path: { share_code: code } }, body }))
           : unwrap(await api.POST("/reels/imports/{import_id}/build", { params: { path: { import_id: id! } }, body }));
       queryClient.setQueryData(["mine-trip", made.code], made); // the trip page shows what was just saved
+      if (viaArya) {
+        // Straight into the chat, which starts with this trip (its number, details and stops).
+        const chat = unwrap(await api.POST("/my-trips/{code}/arya", { params: { path: { code: made.code } } }));
+        router.push(`${LINKS.arya}?session=${chat.session_id}&send=${encodeURIComponent(chat.message)}`);
+        return;
+      }
       router.push(`${LINKS.mine}/${made.code}`);
     } catch (e) {
       setProblem(errorMessage(e));
@@ -144,8 +160,24 @@ export function DetailsScreen() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={LABEL}>
-          WHEN
-          <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="Add your dates" className={FIELD} />
+          START DATE
+          <input type="date" min={today} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start date" className={FIELD} />
+        </label>
+        <label className={`${LABEL} md:col-span-2`}>
+          TRAVELLING FROM
+          <input
+            list="b4-airports"
+            value={fromText}
+            onChange={(e) => setFromText(e.target.value)}
+            placeholder="Your city, e.g. Delhi"
+            aria-label="Travelling from"
+            autoComplete="off"
+            className={FIELD}
+          />
+          <datalist id="b4-airports">
+            {AIRPORTS.map((a) => <option key={a.code} value={airportLabel(a)} />)}
+          </datalist>
+          <span className="text-xs font-normal normal-case tracking-normal text-[#566E85]">With your dates, this lets us look up live flight and hotel prices.</span>
         </label>
         <div className={LABEL}>
           HOW MANY DAYS
@@ -196,7 +228,10 @@ export function DetailsScreen() {
                 <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">{days} DAYS · {travellers} · EST. {estimate}</span>
                 <span className="text-xs text-[#A9C2D4]">{code ? "Your trip shows the day-by-day." : "Your board shows the day-by-day."}</span>
               </span>
-              <button onClick={next} disabled={saving || n < 1} className="ml-auto whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338] disabled:opacity-60">
+              <button type="button" onClick={() => next(true)} disabled={saving || n < 1} className="ml-auto whitespace-nowrap rounded-full border-[1.5px] border-[#22DDE0] px-[14px] py-[11px] text-[14px] font-bold text-[#22DDE0] disabled:opacity-60">
+                Chat with Arya
+              </button>
+              <button onClick={() => next()} disabled={saving || n < 1} className="whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338] disabled:opacity-60">
                 {saving ? "Building…" : "Build my trip"}
               </button>
             </MobileBar>
@@ -225,7 +260,7 @@ export function DetailsScreen() {
                   </span>
                 </span>
                 <button
-                  onClick={next}
+                  onClick={() => next()}
                   disabled={saving || n < 1}
                   className="cursor-pointer rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] disabled:opacity-60"
                 >
@@ -233,15 +268,18 @@ export function DetailsScreen() {
                 </button>
                 {problem && <span role="alert" className="text-center text-[12.5px] text-[#FFB4AA]">{problem}</span>}
               </div>
-              {code && (
-                <Link href={LINKS.arya} className="flex items-center gap-3 rounded-[20px] border border-[#E3E8EE] bg-white px-4 py-3.5 text-[#0D2436] no-underline">
-                  <span aria-hidden="true" className="font-display grid size-[38px] flex-none place-items-center rounded-full bg-gradient-to-br from-[#22DDE0] to-[#1A6094] text-xl font-semibold italic text-white">A</span>
-                  <span className="flex flex-col">
-                    <strong className="text-[14.5px]">Rather just tell Arya?</strong>
-                    <span className="text-[12.5px] text-[#566E85]">Say it in a sentence. She fills this in for you.</span>
-                  </span>
-                </Link>
-              )}
+              <button
+                type="button"
+                onClick={() => next(true)}
+                disabled={saving || n < 1}
+                className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-[#E3E8EE] bg-white px-4 py-3.5 text-left text-[#0D2436] disabled:opacity-60"
+              >
+                <span aria-hidden="true" className="font-display grid size-[38px] flex-none place-items-center rounded-full bg-gradient-to-br from-[#22DDE0] to-[#1A6094] text-xl font-semibold italic text-white">A</span>
+                <span className="flex flex-col">
+                  <strong className="text-[14.5px]">Chat with Arya instead</strong>
+                  <span className="text-[12.5px] text-[#566E85]">Keep these details; Arya opens with your trip and changes it as you talk.</span>
+                </span>
+              </button>
             </aside>
           </main>
         </>

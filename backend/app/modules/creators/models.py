@@ -1,9 +1,11 @@
+import datetime as dt
 import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -264,6 +266,11 @@ class TravellerTrip(UUIDPrimaryKey, Timestamps, Base):
     persona: Mapped[str] = mapped_column(String(16), default="")
     # The group as the Details screen named it (couple, family, friends, seniors…), to come back to.
     group: Mapped[str] = mapped_column(String(16), default="")
+    # When they travel and from where: what a real price is asked for (TripJack needs both). The
+    # origin is an airport or city code (DEL, BOM…) and the city's name as they picked it.
+    start_date: Mapped[dt.date | None] = mapped_column(Date)
+    origin_code: Mapped[str] = mapped_column(String(3), default="")
+    origin_city: Mapped[str] = mapped_column(String(100), default="")
     # building | ready | failed
     build_status: Mapped[str] = mapped_column(String(10), default="ready")
     build_error: Mapped[str] = mapped_column(String(300), default="")

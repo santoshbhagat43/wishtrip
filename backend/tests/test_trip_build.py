@@ -219,3 +219,36 @@ async def test_only_the_traveller_whose_reel_it_is_can_build_from_it(client, tra
     assert (await client.post(f"/reels/imports/{job_id}/build", json={"adults": 0, "kids": 0}, headers=auth(traveler))).status_code in (400, 409)
     async with SessionLocal() as session:
         assert (await session.scalars(select(TravellerTrip))).all() == []
+
+
+async def test_the_trip_knows_when_it_starts_and_where_from(client, traveler, builds):
+    import datetime as dt
+
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=40)
+    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple",
+            "start_date": start.isoformat(), "origin": "del", "origin_city": " New   Delhi "}  # fmt: skip
+    r = await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))
+    assert r.status_code == 201, r.text
+    trip = r.json()
+    assert trip["start_date"] == start.isoformat()
+    assert trip["end_date"] == (start + dt.timedelta(days=2)).isoformat()  # a 3-day plan
+    assert (trip["origin"], trip["origin_city"]) == ("DEL", "New Delhi")
+    assert str(start.day) in trip["when"] and "–" in trip["when"]  # shown as a range
+
+    # Changing the dates or the city does not plan the trip again (they don't change the plan).
+    later = (start + dt.timedelta(days=7)).isoformat()
+    async with SessionLocal() as session:
+        row = await session.scalar(select(TravellerTrip))
+        row.build_status = "ready"
+        await session.commit()
+    r = await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": later, "origin": "BOM", "origin_city": "Mumbai"})
+    assert r.json()["start_date"] == later and r.json()["origin"] == "BOM" and r.json()["build_status"] == "ready"
+    assert builds == [trip["code"]]
+
+    # Without a date it keeps what they typed, and a past date or an odd code is refused.
+    r = await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None, "when": "  sometime  in March "})
+    assert r.json()["start_date"] is None and r.json()["end_date"] is None and r.json()["when"] == "sometime in March"
+    past = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+    for bad in ({"start_date": past}, {"origin": "DELHI"}, {"origin": "D3L"}):  # too long: 422; not letters: 400
+        assert (await client.patch(f"/my-trips/{trip['code']}", json={**body, **bad})).status_code in (400, 422), bad
