@@ -73,6 +73,7 @@ async def test_ollama_request_shape():
 
 async def test_openrouter_request_shape(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "sk-test")
+    monkeypatch.setattr(settings, "planner_reasoning", None)  # whatever the local .env sets
     seen: list = []
     client = LLMClient(config("openrouter"), transport=transport(seen))
     await client.chat("planner", [{"role": "user", "content": "hi"}])
