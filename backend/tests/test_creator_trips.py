@@ -801,3 +801,88 @@ async def test_a_creators_page_address_credits_them_by_handle_or_code(client):
     for address in ("pagelink", "@PageLink", "code-pagelink"):
         r = await client.post(f"/referrals/{address}/visit", json={"visitor_id": "v1"})
         assert r.status_code == 200 and r.json()["referral_code"] == "code-pagelink"
+
+
+async def test_chat_with_arya_starts_from_the_board(client, admin, fake_reel, traveler):  # noqa: F811
+    headers = await _approved_creator(client, admin, "arya-board@creators.example.com")
+    trip = await _make_trip(client, headers)
+    await client.patch(
+        f"/creator/trips/{trip['id']}",
+        json={"title": "Slow North Goa", "publish": True,
+              "items": [{"id": "a", "kind": "sight", "name": "Fort Aguada", "day": 1},
+                        {"id": "b", "kind": "food", "name": "Thalassa", "day": 2}]},
+        headers=headers,
+    )  # fmt: skip
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.creators.models import CreatorTrip
+
+    async with SessionLocal() as session:
+        share_code = (await session.scalar(select(CreatorTrip.share_code))) or ""
+    mine = (
+        await client.post(
+            f"/trips/{share_code}/make-mine",
+            json={"adults": 2, "kids": 0, "days": 2, "pace": "relaxed", "when": "7–9 May"},
+        )
+    ).json()
+
+    assert (await client.post(f"/my-trips/{mine['code']}/arya")).status_code in (401, 403)
+    r = await client.post(f"/my-trips/{mine['code']}/arya", headers=auth(traveler))
+    assert r.status_code == 201, r.text
+    start = r.json()
+    assert "2 adults" in start["message"] and "relaxed pace" in start["message"]
+    assert "7–9 May" in start["message"] and "Fort Aguada" in start["message"]
+
+    # The conversation already knows the trip, so Arya does not ask for it again.
+    chat = (await client.get(f"/chat/sessions/{start['session_id']}", headers=auth(traveler))).json()
+    state = chat["state"]
+    assert state["destination"] == "Goa" and state["duration_days"] == 2
+    assert state["companions"] == "couple" and state["my_trip"] == mine["code"]
+    assert {p["name"] for p in state["reel"]["places"]} >= {"Fort Aguada", "Thalassa"}
+    assert chat["title"] == "Slow North Goa"
+
+
+async def test_a_change_made_in_the_arya_chat_lands_on_the_board(client, admin, fake_reel):  # noqa: F811
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.modules.creators import mine as mine_module
+    from app.modules.creators.models import CreatorTrip
+
+    headers = await _approved_creator(client, admin, "arya-sync@creators.example.com")
+    trip = await _make_trip(client, headers)
+    await client.patch(
+        f"/creator/trips/{trip['id']}",
+        json={"title": "Slow North Goa", "publish": True,
+              "items": [{"id": "a", "kind": "sight", "name": "Fort Aguada", "day": 1, "note": "Sunset"}]},
+        headers=headers,
+    )  # fmt: skip
+    async with SessionLocal() as session:
+        share_code = (await session.scalar(select(CreatorTrip.share_code))) or ""
+    code = (await client.post(f"/trips/{share_code}/make-mine", json={"days": 2})).json()["code"]
+
+    suggestions = [
+        {"name": "Fort Aguada", "type": "attraction", "day": 2, "from_knowledge_base": True},
+        {"name": "Mandovi sunset cruise", "type": "experience", "day": 2, "why": "Added in chat",
+         "from_knowledge_base": False, "is_placeholder": True},
+        {"name": "Fontainhas walk", "type": "attraction", "day": 1, "from_knowledge_base": True,
+         "is_placeholder": False},
+        {"name": "No day yet", "type": "attraction", "day": None},
+    ]  # fmt: skip
+    async with SessionLocal() as session:
+        assert await mine_module.sync_from_chat(session, code, suggestions) is True
+        await session.commit()
+        # The same plan again changes nothing.
+        assert await mine_module.sync_from_chat(session, code, suggestions) is False
+
+    board = (await client.get(f"/my-trips/{code}")).json()
+    stops = [(i["name"], i["day"], i["origin"], i["kind"]) for i in board["items"]]
+    assert stops == [
+        ("Fontainhas walk", 1, "kb", "sight"),
+        ("Fort Aguada", 2, "reel", "sight"),
+        ("Mandovi sunset cruise", 2, "suggested", "experience"),
+    ]
+    assert board["days"] == 2
+    kept = next(i for i in board["items"] if i["name"] == "Fort Aguada")
+    assert kept["note"] == "Sunset"  # a stop already on the board keeps what it had

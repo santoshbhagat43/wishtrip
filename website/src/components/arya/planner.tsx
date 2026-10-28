@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { ArrowRight, Bookmark, History, LifeBuoy, MessageSquarePlus, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { FlowHeader } from "@/components/b4/flow";
@@ -45,6 +45,7 @@ function useWide() {
 export function AryaPlanner() {
   const queryClient = useQueryClient();
   const search = useSearchParams();
+  const router = useRouter();
   const prompt = search.get("prompt");
   const me = useMe();
   // ?session= opens a chat that was started elsewhere (a pasted reel); ?prompt= fills the box.
@@ -122,8 +123,21 @@ export function AryaPlanner() {
     onSuccess: (turn) => {
       queryClient.invalidateQueries({ queryKey: ["chat", turn.session.id] });
       queryClient.invalidateQueries({ queryKey: ["chats"] });
+      // A chat opened from a trip board changes that board: the next look at it is fresh.
+      const board = turn.session.state?.my_trip;
+      if (typeof board === "string") queryClient.invalidateQueries({ queryKey: ["mine-trip", board] });
     },
   });
+  // ?send= is the first message of a chat opened from a trip board: sent once, then dropped from
+  // the address so a reload doesn't send it again.
+  const firstMessage = search.get("send");
+  const sentFirst = useRef(false);
+  useEffect(() => {
+    if (!firstMessage || sentFirst.current || !chat.data || chat.data.id !== search.get("session")) return;
+    sentFirst.current = true;
+    if (chat.data.messages.length === 0) send.mutate(firstMessage);
+    router.replace(`/arya?session=${chat.data.id}`);
+  }, [firstMessage, chat.data, search, router, send]);
   const askHelp = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -196,6 +210,14 @@ export function AryaPlanner() {
               <h1 className="font-sans! m-0 text-[18px] font-bold">Arya</h1>
               <p className="m-0 truncate text-[12.5px] text-[#566E85]">Your wishtrip AI travel agent · never pays without your OK</p>
             </div>
+            {typeof chat.data?.state?.my_trip === "string" && (
+              <Link
+                href={`/trip/mine/${chat.data.state.my_trip}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#E3E8EE] px-3 py-2 text-[13px] font-semibold text-[#0A7C80] no-underline hover:bg-[#F3F6F9]"
+              >
+                Open full board
+              </Link>
+            )}
             <div ref={tripsMenu} className="relative">
               <button
                 type="button"

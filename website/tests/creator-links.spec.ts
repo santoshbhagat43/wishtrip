@@ -236,7 +236,7 @@ test.describe("Reel links", () => {
     await expect(traveller.getByText("2 adults, 2 children")).toBeVisible();
     await expect(traveller.getByText("Total for 4")).toBeVisible();
     await expect(traveller.getByText(`${tripNo.slice(0, 4)}-${tripNo.slice(4)}`.toUpperCase())).toBeVisible();
-    await expect(traveller.getByRole("link", { name: "Book in one go" })).toBeVisible();
+    await expect(traveller.getByRole("button", { name: "Book in one go" })).toBeVisible();
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible(); // still the creator's stops
 
     // Coming back to the number brings back the same trip, and Change details has the same answers.

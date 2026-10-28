@@ -115,6 +115,12 @@ async def send_message(
         debug=result.debug,
     )
     session.add(assistant)
+    if (code := chat.state.get("my_trip")) and result.suggestions:
+        # A chat opened from a trip board changes that board.
+        from app.modules.creators import mine
+
+        if pipeline.wants_plan(result.intent):
+            await mine.sync_from_chat(session, str(code), result.suggestions)
     if result.suggestions and pipeline.wants_plan(result.intent):
         # A credited traveller's first plan earns their creator a commission.
         await creators.record_trip_planned(session, user)
