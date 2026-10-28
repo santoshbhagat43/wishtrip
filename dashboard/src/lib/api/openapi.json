@@ -5173,6 +5173,49 @@
     }
    }
   },
+  "/my-trips/{code}/flight-price": {
+   "get": {
+    "tags": [
+     "trips"
+    ],
+    "summary": "Read Flight Price",
+    "description": "Live TripJack return fare for the party, from their city to the destination and back on the\ntrip's dates. Says why when it cannot be priced (no dates, no from-city, unknown airport).",
+    "operationId": "read_flight_price_my_trips__code__flight_price_get",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlightPrice"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/my-trips/{code}/arya": {
    "post": {
     "tags": [
@@ -9906,6 +9949,141 @@
      "name"
     ],
     "title": "FeasibilityIssue"
+   },
+   "FlightLeg": {
+    "properties": {
+     "from_code": {
+      "type": "string",
+      "title": "From Code"
+     },
+     "to_code": {
+      "type": "string",
+      "title": "To Code"
+     },
+     "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+     },
+     "airline": {
+      "type": "string",
+      "title": "Airline",
+      "default": ""
+     },
+     "flight_number": {
+      "type": "string",
+      "title": "Flight Number",
+      "default": ""
+     },
+     "departs": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Departs"
+     },
+     "arrives": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Arrives"
+     },
+     "stops": {
+      "type": "integer",
+      "title": "Stops",
+      "default": 0
+     },
+     "price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price"
+     }
+    },
+    "type": "object",
+    "required": [
+     "from_code",
+     "to_code",
+     "date"
+    ],
+    "title": "FlightLeg"
+   },
+   "FlightPrice": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "origin": {
+      "type": "string",
+      "title": "Origin",
+      "default": ""
+     },
+     "destination": {
+      "type": "string",
+      "title": "Destination",
+      "default": ""
+     },
+     "adults": {
+      "type": "integer",
+      "title": "Adults",
+      "default": 0
+     },
+     "children": {
+      "type": "integer",
+      "title": "Children",
+      "default": 0
+     },
+     "legs": {
+      "items": {
+       "$ref": "#/components/schemas/FlightLeg"
+      },
+      "type": "array",
+      "title": "Legs",
+      "default": []
+     },
+     "total": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Total"
+     },
+     "checked_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Checked At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "FlightPrice"
    },
    "FlightSearch": {
     "properties": {

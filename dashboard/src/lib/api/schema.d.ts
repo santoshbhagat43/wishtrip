@@ -1648,6 +1648,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/my-trips/{code}/flight-price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Flight Price
+         * @description Live TripJack return fare for the party, from their city to the destination and back on the
+         *     trip's dates. Says why when it cannot be priced (no dates, no from-city, unknown airport).
+         */
+        get: operations["read_flight_price_my_trips__code__flight_price_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/my-trips/{code}/arya": {
         parameters: {
             query?: never;
@@ -3404,6 +3425,73 @@ export interface components {
             day: number | null;
             /** Name */
             name: string | null;
+        };
+        /** FlightLeg */
+        FlightLeg: {
+            /** From Code */
+            from_code: string;
+            /** To Code */
+            to_code: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Airline
+             * @default
+             */
+            airline: string;
+            /**
+             * Flight Number
+             * @default
+             */
+            flight_number: string;
+            /** Departs */
+            departs?: string | null;
+            /** Arrives */
+            arrives?: string | null;
+            /**
+             * Stops
+             * @default 0
+             */
+            stops: number;
+            /** Price */
+            price?: number | null;
+        };
+        /** FlightPrice */
+        FlightPrice: {
+            /** Status */
+            status: string;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Destination
+             * @default
+             */
+            destination: string;
+            /**
+             * Adults
+             * @default 0
+             */
+            adults: number;
+            /**
+             * Children
+             * @default 0
+             */
+            children: number;
+            /**
+             * Legs
+             * @default []
+             */
+            legs: components["schemas"]["FlightLeg"][];
+            /** Total */
+            total?: number | null;
+            /** Checked At */
+            checked_at?: string | null;
         };
         /** FlightSearch */
         FlightSearch: {
@@ -9665,6 +9753,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StayPrices"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_flight_price_my_trips__code__flight_price_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightPrice"];
                 };
             };
             /** @description Validation Error */

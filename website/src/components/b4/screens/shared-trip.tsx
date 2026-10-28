@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Compass, Landmark, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clock, inr, partySize, partyText, samplePrices, useStayPrices, type Party, type PublicTrip } from "../trip-journey";
+import { clock, inr, partySize, partyText, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
 import { daysFromItems, type ItineraryDay } from "@/components/creator/itinerary-sheet";
@@ -71,14 +71,27 @@ const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E3E8EE] bg-w
 
 /** What the board says about each booking. The wording follows the prototype; the destination
  *  is the trip's own, and the prices are samples. */
-function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>) {
+const FLIGHT_WHY: Record<string, string> = {
+  no_dates: "Add a start date to see the live fare",
+  no_origin: "Add the city you fly from to see the live fare",
+  no_airport: "No live fare for this destination yet",
+  same_city: "You start where this trip is",
+  unavailable: "No fare found for these dates",
+  error: "Live fare not available right now",
+};
+
+function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>, flight?: FlightPrice, from?: string) {
+  const live = flight?.status === "priced" && flight.total != null;
+  const seats = flight ? `${flight.adults} ${flight.adults === 1 ? "adult" : "adults"}${flight.children ? ` + ${flight.children} ${flight.children === 1 ? "child" : "children"}` : ""}` : "";
   return [
     {
       kind: "FLIGHTS",
-      price: prices.flights,
-      title: `Your city ⇄ ${where}`,
-      detail: "Return · dates and seats at checkout",
-      chip: "Cheapest, seats together",
+      price: live ? inr(flight.total!) : prices.flights,
+      title: `${from || "Your city"} ⇄ ${where}`,
+      detail: live
+        ? `Return · ${seats} · live from TripJack${flight.checked_at ? `, checked ${clock(flight.checked_at)}` : ""}`
+        : "Return · dates and seats at checkout",
+      chip: live ? `${flight.legs[0]?.airline || "Cheapest fare"} · ${flight.legs[0]?.stops ? `${flight.legs[0].stops} stop` : "direct"}` : (flight && FLIGHT_WHY[flight.status]) || "Cheapest, seats together",
     },
     {
       kind: "STAY",
@@ -109,6 +122,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   const me = useMe();
   // Live hotel prices, once the plan is ready (the stays are final) and not while it is being made.
   const live = useStayPrices(mine?.build?.status === "ready" ? mine.code : null).data;
+  const flightLive = useFlightPrice(mine?.build?.status === "ready" ? mine.code : null).data;
   const trip = useQuery({
     queryKey: ["public-trip", code],
     retry: false,
@@ -293,7 +307,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, nights, prices).map((b) => {
+              {bookings(where, nights, prices, flightLive, mine?.originCity).map((b) => {
                 const flight = b.kind === "FLIGHTS";
                 const Tag = flight ? "button" : "div";
                 return (

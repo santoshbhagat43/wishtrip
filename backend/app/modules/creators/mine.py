@@ -21,7 +21,7 @@ from app.core.errors import bad_request, not_found
 from app.core.ratelimit import allow
 from app.db.session import get_session
 from app.modules.chat.models import ChatSession
-from app.modules.creators import builder, stay_prices, trips
+from app.modules.creators import builder, flight_prices, stay_prices, trips
 from app.modules.creators.models import Creator, CreatorTrip, TravellerTrip, TripStatus
 from app.modules.creators.schemas import PublicCreator, TripItem
 from app.modules.hotels import photos
@@ -365,6 +365,13 @@ async def read_stay_prices(code: str, session: AsyncSession = Depends(get_sessio
     """Live TripJack price of each stay that matches a hotel, for the trip's dates and party.
     Read separately from the trip so the trip opens at once; a stay that is not priced says why."""
     return await stay_prices.stay_prices(session, await _get(session, code))
+
+
+@router.get("/my-trips/{code}/flight-price", response_model=flight_prices.FlightPrice)
+async def read_flight_price(code: str, session: AsyncSession = Depends(get_session)):
+    """Live TripJack return fare for the party, from their city to the destination and back on the
+    trip's dates. Says why when it cannot be priced (no dates, no from-city, unknown airport)."""
+    return await flight_prices.flight_price(await _get(session, code))
 
 
 @router.patch("/my-trips/{code}", response_model=MineRead)

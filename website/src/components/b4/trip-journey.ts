@@ -118,6 +118,20 @@ export function useStayPrices(code: string | null) {
   });
 }
 
+export type FlightPrice = Schemas["FlightPrice"];
+
+/** The live return fare for the party on the trip's dates (or why there isn't one). */
+export function useFlightPrice(code: string | null) {
+  return useQuery({
+    queryKey: ["flight-price", code],
+    enabled: !!code,
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    queryFn: async () => unwrap(await api.GET("/my-trips/{code}/flight-price", { params: { path: { code: code! } } })),
+  });
+}
+
 /** "14:05" in the traveller's own clock, from the time TripJack was asked. */
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
 

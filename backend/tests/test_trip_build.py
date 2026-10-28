@@ -320,3 +320,71 @@ async def test_a_matched_stay_is_priced_live_for_the_dates_and_party(client, tra
     await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None})
     got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
     assert got["stays"][0]["status"] == "no_dates" and got["total"] == 0 and not got["all_priced"] and fake.calls == []
+
+
+def test_a_destination_names_its_airport():
+    from app.modules.flights.airports import airport_for
+
+    assert airport_for("Goa") == "GOI" and airport_for("Bali, Indonesia") == "DPS"
+    assert airport_for("Hong Kong") == "HKG" and airport_for("Somewhere new") is None
+
+
+class FakeFlights:
+    configured = True
+
+    def __init__(self):
+        self.queries = []
+
+    async def search(self, query):
+        self.queries.append(query)
+        def trip(price, a, b):
+            return {"fareIdentifier": "PUBLISHED", "id": f"id{price}", "fd": {"ADULT": {"fC": {"BF": price, "TAF": 100}}}}
+        seg = lambda a, b, n: {"da": {"code": a}, "aa": {"code": b}, "dt": "2027-01-10T08:00", "at": "2027-01-10T10:00",
+                               "fD": {"aI": {"code": "6E", "name": "IndiGo"}, "fN": n}, "duration": 120, "stops": 0}
+        return {"searchResult": {"tripInfos": {
+            "ONWARD": [{"sI": [seg("DEL", "GOI", "101")], "totalPriceList": [trip(5000, "DEL", "GOI")]},
+                       {"sI": [seg("DEL", "GOI", "102")], "totalPriceList": [trip(7000, "DEL", "GOI")]}],
+            "RETURN": [{"sI": [seg("GOI", "DEL", "201")], "totalPriceList": [trip(4000, "GOI", "DEL")]}],
+        }}}
+
+
+async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import flight_prices as fp
+    from app.modules.flights import service as flights_service
+
+    async def none(*a, **k):
+        return None
+
+    fake = FakeFlights()
+    monkeypatch.setattr(flights_service, "tripjack_flights", fake)
+    monkeypatch.setattr(fp, "tripjack_flights", fake)
+    for mod in (fp, flights_service):
+        monkeypatch.setattr(mod, "cache_get", none)
+        monkeypatch.setattr(mod, "cache_set", none)
+    job_id = await _import_for(traveler)  # Bali in the seed; the destination below is Goa
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "kids": 1, "days": 4, "pace": "relaxed", "group": "family", "start_date": start.isoformat(), "origin": "DEL", "origin_city": "Delhi"}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.destination_name = "Goa"
+        await session.commit()
+
+    got = (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()
+    assert got["status"] == "priced" and (got["origin"], got["destination"]) == ("DEL", "GOI")
+    assert [leg["flight_number"] for leg in got["legs"]] == ["6E101", "6E201"]  # the cheapest each way
+    assert got["total"] == 2 * (5100 + 4100) and (got["adults"], got["children"]) == (2, 1)
+    assert got["legs"][1]["date"] == (start + dt.timedelta(days=3)).isoformat()
+
+    # No from-city, no date, an airport we don't know, or flying to where they live: not priced.
+    for change, status in (({"origin": ""}, "no_origin"), ({"start_date": None}, "no_dates"), ({"origin": "GOI"}, "same_city")):
+        await client.patch(f"/my-trips/{trip['code']}", json={**body, **change})
+        assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == status
+    async with SessionLocal() as session:
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.destination_name = "Atlantis"
+        await session.commit()
+    await client.patch(f"/my-trips/{trip['code']}", json=body)
+    assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == "no_airport"
