@@ -55,6 +55,7 @@ from app.modules.reels.models import (
 from app.modules.reels.understand import (
     Reading,
     Transcript,
+    caption_is_enough,
     material,
     read_places,
     read_screen,
@@ -204,6 +205,20 @@ def _saveapi_error(exc: saveapi.SaveApiError, youtube: bool) -> ReelError | None
     return None
 
 
+def _saveapi_failed(attempt: Attempt, exc: saveapi.SaveApiError, started: float) -> None:
+    """Record why a SaveAPI try failed, and say so in the server log."""
+    attempt.error_code, attempt.error_message = exc.code, exc.message
+    attempt.duration_ms = int((time.monotonic() - started) * 1000)
+    if exc.code in _SAVEAPI_OURS:
+        logger.error(
+            "SaveAPI refused us (%s): %s. Check the key and the credit balance.",
+            exc.code,
+            exc.message,
+        )
+    else:
+        logger.warning("SaveAPI could not fetch %s: %s", attempt.shortcode, exc)
+
+
 def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[Attempt]) -> dict:
     """Fetch with SaveAPI (Instagram's way in; YouTube's when our own download failed) and record
     the try. Raises SaveApiError."""
@@ -214,16 +229,7 @@ def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[At
     try:
         fetched = (saveapi.fetch_youtube if youtube else saveapi.fetch_instagram)(url, workdir)
     except saveapi.SaveApiError as exc:
-        attempt.error_code, attempt.error_message = exc.code, exc.message
-        attempt.duration_ms = int((time.monotonic() - started) * 1000)
-        if exc.code in _SAVEAPI_OURS:
-            logger.error(
-                "SaveAPI refused us (%s): %s. Check the key and the credit balance.",
-                exc.code,
-                exc.message,
-            )
-        else:
-            logger.warning("SaveAPI could not fetch %s: %s", shortcode, exc)
+        _saveapi_failed(attempt, exc, started)
         raise
     attempt.ok = True
     attempt.duration_ms = int((time.monotonic() - started) * 1000)
@@ -577,8 +583,10 @@ async def _read_into_content(
     workdir: Path,
     thumb: Path | None,
     step: StepCallback,
+    existing: CreatorContent | None = None,
 ) -> CreatorContent:
-    """Shared: read a video (frames, OCR, voice-over) into a CreatorContent row."""
+    """Shared: read a video (frames, OCR, voice-over) into a CreatorContent row (or, when staff
+    read it again, into the row it already has)."""
     info = media.probe(video)
     if info.duration > settings.reel_max_seconds:
         raise ReelError(
@@ -633,10 +641,60 @@ async def _read_into_content(
         meta.get("location", ""),
         ocr_lines,
         transcript,
+        meta.get("source"),
     )
     if not ai.enabled:
         raise ReelError("Reading reels needs the AI service, which is not set up.")
     reading = await read_places(ai, text, ocr_lines)
+    cover = thumb or (frame_list[0].path if frame_list else None)
+    kept = media.spread(frame_list, settings.reel_cover_frames)
+    return await _persist(
+        session,
+        ai,
+        shortcode=shortcode,
+        url=url,
+        meta=meta,
+        reading=reading,
+        read_from="video",
+        duration=info.duration,
+        cover=cover,
+        frames=[(round(f.t, 1), f.path) for f in kept],
+        ocr_lines=ocr_lines,
+        transcript=transcript,
+        existing=existing,
+    )
+
+
+def _destination_name(destination: Location | None, said: str) -> str:
+    """Our name for the destination when it is the place the reel names, else what the reel said.
+    A region ("Maharashtra") is matched to one of its cities; that city's name is not the
+    destination."""
+    if destination is None:
+        return said
+    key = _norm(said)
+    ours = {_norm(destination.name), *(_norm(a) for a in destination.aliases or [])}
+    related = any(key == o or (key and (key in o or o in key)) for o in ours if o)
+    return destination.name if related or not key else said
+
+
+async def _persist(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    *,
+    shortcode: str,
+    url: str,
+    meta: dict,
+    reading: Reading,
+    read_from: str,
+    duration: float | None,
+    cover: Path | None,
+    frames: list[tuple[float, Path]],
+    ocr_lines: list[dict],
+    transcript: Transcript,
+    existing: CreatorContent | None,
+) -> CreatorContent:
+    """Match what was read against our places, credit the creator and keep it all as one
+    CreatorContent row (or, when staff read it again, in the row it already has)."""
     note(
         f"Places read: {len(reading.places)}"
         + (f"; destination {reading.destination}" if reading.destination else "")
@@ -650,32 +708,37 @@ async def _read_into_content(
     creator = (
         await creators.upsert(session, owner, meta.get("owner_full_name", "")) if owner else None
     )
-    cover = thumb or (frame_list[0].path if frame_list else None)
-    kept = media.spread(frame_list, settings.reel_cover_frames)
-    content = CreatorContent(
+    fields: dict[str, Any] = dict(
         creator_id=creator.id if creator else None,
         shortcode=shortcode,
         url=url,
         caption=meta.get("caption", ""),
+        source_meta=meta.get("source") or {},
         location_tag=meta.get("location", "") or "",
         posted_at=datetime.fromisoformat(meta["posted_at"]) if meta.get("posted_at") else None,
-        duration_seconds=info.duration,
+        duration_seconds=duration,
         thumbnail_key=storage.save(cover.read_bytes(), cover.name, "reels") if cover else None,
         frames=[
-            {"t": round(f.t, 1), "key": storage.save(f.path.read_bytes(), f.path.name, FRAMES)}
-            for f in kept
+            {"t": t, "key": storage.save(path.read_bytes(), path.name, FRAMES)}
+            for t, path in frames
         ],
         ocr_lines=ocr_lines,
         transcript=transcript.text,
         transcript_language=transcript.language,
         transcript_en=transcript.english,
         transcript_segments=transcript.segments,
-        extracted=reading.to_dict(),
+        extracted={**reading.to_dict(), "read_from": read_from},
         places=places,
         destination_id=destination.id if destination else None,
-        destination_name=destination.name if destination else reading.destination,
+        destination_name=_destination_name(destination, reading.destination),
     )
-    session.add(content)
+    if existing is not None:
+        for name, value in fields.items():
+            setattr(existing, name, value)
+        content = existing
+    else:
+        content = CreatorContent(**fields)
+        session.add(content)
     await session.flush()
     return content
 
@@ -688,15 +751,114 @@ def _stepper(on_step: StepCallback | None) -> StepCallback:
     return step
 
 
+def _caption_first() -> bool:
+    return settings.reel_caption_first and settings.instagram_via_saveapi and saveapi.enabled()
+
+
+async def _from_caption(
+    session: AsyncSession,
+    ai: AIOrchestrator,
+    shortcode: str,
+    attempts: list[Attempt],
+    workdir: Path,
+    step: StepCallback,
+    existing: CreatorContent | None,
+    full: bool,
+) -> tuple[CreatorContent | None, dict]:
+    """Instagram: ask SaveAPI about the post, then read what the creator wrote. When that is a whole
+    itinerary the video is never fetched and neither is the screen and voice-over reading.
+    Returns the finished content, or None and the post's details when the video must be read."""
+    url = canonical_url(shortcode)
+    attempt = Attempt("saveapi", "instagram", url, shortcode)
+    attempts.append(attempt)
+    started = time.monotonic()
+    try:
+        looked = saveapi.look_up_instagram(url)
+    except saveapi.SaveApiError as exc:
+        _saveapi_failed(attempt, exc, started)
+        raise (
+            _saveapi_error(exc, False)
+            or ReelError("We couldn't download that reel. Try again in a bit.")
+        ) from exc
+    attempt.ok = True
+    attempt.duration_ms = int((time.monotonic() - started) * 1000)
+    attempt.credits_spent, attempt.credits_remaining = (
+        looked.credits_spent,
+        looked.credits_remaining,
+    )
+    meta = looked.meta
+    note(
+        f"Post details from SaveAPI: {len(meta['caption'])} characters of caption",
+        seconds=round(time.monotonic() - started, 1),
+    )
+    if not full and ai.enabled:
+        await step(ImportStep.FINDING_PLACES)
+        began = time.perf_counter()
+        text = material(
+            meta["caption"], meta["hashtags"], meta["location"], [], Transcript(), meta["source"]
+        )
+        try:
+            reading = await read_places(ai, text)
+        except Exception as exc:  # noqa: BLE001 - the video can still be read
+            logger.warning("Reading the caption failed: %s", exc)
+            note(f"Caption: couldn't be read ({str(exc)[:120]}); reading the video")
+        else:
+            enough, why = caption_is_enough(reading)
+            if enough:
+                note(
+                    f"Caption is a whole itinerary ({why}): the video was not fetched and the "
+                    "screen and voice-over were not read",
+                    seconds=round(time.perf_counter() - began, 1),
+                )
+                await asyncio.to_thread(saveapi.save_cover, looked, workdir)
+                content = await _persist(
+                    session,
+                    ai,
+                    shortcode=shortcode,
+                    url=url,
+                    meta=meta,
+                    reading=reading,
+                    read_from="caption",
+                    duration=meta.get("duration"),
+                    cover=_first(workdir, "thumb"),
+                    frames=[],
+                    ocr_lines=[],
+                    transcript=Transcript(),
+                    existing=existing,
+                )
+                return content, meta
+            note(f"Caption is not enough ({why}): reading the video as well")
+    await step(ImportStep.DOWNLOADING)
+    began = time.monotonic()
+    try:
+        attempt.bytes = await asyncio.to_thread(saveapi.save_video, looked, workdir)
+    except saveapi.SaveApiError as exc:
+        _saveapi_failed(attempt, exc, started)
+        raise (
+            _saveapi_error(exc, False)
+            or ReelError("We couldn't download that reel. Try again in a bit.")
+        ) from exc
+    attempt.duration_ms = int((time.monotonic() - started) * 1000)
+    note(
+        f"Video fetched ({attempt.bytes / 1e6:.1f} MB)",
+        seconds=round(time.monotonic() - began, 1),
+    )
+    return None, meta
+
+
 async def produce_content(
     session: AsyncSession,
     ai: AIOrchestrator,
     shortcode: str,
     on_step: StepCallback | None = None,
+    refresh: bool = False,
+    full: bool = False,
 ) -> CreatorContent:
-    """Download an Instagram reel and read it into a CreatorContent row (cached by shortcode)."""
+    """Download an Instagram reel or YouTube video and read it into a CreatorContent row (cached
+    by shortcode). `refresh` fetches and reads it again into the row it already has; `full` reads
+    the video even when an Instagram caption is a whole itinerary."""
     cached_content = await cached(session, shortcode)
-    if cached_content is not None:
+    if cached_content is not None and not refresh:
         return cached_content
     step = _stepper(on_step)
     workdir = Path(tempfile.mkdtemp(prefix=f"reel-{shortcode}-"))
@@ -705,7 +867,14 @@ async def produce_content(
         attempts: list[Attempt] = []
         token = _attempts.set(attempts)
         try:
-            meta = download(shortcode, workdir)
+            if not shortcode.startswith(YOUTUBE_PREFIX) and _caption_first():
+                content, meta = await _from_caption(
+                    session, ai, shortcode, attempts, workdir, step, cached_content, full
+                )
+                if content is not None:
+                    return content
+            else:
+                meta = download(shortcode, workdir)
         finally:
             _attempts.reset(token)
             await record_attempts(attempts)
@@ -722,6 +891,7 @@ async def produce_content(
             workdir=workdir,
             thumb=_first(workdir, "thumb"),
             step=step,
+            existing=cached_content,
         )
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
@@ -782,7 +952,10 @@ async def process(session: AsyncSession, ai: AIOrchestrator, job: ReelImport) ->
                 session, ai, job.shortcode, job.upload_key, on_step=step
             )
         else:
-            content = await produce_content(session, ai, job.shortcode, on_step=step)
+            again = {"refresh": True} if job.refresh else {}
+            if job.full_read:
+                again["full"] = True
+            content = await produce_content(session, ai, job.shortcode, on_step=step, **again)
         job.log = list(events)
         if job.kind == ImportKind.CREATOR_TRIP:
             if not any(p.get("kind") != "area" for p in content.places):

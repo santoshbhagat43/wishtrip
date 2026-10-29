@@ -21,7 +21,9 @@ def test_a_day_is_kept_only_when_the_material_says_it():
     assert stated_day(3, corpus) == 3  # "third day"
     assert stated_day(4, corpus) == 4
     assert stated_day(5, corpus) is None  # the model's own idea: never said
-    assert stated_day("2", corpus) is None
+    assert stated_day("2", corpus) == 2  # models answer "2" as often as 2
+    assert stated_day("5", corpus) is None  # still only when the material says that day
+    assert stated_day("two", corpus) is None
     assert stated_day(True, corpus) is None
 
 

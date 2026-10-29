@@ -11145,6 +11145,22 @@
       "type": "string",
       "title": "Caption"
      },
+     "source": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Source",
+      "default": {}
+     },
+     "refresh": {
+      "type": "boolean",
+      "title": "Refresh",
+      "default": false
+     },
+     "read_from": {
+      "type": "string",
+      "title": "Read From",
+      "default": ""
+     },
      "duration_seconds": {
       "anyOf": [
        {
@@ -16246,6 +16262,16 @@
       "maxLength": 1000,
       "minLength": 1,
       "title": "Url"
+     },
+     "refresh": {
+      "type": "boolean",
+      "title": "Refresh",
+      "default": false
+     },
+     "full": {
+      "type": "boolean",
+      "title": "Full",
+      "default": false
      }
     },
     "type": "object",

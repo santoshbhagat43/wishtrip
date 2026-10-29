@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { Card, CardHeader, ErrorNote, PageHeader, Spinner } from "@/components/u
 import { Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
+import { titleCase } from "@/lib/format";
 import { useMe } from "@/lib/hooks/use-me";
 import { STAGE_LABEL, STATUS_TONE, clock, seconds } from "@/lib/reels";
 
@@ -49,6 +51,10 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
         }
       />
       {r.error && <ErrorNote error={r.error} />}
+
+      <SourceCard source={r.source} caption={r.caption} />
+
+      {r.read_from === "caption" && r.status === "done" && <CaptionOnly url={r.url} />}
 
       <TripCard extracted={r.extracted} />
 
@@ -159,6 +165,121 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
         </Table>
       </Card>
     </div>
+  );
+}
+
+/** This reel was read from its caption alone (it was a whole itinerary): no video, screen text or
+ *  voice-over. Staff can still have the video read. */
+function CaptionOnly({ url }: { url: string }) {
+  const router = useRouter();
+  const again = useMutation({
+    mutationFn: async () => unwrap(await api.POST("/reels/imports", { body: { url, refresh: true, full: true } })),
+    onSuccess: (job) => router.push(`/reels/${job.id}`),
+  });
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <div className="font-medium">Read from the caption only</div>
+          <div className="text-sm text-muted">
+            The caption is a whole itinerary, so the video was not fetched and its screen text and voice-over were not read. That saved time and AI cost. Places have no “seen at” time.
+          </div>
+        </div>
+        <Button type="button" variant="secondary" disabled={again.isPending || !url} onClick={() => again.mutate()}>
+          {again.isPending ? "Starting…" : "Read the video too"}
+        </Button>
+      </div>
+      {again.error && <div className="px-4 pb-4"><ErrorNote error={again.error} /></div>}
+    </Card>
+  );
+}
+
+type Music = { title?: string; author?: string; original?: boolean };
+
+const SHOWN = new Set([
+  "platform", "source", "source_url", "video_id", "title", "author", "username", "author_url", "author_verified",
+  "duration", "views", "likes", "comments", "shares", "saves", "location", "region", "published_at", "music",
+]);
+
+const count = (n: unknown) => (typeof n === "number" ? n.toLocaleString() : null);
+
+/** What the platform told us about the post (Instagram / YouTube, through SaveAPI or yt-dlp):
+ *  who made it, how it did, where and when. The caption is read for places along with the rest. */
+function SourceCard({ source, caption }: { source: Record<string, unknown>; caption: string }) {
+  if (!Object.keys(source).length) return null;
+  const text = (key: string) => (typeof source[key] === "string" && source[key] ? (source[key] as string) : null);
+  const platform = text("platform") === "youtube" ? "YouTube" : "Instagram";
+  const author = text("author");
+  const authorUrl = text("author_url");
+  const music = (source.music ?? null) as Music | null;
+  const published = text("published_at");
+  const place = [text("location"), text("region")].filter(Boolean).join(", ");
+  const stats: [string, string | null][] = [
+    ["Views", count(source.views)],
+    ["Likes", count(source.likes)],
+    ["Comments", count(source.comments)],
+    ["Shares", count(source.shares)],
+    ["Saves", count(source.saves)],
+    ["Length", typeof source.duration === "number" ? seconds(source.duration) : null],
+  ];
+  const facts: [string, React.ReactNode][] = [
+    ["Posted", published ? new Date(published).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null],
+    ["Place tag", place || null],
+    ["Music", music?.title ? `${music.title}${music.author ? ` — ${music.author}` : ""}${music.original ? " (original audio)" : ""}` : null],
+    ["Post id", text("video_id")],
+  ].filter(([, v]) => v) as [string, React.ReactNode][];
+  const more = Object.entries(source).filter(([k, v]) => !SHOWN.has(k) && v != null && typeof v !== "object");
+  return (
+    <Card>
+      <CardHeader
+        title={`From ${platform}`}
+        description={`What ${platform} told us about this post, via ${text("source") === "yt-dlp" ? "yt-dlp" : "SaveAPI"}. We read the caption for places along with the screen and the voice-over.`}
+        action={text("source_url") && <a href={text("source_url")!} target="_blank" rel="noreferrer" className="text-sm text-brand">Open post ↗</a>}
+      />
+      <div className="space-y-4 px-4 pb-4">
+        {(author || text("username")) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-semibold">{author ?? `@${text("username")}`}</span>
+            {source.author_verified === true && <Badge tone="info">verified</Badge>}
+            {authorUrl && <a href={authorUrl} target="_blank" rel="noreferrer" className="text-sm text-brand">{text("username") ? `@${text("username")}` : "Profile"} ↗</a>}
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {stats.map(([label, value]) => (
+            <div key={label}>
+              <div className="text-xs font-medium uppercase text-muted">{label}</div>
+              <div className="text-lg font-semibold tabular-nums">{value ?? "—"}</div>
+            </div>
+          ))}
+        </div>
+        {facts.length > 0 && (
+          <dl className="m-0 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {facts.map(([label, value]) => (
+              <div key={label} className="flex gap-2">
+                <dt className="w-20 shrink-0 text-muted">{label}</dt>
+                <dd className="m-0 min-w-0 break-words">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {more.length > 0 && (
+          <dl className="m-0 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {more.map(([k, v]) => (
+              <div key={k} className="flex gap-2">
+                <dt className="w-28 shrink-0 text-muted">{titleCase(k)}</dt>
+                <dd className="m-0 min-w-0 break-words">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {caption && (
+          <details open={caption.length < 400}>
+            <summary className="cursor-pointer text-sm font-medium">Caption the creator wrote</summary>
+            <p className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-sm leading-relaxed">{caption}</p>
+          </details>
+        )}
+      </div>
+    </Card>
   );
 }
 

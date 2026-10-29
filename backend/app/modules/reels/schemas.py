@@ -8,6 +8,10 @@ from app.modules.reels.models import ImportStatus, ImportStep
 
 class ReelImportCreate(BaseModel):
     url: str = Field(min_length=1, max_length=1000)
+    # Staff only: fetch and read a link again even though it was read before.
+    refresh: bool = False
+    # Staff only: read the video too, even when the caption is a whole itinerary.
+    full: bool = False
 
 
 class ReelPlace(BaseModel):
@@ -166,6 +170,11 @@ class ImportItinerary(BaseModel):
 
 class ImportDetail(ImportRow):
     caption: str
+    # What the platform told us about the post: author, counts, music, where and when.
+    source: dict = {}
+    refresh: bool = False
+    # "caption" when the caption was a whole itinerary and the video was not read; else "video".
+    read_from: str = ""
     duration_seconds: float | None
     ocr_lines: list[dict]
     transcript: str

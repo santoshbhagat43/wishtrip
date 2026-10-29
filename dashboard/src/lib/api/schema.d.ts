@@ -3937,6 +3937,23 @@ export interface components {
             total_seconds: number | null;
             /** Caption */
             caption: string;
+            /**
+             * Source
+             * @default {}
+             */
+            source: {
+                [key: string]: unknown;
+            };
+            /**
+             * Refresh
+             * @default false
+             */
+            refresh: boolean;
+            /**
+             * Read From
+             * @default
+             */
+            read_from: string;
             /** Duration Seconds */
             duration_seconds: number | null;
             /** Ocr Lines */
@@ -5890,6 +5907,16 @@ export interface components {
         ReelImportCreate: {
             /** Url */
             url: string;
+            /**
+             * Refresh
+             * @default false
+             */
+            refresh: boolean;
+            /**
+             * Full
+             * @default false
+             */
+            full: boolean;
         };
         /** ReelImportRead */
         ReelImportRead: {

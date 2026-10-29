@@ -281,8 +281,14 @@ async def read_screen(ai: AIOrchestrator, frames: list[Any], batch: int = 30) ->
 
 
 def material(caption: str, hashtags: list[str], location: str, ocr_lines: list[dict],
-             transcript: Transcript) -> str:  # fmt: skip
+             transcript: Transcript, source: dict | None = None) -> str:  # fmt: skip
     parts = [f"CAPTION:\n{caption.strip() or '(none)'}"]
+    # What the platform says about the post: its title, when the caption doesn't already start
+    # with it. (Not the author's name: a handle like "BaliDreams" would make "Bali" look named.)
+    title = str((source or {}).get("title") or "").strip()
+    if title and not caption.strip().startswith(title[:60]):
+        parts.insert(0, f"TITLE: {title}")
+
     if hashtags:
         parts.append("HASHTAGS: " + " ".join(f"#{h}" for h in hashtags))
     if location:
@@ -318,6 +324,8 @@ _ORDINALS = [
 def stated_day(value: Any, corpus: str) -> int | None:
     """A day the model gives a place, kept only when the material really says that day ("day 2",
     "day two", "second day"): a model's own idea of the order is not the creator's."""
+    if isinstance(value, str) and value.strip().isdigit():  # models often answer "2"
+        value = int(value.strip())
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 30:
         return None
     patterns = [rf"\bday\s*(?:no\s*)?{value}\b"]
@@ -439,6 +447,26 @@ def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None 
         places=places,
         tips=[str(t).strip()[:200] for t in (data.get("tips") or []) if str(t).strip()][:8],
     )
+
+
+# Strict: a caption stands in for the video only when it is plainly an itinerary.
+CAPTION_MIN_PLACES = 8  # that many named places make a trip on their own...
+CAPTION_MIN_DAYS = 2  # ...or a day-by-day layout ("Day 1: …", "Day 2: …") of at least
+CAPTION_MIN_DAY_PLACES = 4  # this many places.
+
+
+def caption_is_enough(reading: Reading) -> tuple[bool, str]:
+    """Whether what the creator wrote is a whole itinerary, so the video need not be read, and why
+    (or why not) in words staff can read in the import log."""
+    stops = [p for p in reading.places if p.get("kind") != "area"]
+    days = {p["video_day"] for p in stops if p.get("video_day")}
+    if not reading.destination:
+        return False, "the caption does not say where the trip is"
+    if len(days) >= CAPTION_MIN_DAYS and len(stops) >= CAPTION_MIN_DAY_PLACES:
+        return True, f"it lays out {len(days)} days and names {len(stops)} places"
+    if len(stops) >= CAPTION_MIN_PLACES:
+        return True, f"it names {len(stops)} places"
+    return False, f"it names only {len(stops)} places and no day-by-day plan"
 
 
 async def read_places(

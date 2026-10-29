@@ -154,9 +154,132 @@ def _iso(epoch: Any) -> str | None:
     )
 
 
+_SKIP_KEYS = ("url", "credits", "download", "token", "signature", "thumbnail")
+
+
+def instagram_source(body: dict[str, Any]) -> dict[str, Any]:
+    """What SaveAPI says about the post, as staff read it: who made it, how it did, where and
+    when, the music. The expiring CDN links (video, cover, avatar) are left out."""
+    meta = body.get("meta") or {}
+    music = meta.get("music") or {}
+    out: dict[str, Any] = {
+        "platform": "instagram",
+        "source": "saveapi",
+        "source_url": body.get("source_url"),
+        "video_id": body.get("video_id"),
+        "title": meta.get("title"),
+        "author": meta.get("author"),
+        "username": meta.get("username"),
+        "author_url": meta.get("author_url"),
+        "author_verified": meta.get("author_verified"),
+        "duration": meta.get("duration"),
+        "views": meta.get("views"),
+        "likes": meta.get("likes"),
+        "comments": meta.get("comments"),
+        "shares": meta.get("shares"),
+        "saves": meta.get("saves"),
+        "location": meta.get("location"),
+        "region": meta.get("region"),
+        "published_at": _iso(meta.get("published_at")),
+        "music": (
+            {k: music.get(k) for k in ("title", "author", "original") if music.get(k) is not None}
+            or None
+        ),
+    }
+    return {k: v for k, v in out.items() if v not in (None, "")}
+
+
+def youtube_source(*answers: dict[str, Any]) -> dict[str, Any]:
+    """What SaveAPI says about a YouTube video: every plain value in its answers (title, channel,
+    length, counts…) except links, which expire, and the credit counts."""
+    out: dict[str, Any] = {"platform": "youtube", "source": "saveapi"}
+    for answer in answers:
+        for key, value in answer.items():
+            if any(w in key.lower() for w in _SKIP_KEYS) or key == "success":
+                continue
+            if isinstance(value, str | int | float | bool) and value != "":
+                out[key] = value[:2000] if isinstance(value, str) else value
+    return out
+
+
 def _credits(body: dict[str, Any]) -> tuple[float | None, float | None]:
     credits = body.get("credits") or {}
     return credits.get("spent"), credits.get("remaining")
+
+
+@dataclass
+class Looked:
+    """SaveAPI's answer about an Instagram post, before any file is fetched: what the creator wrote
+    and where the video is. The lookup is the paid part; the file comes free from Instagram's own
+    CDN, so deciding from the caption first costs nothing extra."""
+
+    meta: dict[str, Any]
+    video_url: str
+    thumbnail_url: str | None = None
+    credits_spent: float | None = None
+    credits_remaining: float | None = None
+    calls: list[str] = field(default_factory=lambda: ["/v1/download"])
+
+
+def look_up_instagram(url: str, client: httpx.Client | None = None) -> Looked:
+    """Ask SaveAPI about an Instagram reel by its link (no file is fetched)."""
+    opened = client is None
+    client = client or _client()
+    try:
+        body = _get(client, "/v1/download", {"url": url})
+    finally:
+        if opened:
+            client.close()
+    video = next((m for m in body.get("medias") or [] if m.get("type") == "video"), None)
+    if video is None:
+        raise SaveApiError("MEDIA_NOT_FOUND", "the post has no video", http_status=404)
+    meta = body.get("meta") or {}
+    caption = str(meta.get("text") or meta.get("title") or "")
+    where = ", ".join(str(x) for x in (meta.get("location"), meta.get("region")) if x)
+    spent, remaining = _credits(body)
+    return Looked(
+        meta={
+            "shortcode": body.get("video_id") or "",
+            "owner_username": meta.get("username") or "",
+            "owner_full_name": meta.get("author") or "",
+            "caption": caption,
+            "hashtags": HASHTAG.findall(caption)[:30],
+            "location": where,
+            "posted_at": _iso(meta.get("published_at")),
+            "duration": meta.get("duration"),
+            "source": instagram_source(body),
+        },
+        video_url=video["url"],
+        thumbnail_url=meta.get("thumbnail"),
+        credits_spent=spent,
+        credits_remaining=remaining,
+    )
+
+
+def save_cover(looked: Looked, workdir: Path, cdn: httpx.Client | None = None) -> None:
+    """Only the cover picture, for a reel read from its caption alone."""
+    opened = cdn is None
+    cdn = cdn or _cdn()
+    try:
+        _save_thumbnail(cdn, looked.thumbnail_url, workdir)
+    finally:
+        if opened:
+            cdn.close()
+
+
+def save_video(looked: Looked, workdir: Path, cdn: httpx.Client | None = None) -> int:
+    """The video file and the cover, once the caption wasn't enough. Returns the size."""
+    opened = cdn is None
+    cdn = cdn or _cdn()
+    try:
+        size = _save_file(
+            cdn, looked.video_url, workdir / "reel.mp4", settings.reel_upload_max_mb * 1024 * 1024
+        )
+        _save_thumbnail(cdn, looked.thumbnail_url, workdir)
+        return size
+    finally:
+        if opened:
+            cdn.close()
 
 
 def fetch_instagram(
@@ -166,44 +289,15 @@ def fetch_instagram(
     cdn: httpx.Client | None = None,
 ) -> Fetched:
     """An Instagram reel by its link: the video, its cover and what the creator wrote."""
-    opened: list[httpx.Client] = []  # the clients this call made, and so must close
-    if client is None:
-        client = _client()
-        opened.append(client)
-    if cdn is None:
-        cdn = _cdn()
-        opened.append(cdn)
-    try:
-        body = _get(client, "/v1/download", {"url": url})
-        video = next((m for m in body.get("medias") or [] if m.get("type") == "video"), None)
-        if video is None:
-            raise SaveApiError("MEDIA_NOT_FOUND", "the post has no video", http_status=404)
-        meta = body.get("meta") or {}
-        size = _save_file(
-            cdn, video["url"], workdir / "reel.mp4", settings.reel_upload_max_mb * 1024 * 1024
-        )
-        _save_thumbnail(cdn, meta.get("thumbnail"), workdir)
-        caption = str(meta.get("text") or meta.get("title") or "")
-        spent, remaining = _credits(body)
-        return Fetched(
-            meta={
-                "shortcode": body.get("video_id") or "",
-                "owner_username": meta.get("username") or "",
-                "owner_full_name": meta.get("author") or "",
-                "caption": caption,
-                "hashtags": HASHTAG.findall(caption)[:30],
-                "location": meta.get("location") or "",
-                "posted_at": _iso(meta.get("published_at")),
-                "duration": meta.get("duration"),
-            },
-            bytes=size,
-            credits_spent=spent,
-            credits_remaining=remaining,
-            calls=["/v1/download"],
-        )
-    finally:
-        for c in opened:
-            c.close()
+    looked = look_up_instagram(url, client)
+    size = save_video(looked, workdir, cdn)
+    return Fetched(
+        meta=looked.meta,
+        bytes=size,
+        credits_spent=looked.credits_spent,
+        credits_remaining=looked.credits_remaining,
+        calls=looked.calls,
+    )
 
 
 def fetch_youtube(
@@ -245,6 +339,7 @@ def fetch_youtube(
                 "location": "",
                 "posted_at": None,
                 "duration": created.get("duration_seconds") or duration,
+                "source": youtube_source(info, created),
             },
             bytes=size,
             credits_spent=spent_total + float(spent or 0),

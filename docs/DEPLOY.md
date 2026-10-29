@@ -101,6 +101,14 @@ Set `SAVEAPI_KEY` (from saveapi.org; it starts `sk_live_`) in `.env.production` 
 - A reel or video is downloaded with our own tool first (instaloader for Instagram, yt-dlp for
   YouTube). Only if that is **blocked, fails or times out** is SaveAPI asked; a private, deleted,
   not-a-video or too-long result is not, since it would fail there too.
+- **Instagram caption first** (`REEL_CAPTION_FIRST`, on by default, needs `SAVEAPI_KEY`): the
+  Instagram lookup returns the post's details and caption before any video is fetched. If the
+  caption is a whole itinerary (a destination, plus either 8 or more named places or a
+  day-by-day plan of at least 2 days and 4 places) the places are read from it and the video,
+  the screen reading and the voice-over are skipped (no vision, speech-to-text or Gemini cost,
+  about 15 s end to end). Otherwise the video is fetched and read as before. The import log says
+  which, and staff can ask for the video anyway ("Read the video too" on the reel's page).
+  Set `REEL_CAPTION_FIRST=false` to always read the video.
 - Cost is about 1.5 credits per Instagram reel, 12 per YouTube video (2 to check its length, 10
   to get it). A failed lookup costs 0.1.
 - **Every download attempt is recorded** in the `download_requests` table: which tool, whether it

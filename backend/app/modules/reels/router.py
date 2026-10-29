@@ -89,15 +89,24 @@ async def start_import(
             "Paste an Instagram reel or YouTube video link, "
             "like instagram.com/reel/… or youtube.com/shorts/…"
         )
-    if await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
+    # Staff trying links from the dashboard are not held to the traveller's hourly limit.
+    staff = user.role in (Role.ADMIN, Role.EDITOR)
+    if not staff and await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try again in an hour."
         )
-    job = ReelImport(url=service.canonical_url(shortcode), shortcode=shortcode, user_id=user.id)
+    refresh = data.refresh and staff
+    job = ReelImport(
+        url=service.canonical_url(shortcode),
+        shortcode=shortcode,
+        user_id=user.id,
+        refresh=refresh,
+        full_read=data.full and staff,
+    )
     session.add(job)
     await session.commit()
     content = await service.cached(session, shortcode)
-    if content:
+    if content and not refresh:
         await service.finish(session, job, content)  # read before: no download needed
     elif settings.reels_inline:
         await service.process(session, ai, job)
@@ -429,6 +438,9 @@ async def admin_import(
         **await _row(session, job),
         itineraries=[ImportItinerary.model_validate(t, from_attributes=True) for t in trips],
         caption=content.caption if content else "",
+        source=content.source_meta if content else {},
+        refresh=job.refresh,
+        read_from=(content.extracted or {}).get("read_from", "video") if content else "",
         duration_seconds=content.duration_seconds if content else None,
         ocr_lines=content.ocr_lines if content else [],
         transcript=content.transcript if content else "",

@@ -22,6 +22,8 @@ YT = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 @pytest.fixture(autouse=True)
 def key(monkeypatch):
     monkeypatch.setattr(settings, "saveapi_key", "sk_live_test")
+    # These tests drive download() and the client; the caption-first route is tested in test_reels.
+    monkeypatch.setattr(settings, "reel_caption_first", False)
     monkeypatch.setattr(saveapi.time, "sleep", lambda *_: None)
 
 
@@ -78,9 +80,17 @@ INSTAGRAM_REEL = {
         "username": "goadiaries",
         "author": "Goa Diaries",
         "location": "Anjuna",
+        "region": "Goa",
         "published_at": 1760000000,
         "duration": 21,
+        "likes": 205212,
+        "comments": 995,
+        "views": None,
+        "author_url": "https://www.instagram.com/goadiaries/",
+        "author_verified": True,
+        "author_avatar": "https://cdn.example/avatar.jpg",
         "thumbnail": "https://cdn.example/thumb.jpg",
+        "music": {"title": "Run It Up", "author": "Hanumankind", "original": False},
     },
     "credits": {"spent": 1.5, "remaining": 998.5},
 }
@@ -102,8 +112,15 @@ def test_an_instagram_reel_is_fetched_with_what_the_creator_wrote(tmp_path):
     assert fetched.meta["owner_username"] == "goadiaries"
     assert fetched.meta["caption"] == "Slow days in Goa #goa #beach"
     assert fetched.meta["hashtags"] == ["goa", "beach"]
-    assert fetched.meta["location"] == "Anjuna"
+    assert fetched.meta["location"] == "Anjuna, Goa"
     assert fetched.meta["posted_at"].startswith("2025-10-")
+    source = fetched.meta["source"]
+    assert (source["author"], source["likes"], source["comments"]) == ("Goa Diaries", 205212, 995)
+    assert source["music"] == {"title": "Run It Up", "author": "Hanumankind", "original": False}
+    assert source["author_verified"] is True and source["video_id"] == "Cabc123xyz"
+    assert "views" not in source  # what SaveAPI didn't know is left out, not shown as zero
+    # The links that expire are not kept.
+    assert not any("cdn.example" in str(v) for v in source.values())
     assert (fetched.credits_spent, fetched.credits_remaining) == (1.5, 998.5)
     assert fetched.bytes == len(VIDEO_BYTES)
     assert api_seen[0].url.params["url"] == IG
@@ -162,6 +179,10 @@ def test_a_youtube_video_is_fetched_in_480p(tmp_path):
     assert seen[1].url.params["quality"] == "480p"
     assert fetched.meta["caption"] == "Bali in 3 days"
     assert fetched.meta["owner_username"] == ""  # a channel isn't a WishTrip creator
+    assert fetched.meta["source"]["title"] == "Bali in 3 days"
+    assert fetched.meta["source"]["duration_seconds"] == 120
+    assert not any("cdn.example" in str(v) for v in fetched.meta["source"].values())
+    assert "credits" not in fetched.meta["source"]
     assert (fetched.credits_spent, fetched.credits_remaining) == (12.0, 88)
     assert (tmp_path / "reel.mp4").exists()
 

@@ -96,6 +96,30 @@ def main(url: str, workdir: str) -> int:
             else None
         ),
         "duration": info.get("duration"),
+        "source": {
+            k: v
+            for k, v in {
+                "platform": "youtube",
+                "source": "yt-dlp",
+                "source_url": info.get("webpage_url"),
+                "video_id": info.get("id"),
+                "title": info.get("title"),
+                "author": info.get("channel") or info.get("uploader"),
+                "author_url": info.get("channel_url") or info.get("uploader_url"),
+                "duration": info.get("duration"),
+                "views": info.get("view_count"),
+                "likes": info.get("like_count"),
+                "comments": info.get("comment_count"),
+                "published_at": (
+                    datetime.strptime(uploaded, "%Y%m%d").isoformat() + "+00:00"
+                    if len(uploaded) == 8
+                    else None
+                ),
+                "categories": info.get("categories"),
+                "tags": (info.get("tags") or [])[:15],
+            }.items()
+            if v not in (None, "", [])
+        },
     }
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False))
     return EXIT_OK

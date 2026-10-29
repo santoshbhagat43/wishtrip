@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     reel_screen_max_frames: int = 400
     reel_screen_batch: int = 30
     reel_max_seconds: int = 180
+    # Read an Instagram caption first; when it is a whole itinerary, skip the video (and the
+    # screen + voice-over reading that costs). Off: always read the video.
+    reel_caption_first: bool = True
     reel_max_frames: int = 60
     # At most this many of those frames are read by OCR, spread over the whole video (after
     # repeated screens are dropped). OCR is the slow part on a small server: about a second a

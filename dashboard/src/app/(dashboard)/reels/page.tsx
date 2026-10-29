@@ -66,6 +66,7 @@ export default function ReelsPage() {
           ]}
         />
       )}
+      <PasteLink />
       <TestUpload />
       <Card>
         <form
@@ -172,6 +173,64 @@ export default function ReelsPage() {
   );
 }
 
+
+/** Paste an Instagram reel or YouTube link: we fetch the video and what the platform says about it
+ *  (SaveAPI), then read it for places like any import, and open its page to watch it happen. */
+function PasteLink() {
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [again, setAgain] = useState(false);
+  const [whole, setWhole] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function start(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const job = unwrap(await api.POST("/reels/imports", { body: { url: url.trim(), refresh: again, full: whole } }));
+      router.push(`/reels/${job.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That link didn't work.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mb-4">
+      <form className="space-y-3 p-4" onSubmit={start}>
+        <div>
+          <div className="font-medium">Read a link</div>
+          <div className="text-sm text-muted">
+            Paste an Instagram reel or YouTube video link. We fetch its details (author, likes, caption, location, music). When the caption is a whole itinerary we list the places from it and skip the video; otherwise we also read the screen and voice-over.
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            className="min-w-[260px] flex-1"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.instagram.com/reels/… or https://www.youtube.com/watch?v=…"
+            aria-label="Reel or video link"
+          />
+          <Button type="submit" variant="accent" disabled={busy || !url.trim()}>
+            {busy ? "Starting…" : "Read this link"}
+          </Button>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" checked={again} onChange={(e) => setAgain(e.target.checked)} />
+          Fetch it again even if it was read before (uses SaveAPI credits)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} />
+          Read the video too, even when the caption is already a whole itinerary
+        </label>
+        {error && <ErrorNote error={error} />}
+      </form>
+    </Card>
+  );
+}
 
 /** Upload a video from this computer and watch it read: the same pipeline as a traveller's
  *  upload (screen text, voice-over, places), then build its itinerary on the import's page. */

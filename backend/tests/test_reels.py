@@ -170,6 +170,7 @@ def fake_instagram(tmp_path, monkeypatch):
             "location": "London, United Kingdom",
             "posted_at": "2026-09-01T10:00:00+00:00",
             "duration": 2.0,
+            "source": {"platform": "instagram", "author": "London Bites", "likes": 1200},
         }
 
     monkeypatch.setattr(service, "download", download)
@@ -877,3 +878,246 @@ def test_a_frame_every_half_second(tmp_path):
     assert [f.t for f in frames] == sorted(f.t for f in frames)
     capped = media.every(video, tmp_path / "capped", 2.0, 3)
     assert len(capped) == 3
+
+
+async def test_staff_see_what_the_platform_said_and_can_read_a_link_again(
+    client, admin, traveler, london, fake_instagram, builds
+):
+    ai = ReelAI()
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    try:
+        first = await client.post("/reels/imports", json={"url": REEL}, headers=auth(admin))
+        assert first.status_code == 201, first.text
+        detail = (
+            await client.get(f"/reels/admin/imports/{first.json()['id']}", headers=auth(admin))
+        ).json()
+        assert detail["source"] == {
+            "platform": "instagram",
+            "author": "London Bites",
+            "likes": 1200,
+        }
+        assert len(fake_instagram) == 1
+
+        # Pasted again, it is not fetched again (it would cost credits)...
+        await client.post("/reels/imports", json={"url": REEL}, headers=auth(admin))
+        assert len(fake_instagram) == 1
+        # ...unless staff ask. A traveller cannot.
+        await client.post(
+            "/reels/imports", json={"url": REEL, "refresh": True}, headers=auth(traveler)
+        )
+        assert len(fake_instagram) == 1
+        again = await client.post(
+            "/reels/imports", json={"url": REEL, "refresh": True}, headers=auth(admin)
+        )
+        assert again.status_code == 201 and again.json()["status"] == "done"
+        assert len(fake_instagram) == 2
+    finally:
+        app.dependency_overrides.clear()
+
+
+# Caption first: a caption that is a whole itinerary stands in for the video --------------------
+
+ITINERARY_CAPTION = (
+    "3 days in London\n"
+    "Day 1: Tower Bridge, then Borough Market for lunch, then the Tate Modern.\n"
+    "Day 2: Buckingham Palace, St James's Park and Covent Garden.\n"
+    "Day 3: the British Museum, Camden Market and Primrose Hill."
+)
+ITINERARY_PLACES = [
+    ("Tower Bridge", 1), ("Borough Market", 1), ("Tate Modern", 1),
+    ("Buckingham Palace", 2), ("St James's Park", 2), ("Covent Garden", 2),
+    ("British Museum", 3), ("Camden Market", 3), ("Primrose Hill", 3),
+]  # fmt: skip
+
+
+class CaptionAI(ReelAI):
+    """Reads the places out of whatever caption it is given."""
+
+    def __init__(self, places):
+        super().__init__()
+        self.places = places
+
+    async def chat(self, task, messages, **kwargs):
+        if task == "planner" and "You read travel reels" in messages[0]["content"]:
+            self.calls.append((task, messages))
+            return json.dumps(
+                {
+                    "destination": "London",
+                    "country": "United Kingdom",
+                    "summary": "London in three days.",
+                    "days_hint": 3,
+                    "places": [
+                        {"name": name, "kind": "sight", "evidence": name, "source": "caption",
+                         "day": day}
+                        for name, day in self.places
+                    ],
+                }
+            )  # fmt: skip
+        return await super().chat(task, messages, **kwargs)
+
+
+@pytest.fixture
+def saveapi_says(tmp_path, monkeypatch):
+    """SaveAPI stand-in. `calls` lists what was asked of it: the lookup, then maybe the video."""
+    from app.modules.reels import saveapi
+
+    calls: list[str] = []
+    monkeypatch.setattr(settings, "saveapi_key", "test")
+    monkeypatch.setattr(settings, "instagram_via_saveapi", True)
+    monkeypatch.setattr(settings, "reels_inline", True)
+
+    def say(caption: str) -> None:
+        def look_up(url, client=None):
+            calls.append("lookup")
+            meta = {
+                "shortcode": "DCaption1",
+                "owner_username": "londonbites",
+                "owner_full_name": "London Bites",
+                "caption": caption,
+                "hashtags": [],
+                "location": "London",
+                "posted_at": None,
+                "duration": 40,
+                "source": {"platform": "instagram", "author": "London Bites", "likes": 9},
+            }
+            return saveapi.Looked(meta=meta, video_url="https://cdn.example/r.mp4",
+                                  credits_spent=1.5, credits_remaining=99)  # fmt: skip
+
+        def save_cover(looked, workdir, cdn=None):
+            calls.append("cover")
+            (workdir / "thumb.jpg").write_bytes(b"jpeg")
+
+        def save_video(looked, workdir, cdn=None):
+            calls.append("video")
+            source = tmp_path / "source"
+            make_reel(source, ["Tower Bridge", "Borough Market"])
+            shutil.copy(source / "reel.mp4", workdir / "reel.mp4")
+            shutil.copy(source / "thumb.jpg", workdir / "thumb.jpg")
+            return 1000
+
+        monkeypatch.setattr(saveapi, "look_up_instagram", look_up)
+        monkeypatch.setattr(saveapi, "save_cover", save_cover)
+        monkeypatch.setattr(saveapi, "save_video", save_video)
+
+    say.calls = calls
+    return say
+
+
+def test_a_caption_is_enough_only_when_it_is_plainly_an_itinerary():
+    from app.modules.reels.understand import Reading, caption_is_enough
+
+    def place(day):
+        return {"name": "x", "kind": "sight", "video_day": day}
+
+    def reading(places, destination="London"):
+        return Reading(destination=destination, places=places)
+
+    assert caption_is_enough(reading([place(None)] * 8))[0]  # eight places make a trip
+    assert not caption_is_enough(reading([place(None)] * 7))[0]
+    assert caption_is_enough(reading([place(1), place(1), place(2), place(2)]))[0]  # a day plan
+    assert not caption_is_enough(reading([place(1), place(2), place(2)]))[0]  # too few places
+    assert not caption_is_enough(reading([place(1)] * 4))[0]  # one day is not a plan
+    assert not caption_is_enough(reading([place(None)] * 9, destination=""))[0]  # where?
+    areas = [{"name": "Bali", "kind": "area", "video_day": 1}] * 9
+    assert not caption_is_enough(reading(areas))[0]  # regions are not stops
+
+
+async def test_an_itinerary_caption_skips_the_video_and_everything_that_costs(
+    client, admin, london, saveapi_says, builds
+):
+    saveapi_says(ITINERARY_CAPTION)
+    ai = CaptionAI(ITINERARY_PLACES)
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    try:
+        r = await client.post("/reels/imports", json={"url": REEL}, headers=auth(admin))
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 201, r.text
+    job = r.json()
+    assert job["status"] == "done", job["error"]
+    assert saveapi_says.calls == ["lookup", "cover"]  # the video was never fetched
+    assert not any(task == "transcribe" for task, _ in ai.calls)  # nothing was listened to
+    assert len(job["content"]["places"]) == 9
+    detail = (await client.get(f"/reels/admin/imports/{job['id']}", headers=auth(admin))).json()
+    assert detail["read_from"] == "caption"
+    assert detail["ocr_lines"] == [] and detail["transcript"] == ""
+    assert detail["source"]["author"] == "London Bites"
+    assert any("Caption is a whole itinerary" in e["message"] for e in detail["log"])
+    assert [d["provider"] for d in detail["downloads"]] == ["saveapi"]
+    assert (
+        detail["downloads"][0]["credits_spent"] == 1.5 and detail["downloads"][0]["bytes"] is None
+    )
+
+
+async def test_a_thin_caption_still_gets_the_video_read(
+    client, admin, london, saveapi_says, builds
+):
+    if not (shutil.which("ffmpeg") and shutil.which("tesseract")):
+        pytest.skip("needs ffmpeg + tesseract")
+    saveapi_says("Weekend in London #london")
+    ai = CaptionAI(ITINERARY_PLACES[:3])
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    try:
+        r = await client.post("/reels/imports", json={"url": REEL}, headers=auth(admin))
+    finally:
+        app.dependency_overrides.clear()
+    job = r.json()
+    assert job["status"] == "done", job["error"]
+    assert saveapi_says.calls == ["lookup", "video"]
+    detail = (await client.get(f"/reels/admin/imports/{job['id']}", headers=auth(admin))).json()
+    assert detail["read_from"] == "video" and detail["ocr_lines"]
+    assert any("Caption is not enough" in e["message"] for e in detail["log"])
+
+
+async def test_staff_can_ask_for_the_video_even_when_the_caption_is_enough(
+    client, admin, traveler, london, saveapi_says, builds
+):
+    if not (shutil.which("ffmpeg") and shutil.which("tesseract")):
+        pytest.skip("needs ffmpeg + tesseract")
+    saveapi_says(ITINERARY_CAPTION)
+    ai = CaptionAI(ITINERARY_PLACES)
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
+    try:
+        await client.post("/reels/imports", json={"url": REEL}, headers=auth(admin))
+        assert saveapi_says.calls == ["lookup", "cover"]
+        # A traveller cannot force it.
+        await client.post(
+            "/reels/imports",
+            json={"url": REEL, "refresh": True, "full": True},
+            headers=auth(traveler),
+        )
+        assert saveapi_says.calls == ["lookup", "cover"]
+        again = await client.post(
+            "/reels/imports", json={"url": REEL, "refresh": True, "full": True}, headers=auth(admin)
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert again.json()["status"] == "done", again.json()["error"]
+    assert saveapi_says.calls == ["lookup", "cover", "lookup", "video"]
+    detail = (
+        await client.get(f"/reels/admin/imports/{again.json()['id']}", headers=auth(admin))
+    ).json()
+    assert detail["read_from"] == "video"
+
+
+def test_a_day_the_model_gives_as_text_still_counts_when_the_caption_says_it():
+    from app.modules.reels.understand import stated_day
+
+    assert stated_day("2", "day 2 devkund waterfall") == 2
+    assert stated_day(" 3 ", "day 3 kumbe waterfall") == 3
+    assert stated_day("2", "devkund waterfall") is None  # the caption never says day 2
+    assert stated_day("two", "day two") is None  # only digits are read from text
+
+
+def test_a_regions_first_city_is_not_the_reels_destination():
+    from types import SimpleNamespace
+
+    from app.modules.reels.service import _destination_name
+
+    city = SimpleNamespace(name="Munnar tea hills", aliases=[])
+    assert _destination_name(city, "Maharashtra") == "Maharashtra"
+    assert _destination_name(SimpleNamespace(name="London", aliases=[]), "london") == "London"
+    assert _destination_name(SimpleNamespace(name="Krabi (Ao Nang)", aliases=[]), "Krabi") == (
+        "Krabi (Ao Nang)"
+    )
+    assert _destination_name(None, "Maharashtra") == "Maharashtra"

@@ -22,6 +22,9 @@ class CreatorContent(UUIDPrimaryKey, Timestamps, Base):
     shortcode: Mapped[str] = mapped_column(String(64), unique=True)
     url: Mapped[str] = mapped_column(String(1000))
     caption: Mapped[str] = mapped_column(Text, default="")
+    # What the platform told us about the post (via SaveAPI or yt-dlp): author, counts, music,
+    # where and when. Empty for an uploaded video and for reels read before this was kept.
+    source_meta: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
     location_tag: Mapped[str] = mapped_column(String(255), default="")
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     duration_seconds: Mapped[float | None] = mapped_column(Float)
@@ -97,6 +100,10 @@ class ReelImport(UUIDPrimaryKey, Timestamps, Base):
     )
     step: Mapped[ImportStep] = mapped_column(str_enum(ImportStep), default=ImportStep.QUEUED)
     error: Mapped[str] = mapped_column(Text, default="")
+    # Staff asked to fetch and read this link again even though it was read before.
+    refresh: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Read the video even when an Instagram caption is a whole itinerary.
+    full_read: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # What happened while it ran, in order: {"at": iso time, "step": ..., "message": ..., ...}.
     # A "step" entry marks the start of a stage; the others are notes (sizes, counts, seconds).
