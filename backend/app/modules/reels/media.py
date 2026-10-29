@@ -75,6 +75,24 @@ def frames(video: Path, outdir: Path, max_frames: int, duration: float = 0) -> l
     return [Frame(t=times[i] if i < len(times) else 0.0, path=p) for i, p in enumerate(files)]
 
 
+def every(video: Path, outdir: Path, fps: float, max_frames: int) -> list[Frame]:
+    """A frame every 1/fps seconds over the whole video (fewer, evenly, past `max_frames`): what
+    the screen reader reads, so a caption that is up for a second is never skipped."""
+    outdir.mkdir(parents=True, exist_ok=True)
+    duration = probe(video).duration
+    if duration and duration * fps > max_frames:
+        fps = max_frames / duration
+    _run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(video),
+         "-vf", f"fps={fps:.4f},scale=720:-2", "-frames:v", str(max_frames),
+         "-q:v", "3", str(outdir / "s_%05d.jpg")],
+        timeout=180,
+    )  # fmt: skip
+    files = sorted(outdir.glob("s_*.jpg"))
+    # ffmpeg's fps filter puts frame i at the middle of its slot.
+    return [Frame(t=round((i + 0.5) / fps, 2), path=p) for i, p in enumerate(files)]
+
+
 def spread(frame_list: list[Frame], count: int) -> list[Frame]:
     """`count` frames spread evenly over the video, in time order (all of them if fewer)."""
     if count <= 0 or not frame_list:

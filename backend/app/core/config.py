@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     reel_read_model: str = "google/gemini-2.5-flash"
     # Text on screen is read by this vision model (OpenRouter); Tesseract is the fallback.
     reel_screen_model: str = "google/gemini-2.5-flash"
+    # It reads a frame every 1/fps seconds, all of them (a caption is often up for only a second),
+    # in calls of `batch` frames run side by side; past `max_frames` the frames are spread wider.
+    reel_screen_fps: float = 2.0
+    reel_screen_max_frames: int = 400
+    reel_screen_batch: int = 30
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
     # At most this many of those frames are read by OCR, spread over the whole video (after

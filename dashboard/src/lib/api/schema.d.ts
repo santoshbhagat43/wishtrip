@@ -3949,6 +3949,13 @@ export interface components {
             transcript_language: string;
             /** Transcript En */
             transcript_en: string;
+            /**
+             * Transcript Segments
+             * @default []
+             */
+            transcript_segments: {
+                [key: string]: unknown;
+            }[];
             /** Extracted */
             extracted: {
                 [key: string]: unknown;

@@ -106,7 +106,7 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
           <ul className="max-h-96 divide-y divide-line overflow-auto text-sm">
             {r.ocr_lines.map((l, i) => (
               <li key={i} className="flex gap-3 px-4 py-1.5">
-                <span className="w-12 shrink-0 tabular-nums text-muted">{typeof l.t === "number" ? `${l.t.toFixed(1)}s` : ""}</span>
+                <span className="w-12 shrink-0 tabular-nums text-muted">{typeof l.t === "number" ? at(l.t) : ""}</span>
                 <span>{String(l.text ?? "")}</span>
               </li>
             ))}
@@ -116,7 +116,19 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
         <Card>
           <CardHeader title="Voice-over" description={r.transcript_language ? `Language: ${r.transcript_language}` : "Speech to text"} />
           <div className="max-h-96 space-y-3 overflow-auto p-4 text-sm">
-            {r.transcript ? <p className="whitespace-pre-wrap">{r.transcript}</p> : <p className="text-muted">Nothing heard.</p>}
+            {r.transcript_segments?.length ? (
+              <p className="leading-relaxed">
+                {r.transcript_segments.map((seg, i) => (
+                  <span key={i}>
+                    <span className="font-medium tabular-nums text-brand">({at(Number(seg.t))})</span> {String(seg.text)}{" "}
+                  </span>
+                ))}
+              </p>
+            ) : r.transcript ? (
+              <p className="whitespace-pre-wrap">{r.transcript}</p>
+            ) : (
+              <p className="text-muted">Nothing heard.</p>
+            )}
             {r.transcript_en && r.transcript_en !== r.transcript && (
               <div><div className="text-xs font-medium uppercase text-muted">In English</div><p className="whitespace-pre-wrap">{r.transcript_en}</p></div>
             )}
@@ -311,6 +323,12 @@ function Days({ items, days }: { items: Stop[]; days: number }) {
 }
 
 const KIND_TONE: Record<string, "ok" | "warn" | "danger" | "neutral"> = { stay: "ok", travel: "neutral", food: "warn", sight: "ok", experience: "ok" };
+
+/** Seconds into the video as m:ss, the way a player shows it. */
+function at(seconds: number) {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 function Bar({ label, value, max }: { label: string; value: number; max: number }) {
   return (

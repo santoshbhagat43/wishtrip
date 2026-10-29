@@ -434,6 +434,7 @@ async def admin_import(
         transcript=content.transcript if content else "",
         transcript_language=content.transcript_language if content else "",
         transcript_en=content.transcript_en if content else "",
+        transcript_segments=content.transcript_segments if content else [],
         extracted=content.extracted if content else {},
         place_list=content.places if content else [],
         log=[ImportLogEntry(**e) for e in job.log or []],

@@ -171,6 +171,7 @@ class ImportDetail(ImportRow):
     transcript: str
     transcript_language: str
     transcript_en: str
+    transcript_segments: list[dict] = []
     extracted: dict
     place_list: list[dict]
     itineraries: list[ImportItinerary] = []

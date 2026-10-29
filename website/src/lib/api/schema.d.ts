@@ -884,6 +884,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/admin/imports/{import_id}/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Places To Ours
+         * @description Publish this reel's places that are not in our places yet (name, type and town only,
+         *     marked as needing verification), then match the reel again.
+         */
+        post: operations["add_places_to_ours_reels_admin_imports__import_id__places_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reels/admin/imports/{import_id}": {
         parameters: {
             query?: never;
@@ -3928,6 +3949,13 @@ export interface components {
             transcript_language: string;
             /** Transcript En */
             transcript_en: string;
+            /**
+             * Transcript Segments
+             * @default []
+             */
+            transcript_segments: {
+                [key: string]: unknown;
+            }[];
             /** Extracted */
             extracted: {
                 [key: string]: unknown;
@@ -8681,6 +8709,37 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_places_to_ours_reels_admin_imports__import_id__places_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

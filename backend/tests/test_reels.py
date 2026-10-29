@@ -661,7 +661,7 @@ class SpeechAI(ReelAI):
         return await super().chat(task, messages, **kwargs)
 
 
-async def test_the_speech_model_hears_the_voice_over(monkeypatch, tmp_path):
+async def test_the_speech_model_hears_the_voice_over_with_its_times(monkeypatch, tmp_path):
     import httpx
 
     seen = {}
@@ -669,24 +669,66 @@ async def test_the_speech_model_hears_the_voice_over(monkeypatch, tmp_path):
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         seen.update(url=str(request.url), auth=request.headers["authorization"],
-                    model=body["model"], format=body["input_audio"]["format"])  # fmt: skip
-        return httpx.Response(200, json={"text": "Shaam ko Le Morne jao.", "usage": {"seconds": 3}})
+                    model=body["model"], format=body["input_audio"]["format"],
+                    response_format=body.get("response_format"))  # fmt: skip
+        return httpx.Response(200, json={
+            "text": "Shaam ko Le Morne jao. Wahan ruko.",
+            "segments": [{"start": 3.2, "end": 5, "text": "Wahan ruko."},
+                         {"start": 0.0, "end": 3, "text": "Shaam ko Le Morne jao."}],
+        })  # fmt: skip
 
     _stt(monkeypatch, handler)
     ai = SpeechAI()
     heard = await service.listen(AIOrchestrator(client=ai), tmp_path / "v.mp4", tmp_path, True)
     assert (heard.text, heard.language, heard.english) == (
-        "Shaam ko Le Morne jao.",
+        "Shaam ko Le Morne jao. Wahan ruko.",
         "hi",
         "Go to Le Morne at sunset.",
     )
+    assert heard.segments == [
+        {"t": 0.0, "text": "Shaam ko Le Morne jao."},
+        {"t": 3.2, "text": "Wahan ruko."},
+    ]
     assert seen == {
         "url": "https://openrouter.ai/api/v1/audio/transcriptions",
         "auth": "Bearer or-test",
         "model": "x-ai/grok-stt-1.0",
         "format": "mp3",
+        "response_format": "verbose_json",
     }
     assert [task for task, _ in ai.calls] == ["intent"]  # Gemini wasn't needed
+
+
+class TimingAI(SpeechAI):
+    async def chat(self, task, messages, **kwargs):
+        if task == "transcribe":
+            self.calls.append((task, messages))
+            said = "Go to Le Morne."
+            return json.dumps(
+                {"language": "en", "transcript": said, "segments": [{"start": 1.5, "text": said}]}
+            )
+        return await super().chat(task, messages, **kwargs)
+
+
+async def test_words_without_times_are_timed_by_gemini(monkeypatch, tmp_path):
+    import httpx
+
+    asked = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        asked.append(body.get("response_format"))
+        if body.get("response_format"):  # this provider can't give times
+            return httpx.Response(400, json={"error": "verbose_json is not supported"})
+        return httpx.Response(200, json={"text": "Go to Le Morne."})
+
+    _stt(monkeypatch, handler)
+    ai = TimingAI()
+    heard = await service.listen(AIOrchestrator(client=ai), tmp_path / "v.mp4", tmp_path, True)
+    assert asked == ["verbose_json", None]
+    assert heard.text == "Go to Le Morne."  # the speech model's words
+    assert heard.segments == [{"t": 1.5, "text": "Go to Le Morne."}]  # Gemini's times
+    assert "transcribe" in [task for task, _ in ai.calls]
 
 
 async def test_the_speech_model_failing_falls_back_to_gemini(monkeypatch, tmp_path):
@@ -787,3 +829,51 @@ async def test_staff_publish_a_reels_unknown_places(client, admin, traveler):
     # Matched to the place already added, so it is one place on the reel, not two.
     names = [p["name"] for p in detail["place_list"]]
     assert "Rum tasting at Chamarel" in names and "Rum Tasting in Chamarel" not in names
+
+
+class BatchAI(ReelAI):
+    """Reads each frame's label back: frame at t=k shows "line k" (and the same "Le Morne")."""
+
+    MODELS = {**ReelAI.MODELS, "screen": "google/gemini-2.5-flash"}
+
+    async def chat(self, task, messages, **kwargs):
+        if task != "screen":
+            return await super().chat(task, messages, **kwargs)
+        self.calls.append((task, messages))
+        parts = messages[0]["content"]
+        labels = [
+            p["text"] for p in parts if p["type"] == "text" and p["text"].startswith("Frame ")
+        ]
+        frames = []
+        for n, label in enumerate(labels, 1):
+            t = float(label.split("(")[1].rstrip("s)"))
+            frames.append({"n": n, "lines": [f"caption at {t:.0f}", "Le Morne"]})
+        return json.dumps({"frames": frames})
+
+
+async def test_every_frame_is_read_in_batches(tmp_path):
+    from PIL import Image
+
+    from app.modules.reels.understand import read_screen
+
+    frames = []
+    for i in range(5):
+        path = tmp_path / f"s{i}.jpg"
+        Image.new("RGB", (72, 128)).save(path)
+        frames.append(media.Frame(t=float(i), path=path))
+    ai = BatchAI()
+    lines = await read_screen(AIOrchestrator(client=ai), frames, batch=2)
+    assert len(ai.calls) == 3  # 2 + 2 + 1 frames, none skipped
+    assert [line["text"] for line in lines] == [
+        "caption at 0", "Le Morne", "caption at 1", "caption at 2", "caption at 3", "caption at 4"
+    ]  # fmt: skip
+
+
+@needs_ffmpeg
+def test_a_frame_every_half_second(tmp_path):
+    video = make_reel(tmp_path, ["One", "Two", "Three"])
+    frames = media.every(video, tmp_path / "screen", 2.0, 400)
+    assert 5 <= len(frames) <= 7 and frames[0].t == 0.25
+    assert [f.t for f in frames] == sorted(f.t for f in frames)
+    capped = media.every(video, tmp_path / "capped", 2.0, 3)
+    assert len(capped) == 3

@@ -352,6 +352,8 @@ async def listen(ai: AIOrchestrator, video: Path, workdir: Path, has_audio: bool
                 if heard.text
                 else f"Voice-over: {settings.sst_model} heard no speech"
             )
+            if heard.text and not heard.segments and ai.supports("transcribe"):
+                heard.segments = await _times(ai, mp3)
             return heard
         except (httpx.HTTPError, ValueError) as exc:
             logger.warning("Speech to text failed: %s", exc)
@@ -373,6 +375,18 @@ async def listen(ai: AIOrchestrator, video: Path, workdir: Path, has_audio: bool
             note(f"Voice-over: Gemini failed, try {attempt} ({str(exc)[:160]})")
     # Caption and on-screen text still make a reading; the voice-over is a bonus.
     return Transcript()
+
+
+async def _times(ai: AIOrchestrator, mp3: bytes) -> list[dict[str, Any]]:
+    """When the voice-over in this audio is said (the speech model gave the words alone)."""
+    try:
+        segments = (await transcribe(ai, mp3)).segments
+    except (AIUnavailableError, ValueError) as exc:
+        logger.warning("Timing the voice-over failed: %s", exc)
+        note(f"Voice-over: couldn't time it ({str(exc)[:120]})")
+        return []
+    note(f"Voice-over timed by Gemini ({len(segments)} parts)")
+    return segments
 
 
 def _norm(text: str) -> str:
@@ -528,23 +542,23 @@ UPLOAD_META = {
 FRAMES = "reels/frames"
 
 
-# Frames the vision model reads in one call (after repeated screens are dropped).
-SCREEN_FRAMES = 30
-
-
 async def _read_screen(
     ai: AIOrchestrator, video: Path, workdir: Path, duration: float
 ) -> tuple[list[media.Frame], list[dict]]:
-    """Text on screen: a vision model reads the frames; Tesseract when it isn't set up or fails
-    (Tesseract garbles captions drawn over video, so it is only the fallback)."""
+    """Text on screen: a vision model reads a frame every half second, all of them; Tesseract
+    when it isn't set up or fails (Tesseract garbles captions drawn over video, so it is only the
+    fallback). The scene frames are still cut, for the cover choice."""
     frame_list = await asyncio.to_thread(
         media.frames, video, workdir / "frames", settings.reel_max_frames, duration
     )
     if ai.supports("screen"):
-        picked = media.spread(await asyncio.to_thread(media.new_screens, frame_list), SCREEN_FRAMES)
+        sampled = await asyncio.to_thread(
+            media.every, video, workdir / "screen", settings.reel_screen_fps,
+            settings.reel_screen_max_frames,
+        )  # fmt: skip
         try:
-            lines = await read_screen(ai, picked) if picked else []
-            note(f"Screen read by {ai.model_for('screen')} ({len(picked)} frames)")
+            lines = await read_screen(ai, sampled, batch=settings.reel_screen_batch)
+            note(f"Screen read by {ai.model_for('screen')} ({len(sampled)} frames, every one)")
             return frame_list, lines
         except (AIUnavailableError, ValueError) as exc:
             logger.warning("Reading the screen with AI failed: %s", exc)
@@ -601,7 +615,7 @@ async def _read_into_content(
         raise
     screen_done = time.perf_counter()
     note(
-        f"Screen: {len(frame_list)} frames, {len(ocr_lines)} lines of text read",
+        f"Screen: {len(ocr_lines)} lines of text read",
         seconds=round(screen_done - started, 1),
     )
     transcript = await listening
@@ -655,6 +669,7 @@ async def _read_into_content(
         transcript=transcript.text,
         transcript_language=transcript.language,
         transcript_en=transcript.english,
+        transcript_segments=transcript.segments,
         extracted=reading.to_dict(),
         places=places,
         destination_id=destination.id if destination else None,

@@ -20,8 +20,12 @@ Return JSON only:
 {"language": "<ISO 639-1 code of the speech, or empty>",
  "transcript": "<the speech verbatim, in its original language>",
  "english": "<an English translation; repeat the transcript if it is already English>",
+ "segments": [{"start": <seconds from the start of the audio when this part is said>,
+               "text": "<that part of the speech, verbatim>"}],
  "music_only": <true when there is no speech, only music or noise>}
-Do not describe the music. Do not add anything that is not said."""
+Split the speech into segments of about 5 seconds, at sentence or phrase breaks, in order; their
+texts together are the whole transcript. Do not describe the music. Do not add anything that is
+not said."""
 
 TRANSLATE_PROMPT = """This is speech from a travel video. Return JSON only:
 {"language": "<ISO 639-1 code of the speech>",
@@ -31,9 +35,10 @@ English>"}"""
 SCREEN_PROMPT = """These are frames from a short travel video, in time order, each labelled with
 its number. Read the text a viewer sees on screen: captions, subtitles, titles, place names,
 prices, signs and labels. Copy it exactly as written, one line per caption line. Skip watermarks,
-app logos and usernames. If a caption stays up across frames, give it once, on the first frame
-it shows. Return JSON only: {"frames": [{"n": 1, "lines": ["..."]}]}, listing only frames
-that have text."""
+app logos and usernames. Look at every frame: a caption that is up for a single frame still
+counts, and a caption that changes by one word is a new line. If a caption stays up across
+frames, give it once, on the first frame it shows.
+Return JSON only: {"frames": [{"n": 1, "lines": ["..."]}]}, listing only frames that have text."""
 
 EXTRACT_PROMPT = """You read travel reels. From the caption, the text shown on screen and the
 voice-over below, list the real places the reel shows or recommends.
@@ -94,6 +99,8 @@ class Transcript:
     text: str = ""
     language: str = ""
     english: str = ""
+    # The speech with its times: [{"t": seconds, "text": "..."}], in order. Empty when unknown.
+    segments: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -149,23 +156,45 @@ async def transcribe(ai: AIOrchestrator, mp3: bytes) -> Transcript:
         text=text,
         language=str(data.get("language") or "")[:32],
         english=str(data.get("english") or text).strip(),
+        segments=timed(data.get("segments"), "start"),
     )
 
 
+def timed(parts: Any, start: str) -> list[dict[str, Any]]:
+    """[{start, text}] from a model or a speech API → [{"t", "text"}], in time order, with the
+    ones that have no usable time or text left out."""
+    out = []
+    for part in parts if isinstance(parts, list) else []:
+        if not isinstance(part, dict):
+            continue
+        t, text = part.get(start), re.sub(r"\s+", " ", str(part.get("text") or "")).strip()
+        if isinstance(t, int | float) and t >= 0 and text:
+            out.append({"t": round(float(t), 1), "text": text})
+    return sorted(out, key=lambda part: part["t"])
+
+
 async def transcribe_stt(ai: AIOrchestrator, mp3: bytes) -> Transcript:
-    """A speech-to-text model (SST_MODEL, through OpenRouter) transcribes the audio. It returns
-    text only, so the chat model names the language and translates when it isn't English."""
+    """A speech-to-text model (SST_MODEL, through OpenRouter) transcribes the audio, with times
+    when it can give them. The chat model names the language and translates when it isn't
+    English."""
+    body: dict[str, Any] = {
+        "model": settings.sst_model,
+        "input_audio": {"data": base64.b64encode(mp3).decode(), "format": "mp3"},
+        # Times with the words; providers that can't give them refuse, and are asked again
+        # for the text alone.
+        "response_format": "verbose_json",
+        "timestamp_granularities": ["segment"],
+    }
     async with httpx.AsyncClient(timeout=180) as client:
-        res = await client.post(
-            f"{settings.openrouter_base_url.rstrip('/')}/audio/transcriptions",
-            headers={"authorization": f"Bearer {settings.openrouter_api_key}"},
-            json={
-                "model": settings.sst_model,
-                "input_audio": {"data": base64.b64encode(mp3).decode(), "format": "mp3"},
-            },
-        )
+        url = f"{settings.openrouter_base_url.rstrip('/')}/audio/transcriptions"
+        headers = {"authorization": f"Bearer {settings.openrouter_api_key}"}
+        res = await client.post(url, headers=headers, json=body)
+        if res.status_code == 400:
+            body.pop("response_format"), body.pop("timestamp_granularities")
+            res = await client.post(url, headers=headers, json=body)
     if res.status_code >= 400:
         raise ValueError(f"{settings.sst_model} answered {res.status_code}: {res.text[:200]}")
+    segments = timed(res.json().get("segments"), "start")
     text = str(res.json().get("text") or "").strip()
     if not text:
         return Transcript()
@@ -184,7 +213,7 @@ async def transcribe_stt(ai: AIOrchestrator, mp3: bytes) -> Transcript:
             english = str(data.get("english") or "").strip() or text
         except Exception as exc:  # noqa: BLE001 - the transcript still reads without it
             logger.warning("Naming the voice-over's language failed: %s", exc)
-    return Transcript(text=text, language=language, english=english)
+    return Transcript(text=text, language=language, english=english, segments=segments)
 
 
 def _jpeg(path: Any) -> str:
@@ -200,9 +229,7 @@ def _jpeg(path: Any) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-async def read_screen(ai: AIOrchestrator, frames: list[Any]) -> list[dict]:
-    """A vision model reads the text on the frames (`media.Frame`s, in time order), once per
-    line, as [{"t": seconds, "text": line}]."""
+async def _read_batch(ai: AIOrchestrator, frames: list[Any]) -> list[dict]:
     content: list[dict[str, Any]] = [{"type": "text", "text": SCREEN_PROMPT}]
     images = await asyncio.gather(*(asyncio.to_thread(_jpeg, f.path) for f in frames))
     for n, (frame, image) in enumerate(zip(frames, images, strict=True), 1):
@@ -212,9 +239,8 @@ async def read_screen(ai: AIOrchestrator, frames: list[Any]) -> list[dict]:
         )
     raw = await ai.complete(
         "screen", [{"role": "user", "content": content}],
-        json_mode=True, temperature=0, max_tokens=4000, timeout=120,
+        json_mode=True, temperature=0, max_tokens=None, timeout=120,
     )  # fmt: skip
-    seen: set[str] = set()
     lines: list[dict] = []
     for item in parse_json_object(raw).get("frames") or []:
         n = item.get("n") if isinstance(item, dict) else None
@@ -222,11 +248,35 @@ async def read_screen(ai: AIOrchestrator, frames: list[Any]) -> list[dict]:
             continue
         for text in item.get("lines") or []:
             text = re.sub(r"\s+", " ", str(text)).strip()
-            key = re.sub(r"[\W_]+", "", text.lower())
-            if text and key and key not in seen:
-                seen.add(key)
+            if text:
                 lines.append({"t": round(frames[n - 1].t, 1), "text": text})
-    lines.sort(key=lambda line: line["t"])
+    return lines
+
+
+async def read_screen(ai: AIOrchestrator, frames: list[Any], batch: int = 30) -> list[dict]:
+    """A vision model reads the text on every frame (`media.Frame`s, in time order), in batches
+    read side by side, as [{"t": seconds, "text": line}] with each line once, where it first
+    shows. A batch that fails is asked again once; if it fails again, the whole read fails."""
+    batch = max(1, batch)
+    chunks = [frames[i : i + batch] for i in range(0, len(frames), batch)]
+
+    async def one(chunk: list[Any]) -> list[dict]:
+        try:
+            return await _read_batch(ai, chunk)
+        except Exception as exc:  # noqa: BLE001 - the provider now and then fails a call
+            logger.warning("Reading frames failed once, asking again: %s", exc)
+            return await _read_batch(ai, chunk)
+
+    seen: set[str] = set()
+    lines: list[dict] = []
+    for line in sorted(
+        (line for found in await asyncio.gather(*(one(c) for c in chunks)) for line in found),
+        key=lambda line: line["t"],
+    ):
+        key = re.sub(r"[\W_]+", "", line["text"].lower())
+        if key and key not in seen:
+            seen.add(key)
+            lines.append(line)
     return lines
 
 

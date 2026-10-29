@@ -11176,6 +11176,15 @@
       "type": "string",
       "title": "Transcript En"
      },
+     "transcript_segments": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Transcript Segments",
+      "default": []
+     },
      "extracted": {
       "additionalProperties": true,
       "type": "object",

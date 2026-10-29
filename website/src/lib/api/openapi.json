@@ -2904,6 +2904,53 @@
     }
    }
   },
+  "/reels/admin/imports/{import_id}/places": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Add Places To Ours",
+    "description": "Publish this reel's places that are not in our places yet (name, type and town only,\nmarked as needing verification), then match the reel again.",
+    "operationId": "add_places_to_ours_reels_admin_imports__import_id__places_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/reels/admin/imports/{import_id}": {
    "get": {
     "tags": [
@@ -11128,6 +11175,15 @@
      "transcript_en": {
       "type": "string",
       "title": "Transcript En"
+     },
+     "transcript_segments": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Transcript Segments",
+      "default": []
      },
      "extracted": {
       "additionalProperties": true,

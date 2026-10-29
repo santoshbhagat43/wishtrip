@@ -35,6 +35,8 @@ class CreatorContent(UUIDPrimaryKey, Timestamps, Base):
     transcript: Mapped[str] = mapped_column(Text, default="")
     transcript_language: Mapped[str] = mapped_column(String(32), default="")
     transcript_en: Mapped[str] = mapped_column(Text, default="")
+    # The voice-over with its times: [{"t": seconds, "text": "..."}].
+    transcript_segments: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
     # The model's reading: destination, places (each with its evidence), tips.
     extracted: Mapped[dict] = mapped_column(JSONB, default=dict)
     # Places matched against the knowledge base: verified ones carry a location_id.
