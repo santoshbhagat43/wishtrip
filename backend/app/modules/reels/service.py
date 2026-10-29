@@ -132,6 +132,8 @@ class Attempt:
     bytes: int | None = None
     credits_spent: float | None = None
     credits_remaining: float | None = None
+    # What the tool said about the post, for the download log.
+    meta: dict | None = None
 
 
 # Where `download` leaves its attempts for the caller that will record them, so `download` keeps
@@ -234,6 +236,7 @@ def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[At
     attempt.ok = True
     attempt.duration_ms = int((time.monotonic() - started) * 1000)
     attempt.bytes = fetched.bytes
+    attempt.meta = fetched.raw
     attempt.credits_spent, attempt.credits_remaining = (
         fetched.credits_spent,
         fetched.credits_remaining,
@@ -291,7 +294,9 @@ def download(
     attempt.duration_ms = int((time.monotonic() - started) * 1000)
     if code == fetch.EXIT_OK:
         attempt.ok = True
-        return json.loads((workdir / "meta.json").read_text())
+        result = json.loads((workdir / "meta.json").read_text())
+        attempt.meta = result.get("source") or None
+        return result
     attempt.error_code = "TIMEOUT" if code is None else f"EXIT_{code}"
     attempt.error_message = reason[:500]
     logger.warning("%s download failed for %s: %s", attempt.provider, shortcode, reason)
@@ -325,6 +330,7 @@ async def record_attempts(attempts: list[Attempt]) -> None:
                     bytes=a.bytes,
                     credits_spent=a.credits_spent,
                     credits_remaining=a.credits_remaining,
+                    meta=a.meta,
                 )
                 for a in attempts
             )
@@ -786,6 +792,7 @@ async def _from_caption(
         looked.credits_spent,
         looked.credits_remaining,
     )
+    attempt.meta = looked.raw
     meta = looked.meta
     note(
         f"Post details from SaveAPI: {len(meta['caption'])} characters of caption",

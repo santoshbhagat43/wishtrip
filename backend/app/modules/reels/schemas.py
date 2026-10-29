@@ -84,6 +84,7 @@ class DownloadRequestRead(BaseModel):
     bytes: int | None
     credits_spent: float | None
     credits_remaining: float | None
+    meta: dict | None = None
 
 
 class ProviderTotals(BaseModel):

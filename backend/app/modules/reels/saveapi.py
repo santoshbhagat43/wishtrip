@@ -48,6 +48,8 @@ class Fetched:
     """What one successful SaveAPI download left in the work folder, and what it cost."""
 
     meta: dict[str, Any]
+    # SaveAPI's answers as they came (see `scrub`), for the download log.
+    raw: dict[str, Any] = field(default_factory=dict)
     bytes: int = 0
     credits_spent: float | None = None
     credits_remaining: float | None = None
@@ -154,6 +156,19 @@ def _iso(epoch: Any) -> str | None:
     )
 
 
+def scrub(body: dict[str, Any]) -> dict[str, Any]:
+    """SaveAPI's answer as staff read it back: all of it, except the links to the video files
+    (they carry signed tokens and expire)."""
+    out = {k: v for k, v in body.items() if k != "success"}
+    if isinstance(out.get("medias"), list):
+        out["medias"] = [
+            {k: v for k, v in m.items() if k != "url"} for m in out["medias"] if isinstance(m, dict)
+        ]
+    if isinstance(out.get("url"), str):
+        out["url"] = "(file link, not kept)"
+    return out
+
+
 _SKIP_KEYS = ("url", "credits", "download", "token", "signature", "thumbnail")
 
 
@@ -214,6 +229,7 @@ class Looked:
     CDN, so deciding from the caption first costs nothing extra."""
 
     meta: dict[str, Any]
+    raw: dict[str, Any]
     video_url: str
     thumbnail_url: str | None = None
     credits_spent: float | None = None
@@ -249,6 +265,7 @@ def look_up_instagram(url: str, client: httpx.Client | None = None) -> Looked:
             "duration": meta.get("duration"),
             "source": instagram_source(body),
         },
+        raw=scrub(body),
         video_url=video["url"],
         thumbnail_url=meta.get("thumbnail"),
         credits_spent=spent,
@@ -293,6 +310,7 @@ def fetch_instagram(
     size = save_video(looked, workdir, cdn)
     return Fetched(
         meta=looked.meta,
+        raw=looked.raw,
         bytes=size,
         credits_spent=looked.credits_spent,
         credits_remaining=looked.credits_remaining,
@@ -341,6 +359,7 @@ def fetch_youtube(
                 "duration": created.get("duration_seconds") or duration,
                 "source": youtube_source(info, created),
             },
+            raw={"info": scrub(info), "create": scrub(created)},
             bytes=size,
             credits_spent=spent_total + float(spent or 0),
             credits_remaining=remaining,

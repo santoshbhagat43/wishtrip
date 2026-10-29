@@ -133,3 +133,5 @@ class DownloadRequest(UUIDPrimaryKey, Timestamps, Base):
     bytes: Mapped[int | None] = mapped_column(Integer)
     credits_spent: Mapped[float | None] = mapped_column(Float)
     credits_remaining: Mapped[float | None] = mapped_column(Float)
+    # What the tool said about the post, as it came (SaveAPI's answer without the file links).
+    meta: Mapped[dict | None] = mapped_column(JSONB)

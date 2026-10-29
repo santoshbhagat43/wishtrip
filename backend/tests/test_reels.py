@@ -980,8 +980,13 @@ def saveapi_says(tmp_path, monkeypatch):
                 "duration": 40,
                 "source": {"platform": "instagram", "author": "London Bites", "likes": 9},
             }
-            return saveapi.Looked(meta=meta, video_url="https://cdn.example/r.mp4",
-                                  credits_spent=1.5, credits_remaining=99)  # fmt: skip
+            return saveapi.Looked(
+                meta=meta,
+                raw={"platform": "instagram", "meta": {"username": "londonbites", "likes": 9}},
+                video_url="https://cdn.example/r.mp4",
+                credits_spent=1.5,
+                credits_remaining=99,
+            )  # fmt: skip
 
         def save_cover(looked, workdir, cdn=None):
             calls.append("cover")
@@ -1044,6 +1049,8 @@ async def test_an_itinerary_caption_skips_the_video_and_everything_that_costs(
     assert detail["source"]["author"] == "London Bites"
     assert any("Caption is a whole itinerary" in e["message"] for e in detail["log"])
     assert [d["provider"] for d in detail["downloads"]] == ["saveapi"]
+    # What SaveAPI sent back is kept with the attempt, for staff to read.
+    assert detail["downloads"][0]["meta"]["meta"] == {"username": "londonbites", "likes": 9}
     assert (
         detail["downloads"][0]["credits_spent"] == 1.5 and detail["downloads"][0]["bytes"] is None
     )

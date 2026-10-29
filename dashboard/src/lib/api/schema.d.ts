@@ -3558,6 +3558,10 @@ export interface components {
             credits_spent: number | null;
             /** Credits Remaining */
             credits_remaining: number | null;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** EventCreate */
         EventCreate: {

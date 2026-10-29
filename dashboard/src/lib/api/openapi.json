@@ -10303,6 +10303,18 @@
        }
       ],
       "title": "Credits Remaining"
+     },
+     "meta": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meta"
      }
     },
     "type": "object",

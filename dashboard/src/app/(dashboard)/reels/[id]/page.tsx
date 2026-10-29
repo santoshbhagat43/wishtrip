@@ -104,6 +104,21 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
             {!r.downloads.length && <tr><td colSpan={5} className="px-4 py-3 text-muted">None (an uploaded video, or read before).</td></tr>}
           </tbody>
         </Table>
+        {r.downloads.some((d) => d.meta) && (
+          <div className="space-y-2 border-t border-line p-4">
+            <div className="text-sm font-medium">What each tool said about the post (meta)</div>
+            {r.downloads.filter((d) => d.meta).map((d) => (
+              <details key={d.id} open={r.downloads.filter((x) => x.meta).length === 1}>
+                <summary className="cursor-pointer text-sm">
+                  {d.provider} · {d.platform} · {d.ok ? "ok" : "failed"}
+                </summary>
+                <pre className="mt-2 max-h-96 overflow-auto rounded bg-surface-2 p-3 text-xs leading-relaxed">
+                  {JSON.stringify(d.meta, null, 2)}
+                </pre>
+              </details>
+            ))}
+          </div>
+        )}
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

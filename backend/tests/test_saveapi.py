@@ -118,6 +118,10 @@ def test_an_instagram_reel_is_fetched_with_what_the_creator_wrote(tmp_path):
     assert (source["author"], source["likes"], source["comments"]) == ("Goa Diaries", 205212, 995)
     assert source["music"] == {"title": "Run It Up", "author": "Hanumankind", "original": False}
     assert source["author_verified"] is True and source["video_id"] == "Cabc123xyz"
+    # The log keeps SaveAPI's answer whole, minus the (signed, expiring) file links.
+    assert fetched.raw["meta"]["author"] == "Goa Diaries"
+    assert fetched.raw["video_id"] == "Cabc123xyz"
+    assert all("url" not in m for m in fetched.raw["medias"]) and "success" not in fetched.raw
     assert "views" not in source  # what SaveAPI didn't know is left out, not shown as zero
     # The links that expire are not kept.
     assert not any("cdn.example" in str(v) for v in source.values())
