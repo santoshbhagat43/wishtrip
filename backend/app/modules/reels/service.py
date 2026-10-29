@@ -27,6 +27,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
+import httpx
 from sqlalchemy import false as sql_false
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +52,15 @@ from app.modules.reels.models import (
     ImportStep,
     ReelImport,
 )
-from app.modules.reels.understand import Reading, Transcript, material, read_places, transcribe
+from app.modules.reels.understand import (
+    Reading,
+    Transcript,
+    material,
+    read_places,
+    read_screen,
+    transcribe,
+    transcribe_stt,
+)
 from app.modules.search.service import semantic_search
 from app.modules.users.models import User
 
@@ -323,20 +332,45 @@ def _first(workdir: Path, stem: str) -> Path | None:
 
 
 async def listen(ai: AIOrchestrator, video: Path, workdir: Path, has_audio: bool) -> Transcript:
-    if not has_audio or not ai.supports("transcribe"):
+    """The voice-over: the speech-to-text model (SST_MODEL) when set, Gemini otherwise or when it
+    fails.
+    Every way it can come back empty is said in the import log."""
+    if not has_audio:
+        note("Voice-over: the downloaded video has no audio track")
         return Transcript()
     try:
         mp3 = (await asyncio.to_thread(media.audio, video, workdir / "audio.mp3")).read_bytes()
     except media.MediaError as exc:
         logger.warning("Audio extraction failed: %s", exc)
+        note(f"Voice-over: couldn't cut the audio ({exc})")
+        return Transcript()
+    if settings.sst_model and settings.openrouter_api_key:
+        try:
+            heard = await transcribe_stt(ai, mp3)
+            note(
+                f"Voice-over read by {settings.sst_model}"
+                if heard.text
+                else f"Voice-over: {settings.sst_model} heard no speech"
+            )
+            return heard
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("Speech to text failed: %s", exc)
+            note(f"Voice-over: {settings.sst_model} failed ({str(exc)[:160]}); trying Gemini")
+    if not ai.supports("transcribe"):
+        note("Voice-over: no speech-to-text is set up")
         return Transcript()
     # One retry: the model now and then returns malformed JSON for a long transcript, and that
     # used to drop the whole voice-over.
     for attempt in (1, 2):
         try:
-            return await transcribe(ai, mp3)
+            heard = await transcribe(ai, mp3)
+            note(
+                "Voice-over read by Gemini" if heard.text else "Voice-over: Gemini heard only music"
+            )
+            return heard
         except (AIUnavailableError, ValueError) as exc:
             logger.warning("Transcription failed (try %d): %s", attempt, exc)
+            note(f"Voice-over: Gemini failed, try {attempt} ({str(exc)[:160]})")
     # Caption and on-screen text still make a reading; the voice-over is a bonus.
     return Transcript()
 
@@ -422,6 +456,19 @@ async def match_places(
             ),
             None,
         )
+        if is_area and destination is not None:
+            # A town matches only a city of ours by that name, in the trip's country or city.
+            in_trip = (
+                Location.parent_id == destination.id
+                if destination.type == LocationType.COUNTRY
+                else Location.id.in_(city_ids)
+            )
+            found = await session.scalar(
+                select(Location).where(
+                    Location.type == LocationType.CITY, published, in_trip,
+                    func.lower(Location.name) == key,
+                )
+            )  # fmt: skip
         if found is None and search_by_meaning and not is_area:
             hits = await semantic_search(
                 session, ai, f"{name} {reading.destination}", city_ids=city_ids, limit=1,
@@ -432,7 +479,15 @@ async def match_places(
                 found = hits[0].location
         if found is not None and any(p["location_id"] == str(found.id) for p in out):
             continue  # said and shown: one place, keep its first mention
-        if found is None and any(_shares_name(name, p["name"]) for p in out if not p["verified"]):
+        # The same unknown place said and shown ("Caudan" on screen, "Caudan Waterfront" in the
+        # voice-over) is one place. Sharing a word is not enough: "Casela Nature Park" is not
+        # "La Vanille Nature Park". A town and a stop in it ("Chamarel", "Rum tasting at
+        # Chamarel") are both kept.
+        if found is None and any(
+            _same_place(name, p["name"]) and (p.get("kind") == "area") == is_area
+            for p in out
+            if not p["verified"]
+        ):
             continue
         out.append(
             {
@@ -473,11 +528,28 @@ UPLOAD_META = {
 FRAMES = "reels/frames"
 
 
-def _read_screen(
-    video: Path, workdir: Path, duration: float
+# Frames the vision model reads in one call (after repeated screens are dropped).
+SCREEN_FRAMES = 30
+
+
+async def _read_screen(
+    ai: AIOrchestrator, video: Path, workdir: Path, duration: float
 ) -> tuple[list[media.Frame], list[dict]]:
-    frame_list = media.frames(video, workdir / "frames", settings.reel_max_frames, duration)
-    return frame_list, media.ocr(frame_list)
+    """Text on screen: a vision model reads the frames; Tesseract when it isn't set up or fails
+    (Tesseract garbles captions drawn over video, so it is only the fallback)."""
+    frame_list = await asyncio.to_thread(
+        media.frames, video, workdir / "frames", settings.reel_max_frames, duration
+    )
+    if ai.supports("screen"):
+        picked = media.spread(await asyncio.to_thread(media.new_screens, frame_list), SCREEN_FRAMES)
+        try:
+            lines = await read_screen(ai, picked) if picked else []
+            note(f"Screen read by {ai.model_for('screen')} ({len(picked)} frames)")
+            return frame_list, lines
+        except (AIUnavailableError, ValueError) as exc:
+            logger.warning("Reading the screen with AI failed: %s", exc)
+            note(f"Screen: the vision model failed ({str(exc)[:160]}); using Tesseract")
+    return frame_list, await asyncio.to_thread(media.ocr, frame_list)
 
 
 async def _read_into_content(
@@ -523,7 +595,7 @@ async def _read_into_content(
     )
     listening = asyncio.create_task(listen_timed())
     try:
-        frame_list, ocr_lines = await asyncio.to_thread(_read_screen, video, workdir, info.duration)
+        frame_list, ocr_lines = await _read_screen(ai, video, workdir, info.duration)
     except BaseException:
         listening.cancel()
         raise

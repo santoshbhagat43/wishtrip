@@ -2,23 +2,28 @@ import uuid
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.orchestrator import AIOrchestrator, get_orchestrator
+from app.ai.scheduling import schedule_embedding
 from app.core.config import settings
 from app.core.deps import get_current_user, require_roles
 from app.core.errors import bad_request, not_found
 from app.db.session import get_session
-from app.modules.creators.models import Creator
+from app.modules.audit.service import record
+from app.modules.creators import builder, mine
+from app.modules.creators.models import Creator, TravellerTrip
 from app.modules.media.storage import storage
-from app.modules.reels import service
+from app.modules.reels import publish, service
 from app.modules.reels.models import CreatorContent, DownloadRequest, ImportStatus, ReelImport
 from app.modules.reels.schemas import (
     DownloadLog,
     DownloadRequestRead,
     ImportDetail,
+    ImportItinerary,
     ImportList,
     ImportLogEntry,
     ImportRow,
@@ -116,7 +121,9 @@ async def upload_video(
     """
     if not (request.headers.get("content-type") or "").startswith("video/"):
         raise bad_request("Upload a video file (mp4 or mov).")
-    if await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
+    # Staff testing videos from the dashboard are not held to the traveller's hourly limit.
+    staff = user.role in (Role.ADMIN, Role.EDITOR)
+    if not staff and await service.recent_count(session, user.id) >= settings.reel_imports_per_hour:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "That's a lot of reels. Try again in an hour."
         )
@@ -340,6 +347,61 @@ async def admin_imports(
     )
 
 
+class SampleTrip(BaseModel):
+    # Empty: the days the video says (up to the most a trip can have), else 4.
+    days: int | None = Field(None, ge=1, le=builder.MAX_DAYS)
+
+
+@router.post("/admin/imports/{import_id}/itinerary", status_code=status.HTTP_202_ACCEPTED)
+async def build_sample_itinerary(
+    import_id: uuid.UUID,
+    body: SampleTrip,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
+):
+    """Build the itinerary a couple from Bengaluru would get from this reel, to check the reel
+    reads into a good trip. It builds in the background; the import shows it when it is ready."""
+    job = await session.get(ReelImport, import_id)
+    if not job:
+        raise not_found("Reel import")
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    if job.status != ImportStatus.DONE or content is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That reel has not been read yet.")
+    said = (content.extracted or {}).get("days_hint")
+    days = body.days or (min(said, builder.MAX_DAYS) if isinstance(said, int) and said > 0 else 4)
+    config = mine.MineConfig(
+        adults=2, group="couple", days=days, pace="relaxed", origin="BLR", origin_city="Bengaluru"
+    )
+    trip = await mine.trip_from_import(session, job, content, config)
+    return {"code": trip.code, "days": trip.days}
+
+
+@router.post("/admin/imports/{import_id}/places")
+async def add_places_to_ours(
+    import_id: uuid.UUID,
+    background: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+    ai: AIOrchestrator = Depends(get_orchestrator),
+    actor: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
+):
+    """Publish this reel's places that are not in our places yet (name, type and town only,
+    marked as needing verification), then match the reel again."""
+    job = await session.get(ReelImport, import_id)
+    if not job:
+        raise not_found("Reel import")
+    content = await session.get(CreatorContent, job.content_id) if job.content_id else None
+    if job.status != ImportStatus.DONE or content is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That reel has not been read yet.")
+    result = await publish.add_to_places(session, ai, content)
+    for row, location_id in zip(result["added"], result["ids"], strict=True):
+        await record(session, actor, "create", "location", uuid.UUID(location_id),
+                     {**row, "from_reel": content.shortcode})  # fmt: skip
+    await session.commit()
+    if result["ids"]:
+        background.add_task(schedule_embedding, [uuid.UUID(i) for i in result["ids"]])
+    return {"added": result["added"], "skipped": result["skipped"]}
+
+
 @router.get("/admin/imports/{import_id}", response_model=ImportDetail)
 async def admin_import(
     import_id: uuid.UUID,
@@ -357,8 +419,15 @@ async def admin_import(
         .where(DownloadRequest.import_id == job.id)
         .order_by(DownloadRequest.created_at)
     )
+    trips = await session.scalars(
+        select(TravellerTrip)
+        .where(TravellerTrip.source_import_id == job.id)
+        .order_by(TravellerTrip.created_at.desc())
+        .limit(5)
+    )
     return ImportDetail(
         **await _row(session, job),
+        itineraries=[ImportItinerary.model_validate(t, from_attributes=True) for t in trips],
         caption=content.caption if content else "",
         duration_seconds=content.duration_seconds if content else None,
         ocr_lines=content.ocr_lines if content else [],

@@ -391,7 +391,7 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
     for bad in (
         {"adults": 0, "kids": 0, "seniors": 0},
         {"pace": "fast"},
-        {"days": 9},
+        {"days": 15},
         {"adults": 12},
     ):
         assert (await client.post(f"/trips/{share_code}/make-mine", json=bad)).status_code in (

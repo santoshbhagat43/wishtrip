@@ -863,6 +863,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/admin/imports/{import_id}/itinerary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build Sample Itinerary
+         * @description Build the itinerary a couple from Bengaluru would get from this reel, to check the reel
+         *     reads into a good trip. It builds in the background; the import shows it when it is ready.
+         */
+        post: operations["build_sample_itinerary_reels_admin_imports__import_id__itinerary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reels/admin/imports/{import_id}/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Places To Ours
+         * @description Publish this reel's places that are not in our places yet (name, type and town only,
+         *     marked as needing verification), then match the reel again.
+         */
+        post: operations["add_places_to_ours_reels_admin_imports__import_id__places_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reels/admin/imports/{import_id}": {
         parameters: {
             query?: never;
@@ -3915,10 +3957,50 @@ export interface components {
             place_list: {
                 [key: string]: unknown;
             }[];
+            /**
+             * Itineraries
+             * @default []
+             */
+            itineraries: components["schemas"]["ImportItinerary"][];
             /** Log */
             log: components["schemas"]["ImportLogEntry"][];
             /** Downloads */
             downloads: components["schemas"]["DownloadRequestRead"][];
+        };
+        /**
+         * ImportItinerary
+         * @description A trip built from this reel's places (by a traveller, or by staff to check the reel).
+         */
+        ImportItinerary: {
+            /** Code */
+            code: string;
+            /** Days */
+            days: number;
+            /** Adults */
+            adults: number;
+            /** Kids */
+            kids: number;
+            /** Seniors */
+            seniors: number;
+            /** Group */
+            group: string;
+            /** Origin City */
+            origin_city: string;
+            /** Build Status */
+            build_status: string;
+            /** Build Error */
+            build_error: string;
+            /** Ai Built */
+            ai_built: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            }[];
         };
         /** ImportList */
         ImportList: {
@@ -6092,6 +6174,11 @@ export interface components {
             method?: components["schemas"]["RoutingMethod"] | null;
             /** Reassign After Minutes */
             reassign_after_minutes?: number | null;
+        };
+        /** SampleTrip */
+        SampleTrip: {
+            /** Days */
+            days?: number | null;
         };
         /** SaveFromReel */
         SaveFromReel: {
@@ -8585,6 +8672,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_sample_itinerary_reels_admin_imports__import_id__itinerary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SampleTrip"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_places_to_ours_reels_admin_imports__import_id__places_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

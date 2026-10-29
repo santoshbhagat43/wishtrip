@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     reels_inline: bool = False
     # Audio transcription goes through OpenRouter; Gemini accepts mp3 input.
     reel_transcribe_model: str = "google/gemini-2.5-flash"
+    # Speech to text through OpenRouter's /audio/transcriptions (SST_MODEL, e.g. x-ai/grok-stt-1.0);
+    # the Gemini model above is the fallback, and the whole voice-over when this is empty.
+    sst_model: str = ""
+    # Finds the places, trip length and day split in what the reel said and showed. Gemini Flash
+    # lists every named place run after run (Grok 4.3 skipped some); empty = the chat model.
+    reel_read_model: str = "google/gemini-2.5-flash"
+    # Text on screen is read by this vision model (OpenRouter); Tesseract is the fallback.
+    reel_screen_model: str = "google/gemini-2.5-flash"
     reel_max_seconds: int = 180
     reel_max_frames: int = 60
     # At most this many of those frames are read by OCR, spread over the whole video (after

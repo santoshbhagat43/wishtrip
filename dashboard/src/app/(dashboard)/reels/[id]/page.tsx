@@ -1,13 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, ErrorNote, PageHeader, Spinner } from "@/components/ui/card";
 import { Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap } from "@/lib/api/client";
+import type { components } from "@/lib/api/schema";
 import { useMe } from "@/lib/hooks/use-me";
 import { STAGE_LABEL, STATUS_TONE, clock, seconds } from "@/lib/reels";
 
@@ -18,7 +20,13 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
   const q = useQuery({
     queryKey: ["reel-import", id],
     enabled: allowed,
-    refetchInterval: (query) => (query.state.data && ["done", "failed"].includes(query.state.data.status) ? false : 3000),
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (!d) return 3000;
+      const reading = !["done", "failed"].includes(d.status);
+      const building = d.itineraries?.some((t) => t.build_status === "building");
+      return reading || building ? 3000 : false;
+    },
     queryFn: async () => unwrap(await api.GET("/reels/admin/imports/{import_id}", { params: { path: { import_id: id } } })),
   });
   if (!me || q.isLoading) return <Spinner />;
@@ -41,6 +49,10 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
         }
       />
       {r.error && <ErrorNote error={r.error} />}
+
+      <TripCard extracted={r.extracted} />
+
+      {r.status === "done" && <ItineraryCard importId={id} itineraries={r.itineraries ?? []} />}
 
       <Card>
         <CardHeader title="Time per stage" description="Where the time went for this reel." />
@@ -113,7 +125,11 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
       </div>
 
       <Card>
-        <CardHeader title={`Places found (${r.place_list.length})`} description={r.caption ? `Caption: ${r.caption.slice(0, 200)}` : undefined} />
+        <CardHeader
+          title={`Places found (${r.place_list.length})`}
+          description={r.caption ? `Caption: ${r.caption.slice(0, 200)}` : undefined}
+          action={r.status === "done" && <AddToOurPlaces importId={id} missing={r.place_list.filter((p) => !p.verified).length} />}
+        />
         <Table>
           <thead><tr><Th>Place</Th><Th>Kind</Th><Th>Matched</Th><Th>At</Th><Th>Seen in</Th><Th>What it said</Th></tr></thead>
           <tbody>
@@ -133,6 +149,168 @@ export default function ReelImportPage({ params }: { params: Promise<{ id: strin
     </div>
   );
 }
+
+type Leg = { days?: string; area?: string; stay?: string };
+
+/** What the reel says the trip is: where, how many days, and how the creator splits them. */
+function TripCard({ extracted }: { extracted: Record<string, unknown> }) {
+  const destination = String(extracted.destination ?? "");
+  const daysSaid = String(extracted.days_said ?? "");
+  const days = typeof extracted.days_hint === "number" ? extracted.days_hint : null;
+  const legs = (Array.isArray(extracted.legs) ? extracted.legs : []) as Leg[];
+  const summary = String(extracted.summary ?? "");
+  if (!destination && !days && !summary) return null;
+  return (
+    <Card>
+      <CardHeader title="The trip" description={summary || undefined} />
+      <div className="grid gap-4 px-4 pb-4 sm:grid-cols-3">
+        <div>
+          <div className="text-xs font-medium uppercase text-muted">Destination</div>
+          <div className="text-lg font-semibold">{destination || "—"}</div>
+        </div>
+        <div>
+          <div className="text-xs font-medium uppercase text-muted">Trip length</div>
+          <div className="text-lg font-semibold">
+            {days ? `${days} ${days === 1 ? "day" : "days"}` : "Not said"}
+          </div>
+          {daysSaid && <div className="text-xs text-muted">The creator said “{daysSaid}”</div>}
+        </div>
+        <div>
+          <div className="text-xs font-medium uppercase text-muted">Split</div>
+          {legs.length ? (
+            <ul className="m-0 list-none space-y-1 p-0 text-sm">
+              {legs.map((leg, i) => (
+                <li key={i}>
+                  {leg.days && <strong className="tabular-nums">Days {leg.days}: </strong>}
+                  {leg.area}
+                  {leg.stay && <span className="text-muted"> · stay in {leg.stay}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-muted">Not split by the creator</div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+type Added = { added: { name: string; type: string; town: string }[]; skipped: { name: string; why: string }[] };
+
+/** Publish the places this reel names that we don't have yet (name, type and town), so they
+ *  count as ours; staff fill in the rest on the Locations page. */
+function AddToOurPlaces({ importId, missing }: { importId: string; missing: number }) {
+  const qc = useQueryClient();
+  const add = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/backend/reels/admin/imports/${importId}/places`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Adding the places failed.");
+      return data as Added;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reel-import", importId] }),
+  });
+  const done = add.data;
+  return (
+    <div className="flex flex-col items-end gap-1 text-right">
+      {missing > 0 && (
+        <Button type="button" variant="accent" size="sm" disabled={add.isPending} onClick={() => add.mutate()}>
+          {add.isPending ? "Adding…" : `Add ${missing} to our places`}
+        </Button>
+      )}
+      {done && (
+        <span className="max-w-80 text-xs text-muted">
+          Added {done.added.length} (published, marked to verify)
+          {done.skipped.length ? `; left out ${done.skipped.map((s) => `${s.name} (${s.why})`).join(", ")}` : ""}
+        </span>
+      )}
+      {add.error && <span className="text-xs text-danger">{add.error.message}</span>}
+    </div>
+  );
+}
+
+type Itinerary = components["schemas"]["ImportItinerary"];
+type Stop = { day?: number; slot?: string; kind?: string; name?: string; note?: string; optional?: boolean };
+
+const SLOT_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2, night: 3 };
+
+/** The itineraries built from this reel, day by day; staff can build one for a sample couple. */
+function ItineraryCard({ importId, itineraries }: { importId: string; itineraries: Itinerary[] }) {
+  const qc = useQueryClient();
+  const build = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/reels/admin/imports/{import_id}/itinerary", { params: { path: { import_id: importId } }, body: {} })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reel-import", importId] }),
+  });
+  const latest = itineraries[0];
+  return (
+    <Card>
+      <CardHeader
+        title="Itinerary"
+        description={
+          latest
+            ? `${latest.days} days for ${party(latest)}${latest.origin_city ? ` from ${latest.origin_city}` : ""} · built ${new Date(latest.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}${latest.build_status === "ready" ? (latest.ai_built ? " with AI" : " by rule (no AI)") : ""}`
+            : "No itinerary has been built from this reel yet."
+        }
+      />
+      <div className="flex flex-wrap items-center gap-3 px-4 pb-3">
+        <Button type="button" variant={latest ? "ghost" : "accent"} disabled={build.isPending} onClick={() => build.mutate()}>
+          {build.isPending ? "Starting…" : latest ? "Build again" : "Build itinerary for a couple"}
+        </Button>
+        {latest?.build_status === "building" && <span className="text-sm text-muted">Building… this takes up to a minute.</span>}
+        {latest?.build_status === "failed" && <span className="text-sm text-danger">Build failed: {latest.build_error || "unknown error"}</span>}
+        {build.error && <ErrorNote error={build.error} />}
+      </div>
+      {latest && latest.build_status !== "building" && <Days items={latest.items as Stop[]} days={latest.days} />}
+    </Card>
+  );
+}
+
+function party(t: Itinerary) {
+  if (t.group === "couple") return "a couple";
+  const people = [t.adults && `${t.adults} adults`, t.kids && `${t.kids} kids`, t.seniors && `${t.seniors} seniors`].filter(Boolean);
+  return people.join(", ") || "the party";
+}
+
+function Days({ items, days }: { items: Stop[]; days: number }) {
+  const byDay = Array.from({ length: days }, (_, i) =>
+    items
+      .filter((it) => it.day === i + 1)
+      .sort((a, b) => (SLOT_ORDER[a.slot ?? ""] ?? 9) - (SLOT_ORDER[b.slot ?? ""] ?? 9)),
+  );
+  return (
+    <ol className="m-0 grid list-none gap-3 px-4 pb-4 lg:grid-cols-2">
+      {byDay.map((stops, i) => (
+        <li key={i} className="rounded-xl border border-border p-3">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <strong>Day {i + 1}</strong>
+            <span className="text-xs text-muted">{stops.filter((s) => s.kind === "sight" || s.kind === "experience").length} things to do</span>
+          </div>
+          {stops.length ? (
+            <ul className="m-0 list-none space-y-1.5 p-0 text-sm">
+              {stops.map((s, j) => (
+                <li key={j} className="flex gap-2">
+                  <span className="w-20 shrink-0 text-xs capitalize text-muted">{s.slot || ""}</span>
+                  <span className="min-w-0">
+                    <Badge tone={KIND_TONE[s.kind ?? ""] ?? "neutral"}>{s.kind}</Badge>{" "}
+                    <span className={s.optional ? "text-muted" : ""}>{s.name}</span>
+                    {s.optional && <span className="text-xs text-muted"> (optional)</span>}
+                    {s.note && <span className="block text-xs text-muted">{s.note}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="m-0 text-sm text-muted">Nothing planned.</p>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const KIND_TONE: Record<string, "ok" | "warn" | "danger" | "neutral"> = { stay: "ok", travel: "neutral", food: "warn", sight: "ok", experience: "ok" };
 
 function Bar({ label, value, max }: { label: string; value: number; max: number }) {
   return (

@@ -16,7 +16,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-Task = str  # "intent" | "planner" | "builder" | "transcribe" (audio in, OpenRouter only)
+# "intent" | "planner" | "builder" | "reader" (reels);
+# OpenRouter only: "transcribe" (audio in), "screen" (frames in)
+Task = str
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,8 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
                 "planner": settings.chat_model,
                 "builder": settings.trip_build_model or settings.chat_model,
                 "transcribe": settings.reel_transcribe_model,
+                "screen": settings.reel_screen_model,
+                "reader": settings.reel_read_model or settings.chat_model,
             },
             reasoning,
         )
@@ -63,6 +67,7 @@ def provider_config(provider: str | None = None) -> ProviderConfig | None:
                 "intent": settings.ollama_intent_model,
                 "planner": settings.ollama_chat_model,
                 "builder": settings.trip_build_model or settings.ollama_chat_model,
+                "reader": settings.ollama_chat_model,
             },
             reasoning,
         )
@@ -129,7 +134,8 @@ class LLMClient:
         *,
         temperature: float = 0.4,
         json_mode: bool = False,
-        max_tokens: int = 1500,
+        # None: no limit of ours, the model's own maximum.
+        max_tokens: int | None = 1500,
         timeout: float = 120,
     ) -> str:
         if not self.config:
@@ -138,7 +144,7 @@ class LLMClient:
             "model": self.model_for(task),
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            **({"max_tokens": max_tokens} if max_tokens else {}),
             **reasoning_params(self.provider, self.config.reasoning.get(task)),
         }
         if json_mode:

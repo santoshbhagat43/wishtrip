@@ -2847,6 +2847,110 @@
     }
    }
   },
+  "/reels/admin/imports/{import_id}/itinerary": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Build Sample Itinerary",
+    "description": "Build the itinerary a couple from Bengaluru would get from this reel, to check the reel\nreads into a good trip. It builds in the background; the import shows it when it is ready.",
+    "operationId": "build_sample_itinerary_reels_admin_imports__import_id__itinerary_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SampleTrip"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/reels/admin/imports/{import_id}/places": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Add Places To Ours",
+    "description": "Publish this reel's places that are not in our places yet (name, type and town only,\nmarked as needing verification), then match the reel again.",
+    "operationId": "add_places_to_ours_reels_admin_imports__import_id__places_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "import_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Import Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/reels/admin/imports/{import_id}": {
    "get": {
     "tags": [
@@ -11085,6 +11189,14 @@
       "type": "array",
       "title": "Place List"
      },
+     "itineraries": {
+      "items": {
+       "$ref": "#/components/schemas/ImportItinerary"
+      },
+      "type": "array",
+      "title": "Itineraries",
+      "default": []
+     },
      "log": {
       "items": {
        "$ref": "#/components/schemas/ImportLogEntry"
@@ -11130,6 +11242,80 @@
      "downloads"
     ],
     "title": "ImportDetail"
+   },
+   "ImportItinerary": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "days": {
+      "type": "integer",
+      "title": "Days"
+     },
+     "adults": {
+      "type": "integer",
+      "title": "Adults"
+     },
+     "kids": {
+      "type": "integer",
+      "title": "Kids"
+     },
+     "seniors": {
+      "type": "integer",
+      "title": "Seniors"
+     },
+     "group": {
+      "type": "string",
+      "title": "Group"
+     },
+     "origin_city": {
+      "type": "string",
+      "title": "Origin City"
+     },
+     "build_status": {
+      "type": "string",
+      "title": "Build Status"
+     },
+     "build_error": {
+      "type": "string",
+      "title": "Build Error"
+     },
+     "ai_built": {
+      "type": "boolean",
+      "title": "Ai Built"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "items": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "days",
+     "adults",
+     "kids",
+     "seniors",
+     "group",
+     "origin_city",
+     "build_status",
+     "build_error",
+     "ai_built",
+     "created_at",
+     "items"
+    ],
+    "title": "ImportItinerary",
+    "description": "A trip built from this reel's places (by a traveller, or by staff to check the reel)."
    },
    "ImportList": {
     "properties": {
@@ -13980,7 +14166,7 @@
      },
      "days": {
       "type": "integer",
-      "maximum": 7.0,
+      "maximum": 14.0,
       "minimum": 1.0,
       "title": "Days",
       "default": 4
@@ -16859,6 +17045,25 @@
     },
     "type": "object",
     "title": "RoutingUpdate"
+   },
+   "SampleTrip": {
+    "properties": {
+     "days": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 14.0,
+        "minimum": 1.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Days"
+     }
+    },
+    "type": "object",
+    "title": "SampleTrip"
    },
    "SaveFromReel": {
     "properties": {

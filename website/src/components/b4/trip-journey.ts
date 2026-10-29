@@ -81,7 +81,7 @@ const KIND_WORD: Record<string, string> = {
 export function buildDays(places: ReelPlace[], days: number): Day[] {
   const stops = places.filter((p) => p.kind !== "area" && p.kind !== "stay");
   const stay = places.find((p) => p.kind === "stay");
-  const n = Math.max(1, Math.min(days || 3, 7));
+  const n = Math.max(1, Math.min(days || 3, 14));
   const perDay = Math.max(1, Math.ceil(stops.length / n));
   const out: Day[] = [];
   for (let d = 0; d < n; d++) {

@@ -875,7 +875,7 @@ async def test_a_long_video_is_topped_up_to_full_days_too(client, whole_itinerar
 def test_the_number_of_days_follows_the_video_but_is_never_below_two():
     from app.modules.reels.complete import target_days
 
-    assert [target_days(h) for h in (None, 1, 2, 4, 7, 30)] == [3, 2, 2, 4, 7, 7]
+    assert [target_days(h) for h in (None, 1, 2, 4, 8, 30)] == [3, 2, 2, 4, 8, 14]
 
 
 REEL_THREE = ["Ubud Palace", "Campuhan Ridge Walk", "Tegalalang Rice Terrace"]

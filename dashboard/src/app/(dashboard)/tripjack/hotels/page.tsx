@@ -36,6 +36,8 @@ export default function TripJackHotelsPage() {
   const [kids, setKids] = useState("");
   const [sort, setSort] = useState<"price" | "rank">("price");
   const [open, setOpen] = useState<HotelCard | null>(null);
+  const [nameQ, setNameQ] = useState("");
+  const [areaQ, setAreaQ] = useState("");
 
   const places = useQuery({
     queryKey: ["tj-places", typed],
@@ -51,6 +53,15 @@ export default function TripJackHotelsPage() {
     mutationFn: () => post<HotelSearchResult>("/hotels/search", { region_id: place!.region_id, check_in: checkIn, check_out: checkOut, rooms: [room], sort }),
   });
   const result = search.data;
+  const nameWords = nameQ.toLowerCase().split(/\s+/).filter(Boolean);
+  const areaWords = areaQ.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = result
+    ? result.hotels.filter((h) => {
+        const n = h.name.toLowerCase();
+        const a = (h.address ?? "").toLowerCase();
+        return nameWords.every((w) => n.includes(w)) && areaWords.every((w) => a.includes(w));
+      })
+    : [];
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -135,11 +146,16 @@ export default function TripJackHotelsPage() {
             ) : (
               <>
                 <p className="m-0 border-b border-border px-4 py-2.5 text-sm text-muted">
-                  {result.total} hotels with rooms in {result.region?.city ?? place?.city} · {nights(checkIn, checkOut)} {nights(checkIn, checkOut) === 1 ? "night" : "nights"}, total price for the stay
+                  {nameWords.length || areaWords.length ? `${shown.length} of ${result.total}` : result.total} hotels with rooms in {result.region?.city ?? place?.city} · {nights(checkIn, checkOut)} {nights(checkIn, checkOut) === 1 ? "night" : "nights"}, total price for the stay
                   {result.partial && <span className="ml-2 text-warn">Some of TripJack&apos;s answers were missing, so this list may be incomplete.</span>}
                 </p>
+                <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-2">
+                  <Input value={nameQ} onChange={(e) => setNameQ(e.target.value)} placeholder="Search by hotel name" aria-label="Hotel name" />
+                  <Input value={areaQ} onChange={(e) => setAreaQ(e.target.value)} placeholder="Search by area or address, e.g. Marina, Candolim" aria-label="Area or address" />
+                </div>
+                {shown.length === 0 && <p className="m-0 p-8 text-center text-sm text-muted">No hotel matches that name or area.</p>}
                 <ul className="m-0 grid list-none gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {result.hotels.map((h) => <HotelTile key={h.hotel_id} hotel={h} onOpen={() => setOpen(h)} />)}
+                  {shown.map((h) => <HotelTile key={h.hotel_id} hotel={h} onOpen={() => setOpen(h)} />)}
                 </ul>
               </>
             )}

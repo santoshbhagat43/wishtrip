@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export default function ReelsPage() {
           ]}
         />
       )}
+      <TestUpload />
       <Card>
         <form
           className="flex flex-wrap items-center gap-2 border-b border-border p-4"
@@ -167,5 +169,60 @@ export default function ReelsPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+
+/** Upload a video from this computer and watch it read: the same pipeline as a traveller's
+ *  upload (screen text, voice-over, places), then build its itinerary on the import's page. */
+function TestUpload() {
+  const router = useRouter();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function upload(file: File) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/reel-upload", {
+        method: "POST",
+        headers: { "content-type": file.type || "video/mp4", "x-reel-filename": file.name },
+        body: file,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "The upload failed.");
+      router.push(`/reels/${data.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The upload failed.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <div className="font-medium">Test a video</div>
+          <div className="text-sm text-muted">Upload an MP4 or MOV from your computer. It is read like any reel; you&apos;ll see the screen text, voice-over and places as they come in.</div>
+        </div>
+        <input
+          ref={input}
+          type="file"
+          accept="video/mp4,video/quicktime,video/*"
+          className="hidden"
+          aria-label="Video to test"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void upload(file);
+          }}
+        />
+        <Button type="button" variant="accent" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? "Uploading…" : "Upload a video"}
+        </Button>
+      </div>
+      {error && <div className="px-4 pb-4"><ErrorNote error={error} /></div>}
+    </Card>
   );
 }

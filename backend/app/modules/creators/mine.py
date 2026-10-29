@@ -42,7 +42,7 @@ class MineConfig(BaseModel):
     adults: int = Field(default=2, ge=0, le=9)
     kids: int = Field(default=0, ge=0, le=9)
     seniors: int = Field(default=0, ge=0, le=9)
-    days: int = Field(default=4, ge=1, le=7)
+    days: int = Field(default=4, ge=1, le=builder.MAX_DAYS)
     pace: str = "relaxed"
     when: str = Field(default="", max_length=80)
     # Who is going, as the Details screen names it: couple, family, friends, seniors, …
@@ -345,6 +345,14 @@ async def build_from_reel(
     content = await session.get(CreatorContent, job.content_id) if job.content_id else None
     if job.status != ImportStatus.DONE or content is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "That reel has not been read yet.")
+    mine = await trip_from_import(session, job, content, config)
+    return await _read(session, mine)
+
+
+async def trip_from_import(
+    session: AsyncSession, job: ReelImport, content: CreatorContent, config: MineConfig
+) -> TravellerTrip:
+    """A trip planned from a read reel's places for this party; it builds in the background."""
     creator = await session.get(Creator, content.creator_id) if content.creator_id else None
     stops = [_place_item(p) for p in content.places or [] if p.get("kind") != "area"]
     if not [s for s in stops if s["name"]]:
@@ -370,7 +378,7 @@ async def build_from_reel(
     session.add(mine)
     await session.commit()
     await _start(session, mine, quick=config.arya)
-    return await _read(session, mine)
+    return mine
 
 
 async def _get(session: AsyncSession, code: str) -> TravellerTrip:
@@ -554,7 +562,7 @@ async def sync_from_chat(session: AsyncSession, code: str, suggestions: list[dic
                 "origin": "kb" if checked else "suggested",
             }
         )
-    days = min(7, max(int(i["day"]) for i in items))
+    days = min(builder.MAX_DAYS, max(int(i["day"]) for i in items))
     if items == list(mine.items or []) and days == mine.days:
         return False
     mine.items, mine.days = items, days

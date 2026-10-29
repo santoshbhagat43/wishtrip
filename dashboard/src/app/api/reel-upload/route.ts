@@ -8,9 +8,10 @@ export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f-]{36}$/;
 
-/** Forward a video staff upload for one of a creator's reel links (?link=<id>), working as that
- *  creator (X-Act-As-Creator). The generic /api/backend pass-through buffers bodies, which is
- *  fine for forms but not for a video. */
+/** Forward a video staff upload: for one of a creator's reel links (?link=<id>), working as that
+ *  creator (X-Act-As-Creator); or, with neither, as a test import of their own on the Reels page.
+ *  The generic /api/backend pass-through buffers bodies, which is fine for forms but not for a
+ *  video. */
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
   const link = request.nextUrl.searchParams.get("link") ?? "";
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
   if (!contentType.startsWith("video/")) {
     return NextResponse.json({ detail: "Choose a video to upload." }, { status: 400 });
   }
-  if (!UUID.test(link) || !UUID.test(creator)) {
+  const ownTest = !link && !creator;
+  if (!ownTest && (!UUID.test(link) || !UUID.test(creator))) {
     return NextResponse.json({ detail: "That link isn't valid." }, { status: 400 });
   }
 
@@ -31,12 +33,12 @@ export async function POST(request: NextRequest) {
   }
   if (!token) return NextResponse.json({ detail: "Sign in again." }, { status: 401 });
 
-  const upstream = await fetch(`${BACKEND_URL}/creator/links/${link}/upload`, {
+  const upstream = await fetch(ownTest ? `${BACKEND_URL}/reels/uploads` : `${BACKEND_URL}/creator/links/${link}/upload`, {
     method: "POST",
     headers: {
       "content-type": contentType,
       "x-reel-filename": request.headers.get("x-reel-filename") ?? "upload.mp4",
-      "x-act-as-creator": creator,
+      ...(ownTest ? {} : { "x-act-as-creator": creator }),
       authorization: `Bearer ${token}`,
     },
     body: request.body,

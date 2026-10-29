@@ -178,7 +178,7 @@ def fake_instagram(tmp_path, monkeypatch):
 
 
 async def test_reel_becomes_places_a_chat_and_a_creator(
-    client, traveler, admin, london, fake_instagram
+    client, traveler, admin, london, fake_instagram, builds
 ):
     ai = ReelAI()
     app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=ai)
@@ -213,7 +213,28 @@ async def test_reel_becomes_places_a_chat_and_a_creator(
     assert any("Screen:" in e["message"] for e in detail["log"])
     assert any("Voice-over:" in e["message"] for e in detail["log"])
     assert detail["transcript"] and len(detail["ocr_lines"]) >= 2
+    assert detail["itineraries"] == []
     assert (await client.get("/reels/admin/imports", headers=auth(traveler))).status_code == 403
+
+    # Staff build the itinerary a couple would get, for the days the video says (2 here).
+    built = await client.post(
+        f"/reels/admin/imports/{job['id']}/itinerary", json={}, headers=as_staff
+    )
+    assert built.status_code == 202, built.text
+    assert built.json()["days"] == 2 and builds == [built.json()["code"]]
+    detail = (await client.get(f"/reels/admin/imports/{job['id']}", headers=as_staff)).json()
+    [trip] = detail["itineraries"]
+    assert (trip["code"], trip["days"], trip["adults"], trip["group"]) == (
+        built.json()["code"],
+        2,
+        2,
+        "couple",
+    )
+    assert trip["build_status"] == "building" and trip["items"]
+    no = await client.post(
+        f"/reels/admin/imports/{job['id']}/itinerary", json={}, headers=auth(traveler)
+    )
+    assert no.status_code == 403
 
     # The model saw caption, screen text and voice-over together.
     reading = next(m for task, m in ai.calls if task == "planner")[1]["content"]
@@ -541,7 +562,9 @@ async def test_staff_page_through_and_search_the_import_list(client, admin, trav
     assert bad.status_code == 422
 
 
-async def test_an_area_the_reel_mentions_is_not_matched_to_a_stop_so_it_cannot_move_the_trip(client, london):
+async def test_an_area_the_reel_mentions_is_not_matched_to_a_stop_so_it_cannot_move_the_trip(
+    client, london
+):
     """A Dubai reel says "from Delhi or Mumbai". The area "Delhi" must not be matched to some
     restaurant called Delhi (here: a place that is in London) and drag the whole trip there."""
     from app.modules.reels.understand import Reading
@@ -549,12 +572,218 @@ async def test_an_area_the_reel_mentions_is_not_matched_to_a_stop_so_it_cannot_m
     reading = Reading(
         destination="Dubai",
         places=[
-            {"name": "Borough Market", "kind": "area", "evidence": "fly from", "source": "voice", "t": None},
-            {"name": "Burj Khalifa", "kind": "sight", "evidence": "caption", "source": "caption", "t": None},
+            {
+                "name": "Borough Market",
+                "kind": "area",
+                "evidence": "fly from",
+                "source": "voice",
+                "t": None,
+            },
+            {
+                "name": "Burj Khalifa",
+                "kind": "sight",
+                "evidence": "caption",
+                "source": "caption",
+                "t": None,
+            },
         ],
     )
     async with SessionLocal() as session:
-        destination, places = await service.match_places(session, AIOrchestrator(client=ReelAI()), reading)
+        destination, places = await service.match_places(
+            session, AIOrchestrator(client=ReelAI()), reading
+        )
     assert destination is None  # Dubai is not in the knowledge base, and nothing moved it to London
     area = next(p for p in places if p["kind"] == "area")
     assert area["verified"] is False and area["location_id"] is None
+
+
+class ScreenAI(ReelAI):
+    MODELS = {**ReelAI.MODELS, "screen": "google/gemini-2.5-flash"}
+
+    async def chat(self, task, messages, **kwargs):
+        if task == "screen":
+            self.calls.append((task, messages))
+            return json.dumps(
+                {
+                    "frames": [
+                        {"n": 2, "lines": ["Le Morne", "Swing by  Caudan"]},
+                        {"n": 1, "lines": ["Mauritius isn't one"]},
+                        {"n": 3, "lines": ["le morne", ""]},  # a repeat and a blank
+                        {"n": 9, "lines": ["no such frame"]},
+                    ]
+                }
+            )
+        return await super().chat(task, messages, **kwargs)
+
+
+async def test_a_vision_model_reads_the_screen(tmp_path):
+    from PIL import Image
+
+    from app.modules.reels.understand import read_screen
+
+    frames = []
+    for i, t in enumerate((0.0, 4.2, 8.0)):
+        path = tmp_path / f"f{i}.jpg"
+        Image.new("RGB", (720, 1280), (30, 60, 90)).save(path)
+        frames.append(media.Frame(t=t, path=path))
+    ai = ScreenAI()
+    lines = await read_screen(AIOrchestrator(client=ai), frames)
+    assert lines == [
+        {"t": 0.0, "text": "Mauritius isn't one"},
+        {"t": 4.2, "text": "Le Morne"},
+        {"t": 4.2, "text": "Swing by Caudan"},
+    ]
+    content = ai.calls[0][1][0]["content"]
+    assert sum(1 for part in content if part["type"] == "image_url") == 3
+
+
+def _stt(monkeypatch, handler):
+    import httpx
+
+    from app.modules.reels import understand
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(settings, "sst_model", "x-ai/grok-stt-1.0")
+    monkeypatch.setattr(settings, "openrouter_api_key", "or-test")
+    monkeypatch.setattr(
+        understand.httpx,
+        "AsyncClient",
+        lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
+    )
+    monkeypatch.setattr(media, "audio", lambda video, out: (out.write_bytes(b"mp3"), out)[1])
+
+
+class SpeechAI(ReelAI):
+    async def chat(self, task, messages, **kwargs):
+        if task == "intent" and "speech from a travel video" in messages[0]["content"]:
+            self.calls.append((task, messages))
+            return json.dumps({"language": "hi", "english": "Go to Le Morne at sunset."})
+        return await super().chat(task, messages, **kwargs)
+
+
+async def test_the_speech_model_hears_the_voice_over(monkeypatch, tmp_path):
+    import httpx
+
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.update(url=str(request.url), auth=request.headers["authorization"],
+                    model=body["model"], format=body["input_audio"]["format"])  # fmt: skip
+        return httpx.Response(200, json={"text": "Shaam ko Le Morne jao.", "usage": {"seconds": 3}})
+
+    _stt(monkeypatch, handler)
+    ai = SpeechAI()
+    heard = await service.listen(AIOrchestrator(client=ai), tmp_path / "v.mp4", tmp_path, True)
+    assert (heard.text, heard.language, heard.english) == (
+        "Shaam ko Le Morne jao.",
+        "hi",
+        "Go to Le Morne at sunset.",
+    )
+    assert seen == {
+        "url": "https://openrouter.ai/api/v1/audio/transcriptions",
+        "auth": "Bearer or-test",
+        "model": "x-ai/grok-stt-1.0",
+        "format": "mp3",
+    }
+    assert [task for task, _ in ai.calls] == ["intent"]  # Gemini wasn't needed
+
+
+async def test_the_speech_model_failing_falls_back_to_gemini(monkeypatch, tmp_path):
+    import httpx
+
+    _stt(monkeypatch, lambda request: httpx.Response(503, json={"error": "busy"}))
+    ai = ReelAI()
+    heard = await service.listen(AIOrchestrator(client=ai), tmp_path / "v.mp4", tmp_path, True)
+    assert "Borough Market" in heard.text
+    assert [task for task, _ in ai.calls] == ["transcribe"]
+
+
+class TownAI(ReelAI):
+    MODELS = {**ReelAI.MODELS, "reader": "google/gemini-2.5-flash"}
+
+    async def chat(self, task, messages, **kwargs):
+        if task == "reader" and "You place travel stops in towns" in messages[0]["content"]:
+            self.calls.append((task, messages))
+            return json.dumps(
+                {"towns": {"Helicopter ride over the underwater waterfall": "Le Morne"}}
+            )
+        return await super().chat(task, messages, **kwargs)
+
+
+async def test_staff_publish_a_reels_unknown_places(client, admin, traveler):
+    from app.modules.knowledge.models import Location, LocationType
+    from app.modules.reels.models import CreatorContent, ImportStatus, ReelImport
+
+    def place(name, kind):
+        return {"name": name, "kind": kind, "evidence": name.lower(), "source": "voice",
+                "verified": False, "location_id": None}  # fmt: skip
+
+    async with SessionLocal() as session:
+        content = CreatorContent(
+            shortcode="mu-test-1", url="", caption="", destination_name="Mauritius",
+            extracted={"destination": "Mauritius", "country": "Mauritius"},
+            places=[
+                place("South of Mauritius", "area"),
+                place("Chamarel", "area"),
+                place("Rum tasting at Chamarel", "experience"),
+                place("Helicopter ride over the underwater waterfall", "experience"),
+            ],
+        )  # fmt: skip
+        session.add(content)
+        await session.flush()
+        job = ReelImport(url="", shortcode="mu-test-1", user_id=traveler.id,
+                         content_id=content.id, status=ImportStatus.DONE)  # fmt: skip
+        session.add(job)
+        await session.commit()
+        job_id = job.id
+
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=TownAI())
+    try:
+        url = f"/reels/admin/imports/{job_id}/places"
+        assert (await client.post(url, headers=auth(traveler))).status_code == 403
+        r = await client.post(url, headers=auth(admin))
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 200, r.text
+    added = {(a["name"], a["type"], a["town"]) for a in r.json()["added"]}
+    assert added == {
+        ("Mauritius", "country", ""),
+        ("Chamarel", "city", "Mauritius"),
+        ("Le Morne", "city", "Mauritius"),
+        ("Rum tasting at Chamarel", "experience", "Chamarel"),
+        ("Helicopter ride over the underwater waterfall", "experience", "Le Morne"),
+    }
+    assert [s["name"] for s in r.json()["skipped"]] == ["South of Mauritius"]
+
+    detail = (await client.get(f"/reels/admin/imports/{job_id}", headers=auth(admin))).json()
+    verified = {p["name"]: p["verified"] for p in detail["place_list"]}
+    assert verified == {
+        "South of Mauritius": False,
+        "Chamarel": True,
+        "Rum tasting at Chamarel": True,
+        "Helicopter ride over the underwater waterfall": True,
+    }
+    async with SessionLocal() as session:
+        heli = await session.scalar(
+            select(Location).where(Location.name == "Helicopter ride over the underwater waterfall")
+        )
+        assert heli.type == LocationType.EXPERIENCE and heli.status.value == "published"
+        assert heli.source == "reel" and heli.provenance["needs_verification"]
+
+    # A second press adds nothing new, even for a place now named a little differently: the
+    # reel is matched against our places before anything is added.
+    async with SessionLocal() as session:
+        row = await session.get(CreatorContent, content.id)
+        row.places = [*row.places, place("Rum Tasting in Chamarel", "experience")]
+        await session.commit()
+    app.dependency_overrides[get_orchestrator] = lambda: AIOrchestrator(client=TownAI())
+    try:
+        again = (await client.post(url, headers=auth(admin))).json()
+    finally:
+        app.dependency_overrides.clear()
+    assert again["added"] == []
+    detail = (await client.get(f"/reels/admin/imports/{job_id}", headers=auth(admin))).json()
+    # Matched to the place already added, so it is one place on the reel, not two.
+    names = [p["name"] for p in detail["place_list"]]
+    assert "Rum tasting at Chamarel" in names and "Rum Tasting in Chamarel" not in names

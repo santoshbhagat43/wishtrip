@@ -147,6 +147,23 @@ class ImportList(BaseModel):
     page_size: int
 
 
+class ImportItinerary(BaseModel):
+    """A trip built from this reel's places (by a traveller, or by staff to check the reel)."""
+
+    code: str
+    days: int
+    adults: int
+    kids: int
+    seniors: int
+    group: str
+    origin_city: str
+    build_status: str
+    build_error: str
+    ai_built: bool
+    created_at: datetime
+    items: list[dict]
+
+
 class ImportDetail(ImportRow):
     caption: str
     duration_seconds: float | None
@@ -156,5 +173,6 @@ class ImportDetail(ImportRow):
     transcript_en: str
     extracted: dict
     place_list: list[dict]
+    itineraries: list[ImportItinerary] = []
     log: list[ImportLogEntry]
     downloads: list[DownloadRequestRead]

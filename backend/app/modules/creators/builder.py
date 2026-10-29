@@ -27,7 +27,7 @@ SLOTS = ("morning", "afternoon", "evening")
 KINDS = {"stay", "food", "sight", "experience", "area", "note", "travel"}
 MAX_MAIN = 3
 MAX_PER_DAY = 10
-MAX_DAYS = 7
+MAX_DAYS = 14
 RETRY_SECONDS = 3
 
 

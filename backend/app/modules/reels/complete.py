@@ -27,7 +27,7 @@ from app.modules.search.service import semantic_search
 
 MIN_DAYS = 2
 DEFAULT_DAYS = 3
-MAX_DAYS = 7
+MAX_DAYS = 14
 STOPS_PER_DAY = 3
 MIN_STOPS_PER_DAY = 2
 

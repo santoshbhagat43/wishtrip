@@ -184,7 +184,7 @@ export function DetailsScreen() {
           <div className="flex items-center gap-1.5">
             <button type="button" aria-label="Fewer days" onClick={() => setDays((d) => Math.max(1, d - 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">−</button>
             <span className="min-w-[70px] rounded-xl border-[1.5px] border-[#E3E8EE] bg-white py-[11px] text-center text-[15.5px] font-semibold">{days} days</span>
-            <button type="button" aria-label="More days" onClick={() => setDays((d) => Math.min(7, d + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
+            <button type="button" aria-label="More days" onClick={() => setDays((d) => Math.min(14, d + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
           </div>
         </div>
       </div>
