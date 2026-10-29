@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from app.ai.orchestrator import AIOrchestrator, parse_json_object
+from app.modules.flights.airports import airport_for
 from app.modules.reels.complete import _already_there
 
 log = logging.getLogger(__name__)
@@ -84,7 +85,8 @@ Hard requirements for your answer:
   route. When "route_from_video" has towns, the trip travels through them in that order: put each
   place in the town it belongs to and keep to the days given. Where the trip moves from one town to
   the next, add a "travel" item that day ("Travel from A to B"), and add a "stay" ("Stay in B") on
-  the day they reach each town, so every night has a hotel in the right town.
+  the day they reach each town, so every night has a hotel in the right town. One stay a night:
+  a day that passes through several towns has one stay, in the town where the day ends.
 - Mark extra things as "optional": true. Anything you add that is not in must_include is
   "from_reel": false: only well-known real places or general suggestions (a beach walk, a local
   cafe), never an invented venue name, price, opening hour, address or phone number.
@@ -354,31 +356,36 @@ def finish(
     airport = next((r for r in route or [] if r["airport"] and r["day"] in (None, 1)), None)
     by_town = days >= 2 and len(towns) >= 2 and all(t["day"] for t in towns)
     if by_town:
-        # A trip through several towns sleeps in each: a stay per town, from the day it arrives.
+        # A trip through several towns sleeps in each, but in one bed a night: a day that passes
+        # through several towns ("Pune, then Mulshi, then Kolad") sleeps in the last of them, and
+        # the others are on the way.
         out = [i for i in out if not (i["kind"] == "stay" and i["origin"] != "reel")]
-        seen: set[str] = set()
-        for t in towns:
-            if t["name"] in seen:
-                continue
-            seen.add(t["name"])
-            add(f"Stay in {t['name']}", "stay", min(days, t["day"]), "afternoon",
-                "Check in and settle in.", rank=-1)  # fmt: skip
-        reached = [(min(days, t["day"]), t["name"]) for t in towns]
-        for (a_day, a), (b_day, b) in zip(reached, reached[1:], strict=False):
-            if a != b and b_day >= a_day and not any(
-                i["kind"] in ("travel", "note")
-                and i["day"] in (a_day, b_day)
-                and a in i["name"]
-                and b in i["name"]
+        nights = _nights(towns, days)
+        for day, town, _via in nights:
+            add(f"Stay in {town}", "stay", day, "afternoon", "Check in and settle in.", rank=-1)
+        slept = None
+        for day, town, via in nights:
+            start = slept or (via[0] if via else None)
+            passing = via if slept else via[1:]
+            slept = town
+            if not start or start == town or any(
+                i["kind"] in ("travel", "note") and i["day"] == day
+                and start in i["name"] and town in i["name"]
                 for i in out
-            ):
-                add(f"Travel from {a} to {b}", "travel", b_day, "morning",
-                    "Allow the day's first part for the journey; your hotel can book a driver.",
-                    rank=-2)  # fmt: skip
+            ):  # fmt: skip
+                continue
+            add(f"Travel from {start} to {town}" + (f" via {_listed(passing)}" if passing else ""),
+                "travel", day, "morning",
+                "Allow the day's first part for the journey; your hotel can book a driver.",
+                rank=-2)  # fmt: skip
     elif days >= 2 and not any(i["kind"] == "stay" for i in out):
         add(f"Stay in {where}", "stay", 1, "afternoon", "Check in and settle in.", rank=-1)
     if days >= 2:
-        arrive = airport["name"] if airport else where
+        # A region ("Maharashtra") is not where a plane lands: the first town with an airport is.
+        landing = next((t["name"] for t in towns if airport_for(t["name"])), None)
+        arrive = airport["name"] if airport else (
+            where if airport_for(where) or not landing else landing
+        )
         add(f"Fly {home} to {arrive}" if origin_city else f"Fly to {arrive}", "travel", 1,
             "morning", "Flight times and fares are on the trip page.", rank=-3)  # fmt: skip
         first = towns[0]["name"] if towns else ""
@@ -425,8 +432,60 @@ def finish(
             where_to = near[slot] or next((n for n in near.values() if n), None)
             note = f"A local place near {where_to}." if where_to else "A local place nearby."
             add(label, "food", d, slot, note)
+    out = one_stay_a_night(out)
+    if by_town:
+        # A hotel the creator names on a day the trip doesn't move ("Della Resort", day 6) is in
+        # the town they are in that night.
+        for i in out:
+            if i["kind"] == "stay" and not i.get("town") and not STAY_IN.match(i["name"]):
+                here = [town for day, town, _ in nights if day <= i["day"]]
+                if here:
+                    i["town"] = here[-1]
     out.sort(key=lambda i: (i["day"], _rank(i), SLOTS.index(i["slot"])))
     return out
+
+
+STAY_IN = re.compile(r"stay in\s+(.+)$", re.I)
+
+
+def _nights(towns: list[dict], days: int) -> list[tuple[int, str, list[str]]]:
+    """Where each night is spent, in order: (day, town, the towns passed through that day on the
+    way). Several towns on one day are one journey that ends in the last of them."""
+    nights: list[tuple[int, str, list[str]]] = []
+    for t in towns:
+        day, name = min(days, t["day"]), t["name"]
+        if nights and nights[-1][0] == day:
+            _, last, via = nights[-1]
+            if name != last and name not in via:
+                nights[-1] = (day, name, [*via, last])
+        elif not nights or nights[-1][1] != name:
+            nights.append((day, name, []))
+    return nights
+
+
+def _listed(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def one_stay_a_night(items: list[dict]) -> list[dict]:
+    """One bed a night, whatever the AI or the video said: a day with several stays keeps the one
+    the creator named (the reel's), else the last one (where the day's journey ends)."""
+    by_day: dict[int, list[dict]] = {}
+    for i in items:
+        if i["kind"] == "stay":
+            by_day.setdefault(i["day"], []).append(i)
+    drop: set[int] = set()
+    for stays in by_day.values():
+        if len(stays) > 1:
+            keep = next((s for s in stays if s.get("origin") == "reel"), stays[-1])
+            drop |= {id(s) for s in stays if s is not keep}
+            # The creator's hotel stands in for "Stay in <town>": it keeps the town, so meals and
+            # the hotel search still look in the right place.
+            named = (STAY_IN.match(s["name"]) for s in stays if s is not keep)
+            town = next((m.group(1) for m in named if m), None)
+            if town and not keep.get("town"):
+                keep["town"] = town
+    return [i for i in items if id(i) not in drop]
 
 
 MEAL_PROMPT = """You suggest what to eat on a trip. For each meal in "meals", name a dish or a
@@ -456,7 +515,7 @@ async def name_meals(
         if not stays:
             return destination
         here = [s for s in stays if s["day"] <= day] or stays
-        return re.sub(r"^stay in\s+", "", here[-1]["name"], flags=re.I)
+        return here[-1].get("town") or re.sub(r"^stay in\s+", "", here[-1]["name"], flags=re.I)
 
     asked = []
     for i in plain:

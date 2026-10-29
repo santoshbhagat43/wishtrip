@@ -884,6 +884,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reels/admin/itineraries/{code}/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Itinerary Rates
+         * @description Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the
+         *     return flight from the party's city, for the dates asked. Every TripJack call is traced.
+         */
+        post: operations["itinerary_rates_reels_admin_itineraries__code__rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reels/admin/imports/{import_id}/places": {
         parameters: {
             query?: never;
@@ -4198,6 +4219,35 @@ export interface components {
             /** Items */
             items: components["schemas"]["ScheduledItem"][];
         };
+        /** ItineraryRates */
+        ItineraryRates: {
+            /** Code */
+            code: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * End Date
+             * Format: date
+             */
+            end_date: string;
+            /** Origin */
+            origin: string;
+            /** Currency */
+            currency: string;
+            stays: components["schemas"]["StayPrices"];
+            flight: components["schemas"]["FlightPrice"];
+            /** Total */
+            total: number;
+            /** Supplier */
+            supplier: {
+                [key: string]: unknown;
+            };
+            /** Seconds */
+            seconds: number;
+        };
         /** KnowledgeStats */
         KnowledgeStats: {
             /** Total */
@@ -5793,6 +5843,11 @@ export interface components {
             creator: components["schemas"]["PublicCreator"];
             /** Items */
             items: components["schemas"]["TripItem"][];
+        };
+        /** RatesAsk */
+        RatesAsk: {
+            /** Start Date */
+            start_date?: string | null;
         };
         /** RecentEvent */
         RecentEvent: {
@@ -8745,6 +8800,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    itinerary_rates_reels_admin_itineraries__code__rates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatesAsk"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItineraryRates"];
                 };
             };
             /** @description Validation Error */

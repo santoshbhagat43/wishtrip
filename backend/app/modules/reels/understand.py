@@ -69,6 +69,9 @@ Rules:
 - kind is one of: "stay" (hotel, villa, homestay), "food" (restaurant, cafe, bar, dish spot),
   "sight" (beach, fort, church, viewpoint, market), "experience" (cruise, tour, activity),
   "area" (a town or neighbourhood).
+- A resort or hotel is a "stay" only when the creator sleeps there ("stay at", "overnight",
+  "check in"). Named for what to do there ("adventure activities at Della Resort", "lunch at the
+  resort", "its water park") it is an "experience" (or "food"): a visit, not the night's bed.
 - Prices, phone numbers and discount codes are not places. Ignore them.
 - tips: short practical advice the creator gives (best time, what to avoid), in English.
 - "days_said" is the trip length in the creator's own words ("7 to 8 days", "a weekend"), or
@@ -404,6 +407,26 @@ def _placed(name: str, destination: str) -> str:
     return f"{name.strip().removeprefix('the ').removeprefix('The ').capitalize()} of {destination}"
 
 
+# A "stay" the creator only visits: the evidence is about doing something there, not sleeping.
+_SLEEP_WORDS = re.compile(
+    r"\b(stay\w*|overnight|nights?|slept|sleep\w*|check(?:ed)?[ -]?in|book\w*|room\w*)\b", re.I
+)
+_VISIT_WORDS = re.compile(
+    r"\b(activit\w*|adventure\w*|visit\w*|explore\w*|enjoy\w*|lunch|dinner|breakfast|brunch|"
+    r"cafe|park|ride\w*|zipline|water\s*park|spa\s+day|day\s+out|try|tried)\b",
+    re.I,
+)
+
+
+def kind_for(kind: str, evidence: str) -> str:
+    """A resort named for what to do there ("adventure activities at Della Resort") is a visit,
+    not where they sleep: an experience. Kept a stay when the creator says they stay, or when the
+    evidence says nothing either way."""
+    if kind == "stay" and _VISIT_WORDS.search(evidence) and not _SLEEP_WORDS.search(evidence):
+        return "experience"
+    return kind
+
+
 def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None = None) -> Reading:
     corpus = _norm(text)
     destination = str(data.get("destination") or "").strip()[:120]
@@ -424,7 +447,10 @@ def clean_reading(data: dict[str, Any], text: str, ocr_lines: list[dict] | None 
         places.append(
             {
                 "name": name,
-                "kind": p.get("kind") if p.get("kind") in KINDS else "sight",
+                "kind": kind_for(
+                    p.get("kind") if p.get("kind") in KINDS else "sight",
+                    str(p.get("evidence") or ""),
+                ),
                 "evidence": str(p.get("evidence") or "").strip()[:300],
                 "source": p.get("source") if p.get("source") in SOURCES else "caption",
                 "video_day": stated_day(p.get("day"), corpus),

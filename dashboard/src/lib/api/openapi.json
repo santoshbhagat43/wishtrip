@@ -2904,6 +2904,64 @@
     }
    }
   },
+  "/reels/admin/itineraries/{code}/rates": {
+   "post": {
+    "tags": [
+     "reels"
+    ],
+    "summary": "Itinerary Rates",
+    "description": "Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the\nreturn flight from the party's city, for the dates asked. Every TripJack call is traced.",
+    "operationId": "itinerary_rates_reels_admin_itineraries__code__rates_post",
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RatesAsk"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ItineraryRates"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/reels/admin/imports/{import_id}/places": {
    "post": {
     "tags": [
@@ -11838,6 +11896,65 @@
     ],
     "title": "ItineraryDay"
    },
+   "ItineraryRates": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Start Date"
+     },
+     "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "End Date"
+     },
+     "origin": {
+      "type": "string",
+      "title": "Origin"
+     },
+     "currency": {
+      "type": "string",
+      "title": "Currency"
+     },
+     "stays": {
+      "$ref": "#/components/schemas/StayPrices"
+     },
+     "flight": {
+      "$ref": "#/components/schemas/FlightPrice"
+     },
+     "total": {
+      "type": "number",
+      "title": "Total"
+     },
+     "supplier": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Supplier"
+     },
+     "seconds": {
+      "type": "number",
+      "title": "Seconds"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "start_date",
+     "end_date",
+     "origin",
+     "currency",
+     "stays",
+     "flight",
+     "total",
+     "supplier",
+     "seconds"
+    ],
+    "title": "ItineraryRates"
+   },
    "KnowledgeStats": {
     "properties": {
      "total": {
@@ -15938,6 +16055,24 @@
     ],
     "title": "PublicTripRead",
     "description": "A published creator trip, shown on the shareable /t/<code> link."
+   },
+   "RatesAsk": {
+    "properties": {
+     "start_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start Date"
+     }
+    },
+    "type": "object",
+    "title": "RatesAsk"
    },
    "RecentEvent": {
     "properties": {

@@ -1119,3 +1119,112 @@ async def test_a_city_spelt_a_little_differently_still_finds_its_tripjack_region
         assert (await hotel_service.resolve_region(session, q("Thimphu"))).region_id == 18172  # exact first
         with pytest.raises(hotel_service.NoDestination):
             await hotel_service.resolve_region(session, q("Atlantis"))
+
+
+async def test_a_region_with_no_airport_flies_into_its_first_town_and_home_from_its_last(
+    client, traveler, builds, monkeypatch
+):
+    import datetime as dt
+
+    from app.modules.creators import flight_prices as fp
+    from app.modules.flights import service as flights_service
+
+    async def none(*a, **k):
+        return None
+
+    PRICES = {("BLR", "PNQ"): 3000, ("BOM", "BLR"): 4000, ("PNQ", "BLR"): 5000}
+
+    class Fares(FakeFlights):
+        async def search(self, query):
+            self.queries.append(query)
+            route = query["routeInfos"][0]
+            origin, destination = route["fromCityOrAirport"]["code"], route["toCityOrAirport"]["code"]
+            seg = {"da": {"code": origin}, "aa": {"code": destination}, "dt": "2027-01-10T08:00",
+                   "at": "2027-01-10T10:00", "fD": {"aI": {"code": "AI", "name": "Air India"}, "fN": "1"},
+                   "duration": 120, "stops": 0}  # fmt: skip
+            fare = {"fareIdentifier": "PUBLISHED", "id": "f", "fd": {"ADULT": {"fC": {"BF": PRICES[(origin, destination)], "TAF": 0}}}}
+            trips = {"ONWARD": [{"sI": [seg], "totalPriceList": [fare]}]}
+            if len(query["routeInfos"]) == 2:
+                back = query["routeInfos"][1]
+                o2, d2 = back["fromCityOrAirport"]["code"], back["toCityOrAirport"]["code"]
+                fare2 = {**fare, "id": "b", "fd": {"ADULT": {"fC": {"BF": PRICES[(o2, d2)], "TAF": 0}}}}
+                trips["RETURN"] = [{"sI": [{**seg, "da": {"code": o2}, "aa": {"code": d2}}], "totalPriceList": [fare2]}]
+            return {"searchResult": {"tripInfos": trips}}
+
+    fake = Fares()
+    monkeypatch.setattr(flights_service, "tripjack_flights", fake)
+    monkeypatch.setattr(fp, "tripjack_flights", fake)
+    for mod in (fp, flights_service):
+        monkeypatch.setattr(mod, "cache_get", none)
+        monkeypatch.setattr(mod, "cache_set", none)
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "days": 8, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
+            "origin": "BLR", "origin_city": "Bengaluru"}  # fmt: skip
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:  # a Maharashtra road trip: Pune, the hills, then Mumbai
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.destination_name = "Maharashtra"
+        row.source_items = [
+            *row.source_items,
+            {"id": "a1", "kind": "area", "name": "Pune", "video_day": 1, "origin": "reel"},
+            {"id": "a2", "kind": "area", "name": "Lonavala", "video_day": 4, "origin": "reel"},
+            {"id": "a3", "kind": "area", "name": "Mumbai", "video_day": 7, "origin": "reel"},
+            {"id": "a4", "kind": "area", "name": "Malshej Ghat", "video_day": 8, "origin": "reel"},
+        ]
+        await session.commit()
+
+    got = (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()
+    assert got["status"] == "priced" and got["destination"] == "PNQ"
+    # Into Pune, home from Mumbai (the last town with an airport): cheaper than back from Pune.
+    assert [(leg["from_code"], leg["to_code"]) for leg in got["legs"]] == [("BLR", "PNQ"), ("BOM", "BLR")]
+    assert got["total"] == 2 * (3000 + 4000)
+
+
+async def test_a_day_through_several_towns_sleeps_once_in_the_last_of_them():
+    # The Maharashtra reel: day 1 names six towns ("start from Pune or Mumbai ... stay overnight in
+    # Tamhini or Kolad"); nobody sleeps in six places in one night.
+    items = [
+        {**p, "id": f"m{i}", "origin": "reel", "note": "", "location_id": None, "verified": False}
+        for i, p in enumerate([
+            {"name": "Pune", "kind": "area", "video_day": 1},
+            {"name": "Mumbai", "kind": "area", "video_day": 1},
+            {"name": "Mulshi", "kind": "area", "video_day": 1},
+            {"name": "Kolad", "kind": "area", "video_day": 1},
+            {"name": "Lonavala", "kind": "area", "video_day": 3},
+            {"name": "Della Resort", "kind": "stay", "video_day": 4},
+            {"name": "Devkund Waterfall", "kind": "sight", "video_day": 2},
+            {"name": "Korigad Fort", "kind": "sight", "video_day": 3},
+        ])
+    ]
+    route = builder.route_from(items)
+    stops = [i for i in items if i["kind"] != "area"]
+    plan = {"summary": "", "tips": [], "days": [
+        {"day": d, "items": [{"name": i["name"], "kind": "sight", "slot": "morning"} for i in stops if i["video_day"] == d]
+         or [{"name": "Walk", "kind": "sight", "slot": "morning"}]} for d in range(1, 5)]}
+    out = await builder.build(
+        FakeAI(plan), must=stops, destination="Maharashtra", days=4, adults=2, kids=0, seniors=0,
+        pace="relaxed", when="", group="couple", summary="", origin_city="Bengaluru", route=route,
+    )  # fmt: skip
+    got = out["items"]
+    stays = [(i["day"], i["name"]) for i in got if i["kind"] == "stay"]
+    assert stays == [(1, "Stay in Kolad"), (3, "Stay in Lonavala"), (4, "Della Resort")]
+    della = next(i for i in got if i["name"] == "Della Resort")
+    assert della["town"] == "Lonavala"  # the creator's hotel is searched for where they are
+    travel = [(i["day"], i["name"]) for i in got if i["kind"] == "travel"]
+    assert (1, "Travel from Pune to Kolad via Mumbai and Mulshi") in travel
+    assert (3, "Travel from Kolad to Lonavala") in travel
+    assert (1, "Fly Bengaluru to Pune") in travel  # a region is not where the plane lands
+
+
+def test_one_stay_a_night_keeps_the_creators_hotel_and_its_town():
+    def stay(name, day, origin="suggested"):
+        return {"kind": "stay", "name": name, "day": day, "origin": origin}
+
+    items = [stay("Stay in Lonavala", 4), stay("Della Resort", 4, origin="reel"),
+             stay("Stay in Pune", 1), stay("Stay in Kolad", 1), stay("Stay in Matheran", 7)]  # fmt: skip
+    kept = builder.one_stay_a_night(items)
+    assert [(s["day"], s["name"]) for s in kept] == [
+        (4, "Della Resort"), (1, "Stay in Kolad"), (7, "Stay in Matheran")
+    ]
+    assert kept[0]["town"] == "Lonavala"  # meals and the hotel search still look in Lonavala

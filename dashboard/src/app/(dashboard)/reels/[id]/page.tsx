@@ -3,11 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use } from "react";
+import { use, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, ErrorNote, PageHeader, Spinner } from "@/components/ui/card";
+import { Input } from "@/components/ui/field";
 import { Table, Td, Th } from "@/components/ui/table";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
@@ -410,8 +411,156 @@ function ItineraryCard({ importId, itineraries }: { importId: string; itinerarie
         {latest?.build_status === "failed" && <span className="text-sm text-danger">Build failed: {latest.build_error || "unknown error"}</span>}
         {build.error && <ErrorNote error={build.error} />}
       </div>
+      {latest?.build_status === "ready" && <Rates code={latest.code} />}
       {latest && latest.build_status !== "building" && <Days items={latest.items as Stop[]} days={latest.days} />}
     </Card>
+  );
+}
+
+type Rates = components["schemas"]["ItineraryRates"];
+type StayRow = Rates["stays"]["stays"][number];
+
+const inr = (n: number | null | undefined) =>
+  n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const short = (d: string | null | undefined) =>
+  d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "";
+
+const FLIGHT_STATUS: Record<string, string> = {
+  priced: "Priced",
+  no_dates: "No travel date",
+  no_origin: "No home city",
+  no_airport: "No airport found for this trip",
+  same_city: "Home city is the destination",
+  unavailable: "TripJack has no fare for these dates",
+  error: "TripJack did not answer",
+};
+
+/** Every stay mapped to a hotel and the return flight, priced live by TripJack's UAT API for the
+ *  dates chosen. Stays that name no hotel we hold show the closest hotels with a room instead. */
+function Rates({ code }: { code: string }) {
+  const [start, setStart] = useState(() => new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+  const rates = useMutation({
+    mutationFn: async () =>
+      unwrap(await api.POST("/reels/admin/itineraries/{code}/rates", { params: { path: { code } }, body: { start_date: start } })),
+  });
+  const r = rates.data;
+  return (
+    <div className="mx-4 mb-4 rounded-xl border border-border">
+      <div className="flex flex-wrap items-center gap-3 p-3">
+        <div className="mr-auto">
+          <div className="font-medium">Hotel and flight rates</div>
+          <div className="text-sm text-muted">Maps every stay to a hotel and prices it, and the return flight, live from the TripJack UAT API.</div>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          Leaving
+          <Input type="date" className="w-auto" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Leaving on" />
+        </label>
+        <Button type="button" variant="accent" disabled={rates.isPending || !start} onClick={() => rates.mutate()}>
+          {rates.isPending ? "Asking TripJack…" : r ? "Get rates again" : "Get TripJack rates"}
+        </Button>
+      </div>
+      {rates.error && <div className="px-3 pb-3"><ErrorNote error={rates.error} /></div>}
+      {r && (
+        <div className="space-y-4 border-t border-line p-3">
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+            <span className="text-2xl font-semibold tabular-nums">{inr(r.total)}</span>
+            <span>{short(r.start_date)} – {short(r.end_date)} · from {r.origin || "—"} · {r.stays.rooms} {r.stays.rooms === 1 ? "room" : "rooms"}</span>
+            <span className="text-muted">
+              {String(r.supplier.environment ?? "")} · {(r.supplier.calls as unknown[] | undefined)?.length ?? 0} TripJack calls · {r.seconds} s · trace {String(r.supplier.trace_id ?? "")}
+            </span>
+          </div>
+
+          <div>
+            <div className="mb-1 text-sm font-medium">Stays · {inr(r.stays.total)} for the stays with a hotel we hold{r.stays.all_priced ? "" : " (others: nearest hotel's rate, counted in the total)"}</div>
+            <Table>
+              <thead><tr><Th>Stay</Th><Th>Hotel</Th><Th>Nights</Th><Th>Room</Th><Th>Rate</Th></tr></thead>
+              <tbody>
+                {r.stays.stays.map((s) => <StayRates key={s.item_id} stay={s} />)}
+              </tbody>
+            </Table>
+          </div>
+
+          <div>
+            <div className="mb-1 text-sm font-medium">
+              Flight · {r.flight.status === "priced" ? `${inr(r.flight.total)} for ${r.flight.adults} ${r.flight.adults === 1 ? "adult" : "adults"}${r.flight.children ? ` and ${r.flight.children} children` : ""}` : FLIGHT_STATUS[r.flight.status] ?? r.flight.status}
+            </div>
+            {r.flight.legs.length > 0 && (
+              <Table>
+                <thead><tr><Th>Route</Th><Th>Date</Th><Th>Flight</Th><Th>Departs</Th><Th>Stops</Th><Th>Fare</Th></tr></thead>
+                <tbody>
+                  {r.flight.legs.map((l, i) => (
+                    <tr key={i}>
+                      <Td className="font-medium">{l.from_code} → {l.to_code}</Td>
+                      <Td>{short(l.date)}</Td>
+                      <Td>{[l.airline, l.flight_number].filter(Boolean).join(" ") || "—"}</Td>
+                      <Td className="tabular-nums">{l.departs ? new Date(l.departs).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) : "—"}</Td>
+                      <Td>{l.stops ? l.stops : "Non-stop"}</Td>
+                      <Td className="tabular-nums">{inr(l.price)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
+
+          <details>
+            <summary className="cursor-pointer text-sm">TripJack calls ({(r.supplier.calls as unknown[] | undefined)?.length ?? 0})</summary>
+            <ul className="mt-2 space-y-1 text-xs">
+              {((r.supplier.calls ?? []) as { endpoint: string; status: number | null; ms: number; error: string }[]).map((c, i) => (
+                <li key={i} className="tabular-nums">
+                  <span className={c.status === 200 ? "" : "text-danger"}>{c.status ?? "—"}</span> · {c.ms} ms · {c.endpoint}{c.error ? ` · ${c.error}` : ""}
+                </li>
+              ))}
+            </ul>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STAY_STATUS: Record<string, string> = {
+  unavailable: "No room for these dates",
+  no_dates: "No night here",
+  error: "TripJack did not answer",
+};
+
+function StayRates({ stay }: { stay: StayRow }) {
+  const nearest = stay.alternatives?.[0];
+  const nights = stay.check_in && stay.check_out ? `${short(stay.check_in)} → ${short(stay.check_out)} · ${stay.nights}` : null;
+  if (stay.status === "priced") {
+    return (
+      <tr>
+        <Td>{stay.name}</Td>
+        <Td>{stay.hotel?.name}</Td>
+        <Td className="whitespace-nowrap">{nights}</Td>
+        <Td className="text-muted">{[stay.room, stay.meal_basis].filter(Boolean).join(" · ")}</Td>
+        <Td className="font-medium tabular-nums">{inr(stay.total)}</Td>
+      </tr>
+    );
+  }
+  if (nearest) {
+    return (
+      <tr>
+        <Td>{stay.name}</Td>
+        <Td>
+          {nearest.hotel.name} <Badge tone="warn">nearest</Badge>
+          <div className="text-xs text-muted">{nearest.reason}{stay.alternatives.length > 1 ? ` · ${stay.alternatives.length - 1} more: ${stay.alternatives.slice(1).map((a) => `${a.hotel.name} ${inr(a.total)}`).join(", ")}` : ""}</div>
+        </Td>
+        <Td className="whitespace-nowrap">{nights}</Td>
+        <Td className="text-muted">{[nearest.room, nearest.meal_basis].filter(Boolean).join(" · ")}</Td>
+        <Td className="font-medium tabular-nums">{inr(nearest.total)}</Td>
+      </tr>
+    );
+  }
+  return (
+    <tr>
+      <Td>{stay.name}</Td>
+      <Td className="text-muted">{stay.hotel?.name ?? "No hotel found"}</Td>
+      <Td className="whitespace-nowrap text-muted">{nights ?? "Same day as the next stay"}</Td>
+      <Td />
+      <Td className="text-muted">{STAY_STATUS[stay.status] ?? (nights ? "No hotel with a room nearby" : "—")}</Td>
+    </tr>
   );
 }
 

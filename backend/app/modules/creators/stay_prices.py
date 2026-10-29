@@ -164,6 +164,8 @@ async def _has_a_room(
 def stay_town(stay: dict, destination: str) -> str:
     """Where a stay is: the town in "Stay in Thimphu" when we wrote it, else the trip's destination.
     A trip through several towns sleeps in each, and each is priced in its own town."""
+    if stay.get("town"):  # a hotel the creator named, standing in for that town's stay
+        return str(stay["town"])
     found = re.match(r"stay in\s+(.+)$", str(stay.get("name") or ""), re.I)
     return found.group(1).strip() if found and stay.get("origin") != "reel" else destination
 

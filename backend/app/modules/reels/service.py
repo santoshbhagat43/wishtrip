@@ -410,6 +410,11 @@ GENERIC = {
     "cafe", "restaurant", "beach", "fort", "hotel", "resort", "villa", "market", "temple",
     "church", "lake", "bar", "bistro", "kitchen", "house", "view", "viewpoint", "point",
     "island", "falls", "trek", "tour", "cruise", "north", "south", "east", "west", "old", "new",
+    # What kind of place it is, not which one: "Adarai Jungle Trail" is not "Periyar jungle walk".
+    "jungle", "trail", "trails", "walk", "nature", "forest", "waterfall", "waterfalls", "park",
+    "garden", "gardens", "hill", "hills", "valley", "cave", "caves", "river", "national",
+    "wildlife", "sanctuary", "adventure", "camp", "camping", "safari", "boat", "ride", "dam",
+    "ghat", "peak", "trekking", "museum", "palace", "spa",
 }  # fmt: skip
 
 
@@ -440,14 +445,19 @@ async def match_places(
     """Each place → its knowledge-base entry when we have one (verified), else kept as
     'from the reel' so the planner never presents it as checked."""
     destination, city_ids = await resolve_destination(session, reading.destination)
+    # Only the country is ours ("Maharashtra" is not, "India" is): its places are matched by name
+    # alone. By meaning, across a whole country, a trail in Maharashtra once became a jungle walk
+    # in Kerala, and moved the trip there.
+    whole_country = False
     if destination is None and reading.country:
         destination, city_ids = await resolve_destination(session, reading.country)
+        whole_country = destination is not None
     published = Location.status == LocationStatus.PUBLISHED
     stops = Location.type.not_in([LocationType.CITY, LocationType.COUNTRY])
     scope = [published, stops]
     if city_ids:
         scope.append(Location.parent_id.in_(city_ids))
-    search_by_meaning = bool(city_ids) and ai.embedder.name != "hashing"
+    search_by_meaning = bool(city_ids) and not whole_country and ai.embedder.name != "hashing"
     if search_by_meaning:
         # A place not found by name is looked up by meaning: embed every name at once, up front,
         # rather than one embedding call per place.

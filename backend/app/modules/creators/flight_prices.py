@@ -116,10 +116,13 @@ async def flight_price(mine: TravellerTrip) -> FlightPrice:
     named = next(
         (airport_for(r["name"]) for r in route if r["airport"] and airport_for(r["name"])), None
     )
-    dest = named or airport_for(mine.destination_name)
     # (an area the video names with no day is not where the trip ends)
     towns = [r for r in route if not r["airport"] and r["day"]]
-    leave = (airport_for(towns[-1]["name"]) if towns else None) or dest
+    # A region ("Maharashtra") has no airport of its own: fly into the first town that has one
+    # (Pune) and home from the last one (Mumbai).
+    by_town = [code for r in towns if (code := airport_for(r["name"]))]
+    dest = named or airport_for(mine.destination_name) or (by_town[0] if by_town else None)
+    leave = (by_town[-1] if by_town else None) or dest
     if dest is None:
         return base.model_copy(update={"status": "no_airport"})
     base = base.model_copy(update={"origin": mine.origin_code, "destination": dest,

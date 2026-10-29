@@ -1128,3 +1128,134 @@ def test_a_regions_first_city_is_not_the_reels_destination():
         "Krabi (Ao Nang)"
     )
     assert _destination_name(None, "Maharashtra") == "Maharashtra"
+
+
+async def test_staff_get_tripjack_rates_for_a_reels_itinerary(client, admin, traveler, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import flight_prices, stay_prices
+    from app.modules.creators.models import TravellerTrip
+
+    seen = {}
+
+    async def stays(session, trip):
+        seen["start"] = trip.start_date
+        sp = stay_prices
+        held = sp.StayPrice(
+            item_id="a",
+            name="Stay in Lonavala",
+            status="priced",
+            total=5000,
+            hotel=sp.StayHotel(id="1", name="Lake View"),
+        )
+        nearby = sp.StayAlternative(
+            hotel=sp.StayHotel(id="2", name="River Camp"), total=3000, checked_at="now"
+        )
+        none_held = sp.StayPrice(
+            item_id="b", name="Stay in Kolad", status="not_matched", alternatives=[nearby]
+        )
+        return sp.StayPrices(currency="INR", total=5000, rooms=1, all_priced=False,
+                             stays=[held, none_held])  # fmt: skip
+
+    async def flight(trip):
+        return flight_prices.FlightPrice(
+            status="priced", origin="BLR", destination="PNQ", total=9000
+        )
+
+    monkeypatch.setattr(stay_prices, "stay_prices", stays)
+    monkeypatch.setattr(flight_prices, "flight_price", flight)
+    async with SessionLocal() as session:
+        session.add(TravellerTrip(code="rates001", days=3, adults=2, build_status="ready",
+                                  origin_code="BLR", items=[]))  # fmt: skip
+        await session.commit()
+
+    when = (dt.date.today() + dt.timedelta(days=40)).isoformat()
+    r = await client.post(
+        "/reels/admin/itineraries/rates001/rates", json={"start_date": when}, headers=auth(admin)
+    )
+    assert r.status_code == 200, r.text
+    got = r.json()
+    assert seen["start"].isoformat() == when and got["end_date"] > when
+    # The hotel we hold, the nearest one where we hold none, and the flight.
+    assert got["total"] == 5000 + 3000 + 9000
+    assert got["flight"]["destination"] == "PNQ" and got["supplier"]["name"] == "tripjack"
+
+    as_traveller = await client.post(
+        "/reels/admin/itineraries/rates001/rates", json={}, headers=auth(traveler)
+    )
+    assert as_traveller.status_code == 403
+
+
+def test_a_resort_named_for_its_activities_is_a_visit_not_a_nights_stay():
+    from app.modules.reels.understand import kind_for
+
+    # Della Resorts, Lonavala: a resort with an adventure park the creator only visits.
+    assert kind_for("stay", "enjoy some adventure activities at Della Resort") == "experience"
+    assert kind_for("stay", "lunch at the resort, then the water park") == "experience"
+    # Where they sleep stays a stay.
+    assert kind_for("stay", "stay overnight at Della Resort") == "stay"
+    assert kind_for("stay", "we checked in at Della and did the adventure park") == "stay"
+    assert kind_for("stay", "Della Resort") == "stay"  # nothing said either way: as the model said
+    assert kind_for("sight", "adventure activities") == "sight"  # only stays are reconsidered
+
+
+def test_a_place_is_not_matched_across_a_whole_country_by_a_word_like_jungle():
+    from app.modules.reels.service import _shares_name
+
+    assert not _shares_name("Adarai Jungle Trail", "Periyar jungle nature walk")
+    assert not _shares_name("Kalu Waterfall", "Dudhsagar Waterfall")
+    assert _shares_name("Thalassa Vagator", "Thalaser")  # a real name still matches a slip
+
+
+async def test_a_region_we_dont_know_is_not_matched_by_meaning_across_its_country(
+    client, admin, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from app.ai.orchestrator import AIOrchestrator
+    from app.modules.reels import service as reel_service
+    from app.modules.reels.understand import Reading
+
+    async with SessionLocal() as session:
+        r = await client.post(
+            "/admin/locations",
+            json={"name": "India", "type": "country", "status": "published"},
+            headers=auth(admin),
+        )
+        india = r.json()["id"]
+        r = await client.post(
+            "/admin/locations",
+            json={"name": "Thekkady", "type": "city", "status": "published", "parent_id": india},
+            headers=auth(admin),
+        )
+        await client.post(
+            "/admin/locations",
+            json={"name": "Periyar jungle nature walk", "type": "activity",
+                  "status": "published", "parent_id": r.json()["id"]},
+            headers=auth(admin),
+        )  # fmt: skip
+        asked = []
+
+        async def semantic(*a, **k):
+            asked.append(a)
+            return []
+
+        monkeypatch.setattr(reel_service, "semantic_search", semantic)
+        reading = Reading(
+            destination="Maharashtra",
+            country="India",
+            places=[{"name": "Adarai Jungle Trail", "kind": "experience", "evidence": "trek",
+                     "source": "caption", "video_day": 11, "t": None}],
+        )  # fmt: skip
+        ai = AIOrchestrator(client=ReelAI())
+
+        async def embed(*a, **k):
+            return None
+
+        # As in production: an embedder that can search by meaning.
+        monkeypatch.setattr(ai, "embedder", SimpleNamespace(name="ollama/test"))
+        monkeypatch.setattr(ai, "embed_queries", embed)
+        destination, places = await reel_service.match_places(session, ai, reading)
+    assert not asked  # never looked up by meaning across all of India
+    assert not places[0]["verified"] and places[0]["location_name"] is None
+    assert destination is None or destination.name != "Thekkady"
