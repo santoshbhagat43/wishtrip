@@ -3,7 +3,7 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
 
-import { expect, signUp, test } from "./fixtures";
+import { expect, fillTripDetails, signUp, test } from "./fixtures";
 
 /** A reel the signed-in traveller has already pasted and we have read (no Instagram needed). */
 function seedImport(email: string, stamp: string): string {
@@ -43,10 +43,17 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
 
   await page.goto(`/trip/details?id=${importId}`);
   await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
+  // Nobody is preselected, and a reel that doesn't say how long asks for the days.
+  await expect(page.getByText("To make your trip board, add the date you leave, how many days, the city you fly from and who is travelling.").last()).toBeVisible();
   await page.getByRole("radio", { name: /Couple/ }).click();
-  await page.getByRole("button", { name: "More days" }).last().click(); // the days they choose set the price
-  // The estimate on the Details screen (desktop card)…
-  const estimate = await page.locator("strong.tabular-nums").filter({ hasText: /^₹[\d,]+$/ }).last().innerText();
+  for (let i = 0; i < 5; i++) await page.getByRole("button", { name: "More days" }).last().click();
+  // Without the date and the city they fly from, there is no trip board to build yet.
+  await expect(page.getByRole("button", { name: "Build my trip →" })).toBeDisabled();
+  await expect(page.getByText("To make your trip board, add the date you leave and the city you fly from.").last()).toBeVisible();
+  await fillTripDetails(page);
+  await expect(page.getByRole("button", { name: "Build my trip →" })).toBeEnabled();
+  // No estimate: a price is only ever TripJack's live answer, on the trip.
+  await expect(page.getByText(/₹\d/)).toHaveCount(0);
   await page.getByRole("button", { name: "Build my trip →" }).click();
 
   // It opens at its own number, and says it is being built (or is already done).
@@ -54,9 +61,7 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   const tripNo = page.url().split("/").pop()!;
   await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
   await expect(page.getByText(/Made for you · from your reel/)).toBeVisible();
-  // …is the total inside the trip, for the same travellers and days.
-  await expect(page.getByText("Total for 2")).toBeVisible();
-  await expect(page.locator("strong.tabular-nums").filter({ hasText: estimate }).first()).toBeVisible();
+  await expect(page.getByText("LIVE PRICE FOR YOUR TRIP", { exact: true })).toBeVisible();
 
   // The plan settles: no more "Building…", every place from the reel is in it.
   await expect(page.getByText("Building your trip…")).toHaveCount(0, { timeout: 180_000 });
@@ -85,11 +90,11 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
     status: "priced", origin: "DEL", destination: "GOI", adults: 2, children: 0, total: 18400, checked_at: now,
     legs: [{ from_code: "DEL", to_code: "GOI", date: "2027-01-10", airline: "IndiGo", flight_number: "6E101", stops: 0, price: 10200 }],
   } }));
-  // The stays are the trip's own (their ids come from the real answer); the prices are TripJack's.
+  // The stays are the trip's own (their id comes from the trip); the prices are TripJack's.
+  const board = (await (await page.request.get(`/api/wt/my-trips/${tripNo}`)).json()) as { items: { id: string; kind: string }[] };
+  const stayId = board.items.find((i) => i.kind === "stay")!.id.slice(0, 40);
   const stayAnswer = (make: (id: string) => object[]) => async (r: import("@playwright/test").Route) => {
-    const res = await r.fetch();
-    const real = (await res.json()) as { stays: { item_id: string }[] };
-    await r.fulfill({ json: { currency: "INR", total: 13200, checked_at: now, rooms: 1, all_priced: false, stays: make(real.stays[0].item_id) } });
+    await r.fulfill({ json: { currency: "INR", total: 13200, checked_at: now, rooms: 1, all_priced: false, stays: make(stayId) } });
   };
   await page.route("**/my-trips/*/stay-prices", stayAnswer((id) => [
     { item_id: id, name: "A stay", status: "priced", total: 13200, nights: 2, meal_basis: "Breakfast" },

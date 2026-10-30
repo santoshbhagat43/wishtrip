@@ -8,7 +8,7 @@ from app.modules.creators import service as creators
 from app.modules.creators.models import Creator
 from app.modules.reels import service as reels
 from app.modules.reels.models import CreatorContent
-from tests.conftest import auth
+from tests.conftest import auth, trip_details
 
 OTP = settings.creator_dev_otp
 REEL = "https://www.instagram.com/reel/DTripDemo01/"
@@ -363,13 +363,14 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
 
     made = await client.post(
         f"/trips/{share_code}/make-mine",
-        json={"adults": 2, "kids": 2, "days": 3, "pace": "balanced", "when": "  Dec  12–15 "},
+        json={**trip_details(), "adults": 2, "kids": 2, "days": 3, "pace": "balanced"},
     )
     assert made.status_code == 201, made.text
     mine = made.json()
     assert len(mine["code"]) == 8 and mine["code"].isalnum()
     assert (mine["adults"], mine["kids"], mine["days"], mine["pace"]) == (2, 2, 3, "balanced")
-    assert mine["when"] == "Dec 12–15" and mine["title"] == "Slow North Goa"
+    assert mine["start_date"] == trip_details()["start_date"] and mine["origin"] == "BLR"
+    assert "–" in mine["when"] and mine["title"] == "Slow North Goa"  # the dates, as a range
     assert [i["name"] for i in mine["items"]] == ["Fort Aguada"]
 
     # Coming back: the same code gives the same configuration.
@@ -378,7 +379,7 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
 
     # Changing it keeps the code.
     r = await client.patch(
-        f"/my-trips/{mine['code']}", json={"adults": 1, "days": 2, "pace": "packed"}
+        f"/my-trips/{mine['code']}", json={**trip_details(), "adults": 1, "days": 2, "pace": "packed"}
     )
     assert r.status_code == 200 and r.json()["code"] == mine["code"]
     assert (r.json()["adults"], r.json()["kids"], r.json()["days"]) == (1, 0, 2)
@@ -387,22 +388,27 @@ async def test_make_it_mine_keeps_the_trip_under_a_code_the_traveller_can_come_b
     await client.patch(f"/creator/trips/{trip['id']}", json={"title": "Renamed"}, headers=headers)
     assert (await client.get(f"/my-trips/{mine['code']}")).json()["title"] == "Slow North Goa"
 
-    # Bad input and unknown trips.
+    # Bad input, missing details and unknown trips. A board needs when, where from and a grown-up.
+    full = trip_details()
     for bad in (
-        {"adults": 0, "kids": 0, "seniors": 0},
-        {"pace": "fast"},
-        {"days": 15},
-        {"adults": 12},
+        {**full, "adults": 0, "kids": 0, "seniors": 0},
+        {**full, "adults": 0, "kids": 2, "seniors": 0},
+        {**full, "pace": "fast"},
+        {**full, "days": 15},
+        {**full, "adults": 12},
+        {**full, "start_date": None},
+        {**full, "origin": "", "origin_city": ""},
+        {"adults": 2, "days": 3},
     ):
         assert (await client.post(f"/trips/{share_code}/make-mine", json=bad)).status_code in (
             400,
             422,
-        )
-    assert (await client.post("/trips/nope-0000/make-mine", json={})).status_code == 404
+        ), bad
+    assert (await client.post("/trips/nope-0000/make-mine", json={"adults": 2, **trip_details()})).status_code == 404
     assert (await client.get("/my-trips/zzzzzzzz")).status_code == 404
 
     # Two travellers never share a code.
-    other = (await client.post(f"/trips/{share_code}/make-mine", json={})).json()
+    other = (await client.post(f"/trips/{share_code}/make-mine", json={"adults": 2, **trip_details()})).json()
     assert other["code"] != mine["code"]
 
 
@@ -963,7 +969,7 @@ async def test_chat_with_arya_starts_from_the_board(client, admin, fake_reel, tr
     mine = (
         await client.post(
             f"/trips/{share_code}/make-mine",
-            json={"adults": 2, "kids": 0, "days": 2, "pace": "relaxed", "when": "7–9 May"},
+            json={**trip_details(), "adults": 2, "kids": 0, "days": 2, "pace": "relaxed"},
         )
     ).json()
 
@@ -972,7 +978,7 @@ async def test_chat_with_arya_starts_from_the_board(client, admin, fake_reel, tr
     assert r.status_code == 201, r.text
     start = r.json()
     assert "2 adults" in start["message"] and "relaxed pace" in start["message"]
-    assert "7–9 May" in start["message"] and "Fort Aguada" in start["message"]
+    assert mine["when"] in start["message"] and "Fort Aguada" in start["message"]
 
     # The conversation already knows the trip, so Arya does not ask for it again.
     chat = (
@@ -1002,12 +1008,15 @@ async def test_a_change_made_in_the_arya_chat_lands_on_the_board(client, admin, 
     )  # fmt: skip
     async with SessionLocal() as session:
         share_code = (await session.scalar(select(CreatorTrip.share_code))) or ""
-    code = (await client.post(f"/trips/{share_code}/make-mine", json={"days": 2})).json()["code"]
+    code = (await client.post(f"/trips/{share_code}/make-mine", json={"adults": 2, **trip_details(), "days": 2})).json()["code"]
 
     suggestions = [
         {"name": "Fort Aguada", "type": "attraction", "day": 2, "from_knowledge_base": True},
         {"name": "Mandovi sunset cruise", "type": "experience", "day": 2, "why": "Added in chat",
-         "from_knowledge_base": False, "is_placeholder": True},
+         "from_knowledge_base": False, "is_placeholder": False},
+        # A flight Arya named comes back as a placeholder: it is not a stop for the board.
+        {"name": "Sample flight option", "type": "flight", "day": 1, "from_knowledge_base": False,
+         "is_placeholder": True},
         {"name": "Fontainhas walk", "type": "attraction", "day": 1, "from_knowledge_base": True,
          "is_placeholder": False},
         {"name": "No day yet", "type": "attraction", "day": None},
@@ -1053,7 +1062,7 @@ async def test_arya_choice_arranges_by_rule_and_staff_see_what_travellers_pick( 
     # Choosing Arya on the Details screen: ready at once (no background build), stops on days.
     made = (
         await client.post(
-            f"/trips/{share_code}/make-mine", json={"days": 2, "arya": True, "group": "couple"}
+            f"/trips/{share_code}/make-mine", json={"adults": 2, **trip_details(), "days": 2, "arya": True, "group": "couple"}
         )
     ).json()
     assert made["build_status"] == "ready" and made["ai_built"] is False
@@ -1062,7 +1071,7 @@ async def test_arya_choice_arranges_by_rule_and_staff_see_what_travellers_pick( 
     }
     await client.post(f"/my-trips/{made['code']}/arya", headers=auth(traveler))
     other = (
-        await client.post(f"/trips/{share_code}/make-mine", json={"days": 3, "arya": True})
+        await client.post(f"/trips/{share_code}/make-mine", json={"adults": 2, **trip_details(), "days": 3, "arya": True})
     ).json()
 
     assert (await client.get("/admin/mine-trips", headers=auth(traveler))).status_code == 403

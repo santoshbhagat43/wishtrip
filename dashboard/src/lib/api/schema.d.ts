@@ -874,8 +874,9 @@ export interface paths {
         put?: never;
         /**
          * Build Sample Itinerary
-         * @description Build the itinerary a couple from Bengaluru would get from this reel, to check the reel
-         *     reads into a good trip. It builds in the background; the import shows it when it is ready.
+         * @description Build the itinerary a couple would get from this reel, to check the reel reads into a good
+         *     trip. No home city is assumed: staff give one, with the date, when they ask for rates. It builds
+         *     in the background; the import shows it when it is ready.
          */
         post: operations["build_sample_itinerary_reels_admin_imports__import_id__itinerary_post"];
         delete?: never;
@@ -896,7 +897,7 @@ export interface paths {
         /**
          * Itinerary Rates
          * @description Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the
-         *     return flight from the party's city, for the dates asked. Every TripJack call is traced.
+         *     return flight from the city staff chose, for the dates asked. Every TripJack call is traced.
          */
         post: operations["itinerary_rates_reels_admin_itineraries__code__rates_post"];
         delete?: never;
@@ -5150,7 +5151,7 @@ export interface components {
         MineConfig: {
             /**
              * Adults
-             * @default 2
+             * @default 0
              */
             adults: number;
             /**
@@ -5846,8 +5847,18 @@ export interface components {
         };
         /** RatesAsk */
         RatesAsk: {
-            /** Start Date */
-            start_date?: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Origin */
+            origin: string;
+            /**
+             * Origin City
+             * @default
+             */
+            origin_city: string;
         };
         /** RecentEvent */
         RecentEvent: {

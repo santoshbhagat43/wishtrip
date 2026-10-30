@@ -10,7 +10,7 @@ from app.db.session import SessionLocal
 from app.modules.creators import builder, mine
 from app.modules.creators.models import TravellerTrip
 from app.modules.reels.models import CreatorContent, ImportStatus, ReelImport
-from tests.conftest import auth
+from tests.conftest import auth, trip_details
 
 PLACES = [
     {"name": "Tanah Lot", "kind": "sight", "evidence": "sunset temple", "verified": True, "t": 4},
@@ -161,7 +161,7 @@ async def _import_for(user):
 
 async def test_build_my_trip_from_a_reel_starts_a_build_and_the_trip_fills_in(client, traveler, builds, monkeypatch):
     job_id = await _import_for(traveler)
-    body = {"adults": 2, "kids": 2, "days": 3, "pace": "relaxed", "group": "family", "when": "Dec 12"}
+    body = {**trip_details(), "adults": 2, "kids": 2, "days": 3, "pace": "relaxed", "group": "family", "when": "Dec 12"}
 
     r = await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))
     assert r.status_code == 201, r.text
@@ -195,7 +195,7 @@ async def _true():
 
 async def test_a_failed_build_says_so_and_can_be_tried_again(client, traveler, builds, monkeypatch):
     job_id = await _import_for(traveler)
-    r = await client.post(f"/reels/imports/{job_id}/build", json={"adults": 2, "days": 3}, headers=auth(traveler))
+    r = await client.post(f"/reels/imports/{job_id}/build", json={**trip_details(), "adults": 2, "days": 3}, headers=auth(traveler))
     code = r.json()["code"]
 
     async def boom(*a, **k):
@@ -207,20 +207,20 @@ async def test_a_failed_build_says_so_and_can_be_tried_again(client, traveler, b
         await mine.run_build(session, FakeAI(good_plan()), code)
     got = (await client.get(f"/my-trips/{code}")).json()
     assert got["build_status"] == "failed" and got["build_error"] and len(got["items"]) == 5  # kept its stops
-    again = await client.patch(f"/my-trips/{code}", json={"adults": 2, "days": 3})  # same details: retry anyway
+    again = await client.patch(f"/my-trips/{code}", json={**trip_details(), "adults": 2, "days": 3})  # same details: retry anyway
     assert again.json()["build_status"] == "building" and builds.count(code) == 2
 
 
 async def test_only_the_traveller_whose_reel_it_is_can_build_from_it(client, traveler, editor):
     job_id = await _import_for(traveler)
-    assert (await client.post(f"/reels/imports/{job_id}/build", json={}, headers=auth(editor))).status_code == 404
-    assert (await client.post(f"/reels/imports/{job_id}/build", json={})).status_code == 401
+    assert (await client.post(f"/reels/imports/{job_id}/build", json={"adults": 2, **trip_details()}, headers=auth(editor))).status_code == 404
+    assert (await client.post(f"/reels/imports/{job_id}/build", json=trip_details())).status_code == 401
     async with SessionLocal() as session:
         job = await session.get(ReelImport, job_id)
         job.status = ImportStatus.RUNNING
         await session.commit()
-    assert (await client.post(f"/reels/imports/{job_id}/build", json={}, headers=auth(traveler))).status_code == 409
-    assert (await client.post(f"/reels/imports/{job_id}/build", json={"adults": 0, "kids": 0}, headers=auth(traveler))).status_code in (400, 409)
+    assert (await client.post(f"/reels/imports/{job_id}/build", json={"adults": 2, **trip_details()}, headers=auth(traveler))).status_code == 409
+    assert (await client.post(f"/reels/imports/{job_id}/build", json={**trip_details(), "adults": 0, "kids": 0}, headers=auth(traveler))).status_code in (400, 409)
     async with SessionLocal() as session:
         assert (await session.scalars(select(TravellerTrip))).all() == []
 
@@ -230,7 +230,7 @@ async def test_the_trip_knows_when_it_starts_and_where_from(client, traveler, bu
 
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=40)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple",
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple",
             "start_date": start.isoformat(), "origin": "del", "origin_city": " New   Delhi "}  # fmt: skip
     r = await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))
     assert r.status_code == 201, r.text
@@ -250,12 +250,13 @@ async def test_the_trip_knows_when_it_starts_and_where_from(client, traveler, bu
     assert r.json()["start_date"] == later and r.json()["origin"] == "BOM" and r.json()["build_status"] == "ready"
     assert builds == [trip["code"]]
 
-    # Without a date it keeps what they typed, and a past date or an odd code is refused.
-    r = await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None, "when": "  sometime  in March "})
-    assert r.json()["start_date"] is None and r.json()["end_date"] is None and r.json()["when"] == "sometime in March"
+    # A trip board needs all of it: no date, no from-city, no grown-up, a past date or an odd
+    # code is refused (and the trip keeps the details it had).
     past = (dt.date.today() - dt.timedelta(days=1)).isoformat()
-    for bad in ({"start_date": past}, {"origin": "DELHI"}, {"origin": "D3L"}):  # too long: 422; not letters: 400
+    for bad in ({"start_date": None}, {"origin": "", "origin_city": ""}, {"adults": 0, "seniors": 0, "kids": 2},
+                {"start_date": past}, {"origin": "DELHI"}, {"origin": "D3L"}):  # too long: 422; not letters: 400
         assert (await client.patch(f"/my-trips/{trip['code']}", json={**body, **bad})).status_code in (400, 422), bad
+    assert (await client.get(f"/my-trips/{trip['code']}")).json()["start_date"] == later
 
 
 def test_rooms_and_nights_follow_the_party_and_where_they_sleep():
@@ -328,7 +329,7 @@ async def test_a_matched_stay_is_priced_live_for_the_dates_and_party(client, tra
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "kids": 1, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "kids": 1, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
 
     got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
@@ -339,11 +340,9 @@ async def test_a_matched_stay_is_priced_live_for_the_dates_and_party(client, tra
     assert got["all_priced"] and got["rooms"] == 1 and got["children_assumed_age"] == sp.ASSUMED_CHILD_AGE
     assert fake.calls[0]["rooms"] == [{"adults": 2, "children": 1, "childAge": [sp.ASSUMED_CHILD_AGE]}]
 
-    # No dates: the stay is matched but not priced, and TripJack is not asked.
-    fake.calls.clear()
-    await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None})
-    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
-    assert got["stays"][0]["status"] == "no_dates" and got["total"] == 0 and not got["all_priced"] and fake.calls == []
+    # Taking the date away is refused: a trip board always has one, so its stays are priced.
+    r = await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None})
+    assert r.status_code == 400 and r.json()["detail"] == "Choose the date you leave."
 
 
 async def test_a_family_too_big_for_any_room_is_told_so_never_shrunk(client, traveler, builds, monkeypatch):
@@ -365,7 +364,7 @@ async def test_a_family_too_big_for_any_room_is_told_so_never_shrunk(client, tra
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "kids": 5, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "kids": 5, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
     # Two rooms with all seven in them: TripJack is asked for exactly that.
@@ -423,7 +422,7 @@ async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler
         monkeypatch.setattr(mod, "cache_set", none)
     job_id = await _import_for(traveler)  # Bali in the seed; the destination below is Goa
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "kids": 1, "days": 4, "pace": "relaxed", "group": "family", "start_date": start.isoformat(), "origin": "DEL", "origin_city": "Delhi"}
+    body = {**trip_details(), "adults": 2, "kids": 1, "days": 4, "pace": "relaxed", "group": "family", "start_date": start.isoformat(), "origin": "DEL", "origin_city": "Delhi"}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
@@ -436,10 +435,12 @@ async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler
     assert got["total"] == 2 * (5100 + 4100) and (got["adults"], got["children"]) == (2, 1)
     assert got["legs"][1]["date"] == (start + dt.timedelta(days=3)).isoformat()
 
-    # No from-city, no date, an airport we don't know, or flying to where they live: not priced.
-    for change, status in (({"origin": ""}, "no_origin"), ({"start_date": None}, "no_dates"), ({"origin": "GOI"}, "same_city")):
-        await client.patch(f"/my-trips/{trip['code']}", json={**body, **change})
-        assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == status
+    # No from-city or no date is refused: a trip board always has both.
+    for change in ({"origin": ""}, {"start_date": None}):
+        assert (await client.patch(f"/my-trips/{trip['code']}", json={**body, **change})).status_code == 400
+    # Flying to where they live: not priced, and it says why.
+    await client.patch(f"/my-trips/{trip['code']}", json={**body, "origin": "GOI"})
+    assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == "same_city"
     async with SessionLocal() as session:
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
         row.destination_name = "Atlantis"
@@ -471,7 +472,7 @@ async def test_a_stay_with_no_hotel_keeps_its_name_and_gets_priced_suggestions(
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:  # the reel's stay names a hotel we do not hold
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
@@ -518,7 +519,7 @@ async def test_a_hotel_with_no_room_is_kept_and_a_hotel_with_one_is_suggested(cl
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
 
     async with SessionLocal() as session:  # the stay names a hotel we hold that has no room
@@ -550,7 +551,7 @@ async def test_a_stay_staff_unlinked_is_left_alone_and_no_dates_means_no_swap(cl
         session.add(SupplierHotel(tj_hotel_id="h9", region_id=1, name="Mega Beach Inn", hero_image="https://img.example/x.jpg"))
         await session.commit()
     job_id = await _import_for(traveler)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple"}  # no start date
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple"}  # no start date
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
     assert got["stays"][0]["status"] in ("no_dates", "not_matched") and fake.calls == []  # TripJack is not asked
@@ -772,7 +773,7 @@ async def test_a_stay_we_wrote_as_an_area_goes_by_the_trips_budget_not_by_matchi
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
 
     async def make(summary: str):
@@ -840,7 +841,7 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
@@ -990,7 +991,7 @@ async def test_each_town_of_a_trip_is_searched_for_its_own_stay(
         await session.commit()
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
+    body = {**trip_details(), "adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
@@ -1133,7 +1134,7 @@ async def test_a_trip_that_flies_into_one_airport_and_out_of_another_is_priced_a
         monkeypatch.setattr(mod, "cache_set", none)
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 4, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
+    body = {**trip_details(), "adults": 2, "days": 4, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
             "origin": "BLR", "origin_city": "Bengaluru"}  # fmt: skip
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:  # the video flies to Bagdogra, tours Bhutan, and ends in Paro
@@ -1220,7 +1221,7 @@ async def test_a_region_with_no_airport_flies_into_its_first_town_and_home_from_
         monkeypatch.setattr(mod, "cache_set", none)
     job_id = await _import_for(traveler)
     start = dt.date.today() + dt.timedelta(days=30)
-    body = {"adults": 2, "days": 8, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
+    body = {**trip_details(), "adults": 2, "days": 8, "pace": "relaxed", "group": "couple", "start_date": start.isoformat(),
             "origin": "BLR", "origin_city": "Bengaluru"}  # fmt: skip
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
     async with SessionLocal() as session:  # a Maharashtra road trip: Pune, the hills, then Mumbai
@@ -1316,3 +1317,76 @@ async def test_a_trip_through_several_towns_gets_a_hotel_in_each_towns_own_town_
         # hotel from another town (it once got the same Pune hotel as every other night).
         ("Stay in Malshej Ghat", None),
     ]
+
+
+async def test_a_trip_from_a_creators_video_adds_no_places_or_meals_of_its_own():
+    ai = FakeAI(good_plan())  # the planner adds a "Beach walk" the video never named
+    out = await builder.build(
+        ai, must=must(), destination="Bali", days=3, adults=2, kids=0, seniors=0, pace="relaxed",
+        when="", group="couple", summary="", origin_city="Bengaluru", reel_only=True,
+    )  # fmt: skip
+    items = out["items"]
+    added = [i for i in items if i["origin"] != "reel"]
+    # Nothing to see, do or eat that the video did not name: no lunch spot, no filler sight.
+    assert not [i for i in added if i["kind"] in ("sight", "experience", "food", "area")]
+    assert "Beach walk" not in [i["name"] for i in items]
+    # The video's own places are all there, its restaurant included.
+    assert {i["name"] for i in items if i["origin"] == "reel"} >= {p["name"] for p in must() if p["kind"] != "stay"}
+    # The journey is still planned: flights, the transfer, check-out and the stay.
+    names = [i["name"] for i in items]
+    assert "Fly Bengaluru to Bali" in names and "Fly back to Bengaluru" in names and "Check out" in names
+    assert any(i["kind"] == "stay" for i in items)
+    # The planner was told so, and not asked to fill light days.
+    assert "This trip follows a creator's video" in ai.sent[0][0]["content"] and len(ai.sent) == 1
+
+
+def test_a_day_reads_in_the_order_it_is_lived():
+    def item(name, kind, slot=None, day=2):
+        return {"name": name, "kind": kind, "slot": slot, "day": day}
+
+    # Saved in the wrong order (lunch last, the chat's stops without a time of day).
+    first_day = [
+        item("Dubai Mall", "sight", "afternoon", 1), item("The Dubai Fountain", "sight", "evening", 1),
+        item("The Cheesecake Factory", "food", "evening", 1), item("Burj Khalifa", "sight", "afternoon", 1),
+        item("Lunch: Emirati machboos in Downtown Dubai", "food", "afternoon", 1),
+        item("Stay in Downtown Dubai", "stay", "afternoon", 1), item("Airport to your stay", "travel", "afternoon", 1),
+        item("Fly Bengaluru to Dubai", "travel", "morning", 1),
+    ]  # fmt: skip
+    assert [i["name"] for i in builder.in_day_order(first_day)] == [
+        "Fly Bengaluru to Dubai", "Airport to your stay", "Stay in Downtown Dubai",
+        "Lunch: Emirati machboos in Downtown Dubai", "Dubai Mall", "Burj Khalifa",
+        "The Dubai Fountain", "The Cheesecake Factory",
+    ]  # fmt: skip
+    last_day = [
+        item("Fly back to Bengaluru", "travel", "evening", 3), item("Lunch: Shawarma", "food", "afternoon", 3),
+        item("Your stay to the airport", "travel", "afternoon", 3), item("Gold Souk", "sight", "morning", 3),
+        item("Check out", "note", "morning", 3), item("Breakfast: Chebab", "food", "morning", 3),
+    ]  # fmt: skip
+    assert [i["name"] for i in builder.in_day_order(last_day)] == [
+        "Breakfast: Chebab", "Check out", "Gold Souk", "Lunch: Shawarma",
+        "Your stay to the airport", "Fly back to Bengaluru",
+    ]  # fmt: skip
+
+
+async def test_a_saved_board_is_shown_in_order_without_chat_placeholders(client, traveler, builds):
+    from app.modules.creators import mine as mine_module
+
+    job_id = await _import_for(traveler)
+    body = {**trip_details(), "adults": 2, "days": 2, "pace": "relaxed", "group": "couple"}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    async with SessionLocal() as session:  # a board the chat once rearranged, placeholders and all
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.items = [
+            {"id": "a", "kind": "sight", "name": "Dubai Mall", "day": 1, "slot": "afternoon", "origin": "reel"},
+            {"id": "b", "kind": "sight", "name": "Sample flight option", "day": 1, "slot": None, "origin": "suggested"},
+            {"id": "c", "kind": "food", "name": "Lunch: Machboos", "day": 1, "slot": "afternoon", "origin": "suggested"},
+            {"id": "d", "kind": "stay", "name": "Sample hotel option", "day": 1, "slot": None, "origin": "suggested"},
+        ]  # fmt: skip
+        await session.commit()
+        saved = list(row.items)
+    board = (await client.get(f"/my-trips/{trip['code']}")).json()
+    assert [i["name"] for i in board["items"]] == ["Lunch: Machboos", "Dubai Mall"]
+    async with SessionLocal() as session:  # shown so, not saved so: reading never changes a trip
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        assert row.items == saved
+    assert mine_module.PLACEHOLDER.match("Sample hotel option")

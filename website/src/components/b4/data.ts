@@ -1,7 +1,7 @@
 /**
- * Content for the B4 home page, as designed in the Option B4 prototype. Static sample content —
- * nothing here is wired to the knowledge base or bookings yet. When pages get integrated, this
- * is the one file whose contents move to the API.
+ * Content for the B4 home page, as designed in the Option B4 prototype: links, menus, and the
+ * home page's illustrations (the scroll story, the Arya demo and the creator card), each labelled
+ * as an example where it is shown. No trip, price or count a traveller acts on comes from here.
  */
 
 const A = (file: string) => `/b4/${file}`;
@@ -162,73 +162,6 @@ export const ARYA_OPTIONS: [string, string][] = [
   ["Talk to a person", "Free"],
 ];
 
-// ---- Destinations, creator reels, traveller trips ---------------------------------------------
-
-export const DESTINATIONS = [
-  { name: "Goa", region: "INDIA", trips: "1,240", price: "₹27,800", img: A("goa-hero-beach-16x9.webp"), alt: "North Goa beach from above" },
-  { name: "Kerala", region: "INDIA", trips: "610", price: "₹41,200", img: A("px-kerala-houseboat.webp"), alt: "Houseboat under palms, Kerala" },
-  { name: "Dharamshala", region: "INDIA", trips: "380", price: "₹31,500", img: A("px-dharamshala.webp"), alt: "Snow on the Dhauladhar above Dharamshala" },
-  { name: "Thailand", region: "INTERNATIONAL", trips: "520", price: "₹72,400", img: A("px-thailand-aerial.webp"), alt: "Phi Phi islands from above" },
-  { name: "Japan", region: "INTERNATIONAL", trips: "190", price: "₹1,49,000", img: A("px-kyoto-pagoda.webp"), alt: "Pagoda in Kyoto" },
-];
-
-export type Reel = {
-  title: string;
-  handle: string;
-  platform: string;
-  views: number;
-  saves: number;
-  booked: number;
-  img: string;
-  alt: string;
-  vid?: string;
-};
-
-export const REELS: Reel[] = [
-  { title: "Sunrise at Fort Aguada", handle: "@ananyawanders", platform: "Instagram", views: 182000, saves: 9400, booked: 312, img: A("goa-aguada-fort-9x16.webp"), alt: "Fort Aguada at sunrise" },
-  { title: "Goa thali crawl", handle: "@kabireatsgoa", platform: "YouTube Shorts", views: 96000, saves: 6100, booked: 148, img: A("goa-food-fish-thali.webp"), alt: "Goan thali" },
-  { title: "Lunch in a 200-year-old house", handle: "@kabireatsgoa", platform: "Instagram", views: 41000, saves: 3200, booked: 89, img: A("goa-goan-heritage-house.webp"), alt: "Goan heritage house" },
-  { title: "South Goa, the quiet side", handle: "@twoandaway", platform: "Instagram", views: 128000, saves: 7800, booked: 205, img: A("goa-beach-sunset-9x16.webp"), alt: "Goa beach at sunset" },
-  { title: "Old Goa churches before 9 am", handle: "@meeramaps", platform: "YouTube Shorts", views: 33000, saves: 2000, booked: 41, img: A("goa-day3-panaji-church.webp"), alt: "Old Goa church" },
-  { title: "A colour walk in Fontainhas", handle: "@meeramaps", platform: "Instagram", views: 27000, saves: 2600, booked: 35, img: A("goa-day3-panaji-street.webp"), alt: "Fontainhas street" },
-  { title: "Thai islands beyond Phi Phi", handle: "@islandhopper.in", platform: "Instagram", views: 240000, saves: 15000, booked: 342, img: A("px-thailand-longtail.webp"), alt: "Longtail boat off a Thai island", vid: A("px-v-thailand.mp4") },
-  { title: "First Japan trip, done right", handle: "@tokyotwo", platform: "YouTube Shorts", views: 151000, saves: 11000, booked: 186, img: A("px-kyoto-pagoda.webp"), alt: "Pagoda in Kyoto", vid: A("px-v-kyoto.mp4") },
-];
-
-export const REEL_SORTS = [
-  { id: "booked", label: "Most booked" },
-  { id: "views", label: "Most viewed" },
-  { id: "saves", label: "Most saved" },
-] as const;
-
-export type TravellerTrip = {
-  type: "family" | "couple" | "friends";
-  who: string;
-  trip: string;
-  len: string;
-  img: string;
-  alt: string;
-  route: string[];
-  price: string;
-  priceFor: string;
-};
-
-export const TRAVELLER_TRIPS: TravellerTrip[] = [
-  { type: "family", who: "The Mehtas, Pune · family of 4", trip: "North Goa · 5 days · Dec 2025", len: "0:48", img: A("px-family-sea.webp"), alt: "The Mehtas in the sea at Candolim", route: ["Candolim", "Aguada", "Anjuna", "Panaji", "Morjim"], price: "₹58,400", priceFor: "for 4, all-in" },
-  { type: "couple", who: "Riya & Karan, Delhi", trip: "South Goa · 4 days · Nov 2025", len: "0:36", img: A("px-couple-arambol.webp"), alt: "Riya and Karan on the beach at sunset", route: ["Palolem", "Galgibaga", "Cabo de Rama", "Agonda"], price: "₹36,900", priceFor: "for 2, all-in" },
-  { type: "friends", who: "5 friends from Bengaluru", trip: "North Goa · 4 days · Jan 2026", len: "0:52", img: A("px-friends-trip.webp"), alt: "Five friends on a trip", route: ["Anjuna", "Arpora", "Vagator", "Morjim"], price: "₹19,200", priceFor: "each, all-in" },
-  { type: "family", who: "The Iyers, Chennai · with grandparents", trip: "Kerala · 6 days · Dec 2025", len: "1:04", img: A("px-munnar-tea.webp"), alt: "Tea hills in Munnar", route: ["Kochi", "Munnar", "Thekkady", "Alleppey", "Kochi"], price: "₹82,600", priceFor: "for 5, all-in" },
-  { type: "couple", who: "Sana & Arjun, Mumbai", trip: "Thailand · 6 days · Feb 2026", len: "0:58", img: A("px-thailand-longtail.webp"), alt: "Longtail boat off a Thai island", route: ["Phuket", "Phi Phi", "Krabi", "Bangkok"], price: "₹1,24,000", priceFor: "for 2, all-in" },
-  { type: "friends", who: "Office gang, Hyderabad · 6 friends", trip: "Goa · 3 days · Mar 2026", len: "0:31", img: A("goa-day3-panaji-street.webp"), alt: "Fontainhas street", route: ["Panaji", "Fontainhas", "Old Goa"], price: "₹14,800", priceFor: "each, all-in" },
-];
-
-export const TRIP_FILTERS = [
-  { id: "all", label: "All trips" },
-  { id: "family", label: "Families" },
-  { id: "couple", label: "Couples" },
-  { id: "friends", label: "Friends" },
-] as const;
-
 // ---- Creators, trust ---------------------------------------------------------------------------
 
 export const CREATOR_STEPS = [
@@ -276,8 +209,3 @@ export const MENU = [
     ],
   },
 ];
-
-/** 182000 → "182k", 9400 → "9.4k" (as the prototype prints counts). */
-export function compact(n: number) {
-  return n >= 1000 ? `${(Math.round(n / 100) / 10).toString().replace(/\.0$/, "")}k` : String(n);
-}

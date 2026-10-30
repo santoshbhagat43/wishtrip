@@ -371,8 +371,9 @@ async def build_sample_itinerary(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
 ):
-    """Build the itinerary a couple from Bengaluru would get from this reel, to check the reel
-    reads into a good trip. It builds in the background; the import shows it when it is ready."""
+    """Build the itinerary a couple would get from this reel, to check the reel reads into a good
+    trip. No home city is assumed: staff give one, with the date, when they ask for rates. It builds
+    in the background; the import shows it when it is ready."""
     job = await session.get(ReelImport, import_id)
     if not job:
         raise not_found("Reel import")
@@ -382,15 +383,17 @@ async def build_sample_itinerary(
     said = (content.extracted or {}).get("days_hint")
     days = body.days or (min(said, builder.MAX_DAYS) if isinstance(said, int) and said > 0 else 4)
     config = mine.MineConfig(
-        adults=2, group="couple", days=days, pace="relaxed", origin="BLR", origin_city="Bengaluru"
+        adults=2, group="couple", days=days, pace="relaxed"
     )
     trip = await mine.trip_from_import(session, job, content, config)
     return {"code": trip.code, "days": trip.days}
 
 
 class RatesAsk(BaseModel):
-    # The day they leave. Empty: 30 days from today (TripJack's test rates exist that far out).
-    start_date: date | None = None
+    # The day they leave and the airport they fly from: both chosen by staff, never assumed.
+    start_date: date
+    origin: str = Field(min_length=3, max_length=3)
+    origin_city: str = Field(default="", max_length=100)
 
 
 class ItineraryRates(BaseModel):
@@ -401,17 +404,13 @@ class ItineraryRates(BaseModel):
     currency: str
     stays: stay_prices.StayPrices
     flight: flight_prices.FlightPrice
-    # Stays (the hotel each stay names, else the cheapest nearby one) plus the return flight.
+    # The stays TripJack priced plus the return flight: suggested hotels are not in it, the same
+    # as the traveller's total.
     total: float
     # Which TripJack calls answered (host, status, time); their values are at
     # /tripjack/evidence/{trace_id} for an hour.
     supplier: dict
     seconds: float
-
-
-def _cheapest_alternative(stay: dict) -> float:
-    options = [a["total"] for a in stay.get("alternatives") or []]
-    return min(options) if options else 0.0
 
 
 @router.post("/admin/itineraries/{code}/rates", response_model=ItineraryRates)
@@ -422,13 +421,15 @@ async def itinerary_rates(
     _: User = Depends(require_roles(Role.ADMIN, Role.EDITOR)),
 ):
     """Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the
-    return flight from the party's city, for the dates asked. Every TripJack call is traced."""
+    return flight from the city staff chose, for the dates asked. Every TripJack call is traced."""
     trip = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == code))
     if not trip:
         raise not_found("Itinerary")
     if trip.build_status != "ready":
         raise HTTPException(status.HTTP_409_CONFLICT, "That itinerary is still being built.")
-    trip.start_date = body.start_date or date.today() + timedelta(days=30)
+    trip.start_date = body.start_date
+    trip.origin_code = body.origin.upper()
+    trip.origin_city = body.origin_city or trip.origin_city
     await session.commit()
     started = time.monotonic()
     traced = trace.start()
@@ -436,10 +437,7 @@ async def itinerary_rates(
         stay_prices.stay_prices(session, trip), flight_prices.flight_price(trip)
     )
     supplier = await trace.finish(traced)
-    stays_total = sum(
-        s["total"] if s["status"] == "priced" else _cheapest_alternative(s)
-        for s in (row.model_dump() for row in stays.stays)
-    )
+    stays_total = sum(row.total or 0 for row in stays.stays if row.status == "priced")
     return ItineraryRates(
         code=trip.code,
         start_date=trip.start_date,

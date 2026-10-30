@@ -110,6 +110,22 @@ Return JSON only:
  "tips": ["practical tips: transport, tickets, best time to go"]}"""
 
 
+# A trip built from a creator's video is the creator's trip: only what the video names is planned.
+REEL_ONLY = """This trip follows a creator's video. Plan ONLY the places in "must_include", the
+travel between towns and the stays. Do not add any other sight, experience, restaurant, cafe,
+meal or general suggestion, optional or not: a day with little in it stays light. "tips" are
+still wanted."""
+
+# What a trip from a video still needs that is not a recommendation: getting there, where to sleep.
+LOGISTICS = {"travel", "stay"}
+
+
+def reel_places_only(items: list[dict]) -> list[dict]:
+    """The video's places and the journey: nothing the planner added on its own (a lunch spot, a
+    sight to fill a day). The journey between towns and the stays are kept: they are logistics."""
+    return [i for i in items if i["origin"] == "reel" or i["kind"] in LOGISTICS]
+
+
 def facts(
     *,
     destination: str,
@@ -339,10 +355,12 @@ def finish(
     destination: str,
     origin_city: str = "",
     route: list[dict] | None = None,
+    meals: bool = True,
 ) -> list[dict]:
     """What the plan always needs, added by rule so it does not depend on the AI remembering: the
-    flight in and out with the airport transfers, the hotel check-out, and a meal at each mealtime
-    of every day. They are suggestions in general words: no times, prices or venue names."""
+    flight in and out with the airport transfers, the hotel check-out, and (unless `meals` is off,
+    for a trip that keeps to a creator's video) a meal at each mealtime of every day. They are
+    suggestions in general words: no times, prices or venue names."""
     where = destination or "your destination"
     home = origin_city or "home"
     out = list(items)
@@ -416,7 +434,7 @@ def finish(
             add("Getting around: " + ", then ".join(stops[:4]), "travel", d, "morning",
                 "Short rides between these stops; your hotel can book a driver or a taxi.",
                 rank=0)  # fmt: skip
-    for d in range(1, days + 1):
+    for d in range(1, days + 1 if meals else 1):
         near = {
             slot: next(
                 (i["name"] for i in items if i["day"] == d and i["slot"] == slot and _is_main(i)),
@@ -441,8 +459,53 @@ def finish(
                 here = [town for day, town, _ in nights if day <= i["day"]]
                 if here:
                     i["town"] = here[-1]
-    out.sort(key=lambda i: (i["day"], _rank(i), SLOTS.index(i["slot"])))
-    return out
+    return in_day_order(out)
+
+
+SLOT_BASE = {"morning": 100, "afternoon": 200, "evening": 300}
+ARRIVING = re.compile(r"^fly\b(?!.*\bback\b)(?!.*\bhome\b)", re.I)
+LEAVING = re.compile(r"^fly (back|home)\b", re.I)
+TO_AIRPORT = re.compile(r"\bto the airport\b", re.I)
+FROM_AIRPORT = re.compile(r"airport to\b|^airport\b", re.I)
+
+
+def place_in_day(item: dict) -> int:
+    """Where a card sits in its day, as a person lives it: fly in, get to the hotel and check in;
+    breakfast, check out, move on to the next town, get about; the morning's sights; lunch, then
+    the afternoon; the evening, then dinner; to the airport and home last. Read from the item
+    itself, so a board saved without ranks (or rearranged in the chat) still reads in order."""
+    name, kind = str(item.get("name") or ""), item.get("kind")
+    base = SLOT_BASE.get(str(item.get("slot") or ""), 200)
+    if kind == "travel" and ARRIVING.match(name):
+        return 0
+    if kind == "travel" and LEAVING.match(name):
+        return 990
+    if kind == "travel" and TO_AIRPORT.search(name):
+        return 980
+    arriving = int(item.get("day") or 1) == 1
+    if kind == "travel" and FROM_AIRPORT.search(name):
+        return 1 if arriving else base + 5  # on arrival day, straight from the plane
+    if kind == "stay":
+        return 2 if arriving else base + 6  # and checking in, before the day's first stop
+    if kind == "note" and re.match(r"check[- ]?out\b", name, re.I):
+        return 104
+    if kind == "travel" and name.lower().startswith("travel from"):
+        return 105
+    if kind == "travel":
+        return base + 8  # the rides between the day's stops
+    if kind == "food":
+        lowered = name.lower()
+        if lowered.startswith("breakfast") or (base == 100 and "brunch" not in lowered):
+            return 102
+        if lowered.startswith("dinner") or base == 300:
+            return 390
+        return 210  # lunch: after arriving and checking in, before the afternoon's sights
+    return base + 20
+
+
+def in_day_order(items: list[dict]) -> list[dict]:
+    """The cards day by day, each day in the order above (equal places keep their order)."""
+    return sorted(items, key=lambda i: (int(i.get("day") or 1), place_in_day(i)))
 
 
 STAY_IN = re.compile(r"stay in\s+(.+)$", re.I)
@@ -590,8 +653,10 @@ async def build(
     domestic: bool | None = None,
     route: list[dict] | None = None,
     creator_words: str = "",
+    reel_only: bool = False,
 ) -> dict[str, Any]:
-    """The plan: {items, summary, tips, persona, ai_built}."""
+    """The plan: {items, summary, tips, persona, ai_built}. `reel_only`: a trip that follows a
+    creator's video plans only the video's places and the journey (no meals or extra sights)."""
     days = max(1, min(MAX_DAYS, days))
     who = persona(group, adults, kids, seniors)
     if ai is not None and ai.enabled and must:
@@ -603,7 +668,11 @@ async def build(
         )  # fmt: skip
         facts_text = json.dumps(context, ensure_ascii=False)
         messages = [
-            {"role": "system", "content": f"{rules(who)}\n\n{CONTRACT}"},
+            {
+                "role": "system",
+                "content": f"{rules(who)}\n\n{CONTRACT}"
+                + (f"\n\n{REEL_ONLY}" if reel_only else ""),
+            },
             {"role": "user", "content": f"Facts:\n{facts_text}"},
         ]
         cleaned = None
@@ -618,6 +687,9 @@ async def build(
                     task, messages, json_mode=True, temperature=0.3, max_tokens=4000
                 )
                 cleaned = clean(parse_json_object(raw), must, days)
+                if cleaned is not None and reel_only:
+                    cleaned = (reel_places_only(cleaned[0]), cleaned[1], cleaned[2])
+                    break  # a light day is the video's own: nothing is added to fill it
                 if cleaned is not None:
                     bare = thin_days(cleaned[0], days)
                     log.info("trip build try %s: days with too little to do: %s", attempt + 1, bare)
@@ -653,9 +725,11 @@ async def build(
         if cleaned is not None:
             items, text, tips = cleaned
             items = finish(
-                items, days=days, destination=destination, origin_city=origin_city, route=route
-            )
-            items = await name_meals(ai, task, items, destination=destination, for_persona=who)
+                items, days=days, destination=destination, origin_city=origin_city, route=route,
+                meals=not reel_only,
+            )  # fmt: skip
+            if not reel_only:
+                items = await name_meals(ai, task, items, destination=destination, for_persona=who)
             return {
                 "items": items,
                 "summary": text,
@@ -670,6 +744,7 @@ async def build(
             destination=destination,
             origin_city=origin_city,
             route=route,
+            meals=not reel_only,
         ),
         "summary": "",
         "tips": [],

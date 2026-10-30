@@ -10,7 +10,7 @@ import path from "node:path";
 
 import type { Page } from "@playwright/test";
 
-import { API_URL, CREATOR_URL, SSO_URL, expect, test } from "./fixtures";
+import { API_URL, CREATOR_URL, SSO_URL, expect, fillTripDetails, test } from "./fixtures";
 
 const DEV_CODE = process.env.CREATOR_DEV_OTP ?? "1234";
 const ADMIN = { email: process.env.ADMIN_EMAIL ?? "", password: process.env.ADMIN_PASSWORD ?? "" };
@@ -199,8 +199,10 @@ test.describe("Reel links", () => {
     await traveller.getByRole("tab", { name: /Day 2/ }).click();
     await expect(traveller.getByText("DAY 2", { exact: true })).toBeVisible();
     await traveller.getByRole("tab", { name: /Day 1/ }).click();
-    await expect(traveller.getByText("ONE PRICE, EVERYTHING IN")).toBeVisible();
-    await expect(traveller.getByText("Total for 3")).toBeVisible();
+    // No dates or group yet, so no price: only TripJack's live prices are ever shown.
+    await expect(traveller.getByText("LIVE PRICES", { exact: true })).toBeVisible();
+    await expect(traveller.getByText(/^Add your dates, the city you fly from and who’s going/)).toBeVisible();
+    await expect(traveller.getByText(/₹\d/)).toHaveCount(0);
     await expect(traveller.getByRole("link", { name: "Make it mine" })).toBeVisible();
     // They came straight to a trip: no booking-flow steps above it.
     await expect(traveller.getByRole("list", { name: "Progress" })).toHaveCount(0);
@@ -208,7 +210,7 @@ test.describe("Reel links", () => {
     await expect(traveller.getByText("Shape your board")).toHaveCount(0);
     await expect(traveller.getByText("Nothing is charged until you choose at checkout")).toBeVisible();
     await expect(traveller.getByText("Change anything with Arya")).toBeVisible();
-    await expect(traveller.getByRole("link", { name: "Add a sunset cruise" })).toBeVisible();
+    await expect(traveller.getByRole("link", { name: "Add something to do" })).toBeVisible();
     await expect(traveller.locator("main img").first()).toBeVisible(); // the reel's picture
     await traveller.getByRole("button", { name: "Share with family" }).click();
     await expect(traveller.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
@@ -220,11 +222,16 @@ test.describe("Reel links", () => {
     await expect(traveller).toHaveURL(/\/trip\/details\?trip=/);
     await expect(traveller.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
     await expect(traveller.getByText(/’S TRIP$/).last()).toBeVisible();
+    // Nobody is preselected: until they say who is going, there is nothing to build.
+    await expect(traveller.getByRole("button", { name: "Build my trip →" })).toBeDisabled();
+    await traveller.getByRole("radio", { name: /Couple/ }).click();
     await traveller.getByRole("button", { name: "More Children" }).click();
     await traveller.getByRole("button", { name: "More Children" }).click();
     await traveller.getByRole("button", { name: "Fewer days" }).click();
-    // The estimate for who's going is on the Details screen (a sample until bookings are live).
-    await expect(traveller.getByText("ESTIMATE FOR 4 TRAVELLERS").last()).toBeVisible();
+    // No estimate on the Details screen: who is going, and the live prices come on the trip.
+    await expect(traveller.getByText("2 adults, 2 children").last()).toBeVisible();
+    await expect(traveller.getByText(/₹\d/)).toHaveCount(0);
+    await fillTripDetails(traveller);
     await traveller.getByRole("button", { name: "Build my trip →" }).click();
 
     // The trip gets its own number, in the address.
@@ -234,7 +241,7 @@ test.describe("Reel links", () => {
     await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Your Goa trip");
     await expect(traveller.locator("main").getByText(/^1 day · \d+ stops/)).toBeVisible();
     await expect(traveller.getByText("2 adults, 2 children")).toBeVisible();
-    await expect(traveller.getByText("Total for 4")).toBeVisible();
+    await expect(traveller.getByText("LIVE PRICE FOR YOUR TRIP", { exact: true })).toBeVisible();
     await expect(traveller.getByText(`${tripNo.slice(0, 4)}-${tripNo.slice(4)}`.toUpperCase())).toBeVisible();
     await expect(traveller.getByRole("button", { name: "Book in one go" })).toBeVisible();
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible(); // still the creator's stops
@@ -244,8 +251,8 @@ test.describe("Reel links", () => {
     await expect(traveller.getByText("2 adults, 2 children")).toBeVisible();
     await traveller.getByRole("link", { name: "Change details" }).click();
     await expect(traveller).toHaveURL(/\/trip\/details\?trip=.*&mine=/);
-    await expect(traveller.getByText("ESTIMATE FOR 4 TRAVELLERS").last()).toBeVisible();
-    await expect(traveller.getByText("1 days").last()).toBeVisible();
+    await expect(traveller.getByText("2 adults, 2 children").last()).toBeVisible();
+    await expect(traveller.getByText("1 day", { exact: true }).last()).toBeVisible();
     await traveller.getByRole("button", { name: "More days" }).click();
     await traveller.getByRole("button", { name: "Build my trip →" }).click();
     await expect(traveller).toHaveURL(new RegExp(`/trip/mine/${tripNo}$`)); // same number

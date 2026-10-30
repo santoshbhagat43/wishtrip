@@ -45,30 +45,6 @@ export function partyText(p: Party) {
 
 export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
-/** The sample prices from the prototype's board (3 travellers, 4 nights), scaled to who is going
- *  and how long. Real prices come at checkout. */
-export function samplePrices(travellers: number, nights: number) {
-  const flights = 6600 * travellers;
-  const stay = 3600 * nights;
-  const experiences = 1800 * travellers;
-  const transfers = 3200;
-  const taxes = Math.round((flights + stay + experiences + transfers) * 0.08);
-  return {
-    rows: [
-      [`Flights · ${travellers} ${travellers === 1 ? "seat" : "seats"}`, inr(flights)],
-      ["Stay", inr(stay)],
-      ["Experiences & meals", inr(experiences)],
-      ["Transfers", inr(transfers)],
-      ["Taxes & fees", inr(taxes)],
-    ] as const,
-    flights: inr(flights),
-    stay: inr(stay),
-    transfers: inr(transfers),
-    total: inr(flights + stay + experiences + transfers + taxes),
-  };
-}
-
-
 export type DayItem = { name: string; kind: string; note: string; when: string };
 export type Day = { n: number; title: string; items: DayItem[] };
 
@@ -134,8 +110,8 @@ export function useFlightPrice(code: string | null) {
 
 type StayPrices = Schemas["StayPrices"];
 
-/** The price card from what TripJack answered, or null when it priced nothing (then the card shows
- *  the labelled samples). Only flights and hotels have a live price; transfers, experiences and
+/** The price card from what TripJack answered, or null when it priced nothing (then the card says
+ *  that nothing is priced yet, with no figure). Only flights and hotels have a live price; transfers, experiences and
  *  meals are priced at checkout, and a stay with no price is said to be unpriced, never filled in. */
 export function livePrices(flight: FlightPrice | undefined, stays: StayPrices | undefined, travellers: number) {
   const flightTotal = flight?.status === "priced" ? (flight.total ?? 0) : 0;

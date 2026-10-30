@@ -2853,7 +2853,7 @@
      "reels"
     ],
     "summary": "Build Sample Itinerary",
-    "description": "Build the itinerary a couple from Bengaluru would get from this reel, to check the reel\nreads into a good trip. It builds in the background; the import shows it when it is ready.",
+    "description": "Build the itinerary a couple would get from this reel, to check the reel reads into a good\ntrip. No home city is assumed: staff give one, with the date, when they ask for rates. It builds\nin the background; the import shows it when it is ready.",
     "operationId": "build_sample_itinerary_reels_admin_imports__import_id__itinerary_post",
     "security": [
      {
@@ -2910,7 +2910,7 @@
      "reels"
     ],
     "summary": "Itinerary Rates",
-    "description": "Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the\nreturn flight from the party's city, for the dates asked. Every TripJack call is traced.",
+    "description": "Live TripJack (UAT) rates for an itinerary built from a reel: a hotel for every stay and the\nreturn flight from the city staff chose, for the dates asked. Every TripJack call is traced.",
     "operationId": "itinerary_rates_reels_admin_itineraries__code__rates_post",
     "security": [
      {
@@ -14302,7 +14302,7 @@
       "maximum": 9.0,
       "minimum": 0.0,
       "title": "Adults",
-      "default": 2
+      "default": 0
      },
      "kids": {
       "type": "integer",
@@ -16059,19 +16059,28 @@
    "RatesAsk": {
     "properties": {
      "start_date": {
-      "anyOf": [
-       {
-        "type": "string",
-        "format": "date"
-       },
-       {
-        "type": "null"
-       }
-      ],
+      "type": "string",
+      "format": "date",
       "title": "Start Date"
+     },
+     "origin": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "title": "Origin"
+     },
+     "origin_city": {
+      "type": "string",
+      "maxLength": 100,
+      "title": "Origin City",
+      "default": ""
      }
     },
     "type": "object",
+    "required": [
+     "start_date",
+     "origin"
+    ],
     "title": "RatesAsk"
    },
    "RecentEvent": {

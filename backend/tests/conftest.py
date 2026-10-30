@@ -97,6 +97,14 @@ async def sign_up(client, email: str, **referral):
     )
 
 
+def trip_details(days_ahead: int = 30) -> dict:
+    """The details a trip board cannot be made without: when they leave and where from."""
+    import datetime as dt
+
+    start = dt.date.today() + dt.timedelta(days=days_ahead)
+    return {"start_date": start.isoformat(), "origin": "BLR", "origin_city": "Bengaluru"}
+
+
 def auth(user: User) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_token(user.id, user.role, 'access')}"}
 

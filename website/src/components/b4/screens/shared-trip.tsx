@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedDouble, Car, Compass, Landmark, Plane, Utensils } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { clock, inr, partySize, partyText, livePrices, samplePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
+import { clock, inr, partySize, partyText, livePrices, useFlightPrice, useStayPrices, type Party, type FlightPrice, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
 import { daysFromItems, type ItineraryDay } from "@/components/creator/itinerary-sheet";
@@ -71,8 +71,8 @@ const detailsHref = (m: Mine) =>
 
 const BOOKING = "flex flex-col gap-2 rounded-[18px] border border-[#E3E8EE] bg-white p-3.5";
 
-/** What the board says about each booking. The wording follows the prototype; the destination
- *  is the trip's own, and the prices are samples. */
+/** What the board says about each booking. Every price is TripJack's live answer for the
+ *  traveller's dates and group; with none, the board says so and shows no figure. */
 const FLIGHT_WHY: Record<string, string> = {
   no_dates: "Add a start date to see the live fare",
   no_origin: "Add the city you fly from to see the live fare",
@@ -82,49 +82,52 @@ const FLIGHT_WHY: Record<string, string> = {
   error: "Live fare not available right now",
 };
 
-function bookings(where: string, nights: number, prices: ReturnType<typeof samplePrices>, flight?: FlightPrice, from?: string, real?: ReturnType<typeof livePrices>) {
+function bookings(where: string, nights: number, waiting: string, flight?: FlightPrice, from?: string, real?: ReturnType<typeof livePrices>) {
   const live = flight?.status === "priced" && flight.total != null;
   const seats = flight ? `${flight.adults} ${flight.adults === 1 ? "adult" : "adults"}${flight.children ? ` + ${flight.children} ${flight.children === 1 ? "child" : "children"}` : ""}` : "";
   return [
     {
       kind: "FLIGHTS",
-      price: live ? inr(flight.total!) : real ? "Not priced" : prices.flights,
+      price: live ? inr(flight.total!) : real ? "Not priced" : waiting,
       title: `${from || "Your city"} ⇄ ${where}`,
       detail: live
         ? `Return · ${seats} · live from TripJack${flight.checked_at ? `, checked ${clock(flight.checked_at)}` : ""}`
-        : "Return · dates and seats at checkout",
-      chip: live ? `${flight.legs[0]?.airline || "Cheapest fare"} · ${flight.legs[0]?.stops ? `${flight.legs[0].stops} stop` : "direct"}` : (flight && FLIGHT_WHY[flight.status]) || "Cheapest, seats together",
+        : "Return · live fare for your dates and group",
+      chip: live
+        ? `${flight.legs[0]?.airline || "Cheapest fare"} · ${flight.legs[0]?.stops ? `${flight.legs[0].stops} stop` : "direct"}`
+        : (flight && FLIGHT_WHY[flight.status]) || "",
     },
     {
       kind: "STAY",
-      price: real ? real.rows[1][1].split(" · ")[0] : prices.stay,
+      price: real ? real.rows[1][1].split(" · ")[0] : waiting,
       title: `A stay in ${where}`,
-      detail: `${nights} ${nights === 1 ? "night" : "nights"} · rooms at checkout`,
-      chip: "Ground floor on request",
-      swap: "Swap this stay",
+      detail: `${nights} ${nights === 1 ? "night" : "nights"} · live hotel rates for your dates`,
+      chip: "",
     },
     {
       kind: "TRANSFERS",
-      price: real ? "At checkout" : prices.transfers,
-      title: "Private car, same driver",
-      detail: "Airport both ways + day trips",
-      chip: "Short drives only",
+      price: waiting ? "At checkout" : "",
+      title: "Airport transfers",
+      detail: "Arranged and priced at checkout",
+      chip: "",
     },
   ];
 }
 
 /**
  * A creator's shared trip (wishtrip…/t/<code>), laid out as the B4 trip board: bookings on the
- * board, the days from the creator's reel, one price, and Arya to change anything. The stops are
- * the creator's own; the bookings and prices are the prototype's samples until bookings are live.
+ * board, the days from the creator's reel, the live price, and Arya to change anything. The stops
+ * are the creator's own; prices are TripJack's, only once the traveller has given dates and a group.
  */
 export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?: PublicTrip } = {}) {
   const params = useParams<{ code?: string }>();
   const code = mine?.source ?? params.code ?? "";
   const me = useMe();
   // Live hotel prices, once the plan is ready (the stays are final) and not while it is being made.
-  const live = useStayPrices(mine?.build?.status === "ready" ? mine.code : null).data;
-  const flightLive = useFlightPrice(mine?.build?.status === "ready" ? mine.code : null).data;
+  const stayAsk = useStayPrices(mine?.build?.status === "ready" ? mine.code : null);
+  const flightAsk = useFlightPrice(mine?.build?.status === "ready" ? mine.code : null);
+  const live = stayAsk.data;
+  const flightLive = flightAsk.data;
   const trip = useQuery({
     queryKey: ["public-trip", code],
     retry: false,
@@ -194,12 +197,14 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
   // A trip planned for the party has its own days; an older copy is spread over the days chosen.
   const days = daysFromItems(t.items, mine && !t.items.some((i) => i.slot) ? mine.days : undefined);
   const stayPrice = (id?: string) => (id ? live?.stays.find((p) => p.item_id === id.slice(0, 40)) : undefined);
-  const travellers = mine ? Math.max(1, partySize(mine.party)) : 3;
+  const travellers = mine ? Math.max(1, partySize(mine.party)) : 0;
   // Priced for who is going and the days they chose, exactly as the Details screen's estimate is.
   const nights = mine ? Math.max(1, mine.days - 1) : Math.max(1, days.length - 1);
-  const prices = samplePrices(travellers, mine ? nights : 4);
   // On a trip made for the traveller, the card is the live flight and hotel prices when TripJack has any.
   const real = mine ? livePrices(flightLive, live, travellers) : null;
+  // No figure without TripJack's answer: what the board is waiting for, in words.
+  const checking = !!mine && (mine.build?.status !== "ready" || stayAsk.isLoading || flightAsk.isLoading);
+  const waiting = mine ? (checking ? "Checking…" : "Not priced") : "";
   const current = Math.min(dayIx, Math.max(0, days.length - 1));
   const day = days[current];
   const stops = days.reduce((n, d) => n + d.stops.length, 0);
@@ -311,7 +316,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
           <div className="flex flex-col gap-2.5">
             <Kicker>BOOKINGS ON YOUR BOARD</Kicker>
             <div className="grid gap-3 sm:grid-cols-3">
-              {bookings(where, nights, prices, flightLive, mine?.originCity, real).map((b) => {
+              {bookings(where, nights, waiting, flightLive, mine?.originCity, real).map((b) => {
                 const flight = b.kind === "FLIGHTS";
                 const Tag = flight ? "button" : "div";
                 return (
@@ -327,8 +332,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                   <strong className="text-[15px]">{b.title}</strong>
                   <span className="text-[12.5px] text-[#566E85]">{b.detail}</span>
                   <span className="flex flex-col items-start gap-1.5">
-                    <Why>{b.chip}</Why>
-                    {b.swap && <span className="text-[12.5px] font-semibold text-[#0A7C80]">{b.swap}</span>}
+                    {b.chip && <Why>{b.chip}</Why>}
                     {flight && <span className="text-[12.5px] font-semibold text-[#0A7C80]">See live flights</span>}
                   </span>
                 </Tag>
@@ -534,17 +538,29 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
 
         <aside className="flex flex-col gap-3.5 md:sticky md:top-[100px]">
           <div className="flex flex-col gap-2.5 rounded-[22px] border border-[#E3E8EE] bg-white p-5">
-            <Kicker>ONE PRICE, EVERYTHING IN</Kicker>
-            {(real ?? prices).rows.map(([label, price]) => (
-              <span key={label} className="flex justify-between text-[13.5px] text-[#3F5A72]">
-                <span>{label}</span>
-                <span className="font-semibold tabular-nums text-[#0D2436]">{price}</span>
+            <Kicker>{mine ? "LIVE PRICE FOR YOUR TRIP" : "LIVE PRICES"}</Kicker>
+            {real ? (
+              <>
+                {real.rows.map(([label, price]) => (
+                  <span key={label} className="flex justify-between text-[13.5px] text-[#3F5A72]">
+                    <span>{label}</span>
+                    <span className="font-semibold tabular-nums text-[#0D2436]">{price}</span>
+                  </span>
+                ))}
+                <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
+                  <strong className="text-[15px]">{`${real.complete ? "Total" : "Total so far"} for ${travellers}`}</strong>
+                  <strong className="text-[30px] tabular-nums">{real.total}</strong>
+                </span>
+              </>
+            ) : (
+              <span role="status" className="text-[14px] leading-normal text-[#3F5A72]">
+                {!mine
+                  ? "Add your dates, the city you fly from and who’s going: we price the flights and hotels live from TripJack."
+                  : checking
+                    ? "Asking TripJack for live flight and hotel prices for your dates…"
+                    : "TripJack has no live price for these dates yet. Try other dates in Change details."}
               </span>
-            ))}
-            <span className="mt-0.5 flex items-baseline justify-between border-t border-[#E8EDF2] pt-3">
-              <strong className="text-[15px]">{real ? `${real.complete ? "Total" : "Total so far"} for ${travellers}` : `Total for ${travellers}`}</strong>
-              <strong className="text-[30px] tabular-nums">{real?.total ?? prices.total}</strong>
-            </span>
+            )}
             {mine ? (
               <button
                 type="button"
@@ -566,7 +582,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
             <span className="text-center text-[11px] text-[#5F6B78]">
               {real
                 ? `Live from TripJack${real.checkedAt ? `, checked ${clock(real.checkedAt)}` : ""}, taxes included. Experiences, meals and transfers are priced at checkout.`
-                : "Sample prices while bookings are being set up."}
+                : "We show only TripJack’s live prices: nothing is estimated."}
             </span>
           </div>
 
@@ -584,7 +600,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
             <span className="text-[13px] text-[#566E85]">Say it in your words. The board and the price update.</span>
             <span className="flex flex-wrap gap-1.5">
               {[
-                ["Add a sunset cruise", "Add a sunset cruise."],
+                ["Add something to do", "Add something to do."],
                 [`Make day ${Math.min(3, days.length)} easier`, `Make day ${Math.min(3, days.length)} easier.`],
               ].map(([label, extra]) =>
                 mine ? (

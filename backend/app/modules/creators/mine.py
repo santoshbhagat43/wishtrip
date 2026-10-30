@@ -5,6 +5,7 @@ back to and change."""
 
 import datetime as dt
 import logging
+import re
 import secrets
 import uuid
 from datetime import datetime
@@ -39,7 +40,8 @@ ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 
 
 class MineConfig(BaseModel):
-    adults: int = Field(default=2, ge=0, le=9)
+    # Nobody is assumed: who is going comes from the traveller (or the staff check, which says so).
+    adults: int = Field(default=0, ge=0, le=9)
     kids: int = Field(default=0, ge=0, le=9)
     seniors: int = Field(default=0, ge=0, le=9)
     days: int = Field(default=4, ge=1, le=builder.MAX_DAYS)
@@ -47,7 +49,7 @@ class MineConfig(BaseModel):
     when: str = Field(default="", max_length=80)
     # Who is going, as the Details screen names it: couple, family, friends, seniors, …
     group: str = Field(default="", max_length=16)
-    # When they leave and from where: needed to ask for real prices. Optional until they choose.
+    # When they leave and from where: required to make a trip board, so its prices are real.
     start_date: dt.date | None = None
     origin: str = Field(default="", max_length=3)
     origin_city: str = Field(default="", max_length=100)
@@ -110,12 +112,19 @@ def _when_text(start: dt.date | None, days: int, typed: str) -> str:
 
 
 def _check(config: MineConfig) -> None:
-    if config.start_date is not None and config.start_date < dt.date.today():
+    """A trip board is only made for a whole set of details: when they leave, where from, and who
+    is going (with a grown-up, as every room and booking needs one). With those, the flights and
+    hotels on the board are priced for the real trip, not guessed."""
+    if config.start_date is None:
+        raise bad_request("Choose the date you leave.")
+    if config.start_date < dt.date.today():
         raise bad_request("Choose a start date that is today or later.")
-    if config.origin and not (len(config.origin) == 3 and config.origin.isalpha()):
-        raise bad_request("Pick the city you are travelling from.")
+    if not (len(config.origin) == 3 and config.origin.isalpha()):
+        raise bad_request("Pick the city you are flying from.")
     if config.adults + config.kids + config.seniors < 1:
         raise bad_request("Add at least one traveller.")
+    if config.adults + config.seniors < 1:
+        raise bad_request("Add at least one adult: every room and booking needs one.")
     if config.pace not in PACES:
         raise bad_request("Pace is relaxed, balanced or packed.")
 
@@ -127,10 +136,25 @@ async def _unique_code(session: AsyncSession) -> str:
             return code
 
 
+# What the chat once put on boards when Arya named a flight or a hotel we cannot book: not a stop.
+PLACEHOLDER = re.compile(r"^sample \w+ option$", re.I)
+
+
+def board_items(items: list[dict]) -> list[dict]:
+    """The board as it is shown: chat placeholders left out, and a planned board (one with a time
+    of day on its stops) in the order the day is lived. Shown this way, not saved: reading a
+    trip never changes it."""
+    shown = [i for i in items if not PLACEHOLDER.match(str(i.get("name") or "").strip())]
+    if any(i.get("slot") for i in shown):
+        shown = builder.in_day_order(shown)
+    return shown
+
+
 async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
     items, _ = await photos.attach(
-        session, list(mine.items or []), mine.source_trip_id, mine.destination_name, persist=False
-    )
+        session, board_items(list(mine.items or [])), mine.source_trip_id, mine.destination_name,
+        persist=False,
+    )  # fmt: skip
     return MineRead(
         code=mine.code,
         source_share_code=mine.source_share_code,
@@ -221,6 +245,8 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
             reel_tips=tips_from_reel,
             creator_words=words,
             domestic=await stays.same_country(session, mine.destination_name, mine.origin_city),
+            # The creator's video is the trip: only its places, and the journey, are planned.
+            reel_only=True,
         )
         plan["items"] = await stays.name_the_stay(
             session, plan["items"], mine.destination_name, mine.summary, said
@@ -537,7 +563,12 @@ async def sync_from_chat(session: AsyncSession, code: str, suggestions: list[dic
     are already on the board keep their id, note and place in the reel; new ones come in as
     WishTrip's checked places or as Arya's suggestions. True when the board changed."""
     mine = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == code))
-    planned = [s for s in suggestions if str(s.get("name") or "").strip() and s.get("day")]
+    # A flight or hotel Arya named that we cannot book comes back as a placeholder: it is no stop.
+    planned = [
+        s
+        for s in suggestions
+        if str(s.get("name") or "").strip() and s.get("day") and not s.get("is_placeholder")
+    ]
     if mine is None or not planned:
         return False
     known = {str(i.get("name") or "").strip().casefold(): i for i in mine.items or []}
@@ -563,6 +594,21 @@ async def sync_from_chat(session: AsyncSession, code: str, suggestions: list[dic
             }
         )
     days = min(builder.MAX_DAYS, max(int(i["day"]) for i in items))
+    # The chat plans the stops; the journey stays the board's: its flights, transfers, check-out
+    # and stays are kept when Arya did not mention them (a stay only where Arya put none).
+    named = {str(i["name"]).strip().casefold() for i in items}
+    for old in mine.items or []:
+        name = str(old.get("name") or "").strip()
+        journey = old.get("kind") in ("travel", "stay") or re.match(r"check[- ]?out\b", name, re.I)
+        if not journey or name.casefold() in named or int(old.get("day") or 1) > days:
+            continue
+        if old.get("kind") == "stay" and any(
+            i["kind"] == "stay" and i["day"] == old.get("day") for i in items
+        ):
+            continue
+        items.append(dict(old))
+    if any(i.get("slot") for i in items):
+        items = builder.in_day_order(items)
     if items == list(mine.items or []) and days == mine.days:
         return False
     mine.items, mine.days = items, days

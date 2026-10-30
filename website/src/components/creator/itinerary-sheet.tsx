@@ -30,8 +30,8 @@ import { copyText } from "@/lib/clipboard";
  * The itinerary made from a creator's reel, laid out like the trip board in the B4 prototype: one
  * column per day, a card per stop, and a note of where in the reel each stop was seen.
  *
- * The days are the real itinerary read from the reel. The bookings strip is a sample: there are
- * no flight, stay or transfer prices to show yet.
+ * The days are the real itinerary read from the reel. No prices are shown here: travellers see
+ * TripJack's live prices once they give their dates and group.
  */
 
 type Item = Schemas["TripItem"];

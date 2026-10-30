@@ -1171,13 +1171,21 @@ async def test_staff_get_tripjack_rates_for_a_reels_itinerary(client, admin, tra
 
     when = (dt.date.today() + dt.timedelta(days=40)).isoformat()
     r = await client.post(
-        "/reels/admin/itineraries/rates001/rates", json={"start_date": when}, headers=auth(admin)
+        "/reels/admin/itineraries/rates001/rates",
+        json={"start_date": when, "origin": "del", "origin_city": "Delhi"},
+        headers=auth(admin),
     )
     assert r.status_code == 200, r.text
     got = r.json()
     assert seen["start"].isoformat() == when and got["end_date"] > when
-    # The hotel we hold, the nearest one where we hold none, and the flight.
-    assert got["total"] == 5000 + 3000 + 9000
+    # The hotel TripJack priced and the flight: a suggested hotel is not in the total.
+    assert got["total"] == 5000 + 9000 and got["origin"] == "DEL"
+    # No date or no city: staff are asked, nothing is assumed.
+    for body in ({"origin": "DEL"}, {"start_date": when}):
+        r = await client.post(
+            "/reels/admin/itineraries/rates001/rates", json=body, headers=auth(admin)
+        )
+        assert r.status_code == 422
     assert got["flight"]["destination"] == "PNQ" and got["supplier"]["name"] == "tripjack"
 
     as_traveller = await client.post(

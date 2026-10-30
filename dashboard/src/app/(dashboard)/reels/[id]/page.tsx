@@ -438,10 +438,13 @@ const FLIGHT_STATUS: Record<string, string> = {
 /** Every stay mapped to a hotel and the return flight, priced live by TripJack's UAT API for the
  *  dates chosen. Stays that name no hotel we hold show the closest hotels with a room instead. */
 function Rates({ code }: { code: string }) {
-  const [start, setStart] = useState(() => new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+  // The date and the airport are staff's choice: nothing is assumed.
+  const [start, setStart] = useState("");
+  const [from, setFrom] = useState("");
+  const origin = from.trim().toUpperCase();
   const rates = useMutation({
     mutationFn: async () =>
-      unwrap(await api.POST("/reels/admin/itineraries/{code}/rates", { params: { path: { code } }, body: { start_date: start } })),
+      unwrap(await api.POST("/reels/admin/itineraries/{code}/rates", { params: { path: { code } }, body: { start_date: start, origin, origin_city: "" } })),
   });
   const r = rates.data;
   return (
@@ -449,13 +452,17 @@ function Rates({ code }: { code: string }) {
       <div className="flex flex-wrap items-center gap-3 p-3">
         <div className="mr-auto">
           <div className="font-medium">Hotel and flight rates</div>
-          <div className="text-sm text-muted">Maps every stay to a hotel and prices it, and the return flight, live from the TripJack UAT API.</div>
+          <div className="text-sm text-muted">Pick the date and the airport they fly from (3 letters). Maps every stay to a hotel and prices it, and the return flight, live from the TripJack UAT API.</div>
         </div>
         <label className="flex items-center gap-2 text-sm">
           Leaving
           <Input type="date" className="w-auto" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Leaving on" />
         </label>
-        <Button type="button" variant="accent" disabled={rates.isPending || !start} onClick={() => rates.mutate()}>
+        <label className="flex items-center gap-2 text-sm">
+          From
+          <Input className="w-[72px] uppercase" maxLength={3} placeholder="DEL" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Flying from (airport code)" />
+        </label>
+        <Button type="button" variant="accent" disabled={rates.isPending || !start || !/^[A-Z]{3}$/.test(origin)} onClick={() => rates.mutate()}>
           {rates.isPending ? "Asking TripJack…" : r ? "Get rates again" : "Get TripJack rates"}
         </Button>
       </div>

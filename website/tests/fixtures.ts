@@ -77,3 +77,12 @@ export async function signUp(page: Page) {
   await expect(page.getByRole("heading", { name: "How you travel" })).toBeVisible({ timeout: 30_000 });
   return email;
 }
+
+/** The details a trip board cannot be made without: the day they leave (a month out) and the city
+ *  they fly from, filled in on the Details screen the page is on. */
+export async function fillTripDetails(page: Page, from = "Bengaluru (BLR)") {
+  const start = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  // The form is on the page twice (phones and desktop): fill the one that is showing.
+  await page.getByLabel("Start date").filter({ visible: true }).fill(start);
+  await page.getByLabel("Travelling from").filter({ visible: true }).fill(from);
+}

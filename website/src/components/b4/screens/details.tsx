@@ -12,7 +12,7 @@ import { Path } from "../icons";
 import { api, errorMessage, unwrap } from "@/lib/api/client";
 import { AIRPORTS, airportFrom, airportLabel } from "../airports";
 
-import { partyText, samplePrices, useMineTrip, usePublicTrip, useReelImport } from "../trip-journey";
+import { partyText, useMineTrip, usePublicTrip, useReelImport } from "../trip-journey";
 
 type Count = "adults" | "kids" | "seniors";
 const FIELD =
@@ -42,20 +42,33 @@ export function DetailsScreen() {
   const loading = code ? shared.isLoading : imp.isLoading;
   const where = content?.destination_name || "your trip";
 
-  const [group, setGroup] = useState("couple");
-  const [count, setCount] = useState<Record<Count, number>>({ adults: 2, kids: 0, seniors: 0 });
-  const [days, setDays] = useState<number>(content?.days_hint ?? 4);
+  // Nobody is assumed: the traveller says who is going.
+  const [group, setGroup] = useState("");
+  const [count, setCount] = useState<Record<Count, number>>({ adults: 0, kids: 0, seniors: 0 });
+  // The days the reel says, until the traveller changes them; a reel that doesn't say asks them.
+  const [chosenDays, setDays] = useState<number | null>(null);
+  const days = chosenDays ?? content?.days_hint ?? null;
   const [pace, setPace] = useState("relaxed");
   const n = count.adults + count.kids + count.seniors;
   const travellers = `${n} ${n === 1 ? "TRAVELLER" : "TRAVELLERS"}`;
-  // The same sample prices the board uses (real ones come at checkout), for who is going and how long.
-  const estimate = samplePrices(Math.max(1, n), Math.max(1, days - 1)).total;
   const bump = (k: Count, by: number) => setCount({ ...count, [k]: Math.max(0, Math.min(9, count[k] + by)) });
 
   const [start, setStart] = useState(""); // the day they leave (yyyy-mm-dd)
   const [fromText, setFromText] = useState(""); // where from, as picked: "Delhi (DEL)"
   const from = airportFrom(fromText);
   const today = new Date().toISOString().slice(0, 10);
+  // A trip board is only made with all of these, so its flights and hotels are priced for the real
+  // trip: the day they leave, the city they fly from, and a grown-up (every room needs one).
+  const missing = [
+    !start && "the date you leave",
+    !days && "how many days",
+    !from && "the city you fly from",
+    n === 0 ? "who is travelling" : count.adults + count.seniors < 1 && "at least one adult",
+  ].filter((m): m is string => !!m);
+  const ready = missing.length === 0;
+  const missingText = ready
+    ? null
+    : `To make your trip board, add ${missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0]}.`;
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -76,14 +89,17 @@ export function DetailsScreen() {
     if (!code && !id) return router.push(LINKS.reel);
     // Build the trip for this party under its own number, then open it: the number is the way
     // back. It is planned in the background, and the trip page shows it filling in.
-    setSaving(true);
-    setProblem(null);
     if (fromText.trim() && !from) {
       setProblem("Pick the city you are travelling from from the list.");
-      setSaving(false);
       return;
     }
-    const body = { ...count, days, pace, when: "", group, arya: viaArya, start_date: start || null, origin: from?.code ?? "", origin_city: from?.city ?? "" };
+    if (!ready) {
+      setProblem(missingText);
+      return;
+    }
+    setSaving(true);
+    setProblem(null);
+    const body = { ...count, days: days!, pace, when: "", group, arya: viaArya, start_date: start || null, origin: from?.code ?? "", origin_city: from?.city ?? "" };
     try {
       const made = mineCode
         ? unwrap(await api.PATCH("/my-trips/{code}", { params: { path: { code: mineCode } }, body }))
@@ -160,31 +176,33 @@ export function DetailsScreen() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={LABEL}>
-          START DATE
-          <input type="date" min={today} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start date" className={FIELD} />
+          START DATE <span className="text-[#B86E00]">· REQUIRED</span>
+          <input type="date" min={today} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Start date" required aria-required="true" className={FIELD} />
         </label>
         <label className={`${LABEL} md:col-span-2`}>
-          TRAVELLING FROM
+          TRAVELLING FROM <span className="text-[#B86E00]">· REQUIRED</span>
           <input
             list="b4-airports"
             value={fromText}
             onChange={(e) => setFromText(e.target.value)}
             placeholder="Your city, e.g. Delhi"
             aria-label="Travelling from"
+            required
+            aria-required="true"
             autoComplete="off"
             className={FIELD}
           />
           <datalist id="b4-airports">
             {AIRPORTS.map((a) => <option key={a.code} value={airportLabel(a)} />)}
           </datalist>
-          <span className="text-xs font-normal normal-case tracking-normal text-[#566E85]">With your dates, this lets us look up live flight and hotel prices.</span>
+          <span className="text-xs font-normal normal-case tracking-normal text-[#566E85]">Pick it from the list. With your date, it lets us price your flights and hotels live.</span>
         </label>
         <div className={LABEL}>
           HOW MANY DAYS
           <div className="flex items-center gap-1.5">
-            <button type="button" aria-label="Fewer days" onClick={() => setDays((d) => Math.max(1, d - 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">−</button>
-            <span className="min-w-[70px] rounded-xl border-[1.5px] border-[#E3E8EE] bg-white py-[11px] text-center text-[15.5px] font-semibold">{days} days</span>
-            <button type="button" aria-label="More days" onClick={() => setDays((d) => Math.min(14, d + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
+            <button type="button" aria-label="Fewer days" onClick={() => setDays(Math.max(1, (days ?? 2) - 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">−</button>
+            <span className="min-w-[70px] rounded-xl border-[1.5px] border-[#E3E8EE] bg-white py-[11px] text-center text-[15.5px] font-semibold">{days ? `${days} ${days === 1 ? "day" : "days"}` : "Choose"}</span>
+            <button type="button" aria-label="More days" onClick={() => setDays(Math.min(14, (days ?? 0) + 1))} className="size-10 cursor-pointer rounded-full border-[1.5px] border-[#E3E8EE] bg-white text-lg">+</button>
           </div>
         </div>
       </div>
@@ -207,6 +225,11 @@ export function DetailsScreen() {
           ))}
         </div>
       </div>
+      {missingText && (
+        <p role="status" className="m-0 rounded-[14px] bg-[#FFF4E5] px-3.5 py-2.5 text-[13.5px] font-semibold text-[#8A5200]">
+          {missingText}
+        </p>
+      )}
     </div>
   );
 
@@ -225,13 +248,13 @@ export function DetailsScreen() {
             <section className="px-4 pb-[150px] pt-2.5">{form}</section>
             <MobileBar>
               <span className="flex flex-col gap-0.5">
-                <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">{days} DAYS · {travellers} · EST. {estimate}</span>
+                <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">{days ? `${days} DAYS · ` : ""}{travellers}</span>
                 <span className="text-xs text-[#A9C2D4]">{code ? "Your trip shows the day-by-day." : "Your board shows the day-by-day."}</span>
               </span>
-              <button type="button" onClick={() => next(true)} disabled={saving || n < 1} className="ml-auto whitespace-nowrap rounded-full border-[1.5px] border-[#22DDE0] px-[14px] py-[11px] text-[14px] font-bold text-[#22DDE0] disabled:opacity-60">
+              <button type="button" onClick={() => next(true)} disabled={saving || !ready} className="ml-auto whitespace-nowrap rounded-full border-[1.5px] border-[#22DDE0] px-[14px] py-[11px] text-[14px] font-bold text-[#22DDE0] disabled:opacity-60">
                 Chat with Arya
               </button>
-              <button onClick={() => next()} disabled={saving || n < 1} className="whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338] disabled:opacity-60">
+              <button onClick={() => next()} disabled={saving || !ready} className="whitespace-nowrap rounded-full bg-[#22DDE0] px-[18px] py-[13px] text-[15px] font-bold text-[#072338] disabled:opacity-60">
                 {saving ? "Building…" : "Build my trip"}
               </button>
             </MobileBar>
@@ -253,15 +276,15 @@ export function DetailsScreen() {
               {starting}
               <div className="flex flex-col gap-4 rounded-[22px] bg-[#072338] p-[22px] text-white">
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">ESTIMATE FOR {travellers}</span>
-                  <strong className="text-[32px] tabular-nums">{estimate}</strong>
+                  <span className="text-[10.5px] font-bold tracking-[.14em] text-[#A9C2D4]">YOUR TRIP</span>
+                  <strong className="text-[22px]">{days ? `${days} ${days === 1 ? "day" : "days"}` : "How many days?"} · {partyText(count) || "who’s going?"}</strong>
                   <span className="text-xs text-[#A9C2D4]">
-                    {days} days · {partyText(count) || travellers.toLowerCase()}. A sample; your trip then shows live flight and hotel prices for your dates.
+                    Your trip board shows live flight and hotel prices from TripJack for your dates and your group.
                   </span>
                 </span>
                 <button
                   onClick={() => next()}
-                  disabled={saving || n < 1}
+                  disabled={saving || !ready}
                   className="cursor-pointer rounded-full bg-[#22DDE0] p-[15px] text-center text-base font-bold text-[#072338] disabled:opacity-60"
                 >
                   {saving ? "Building…" : "Build my trip →"}
@@ -271,7 +294,7 @@ export function DetailsScreen() {
               <button
                 type="button"
                 onClick={() => next(true)}
-                disabled={saving || n < 1}
+                disabled={saving || !ready}
                 className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-[#E3E8EE] bg-white px-4 py-3.5 text-left text-[#0D2436] disabled:opacity-60"
               >
                 <span aria-hidden="true" className="font-display grid size-[38px] flex-none place-items-center rounded-full bg-gradient-to-br from-[#22DDE0] to-[#1A6094] text-xl font-semibold italic text-white">A</span>
