@@ -251,7 +251,8 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
         tips_from_reel, said, words = await _what_the_reel_said(session, mine)
         plan = await builder.build(
             use_ai,
-            must=[i for i in mine.source_items or [] if i.get("kind") != "area"],
+            must=[i for i in mine.source_items or [] if i.get("kind") != "area"]
+            + builder.town_days(mine.source_items or []),
             route=builder.route_from(mine.source_items or []),
             destination=mine.destination_name,
             days=mine.days,

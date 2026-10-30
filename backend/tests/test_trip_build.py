@@ -1441,3 +1441,14 @@ def test_moving_on_later_in_the_day_comes_after_that_parts_stops():
         "Buddha Dordenma", "Dochula Pass", "Travel from Thimphu to Punakha",
         "Travel from Punakha to Paro", "Punakha Dzong",
     ]  # fmt: skip
+
+
+def test_another_day_in_the_same_town_is_a_stop_that_day():
+    source = [
+        {"name": "Thimphu", "kind": "area", "video_day": 2},
+        {"name": "Thimphu City", "kind": "area", "video_day": 3},
+        {"name": "Punakha", "kind": "area", "video_day": 4},
+        {"name": "Somewhere", "kind": "area", "video_day": None},  # no day: only where they are
+    ]
+    got = builder.town_days(source)
+    assert [(i["name"], i["kind"], i["video_day"]) for i in got] == [("Thimphu City", "sight", 3)]

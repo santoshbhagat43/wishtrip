@@ -24,8 +24,10 @@ REEL = "https://www.instagram.com/reel/Cabc123xyz/"
 
 @pytest.fixture(autouse=True)
 def plain_itineraries(monkeypatch):
-    """These tests are about other things and use videos that name two places: no completion."""
+    """These tests are about other things and use videos that name two places: no completion, and
+    the reel's places on its days (the planned trip has its own tests below)."""
     monkeypatch.setattr(settings, "complete_itineraries", False)
+    monkeypatch.setattr(settings, "creator_trips_planned", False)
 
 
 @pytest.fixture(autouse=True)
@@ -1066,3 +1068,87 @@ async def test_an_auto_publishing_link_publishes_once_the_trip_is_whole(
     await _top_up(shown, ai)
     trip = (await client.get(f"/creator/trips/{link['trip_id']}", headers=headers)).json()
     assert trip["status"] == "published" and len(trip["items"]) == 9
+
+
+# Planned like staff's itinerary ------------------------------------------------------------------
+
+BHUTAN = [
+    ("Phuentsholing", "area", 1), ("Thimphu", "area", 2), ("Thimphu City", "area", 3),
+    ("Punakha", "area", 4), ("Phobjikha Valley", "sight", 5), ("Paro", "area", 6),
+    ("Tiger's Nest", "sight", 7), ("Paro Local Market", "sight", 8),
+]  # fmt: skip
+
+
+@pytest.fixture
+def planned(whole_itineraries, top_up_later, monkeypatch):
+    """The product's setting: a creator's trip is planned like staff's itinerary. The plan is laid
+    out by rule here (the AI's own layout is tested in test_trip_build)."""
+    from app.core import ratelimit
+
+    async def no_ai(*a, **k):
+        return False
+
+    monkeypatch.setattr(settings, "complete_itineraries", False)
+    monkeypatch.setattr(settings, "creator_trips_planned", True)
+    monkeypatch.setattr(ratelimit, "allow", no_ai)
+    whole_itineraries["destination"] = "Bhutan"
+    whole_itineraries["days"] = 8
+    whole_itineraries["places"] = [
+        {**p, "video_day": day, "kind": kind}
+        for p, (_, kind, day) in zip(_named(*(n for n, _, _ in BHUTAN)), BHUTAN, strict=True)
+    ]
+    return top_up_later
+
+
+async def test_a_creators_trip_is_planned_like_the_staff_itinerary(client, planned):
+    ai = Suggester([])
+    headers = await _creator(client, "planned@creators.example.com")
+    link, trip = await _trip_of(client, headers, ai)
+
+    # At once: the reel's own places, on the video's eight days, while the plan is made.
+    assert link["status"] == "ready" and trip["completing"] is True
+    assert max(_by_day(trip)) == 8 and planned == [uuid.UUID(trip["id"])]
+
+    await _top_up(trip, ai)
+    trip = (await client.get(f"/creator/trips/{trip['id']}", headers=headers)).json()
+    assert trip["completing"] is False
+    items = trip["items"]
+    # One stay a night, in the town where each day ends; "Thimphu City" is Thimphu, not a move.
+    assert [(i["day"], i["name"]) for i in items if i["kind"] == "stay"] == [
+        (1, "Stay in Phuentsholing"), (2, "Stay in Thimphu"), (4, "Stay in Punakha"),
+        (6, "Stay in Paro"),
+    ]  # fmt: skip
+    travel = [(i["day"], i["name"]) for i in items if i["kind"] == "travel"]
+    assert (2, "Travel from Phuentsholing to Thimphu") in travel
+    assert (6, "Travel from Punakha to Paro") in travel
+    # Flights in and out with no home city (a creator has none), and check-out on the last day.
+    assert any(d == 1 and n.startswith("Fly to") for d, n in travel)
+    assert (8, "Fly home") in travel
+    assert (8, "Check out") in [(i["day"], i["name"]) for i in items]
+    # Every place the video names is there, on its day; nothing else is added.
+    sights = {i["name"]: i["day"] for i in items if i["kind"] in ("sight", "experience")}
+    assert sights == {
+        "Thimphu City": 3,  # the day the video spends exploring Thimphu is not left empty
+        "Phobjikha Valley": 5,
+        "Tiger's Nest": 7,
+        "Paro Local Market": 8,
+    }
+    async with SessionLocal() as session:
+        job = await session.scalar(
+            select(ReelImport).where(ReelImport.creator_trip_id == uuid.UUID(trip["id"]))
+        )
+    assert any("Planned like the staff itinerary" in (e.get("message") or "") for e in job.log)
+
+
+async def test_the_creators_own_edits_win_over_the_plan(client, planned):
+    ai = Suggester([])
+    headers = await _creator(client, "planned-edits@creators.example.com")
+    _, trip = await _trip_of(client, headers, ai)
+    mine = [{**i, "name": f"{i['name']} (mine)"} for i in trip["items"][:3]]
+    r = await client.patch(f"/creator/trips/{trip['id']}", json={"items": mine}, headers=headers)
+    assert r.status_code == 200
+
+    await _top_up(trip, ai)
+    trip = (await client.get(f"/creator/trips/{trip['id']}", headers=headers)).json()
+    assert trip["completing"] is False
+    assert [i["name"] for i in trip["items"]] == [i["name"] for i in mine]

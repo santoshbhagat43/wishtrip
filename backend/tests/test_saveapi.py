@@ -484,3 +484,25 @@ async def test_staff_can_read_the_log_and_the_totals(client, admin, traveler):
 
     assert (await client.get("/reels/downloads", headers=auth(traveler))).status_code == 403
     assert (await client.get("/reels/downloads")).status_code == 401
+
+
+async def test_attempts_are_kept_on_the_engine_they_are_given():
+    # In a worker every job runs in a new event loop with its own engine: the attempts must be
+    # written on that engine, not the app's shared pool (whose connections belong to a closed loop).
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core.config import settings as app_settings
+
+    engine = create_async_engine(app_settings.database_url, poolclass=NullPool)
+    try:
+        await reels.record_attempts(
+            [reels.Attempt("saveapi", "instagram", IG, "Cengine01", ok=True, meta={"x": 1})], engine
+        )
+    finally:
+        await engine.dispose()
+    async with SessionLocal() as session:
+        row = await session.scalar(
+            select(DownloadRequest).where(DownloadRequest.shortcode == "Cengine01")
+        )
+    assert row is not None and row.ok and row.meta == {"x": 1}

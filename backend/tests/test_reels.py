@@ -1267,3 +1267,42 @@ async def test_a_region_we_dont_know_is_not_matched_by_meaning_across_its_countr
     assert not asked  # never looked up by meaning across all of India
     assert not places[0]["verified"] and places[0]["location_name"] is None
     assert destination is None or destination.name != "Thekkady"
+
+
+async def test_a_town_the_video_explores_on_another_day_keeps_that_day():
+    # The Bhutan reel: "Day 2 Phuentsholing to Thimphu", then "Day 3 Thimphu City". Merging the
+    # two as one place lost day 3 ("Nothing planned").
+    from app.ai.orchestrator import AIOrchestrator
+    from app.modules.reels import service as reel_service
+    from app.modules.reels.understand import Reading
+
+    def area(name, day):
+        return {"name": name, "kind": "area", "evidence": name, "source": "screen",
+                "video_day": day, "t": None}  # fmt: skip
+
+    reading = Reading(destination="Bhutan", places=[
+        area("Thimphu", 2), area("Thimphu City", 3), area("Thimphu", 3), area("Caudan", None),
+        area("Caudan Waterfront", None),
+    ])  # fmt: skip
+    async with SessionLocal() as session:
+        _, places = await reel_service.match_places(
+            session, AIOrchestrator(client=ReelAI()), reading
+        )
+    assert [(p["name"], p["video_day"]) for p in places] == [
+        ("Thimphu", 2),
+        ("Thimphu City", 3),  # a second day there: kept
+        # "Thimphu" again on day 3 is the same day as "Thimphu City": one place.
+        ("Caudan", None),  # said and shown with no day: still one place
+    ]
+
+
+def test_a_day_exploring_the_same_town_is_not_a_new_night_on_the_route():
+    from app.modules.creators import builder
+
+    route = builder.route_from([
+        {"name": "Phuentsholing", "kind": "area", "video_day": 1},
+        {"name": "Thimphu", "kind": "area", "video_day": 2},
+        {"name": "Thimphu City", "kind": "area", "video_day": 3},
+        {"name": "Punakha", "kind": "area", "video_day": 4},
+    ])  # fmt: skip
+    assert [r["name"] for r in route] == ["Phuentsholing", "Thimphu", "Punakha"]

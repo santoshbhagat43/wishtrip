@@ -69,6 +69,19 @@ def _item_from_place(place: dict) -> dict:
     }
 
 
+def reel_days(items: list[dict], extracted: dict) -> int:
+    """How long the creator's trip is: the days the video says, else its stated length, else about
+    three stops a day."""
+    stops = [i for i in items if i["kind"] != "stay"]
+    return min(
+        MAX_TRIP_DAYS,
+        stated_days(items)
+        or extracted.get("days_hint")
+        or math.ceil(len(stops) / STOPS_PER_DAY)
+        or 1,
+    )
+
+
 def stated_days(items: list[dict]) -> int:
     """The last day the video says any of its places is on (0 when it states none)."""
     return max((i.get("video_day") or 0 for i in items if i["kind"] != "stay"), default=0)
@@ -88,7 +101,9 @@ def assign_days(items: list[dict], days: int) -> list[dict]:
     # least that far. A place the video names with no day sits with the one mentioned before it
     # (or the next one, at the very start), so it stays with the part of the video it came from.
     stated = stated_days(items)
-    days = max(1, min(max(days, stated), len(stops) or 1))
+    # The creator's days are theirs: never cut to the number of stops (an 8-day video with its
+    # sights on days 5, 7 and 8 is still 8 days, not 4). Without stated days, no day is left empty.
+    days = max(days, stated) if stated else max(1, min(days, len(stops) or 1))
     counts = [0] * days
     if stated:
         current = next(i["video_day"] for i in named if i.get("video_day"))
@@ -183,6 +198,52 @@ def in_day_sequence(items: list[dict]) -> list[dict]:
     return [item for *_, item in sorted(placed, key=lambda p: (p[0], p[1], p[2]))]
 
 
+def _plan_later(ai: AIOrchestrator | None) -> bool:
+    """Plan the creator's trip like staff's itinerary, in the background (needs the AI)."""
+    return settings.creator_trips_planned and ai is not None and ai.enabled
+
+
+async def plan_like_staff(
+    session: AsyncSession, ai: AIOrchestrator | None, trip: CreatorTrip, content
+) -> list[dict]:
+    """The creator's trip planned exactly as staff's itinerary for the reel is (`builder.build`,
+    reel only): the video's places on its days, a stay a night in the town where each day ends,
+    the drives between towns, flights in and out (a creator has no home city: "Fly to …", "Fly
+    home"), check-out, and a hotel picked for each stay. Same sample party as staff's: a couple."""
+    from app.core.ratelimit import allow
+    from app.modules.creators import builder, stays
+
+    extracted = content.extracted or {}
+    source = [_item_from_place(p) for p in content.places or []]
+    tips = [str(t) for t in extracted.get("tips") or [] if str(t).strip()]
+    # Past the hourly cap the trip is arranged by rule, as staff's would be.
+    use_ai = ai if await allow("trip-builds", settings.trip_builds_per_hour) else None
+    plan = await builder.build(
+        use_ai,
+        must=[i for i in source if i["kind"] != "area"] + builder.town_days(source),
+        route=builder.route_from(source),
+        destination=trip.destination_name,
+        days=reel_days([i for i in source if i["kind"] != "area" or i.get("video_day")], extracted),
+        adults=2,
+        kids=0,
+        seniors=0,
+        pace="relaxed",
+        when="",
+        group="couple",
+        summary=extracted.get("summary", ""),
+        reel_tips=tips,
+        creator_words=(content.transcript_en or content.transcript or "").strip(),
+        reel_only=True,
+    )
+    return await stays.name_the_stay(
+        session,
+        plan["items"],
+        trip.destination_name,
+        extracted.get("summary", ""),
+        content.caption or "",
+    )
+
+
 def _complete_later(named: list[dict], days_hint: int | None, ai: AIOrchestrator | None) -> bool:
     """Top the trip up in the background? Only when the video's own places already make a trip
     of at least two days (so it can be shown as it is) and some are still missing."""
@@ -206,18 +267,17 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
     if creator is None:
         raise not_found("Creator")
     extracted = content.extracted or {}
-    named = [_item_from_place(p) for p in content.places if p.get("kind") != "area"]
-    # Only what the reel shows: the days it says (else about three stops a day), nothing added.
-    stops = [i for i in named if i["kind"] != "stay"]
-    reel_days = min(
-        MAX_TRIP_DAYS,
-        stated_days(named)
-        or extracted.get("days_hint")
-        or math.ceil(len(stops) / STOPS_PER_DAY)
-        or 1,
-    )
-    later = _complete_later(named, extracted.get("days_hint"), ai)
-    if later:
+    # The towns the video travels through stay, on the day it reaches them ("Thimphu", day 2): a
+    # day spent getting there is part of the trip. A town with no day is only where the trip is.
+    named = [
+        _item_from_place(p) for p in content.places if p.get("kind") != "area" or p.get("video_day")
+    ]
+    # Shown at once: only what the reel shows, on the days it says. Then (`planning`) the trip is
+    # planned like staff's itinerary for the reel, in the background.
+    days_shown = reel_days(named, extracted)
+    planning = _plan_later(ai)
+    later = planning or _complete_later(named, extracted.get("days_hint"), ai)
+    if later and not planning:
         stops = [i for i in named if i["kind"] != "stay"]
         days = max(
             MIN_DAYS,
@@ -225,7 +285,7 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
             min(target_days(extracted.get("days_hint")), len(stops) // MIN_STOPS_PER_DAY),
         )
         plan = Plan(items=named, days=days)
-    elif settings.complete_itineraries:
+    elif settings.complete_itineraries and not planning:
         plan = await complete(
             session,
             ai,
@@ -236,7 +296,7 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
             days_hint=extracted.get("days_hint"),
         )
     else:
-        plan = Plan(items=named, days=reel_days)
+        plan = Plan(items=named, days=days_shown)
     trip = CreatorTrip(
         creator_id=creator.id,
         title=f"{content.destination_name or 'My'} trip",
@@ -315,7 +375,13 @@ async def complete_in_background(
         select(CreatorContent).where(CreatorContent.shortcode == trip.source_shortcode)
     )
     items: list[dict] | None = None
-    if content is not None and not edited:
+    planned = settings.creator_trips_planned
+    if content is not None and not edited and planned:
+        try:
+            items = await plan_like_staff(session, ai, trip, content)
+        except Exception:  # noqa: BLE001 - the trip stays as the video made it
+            logger.exception("Could not plan trip %s", trip_id)
+    elif content is not None and not edited:
         extracted = content.extracted or {}
         try:
             plan = await complete(
@@ -333,10 +399,10 @@ async def complete_in_background(
         except Exception:  # noqa: BLE001 - the trip stays as the video made it
             logger.exception("Could not top up trip %s", trip_id)
     await session.refresh(trip)  # the creator may have edited it while we worked
-    added = 0
+    added, applied = 0, False
     if items is not None and _stops(trip.items) == _stops(before):
         trip.items = items
-        added = len(items) - len(before)
+        added, applied = len(items) - len(before), True
     trip.completing = False
     job = await session.scalar(select(ReelImport).where(ReelImport.creator_trip_id == trip.id))
     link = (
@@ -351,17 +417,30 @@ async def complete_in_background(
             *(job.log or []),
             {
                 "at": datetime.now(UTC).isoformat(),
-                "message": (
-                    f"Topped up in the background: {added} stops added"
-                    if items is not None and added
-                    else "Not topped up: the creator changed the stops first"
-                    if edited or items is not None
-                    else "Not topped up: the suggestions could not be made"
+                "message": _background_note(
+                    planned, items, added, edited or (items is not None and not applied)
                 ),
                 "seconds": round(time.monotonic() - started, 1),
             },
         ]
     await session.commit()
+
+
+def _background_note(planned: bool, items: list | None, added: int, edited: bool) -> str:
+    """What the background step did, for the import log staff read."""
+    if planned:
+        if items is not None and not edited:
+            stays_n = sum(1 for i in items if i["kind"] == "stay")
+            moves = sum(1 for i in items if i["kind"] == "travel")
+            return f"Planned like the staff itinerary: {stays_n} stays, {moves} journeys"
+        if edited or items is not None:
+            return "Not planned: the creator changed the stops first"
+        return "Not planned: the plan could not be made"
+    if items is not None and added:
+        return f"Topped up in the background: {added} stops added"
+    if edited or items is not None:
+        return "Not topped up: the creator changed the stops first"
+    return "Not topped up: the suggestions could not be made"
 
 
 async def create_from_content(

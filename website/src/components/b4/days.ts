@@ -68,5 +68,12 @@ export function daysFromItems(items: Item[], days?: number): ItineraryDay[] {
       },
     ]);
   });
-  return [...byDay.entries()].sort(([a], [b]) => a - b).map(([, list], idx) => ({ n: idx + 1, stops: list }));
+  const sorted = [...byDay.entries()].sort(([a], [b]) => a - b);
+  // The creator's own days keep their numbers: a day the reel spends on the road is shown (empty),
+  // never dropped so that its day 5 reads as day 3.
+  if (!days && stops.some((s) => s.day)) {
+    const last = sorted.at(-1)?.[0] ?? 1;
+    return Array.from({ length: last }, (_, i) => ({ n: i + 1, stops: byDay.get(i + 1) ?? [] }));
+  }
+  return sorted.map(([, list], idx) => ({ n: idx + 1, stops: list }));
 }

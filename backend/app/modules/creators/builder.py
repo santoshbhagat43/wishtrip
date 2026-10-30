@@ -192,13 +192,28 @@ def route_from(source: list[dict]) -> list[dict]:
     route: list[dict] = []
     for m in source:
         name = str(m.get("name") or "").strip()
-        if m.get("kind") != "area" or not name or any(r["name"] == name for r in route):
+        # "Thimphu City" after "Thimphu" is the same town (a day exploring it), not a new night.
+        if m.get("kind") != "area" or not name or _already_there(name, route):
             continue
         route.append(
             {"name": name, "day": m.get("video_day"), "airport": bool(AIRPORT.search(name))}
         )
     route.sort(key=lambda r: r["day"] if r["day"] else 99)  # stable: the video's order within a day
     return route
+
+
+def town_days(source: list[dict]) -> list[dict]:
+    """A town the video spends another day in ("Day 3: Thimphu City", after arriving in Thimphu on
+    day 2) is a stop on that day. The route keeps each town once (it is one stay), so without this
+    the day would be empty."""
+    route = {(r["name"], r["day"]) for r in route_from(source)}
+    out = []
+    for m in source:
+        name, day = str(m.get("name") or "").strip(), m.get("video_day")
+        if m.get("kind") != "area" or not name or not day or (name, day) in route:
+            continue
+        out.append({**m, "kind": "sight", "note": m.get("note") or f"Day {day} of the video."})
+    return out
 
 
 def _item(

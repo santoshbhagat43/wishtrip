@@ -30,7 +30,7 @@ from typing import Any
 import httpx
 from sqlalchemy import false as sql_false
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.ai.openrouter import AIUnavailableError
 from app.ai.orchestrator import AIOrchestrator
@@ -309,13 +309,16 @@ def download(
     raise _primary_error(code, youtube)
 
 
-async def record_attempts(attempts: list[Attempt]) -> None:
+async def record_attempts(attempts: list[Attempt], bind: Any = None) -> None:
     """Keep a row per download attempt. Its own short session: a failed import rolls the main
-    one back, and a failure is exactly what we want on record."""
+    one back, and a failure is exactly what we want on record. `bind` is the import's own engine:
+    in a worker each job runs in a new event loop, where the app's shared pool holds connections
+    from an earlier, closed loop ("Event loop is closed", and the attempts were lost)."""
     if not attempts:
         return
+    sessions = async_sessionmaker(bind, expire_on_commit=False) if bind else SessionLocal
     try:
-        async with SessionLocal() as session:
+        async with sessions() as session:
             session.add_all(
                 DownloadRequest(
                     import_id=_current_import.get(),
@@ -429,6 +432,12 @@ def _shares_name(a: str, b: str) -> bool:
     )
 
 
+def _other_day(a: dict, b: dict) -> bool:
+    """The video puts the two mentions on different days ("Thimphu" on day 2, "Thimphu City" on
+    day 3): a second day there, kept, not merged into the first."""
+    return bool(a.get("video_day") and b.get("video_day") and a["video_day"] != b["video_day"])
+
+
 def _same_place(a: str, b: str) -> bool:
     a, b = _norm(a), _norm(b)
     if not a or not b:
@@ -513,14 +522,18 @@ async def match_places(
             # A close vector alone is not proof: the names must share a distinctive word.
             if hits and _shares_name(name, hits[0].location.name):
                 found = hits[0].location
-        if found is not None and any(p["location_id"] == str(found.id) for p in out):
+        if found is not None and any(
+            p["location_id"] == str(found.id) and not _other_day(place, p) for p in out
+        ):
             continue  # said and shown: one place, keep its first mention
         # The same unknown place said and shown ("Caudan" on screen, "Caudan Waterfront" in the
         # voice-over) is one place. Sharing a word is not enough: "Casela Nature Park" is not
         # "La Vanille Nature Park". A town and a stop in it ("Chamarel", "Rum tasting at
         # Chamarel") are both kept.
         if found is None and any(
-            _same_place(name, p["name"]) and (p.get("kind") == "area") == is_area
+            _same_place(name, p["name"])
+            and (p.get("kind") == "area") == is_area
+            and not _other_day(place, p)
             for p in out
             if not p["verified"]
         ):
@@ -894,7 +907,7 @@ async def produce_content(
                 meta = download(shortcode, workdir)
         finally:
             _attempts.reset(token)
-            await record_attempts(attempts)
+            await record_attempts(attempts, session.bind)
         video = _first(workdir, "reel")
         if video is None:
             raise ReelError("We couldn't download that reel. Try again in a bit.")

@@ -49,19 +49,38 @@ async def pick_hotel(
     return fitting or await session.scalar(ranked)
 
 
+def stay_town(item: dict) -> str | None:
+    """The town a stay is in: kept on it ("town"), else the one in "Stay in <town>"."""
+    if item.get("town"):
+        return str(item["town"])
+    found = re.match(r"stay in\s+(.+)$", str(item.get("name") or ""), re.I)
+    return found.group(1).strip() if found else None
+
+
 async def name_the_stay(
     session: AsyncSession, items: list[dict], destination: str, *money_words: str
 ) -> list[dict]:
     """A stay that is not a hotel we hold becomes one we do. Stays the traveller's reel named, and
-    stays that already match a hotel, are left alone."""
+    stays that already match a hotel, are left alone.
+    A trip through several towns gets a hotel in each stay's own town, or none: never one hotel
+    of the destination for every town. A trip with one base may use any hotel of the destination
+    ("Stay in Seminyak" on a Bali trip)."""
     out = list(items)
-    for item in out:
-        if item.get("kind") != "stay" or item.get("origin") == "reel" or not destination:
-            continue
+    ours = [i for i in out if i.get("kind") == "stay" and i.get("origin") != "reel"]
+    several = len({t.lower() for i in ours if (t := stay_town(i))}) > 1
+    stars = stars_wanted(*money_words)
+    for item in ours:
+        if not destination:
+            break
         hotel, score = await photos.best(session, item["name"], destination)
         if hotel is not None and score >= matching.REVIEW:
             continue
-        picked = await pick_hotel(session, destination, stars_wanted(*money_words))
+        town = stay_town(item)
+        picked = await pick_hotel(session, town, stars) if town else None
+        if picked is not None and town:
+            item["town"] = town  # priced and shown in the town it is in
+        elif not several:
+            picked = await pick_hotel(session, destination, stars)
         if picked is None:
             continue
         item["name"] = picked.name[:200]

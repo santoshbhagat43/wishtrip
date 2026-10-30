@@ -114,6 +114,11 @@ class Settings(BaseSettings):
     # When the video's own places already make a trip of two days or more, show the creator
     # those at once and add the rest in the background (a worker), instead of making them wait.
     complete_trips_in_background: bool = True
+    # Plan a creator's trip from their reel the way staff's itinerary for a reel is planned: the
+    # reel's places, a stay a night in the right town, the drives between towns, flights in and
+    # out and check-out, the days laid out by the AI. They see the reel's places at once; the plan
+    # replaces them about a minute later (a worker). Off: the reel's places on its days only.
+    creator_trips_planned: bool = True
     reel_upload_max_mb: int = 120
     # A dedicated Instagram account's session (made once with `instaloader --login`). Keep it
     # outside MEDIA_ROOT: everything there is served publicly.
