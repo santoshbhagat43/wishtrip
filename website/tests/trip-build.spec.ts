@@ -109,5 +109,15 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   ]));
   await page.goto(`/trip/mine/${tripNo}`);
   await expect(page.getByText("Beach Inn Goa").first()).toBeVisible();
-  await expect(page.getByText(/Suggestions only: they are not in your total/).first()).toBeVisible();
+  await expect(page.getByText(/Suggestions only: your trip keeps its stay, and they are not in your total/).first()).toBeVisible();
+
+  // A hotel with no room for the dates keeps its name: hotels that have one are offered beside it.
+  await page.unroute("**/my-trips/*/stay-prices");
+  await page.route("**/my-trips/*/stay-prices", stayAnswer((id) => [
+    { item_id: id, name: "Della Resort", status: "unavailable", hotel: { id: "h1", name: "Della Resort" }, nights: 2, alternatives: [
+      { hotel: { id: "h2", name: "Lalco Residency" }, stars: 4, total: 8800, checked_at: now, reason: "Has a room for your dates in Lonavala", rooms: ["2 adults"] }] },
+  ]));
+  await page.goto(`/trip/mine/${tripNo}`);
+  await expect(page.getByText(/No room at Della Resort for these dates/).first()).toBeVisible();
+  await expect(page.getByText("Lalco Residency").first()).toBeVisible();
 });

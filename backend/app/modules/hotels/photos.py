@@ -33,9 +33,15 @@ class Resolved:
 
 
 async def candidates(
-    session: AsyncSession, text: str, *, limit: int = 60, with_photo: bool = True
+    session: AsyncSession,
+    text: str,
+    *,
+    limit: int = 60,
+    with_photo: bool = True,
+    country: str | None = None,
 ) -> list[SupplierHotel]:
-    """Hotels whose names look like `text`, closest first (typos and extra words allowed)."""
+    """Hotels whose names look like `text`, closest first (typos and extra words allowed). With a
+    `country`, only hotels in that country: a name alone never moves a trip to another country."""
     query = " ".join(matching.words(matching.clean_name(text)))
     if not query:
         return []
@@ -47,7 +53,52 @@ async def candidates(
     )
     if with_photo:
         stmt = stmt.where(SupplierHotel.hero_image.is_not(None))
+    if country:
+        stmt = stmt.join(SupplierRegion, SupplierRegion.region_id == SupplierHotel.region_id).where(
+            func.upper(SupplierRegion.country_name) == country.upper()
+        )
     return list((await session.scalars(stmt.order_by(closeness.desc()).limit(limit))).all())
+
+
+async def destination_country(
+    session: AsyncSession, destination: str, places: list[str] | None = None
+) -> str | None:
+    """The country a trip is in, as TripJack names it ("INDONESIA"), or None when we cannot tell.
+
+    The destination as a TripJack city (Bali is one in Indonesia and one in Rajasthan: the trip's
+    other places, then the number of hotels, decide), else as a country ("Vietnam"), else as a
+    state or region in a city's full name ("Maharashtra"). Kept on the session per destination."""
+    key = (destination or "").strip().upper()
+    if not key:
+        return None
+    memo: dict = session.info.setdefault("trip_country", {})
+    if key in memo:
+        return memo[key]
+    country: str | None = None
+    regions = await _regions_for(session, destination, list(places or []))
+    if regions:
+        country = regions[0].country_name.upper()
+    else:
+        named = await session.scalar(
+            select(SupplierRegion.country_name)
+            .where(func.upper(SupplierRegion.country_name) == key)
+            .limit(1)
+        )
+        if named:
+            country = named.upper()
+        else:
+            counts = (
+                await session.execute(
+                    select(SupplierRegion.country_name, func.count())
+                    .where(func.upper(SupplierRegion.full_name).like(f"%, {key}, %"))
+                    .group_by(SupplierRegion.country_name)
+                    .order_by(func.count().desc())
+                    .limit(1)
+                )
+            ).first()
+            country = counts[0].upper() if counts else None
+    memo[key] = country
+    return country
 
 
 def _area(hotel: SupplierHotel) -> str:
@@ -60,7 +111,8 @@ async def ranked(
     """The likeliest hotels for a stay, best first, each with its score. `search` replaces the
     stay's name (staff typing the hotel they mean)."""
     text = search or name
-    found = await candidates(session, text)
+    country = await destination_country(session, place) if place else None
+    found = await candidates(session, text, country=country)
     scored = [(h, matching.score(text, h.name, place, _area(h))) for h in found]
     scored.sort(key=lambda pair: pair[1], reverse=True)
     return scored[:limit]
@@ -198,7 +250,10 @@ async def _regions_for(
     countries = [c for c, names in names_by_country.items() if wanted[0] in names]
     if not countries:
         return []
-    country = max(countries, key=lambda c: len(names_by_country[c]))
+    # A tie (no other place names to go by) goes to the country where the name is the bigger
+    # place: Bali, Indonesia has thousands of hotels, Bali, Rajasthan a handful.
+    hotels = {c: sum(r.hotel_count for r in found if r.country_name == c) for c in countries}
+    country = max(countries, key=lambda c: (len(names_by_country[c]), hotels[c]))
     chosen = [r for r in found if r.country_name == country]
     chosen.sort(key=lambda r: (wanted.index(r.city_name.upper()), -r.hotel_count))
     return chosen[:4]

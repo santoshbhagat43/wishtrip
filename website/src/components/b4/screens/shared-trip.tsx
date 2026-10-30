@@ -453,26 +453,31 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                         {s.kind === "stay" && (() => {
                           const p = stayPrice(s.id);
                           if (!p) return null;
-                          if (p.status === "not_matched") {
-                            if (!p.alternatives?.length) return null;
+                          if ((p.status === "not_matched" || p.status === "unavailable") && p.alternatives?.length) {
                             return (
                               <span className="flex flex-col gap-1 rounded-xl bg-[#F3F6F9] p-2.5 text-[12.5px] text-[#3F5A72]">
-                                <strong className="text-[12px]">Not the hotel in the reel · closest with a room, live from TripJack</strong>
+                                <strong className="text-[12px]">
+                                  {p.status === "unavailable"
+                                    ? `No room at ${p.hotel?.name ?? "this hotel"} for these dates · hotels with a room, live from TripJack`
+                                    : "Not a hotel we can book · hotels with a room, live from TripJack"}
+                                </strong>
                                 {p.alternatives.map((a) => (
                                   <span key={a.hotel.id} className="flex justify-between gap-2">
                                     <span className="min-w-0 truncate">{a.hotel.name}{a.stars ? ` · ${a.stars}★` : ""}</span>
                                     <span className="flex-none font-bold tabular-nums text-[#0D2436]">{inr(a.total)}{p.nights ? ` · ${p.nights} ${p.nights === 1 ? "night" : "nights"}` : ""}</span>
                                   </span>
                                 ))}
-                                <span className="text-[11px]">Suggestions only: they are not in your total.</span>
+                                <span className="text-[11px]">Suggestions only: your trip keeps its stay, and they are not in your total.</span>
                               </span>
                             );
                           }
+                          if (p.status === "not_matched") return null;
                           if (p.status === "priced")
                             return (
                               <span className="-mt-1 text-[13px] font-bold text-[#0B7A57]">
                                 {inr(p.total ?? 0)} for {p.nights} {p.nights === 1 ? "night" : "nights"}
                                 <span className="font-semibold text-[#5F6B78]">
+                                  {p.rooms?.length ? ` · ${p.rooms.length === 1 ? p.rooms[0] : `${p.rooms.length} rooms: ${p.rooms.join(", ")}`}` : ""}
                                   {p.meal_basis ? ` · ${p.meal_basis}` : ""} · live from TripJack{p.checked_at ? `, checked ${clock(p.checked_at)}` : ""}
                                 </span>
                               </span>
@@ -480,6 +485,7 @@ export function SharedTripScreen({ mine, preloaded }: { mine?: Mine; preloaded?:
                           const why: Record<string, string> = {
                             no_dates: "Add a start date to see the live price",
                             unavailable: "No room at this hotel for these dates",
+                            no_rooms: "No room set-up fits your group here: every room needs an adult, and at most four children",
                             error: "Live price not available right now",
                           };
                           return <span className="-mt-1 text-[12.5px] font-semibold text-[#B86E00]">{why[p.status] ?? ""}</span>;

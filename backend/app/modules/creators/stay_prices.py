@@ -26,7 +26,7 @@ from app.modules.hotels.client import (
     new_correlation_id,
     tripjack_hotels,
 )
-from app.modules.hotels.models import SupplierHotel
+from app.modules.hotels.models import SupplierHotel, SupplierRegion
 from app.modules.hotels.pricing import IST, normalise_options
 from app.modules.hotels.schemas import HotelSearch, Room
 from app.modules.tripjack.cache import cache_get, cache_key, cache_set
@@ -60,12 +60,15 @@ class StayAlternative(BaseModel):
     room: str = ""
     free_cancellation_until: str | None = None
     checked_at: str
+    # How the party is roomed for this price ("2 adults", "1 adult + 2 children").
+    rooms: list[str] = []
 
 
 class StayPrice(BaseModel):
     item_id: str
     name: str
-    # priced · unavailable (no room for these dates) · not_matched · no_dates · error
+    # priced · unavailable (no room for these dates) · not_matched · no_dates · no_rooms (no way to
+    # room this party that TripJack sells: a grown-up per room, at most four children) · error
     status: str
     hotel: StayHotel | None = None
     check_in: dt.date | None = None
@@ -76,7 +79,10 @@ class StayPrice(BaseModel):
     room: str = ""
     free_cancellation_until: str | None = None
     checked_at: str | None = None
-    # When the stay named no hotel we hold: the closest hotels that have a room, priced.
+    # How the party is roomed for this price, one line per room.
+    rooms: list[str] = []
+    # When the stay's hotel has no room or is no hotel we hold: hotels that have a room, priced.
+    # Suggestions only: the stay itself is never changed by a price check.
     alternatives: list[StayAlternative] = []
 
 
@@ -90,12 +96,55 @@ class StayPrices(BaseModel):
     all_priced: bool
 
 
+# TripJack's limits for one room: at most four children, and a grown-up in every room. Four people
+# is what an ordinary room sleeps; a family that needs more takes another room.
+MAX_CHILDREN_PER_ROOM = 4
+MAX_PEOPLE_PER_ROOM = 4
+
+
+def room_plans(adults: int, kids: int) -> list[list[Room]]:
+    """The ways to put the whole party in rooms TripJack can sell, fewest rooms first: two
+    grown-ups to a room, the children spread to the emptiest rooms, every room with a grown-up and
+    no room over four people or four children. Nobody is ever left out: when no way fits (one
+    grown-up with five children), the list is empty and the stay says so. A family gets a second
+    way with one more room, tried when the first has no room at a hotel."""
+    if adults < 1:
+        return []
+    plans: list[list[Room]] = []
+    for n in range(-(-adults // 2), adults + 1):
+        rooms = [[0, 0] for _ in range(n)]
+        for i in range(adults):
+            rooms[i % n][0] += 1
+        for _ in range(kids):
+            room = min(rooms, key=lambda r: (r[0] + r[1], r[1]))
+            room[1] += 1
+        if any(c > MAX_CHILDREN_PER_ROOM for _, c in rooms):
+            continue
+        # Over four to a room only once every grown-up has a room of their own: then a family
+        # room is the only way left.
+        if n < adults and any(a + c > MAX_PEOPLE_PER_ROOM for a, c in rooms):
+            continue
+        plans.append([Room(adults=a, child_ages=[ASSUMED_CHILD_AGE] * c) for a, c in rooms])
+        if not kids or len(plans) == 2:
+            break
+    return plans
+
+
 def rooms_for(adults: int, kids: int) -> list[Room]:
-    """Two grown-ups to a room; the children share the first room."""
-    adults = max(1, adults)
-    rooms = [Room(adults=min(2, adults - i)) for i in range(0, adults, 2)]
-    rooms[0] = Room(adults=rooms[0].adults, child_ages=[ASSUMED_CHILD_AGE] * min(kids, 4))
-    return rooms
+    """The first way to room the party (see `room_plans`), or none when no way fits."""
+    plans = room_plans(adults, kids)
+    return plans[0] if plans else []
+
+
+def describe(rooms: list[Room]) -> list[str]:
+    """ "2 adults", "1 adult + 3 children": one line per room, for the page."""
+
+    def one(room: Room) -> str:
+        grown = f"{room.adults} {'adult' if room.adults == 1 else 'adults'}"
+        kids = len(room.child_ages)
+        return f"{grown} + {kids} {'child' if kids == 1 else 'children'}" if kids else grown
+
+    return [one(r) for r in rooms]
 
 
 def stay_nights(stays: list[dict], start: dt.date, days: int) -> dict[str, tuple[dt.date, dt.date]]:
@@ -143,22 +192,16 @@ async def _price(hotel_id: str, check_in: dt.date, check_out: dt.date, rooms: li
     return found
 
 
-async def _room_total(
-    hotel: SupplierHotel, window: tuple[dt.date, dt.date], rooms: list[Room]
-) -> float | None:
-    """The cheapest rate TripJack has for these nights, or None when there is no room."""
-    try:
-        got = await _price(hotel.tj_hotel_id, *window, rooms)
-    except (TripJackError, TripJackNotConfigured):
-        return None
-    option = got.get("option")
-    return option["price"]["total"] if option else None
-
-
-async def _has_a_room(
-    hotel: SupplierHotel, window: tuple[dt.date, dt.date], rooms: list[Room]
-) -> bool:
-    return await _room_total(hotel, window, rooms) is not None
+async def _priced(
+    hotel_id: str, window: tuple[dt.date, dt.date], plans: list[list[Room]]
+) -> tuple[dict | None, list[Room] | None]:
+    """The cheapest own-room rate for the first way of rooming the party this hotel has room for,
+    and those rooms; (None, None) when it has none. Raises TripJackError."""
+    for rooms in plans:
+        got = await _price(hotel_id, *window, rooms)
+        if got.get("option"):
+            return got, rooms
+    return None, None
 
 
 def stay_town(stay: dict, destination: str) -> str:
@@ -179,6 +222,7 @@ async def _from_search(
     stars: tuple[float, float],
     budget: bool,
     hostels: bool = False,
+    country: str | None = None,
 ) -> SupplierHotel | None:
     """When we hold no hotels for the destination yet, ask TripJack what it can sell for these
     nights: the cheapest of the right class for a budget trip, else the best presented."""
@@ -202,6 +246,12 @@ async def _from_search(
     # Only hotels of the region that was searched: a card whose hotel we hold elsewhere (an id that
     # means another city) is not for this trip.
     region_id = (found.get("region") or {}).get("region_id")
+    if country and region_id is not None:
+        region = await session.scalar(
+            select(SupplierRegion).where(SupplierRegion.region_id == region_id)
+        )
+        if region is not None and region.country_name.upper() != country:
+            return None  # a town of the same name in another country is not this trip
     cards = [c for c in found.get("hotels") or [] if c.get("option") and c.get("hotel_id")]
     rows = {
         h.tj_hotel_id: h
@@ -226,212 +276,174 @@ async def _from_search(
     return rows[pick["hotel_id"]]
 
 
-async def settle_stays(session: AsyncSession, mine: TravellerTrip, rooms: list[Room]) -> bool:
-    """Make every stay a hotel TripJack can sell for these nights, so the trip's price is whole.
-
-    A stay that is no hotel we hold (or only a likely match), and one whose hotel has no room for
-    the dates, is swapped for the closest hotel that does have a room: first by name, then by what
-    fits the reel's budget. The reel's own words are kept in the note. Stays staff unlinked are
-    left alone, and nothing changes when TripJack cannot be asked. True when the trip changed."""
-    start = mine.start_date
-    if not (start and rooms and tripjack_hotels.configured):
-        return False
-    items = [dict(i) for i in mine.items or []]  # copies: the saved list must differ to be saved
-    wanted = photos.stays(items)
-    if not wanted:
-        return False
-    found = await photos.resolve(
-        session, mine.source_trip_id, items, mine.destination_name, persist=False
+def _alternative(
+    hotel: SupplierHotel, reason: str, got: dict, rooms: list[Room]
+) -> StayAlternative:
+    o = got["option"]
+    return StayAlternative(
+        hotel=StayHotel(id=hotel.tj_hotel_id, name=hotel.name),
+        stars=hotel.star_rating,
+        image_url=hotel.hero_image,
+        reason=reason,
+        total=o["price"]["total"],
+        meal_basis=o["meal_basis"],
+        room=(o["rooms"][0]["name"] if o["rooms"] else ""),
+        free_cancellation_until=o["cancellation"]["free_until"],
+        checked_at=got["checked_at"],
+        rooms=describe(rooms),
     )
-    nights = stay_nights(wanted, start, mine.days)
-    gate = asyncio.Semaphore(PARALLEL)
-    changed = False
-    for stay in wanted:
-        item_id = str(stay["id"])[:40]
-        match = found.get(item_id)
-        window = nights.get(item_id)
-        if match is not None and match.state == "unlinked":
-            continue
-        if not window or window[1] <= window[0] or window[0] < dt.date.today():
-            continue
-        if match is not None and match.state in photos.SHOWN and match.hotel is not None:
-            async with gate:
-                if await _has_a_room(match.hotel, window, rooms):
-                    continue  # a hotel we hold, with a room: priced as it is
-        candidates: list[SupplierHotel] = []
-        # A stay the reel named is matched by its name. One we wrote ourselves ("Stay in Downtown
-        # Dubai") names an area, not a hotel: matching its words would pick any hotel with
-        # "Downtown" in its name, so it goes by what fits the trip.
-        if stay.get("origin") == "reel":
-            near = await nearest_hotels(
-                session, matching.clean_name(stay["name"]), mine.destination_name,
-                limit=ALTERNATIVES,
-            )  # fmt: skip
-            ids = [a.hotel.id for a in near if a.reason.startswith("Close")]
-            if ids:
-                close = await session.scalars(
-                    select(SupplierHotel).where(SupplierHotel.id.in_(ids))
-                )
-                by_id = {h.id: h for h in close}
-                candidates += [by_id[i] for i in ids if i in by_id]
-        words = (mine.summary, mine.plan_summary, " ".join(mine.tips or []))
-        stars = stay_choice.stars_wanted(*words)
-        persona = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors)
-        hostels = persona == "solo"
-        town = stay_town(stay, mine.destination_name)
-        # The stay's own town first; the trip's destination when TripJack knows no town of that name.
-        places = [town, *([mine.destination_name] if town != mine.destination_name else [])]
-        fitting: list[SupplierHotel] = []
+
+
+async def _suggestions(
+    session: AsyncSession,
+    mine: TravellerTrip,
+    stay: dict,
+    window: tuple[dt.date, dt.date],
+    plans: list[list[Room]],
+    own: SupplierHotel | None,
+    country: str | None,
+    gate: asyncio.Semaphore,
+) -> list[StayAlternative]:
+    """Hotels with a room for these nights, to offer next to a stay that has none: never put in
+    its place. A stay the reel named looks first for hotels by that name; then the hotels of the
+    stay's town that fit how the trip should feel. The first is the one the trip's rule picks: the
+    cheapest for a budget trip, the best presented for a luxury one, else the middle rate."""
+    candidates: list[tuple[SupplierHotel, str]] = []
+    if stay.get("origin") == "reel":
+        near = await nearest_hotels(
+            session, matching.clean_name(stay["name"]), mine.destination_name, limit=ALTERNATIVES
+        )
+        ids = [a.hotel.id for a in near if a.reason.startswith("Close")]
+        if ids:
+            rows = await session.scalars(select(SupplierHotel).where(SupplierHotel.id.in_(ids)))
+            close = {h.id: h for h in rows}
+            candidates += [(close[i], "Close to the name in the reel") for i in ids if i in close]
+    words = (mine.summary, mine.plan_summary, " ".join(mine.tips or []))
+    said = " ".join(words)
+    stars = stay_choice.stars_wanted(*words)
+    hostels = builder.persona(mine.group, mine.adults, mine.kids, mine.seniors) == "solo"
+    town = stay_town(stay, mine.destination_name)
+    # The stay's own town first; the trip's destination when TripJack knows no town of that name.
+    places = [town, *([mine.destination_name] if town != mine.destination_name else [])]
+    for place in places:
+        fitting = await stay_choice.fitting_hotels(session, place, stars, limit=8, hostels=hostels)
+        if fitting:
+            candidates += [(h, f"Has a room for your dates in {place}") for h in fitting]
+            break
+    seen: set = {own.id} if own is not None else set()
+    unique = []
+    for hotel, why in candidates:
+        if hotel.id not in seen:
+            seen.add(hotel.id)
+            unique.append((hotel, why))
+
+    async def price(hotel: SupplierHotel):
+        async with gate:
+            try:
+                return await _priced(hotel.tj_hotel_id, window, plans)
+            except (TripJackError, TripJackNotConfigured):
+                return None, None
+
+    answers = await asyncio.gather(*(price(h) for h, _ in unique))
+    open_ = [
+        (h, why, got, rooms)
+        for (h, why), (got, rooms) in zip(unique, answers, strict=True)
+        if got
+    ]
+    if not open_:  # none held for this destination yet: what TripJack can sell there
         for place in places:
-            fitting = await stay_choice.fitting_hotels(
-                session, place, stars, limit=8, hostels=hostels
-            )
-            if fitting:
-                break
-        for h in fitting:
-            if all(h.id != c.id for c in candidates):
-                candidates.append(h)
-        if match is not None and match.state in photos.SHOWN and match.hotel is not None:
-            candidates = [c for c in candidates if c.id != match.hotel.id]  # it has no room
-
-        async def total(h: SupplierHotel, nights_: tuple[dt.date, dt.date]) -> float | None:
-            async with gate:
-                return await _room_total(h, nights_, rooms)
-
-        totals = await asyncio.gather(*(total(h, window) for h in candidates))
-        open_ = [(h, t) for h, t in zip(candidates, totals, strict=True) if t is not None]
-        # A budget trip takes the cheapest with a room, a luxury one the best presented, and any
-        # other the middle rate, so the price is the one the trip is about.
-        chosen = None
-        if open_:
-            by_price = sorted(open_, key=lambda pair: pair[1])
-            said = " ".join(words)
-            if stay_choice.BUDGET.search(said):
-                chosen = by_price[0][0]
-            elif stay_choice.LUXURY.search(said):
-                chosen = open_[0][0]  # the best presented of the class
-            else:
-                chosen = by_price[(len(by_price) - 1) // 2][0]  # the middle rate, never the dearest of two
-        if chosen is None:  # none held for this destination yet: what TripJack can sell
-            cheap = bool(stay_choice.BUDGET.search(" ".join(words)))
-            for place in places:
-                chosen = await _from_search(
-                    session, mine, place, window, rooms, stars, cheap, hostels
-                )
-                if chosen is not None:
+            hotel = await _from_search(
+                session, mine, place, window, plans[0], stars,
+                bool(stay_choice.BUDGET.search(said)), hostels, country,
+            )  # fmt: skip
+            if hotel is not None and hotel.id not in seen:
+                got, rooms = await price(hotel)
+                if got:
+                    open_ = [(hotel, f"Has a room for your dates in {place}", got, rooms)]
                     break
-        if chosen is None:
-            continue
-        for item in items:
-            if str(item.get("id"))[:40] == item_id:
-                item["was"] = item.get("was") or item["name"]
-                item["name"] = chosen.name[:200]
-                item["note"] = "Check in. A hotel with a room for your dates and a live price."
-                item["origin"] = "suggested"
-                item["verified"] = False
-        changed = True
-    if changed:
-        mine.items = items
-        await session.commit()
-    return changed
+    if not open_:
+        return []
+    by_price = sorted(open_, key=lambda x: x[2]["option"]["price"]["total"])
+    if stay_choice.BUDGET.search(said):
+        first = by_price[0]
+    elif stay_choice.LUXURY.search(said):
+        first = open_[0]  # the best presented of the class
+    else:
+        first = by_price[(len(by_price) - 1) // 2]  # the middle rate, never the dearest of two
+    ordered = [first, *(x for x in by_price if x is not first)]
+    return [_alternative(h, why, got, rooms) for h, why, got, rooms in ordered[:ALTERNATIVES]]
 
 
 async def stay_prices(session: AsyncSession, mine: TravellerTrip) -> StayPrices:
-    """One row per stay: priced, unavailable (TripJack has no room), not_matched, no_dates or
-    error. `total` adds up the priced stays only."""
+    """One row per stay: priced, unavailable (TripJack has no room), not_matched, no_dates,
+    no_rooms or error. `total` adds up the priced stays only.
+
+    Read-only: a price check never changes the trip. A stay whose hotel has no room, or that is no
+    hotel we hold, keeps its name and gets priced suggestions next to it; changing it is the
+    traveller's (or creator's) own edit."""
     party = mine.adults + mine.seniors
-    rooms = rooms_for(party, mine.kids) if party else []
-    await settle_stays(session, mine, rooms)  # first: every stay a hotel with a room
+    plans = room_plans(party, mine.kids) if party else []
     items = list(mine.items or [])
     wanted = photos.stays(items)
-    found = await photos.resolve(session, mine.source_trip_id, items, mine.destination_name,
-                                 persist=False)
+    found = await photos.resolve(
+        session, mine.source_trip_id, items, mine.destination_name, persist=False
+    )
+    country = await photos.destination_country(
+        session, mine.destination_name, [i["name"] for i in items if i.get("kind") != "stay"]
+    )
     start = mine.start_date
     nights = stay_nights(wanted, start, mine.days) if start else {}
     gate = asyncio.Semaphore(PARALLEL)
     configured = tripjack_hotels.configured
 
-    # The closest hotels for each stay that names none we hold (read here: the session is not
-    # shared between the parallel price calls below).
-    near: dict[str, list[tuple[SupplierHotel, str]]] = {}
-    for stay in wanted:
-        item_id = str(stay["id"])[:40]
-        match = found.get(item_id)
-        if start and rooms and configured and (match is None or match.state in ("review", "nomatch")):
-            options = await nearest_hotels(
-                session, matching.clean_name(stay["name"]), mine.destination_name, limit=ALTERNATIVES
-            )
-            ids = [a.hotel.id for a in options]
-            hotels = {h.id: h for h in await session.scalars(
-                select(SupplierHotel).where(SupplierHotel.id.in_(ids)))} if ids else {}
-            near[item_id] = [(hotels[a.hotel.id], a.reason) for a in options if a.hotel.id in hotels]
-
-    async def alternative(hotel: SupplierHotel, reason: str, window: tuple[dt.date, dt.date]):
-        try:
-            async with gate:
-                got = await _price(hotel.tj_hotel_id, *window, rooms)
-        except (TripJackError, TripJackNotConfigured):
-            return None
-        o = got.get("option")
-        if o is None:
-            return None
-        return StayAlternative(
-            hotel=StayHotel(id=hotel.tj_hotel_id, name=hotel.name), stars=hotel.star_rating,
-            image_url=hotel.hero_image, reason=reason, total=o["price"]["total"],
-            meal_basis=o["meal_basis"], room=(o["rooms"][0]["name"] if o["rooms"] else ""),
-            free_cancellation_until=o["cancellation"]["free_until"], checked_at=got["checked_at"],
-        )
-
     async def one(stay: dict) -> dict:
         item_id = str(stay["id"])[:40]
         row: dict = {"item_id": item_id, "name": stay["name"], "status": "not_matched"}
         match = found.get(item_id)
-        if match is None or match.hotel is None or match.state not in photos.SHOWN:
-            window = nights.get(item_id)
-            if item_id in near and window and window[1] > window[0] >= dt.date.today():
-                priced = await asyncio.gather(*(alternative(h, why, window) for h, why in near[item_id]))
-                row["alternatives"] = [a.model_dump(mode="json") for a in priced if a]
-                row.update(check_in=window[0].isoformat(), check_out=window[1].isoformat(),
-                           nights=(window[1] - window[0]).days)
-            return row
-        row["hotel"] = {"id": match.hotel.tj_hotel_id, "name": match.hotel.name}
-        if start is None or item_id not in nights or not rooms:
-            return {**row, "status": "no_dates"}
-        check_in, check_out = nights[item_id]
-        if check_out <= check_in or check_in < dt.date.today():
-            return {**row, "status": "no_dates"}
-        row.update(check_in=check_in.isoformat(), check_out=check_out.isoformat(),
-                   nights=(check_out - check_in).days)
+        own = match.hotel if match is not None and match.state in photos.SHOWN else None
+        if own is not None:
+            row["hotel"] = {"id": own.tj_hotel_id, "name": own.name}
+        window = nights.get(item_id)
+        if start is None or window is None or window[1] <= window[0] or window[0] < dt.date.today():
+            return {**row, "status": "no_dates"} if own is not None else row
+        row.update(check_in=window[0].isoformat(), check_out=window[1].isoformat(),
+                   nights=(window[1] - window[0]).days)  # fmt: skip
+        if not plans:
+            return {**row, "status": "no_rooms"}
         if not configured:
             return {**row, "status": "error"}
-        try:
-            async with gate:
-                got = await _price(match.hotel.tj_hotel_id, check_in, check_out, rooms)
-        except (TripJackError, TripJackNotConfigured):
-            log.warning("stay price failed for %s", match.hotel.tj_hotel_id, exc_info=True)
-            return {**row, "status": "error"}
-        option = got.get("option")
-        if option is None:
-            return {**row, "status": "unavailable"}
-        return {
-            **row,
-            "status": "priced",
-            "total": option["price"]["total"],
-            "meal_basis": option["meal_basis"],
-            "room": (option["rooms"][0]["name"] if option["rooms"] else ""),
-            "free_cancellation_until": option["cancellation"]["free_until"],
-            "checked_at": got["checked_at"],
-        }
+        if own is not None:
+            try:
+                async with gate:
+                    got, rooms = await _priced(own.tj_hotel_id, window, plans)
+            except (TripJackError, TripJackNotConfigured):
+                log.warning("stay price failed for %s", own.tj_hotel_id, exc_info=True)
+                return {**row, "status": "error"}
+            if got is not None and rooms is not None:
+                option = got["option"]
+                return {
+                    **row,
+                    "status": "priced",
+                    "total": option["price"]["total"],
+                    "meal_basis": option["meal_basis"],
+                    "room": (option["rooms"][0]["name"] if option["rooms"] else ""),
+                    "free_cancellation_until": option["cancellation"]["free_until"],
+                    "checked_at": got["checked_at"],
+                    "rooms": describe(rooms),
+                }
+            row["status"] = "unavailable"
+        offered = await _suggestions(session, mine, stay, window, plans, own, country, gate)
+        return {**row, "alternatives": [a.model_dump(mode="json") for a in offered]}
 
-    rows = [StayPrice(**r).model_dump(mode="json")
-            for r in await asyncio.gather(*(one(s) for s in wanted))]
+    # One stay at a time: they share the database session. Each stay's prices go out in parallel.
+    rows = [StayPrice(**await one(s)).model_dump(mode="json") for s in wanted]
     priced = [r for r in rows if r["status"] == "priced"]
     return StayPrices(**{
         "currency": settings.tripjack_currency,
         "stays": rows,
         "total": round(sum(r["total"] for r in priced), 2),
         "checked_at": min((r["checked_at"] for r in priced), default=None),
-        "rooms": len(rooms),
+        "rooms": len(plans[0]) if plans else 0,
         "children_assumed_age": ASSUMED_CHILD_AGE if mine.kids else None,
         "all_priced": bool(rows) and len(priced) == len(rows),
     })

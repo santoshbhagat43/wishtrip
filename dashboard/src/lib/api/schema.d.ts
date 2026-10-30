@@ -6491,6 +6491,11 @@ export interface components {
             free_cancellation_until?: string | null;
             /** Checked At */
             checked_at: string;
+            /**
+             * Rooms
+             * @default []
+             */
+            rooms: string[];
         };
         /** StayHotel */
         StayHotel: {
@@ -6530,6 +6535,11 @@ export interface components {
             free_cancellation_until?: string | null;
             /** Checked At */
             checked_at?: string | null;
+            /**
+             * Rooms
+             * @default []
+             */
+            rooms: string[];
             /**
              * Alternatives
              * @default []

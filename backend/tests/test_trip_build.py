@@ -265,12 +265,32 @@ def test_rooms_and_nights_follow_the_party_and_where_they_sleep():
 
     assert [r.adults for r in sp.rooms_for(2, 0)] == [2]
     assert [r.adults for r in sp.rooms_for(5, 2)] == [2, 2, 1]
-    assert sp.rooms_for(2, 2)[0].child_ages == [sp.ASSUMED_CHILD_AGE] * 2 and sp.rooms_for(4, 2)[1].child_ages == []
+    assert sp.rooms_for(2, 2)[0].child_ages == [sp.ASSUMED_CHILD_AGE] * 2
     start = dt.date(2027, 1, 10)
     one = sp.stay_nights([{"id": "a", "day": 1}], start, 4)
     assert one["a"] == (start, dt.date(2027, 1, 13))  # a 4-day plan: 3 nights
     two = sp.stay_nights([{"id": "b", "day": 3}, {"id": "a", "day": 1}], start, 5)
     assert two["a"] == (start, dt.date(2027, 1, 12)) and two["b"] == (dt.date(2027, 1, 12), dt.date(2027, 1, 14))
+
+
+def test_every_traveller_is_roomed_and_no_room_breaks_tripjacks_limits():
+    from app.modules.creators import stay_prices as sp
+
+    # Two adults and five children: two rooms, all seven in them (the fifth child was once dropped).
+    assert [sp.describe(p) for p in sp.room_plans(2, 5)] == [
+        ["1 adult + 3 children", "1 adult + 2 children"]
+    ]
+    groups = [(1, 0), (2, 0), (2, 2), (2, 3), (2, 5), (3, 1), (4, 0), (4, 2), (5, 2), (1, 4), (2, 8), (9, 9)]
+    for adults, kids in groups:
+        plans = sp.room_plans(adults, kids)
+        assert plans, (adults, kids)
+        for plan in plans:  # everyone in, a grown-up in every room, never over four children
+            assert sum(r.adults for r in plan) == adults and sum(len(r.child_ages) for r in plan) == kids
+            assert all(r.adults >= 1 and len(r.child_ages) <= sp.MAX_CHILDREN_PER_ROOM for r in plan)
+    # No way to room one grown-up with five children, or children alone: nobody is left out to fit.
+    assert sp.room_plans(1, 5) == [] and sp.room_plans(0, 2) == []
+    # A family also gets a way with one more room; a couple is never split up to find a room.
+    assert len(sp.room_plans(2, 2)) == 2 and len(sp.room_plans(2, 0)) == 1
 
 
 class FakeHotels:
@@ -324,6 +344,40 @@ async def test_a_matched_stay_is_priced_live_for_the_dates_and_party(client, tra
     await client.patch(f"/my-trips/{trip['code']}", json={**body, "start_date": None})
     got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
     assert got["stays"][0]["status"] == "no_dates" and got["total"] == 0 and not got["all_priced"] and fake.calls == []
+
+
+async def test_a_family_too_big_for_any_room_is_told_so_never_shrunk(client, traveler, builds, monkeypatch):
+    import datetime as dt
+
+    from app.modules.creators import stay_prices as sp
+    from app.modules.hotels.models import SupplierHotel
+
+    async def none(*a, **k):
+        return None
+
+    fake = FakeHotels()
+    monkeypatch.setattr(sp, "tripjack_hotels", fake)
+    monkeypatch.setattr(sp, "cache_get", none)
+    monkeypatch.setattr(sp, "cache_set", none)
+    async with SessionLocal() as session:
+        session.add(SupplierHotel(tj_hotel_id="h1", region_id=1, name="Grand Mega Resort & Spa",
+                                  hero_image="https://img.example/mega.jpg"))
+        await session.commit()
+    job_id = await _import_for(traveler)
+    start = dt.date.today() + dt.timedelta(days=30)
+    body = {"adults": 2, "kids": 5, "days": 3, "pace": "relaxed", "group": "family", "start_date": start.isoformat()}
+    trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
+    (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
+    # Two rooms with all seven in them: TripJack is asked for exactly that.
+    assert stay["status"] == "priced" and stay["rooms"] == ["1 adult + 3 children", "1 adult + 2 children"]
+    sent = fake.calls[0]["rooms"]
+    assert sum(r["adults"] + r.get("children", 0) for r in sent) == 7
+
+    # One grown-up with five children fits no room TripJack sells: it says so, and asks nothing.
+    fake.calls.clear()
+    await client.patch(f"/my-trips/{trip['code']}", json={**body, "adults": 1})
+    got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
+    assert got["stays"][0]["status"] == "no_rooms" and got["rooms"] == 0 and fake.calls == []
 
 
 def test_a_destination_names_its_airport():
@@ -394,7 +448,7 @@ async def test_the_return_flight_is_priced_live_or_says_why_not(client, traveler
     assert (await client.get(f"/my-trips/{trip['code']}/flight-price")).json()["status"] == "no_airport"
 
 
-async def test_a_stay_with_no_hotel_is_swapped_for_one_with_a_room_so_the_price_is_whole(
+async def test_a_stay_with_no_hotel_keeps_its_name_and_gets_priced_suggestions(
     client, traveler, builds, monkeypatch
 ):
     import datetime as dt
@@ -424,22 +478,19 @@ async def test_a_stay_with_no_hotel_is_swapped_for_one_with_a_room_so_the_price_
         row.items = [{**i, "name": "Mega Beach Lodge"} if i["kind"] == "stay" else i for i in row.items]
         await session.commit()
 
+    before = (await client.get(f"/my-trips/{trip['code']}")).json()["items"]
     got = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
     (stay,) = got["stays"]
-    # The stay became a hotel TripJack has a room in, so the trip's price is complete.
-    assert stay["status"] == "priced" and stay["hotel"]["id"].startswith("h") and stay["total"] == 13200
-    assert got["all_priced"] and got["total"] == 13200
-    board = (await client.get(f"/my-trips/{trip['code']}")).json()
-    swapped = next(i for i in board["items"] if i["kind"] == "stay")
-    assert swapped["name"] == stay["hotel"]["name"] and "Mega Beach Lodge" not in swapped["note"]
-    assert swapped["name"] != "Mega Beach Lodge"
-    calls = len(fake.calls)
-    again = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()
-    assert again["stays"][0]["hotel"] == stay["hotel"]  # settled once: the same hotel next time
-    assert len(fake.calls) >= calls
+    # Not a hotel we can book: it says so, and offers hotels that have a room, priced live.
+    assert stay["status"] == "not_matched" and stay["name"] == "Mega Beach Lodge"
+    assert stay["alternatives"] and all(a["total"] == 13200 for a in stay["alternatives"])
+    assert stay["alternatives"][0]["rooms"] == ["2 adults"]
+    assert not got["all_priced"] and got["total"] == 0  # suggestions are not in the total
+    # The price check changed nothing: the trip still stays where the reel said.
+    assert (await client.get(f"/my-trips/{trip['code']}")).json()["items"] == before
 
 
-async def test_a_matched_hotel_with_no_room_for_the_dates_is_swapped_too(client, traveler, builds, monkeypatch):
+async def test_a_hotel_with_no_room_is_kept_and_a_hotel_with_one_is_suggested(client, traveler, builds, monkeypatch):
     import datetime as dt
 
     from app.modules.creators import stay_prices as sp
@@ -470,8 +521,16 @@ async def test_a_matched_hotel_with_no_room_for_the_dates_is_swapped_too(client,
     body = {"adults": 2, "days": 3, "pace": "relaxed", "group": "couple", "start_date": start.isoformat()}
     trip = (await client.post(f"/reels/imports/{job_id}/build", json=body, headers=auth(traveler))).json()
 
+    async with SessionLocal() as session:  # the stay names a hotel we hold that has no room
+        row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
+        row.items = [{**i, "name": "Grand Mega Resort & Spa"} if i["kind"] == "stay" else i for i in row.items]
+        await session.commit()
+    before = (await client.get(f"/my-trips/{trip['code']}")).json()["items"]
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
-    assert stay["status"] == "priced" and stay["hotel"]["id"] == "h2"  # not h1: it is sold out
+    assert stay["status"] == "unavailable" and stay["hotel"]["id"] == "h1" and stay["total"] is None
+    assert stay["name"] == "Grand Mega Resort & Spa"  # the creator's hotel, not replaced
+    assert [a["hotel"]["id"] for a in stay["alternatives"]] == ["h2"]  # never h1 again: it is sold out
+    assert (await client.get(f"/my-trips/{trip['code']}")).json()["items"] == before
 
 
 async def test_a_stay_staff_unlinked_is_left_alone_and_no_dates_means_no_swap(client, traveler, builds, monkeypatch):
@@ -726,12 +785,13 @@ async def test_a_stay_we_wrote_as_an_area_goes_by_the_trips_budget_not_by_matchi
         return (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"][0]
 
     budget = await make("A budget plan for Bali")
-    assert budget["status"] == "priced" and budget["hotel"]["name"] == "City Budget Inn"
-    assert budget["total"] == 9000  # TripJack prices the whole stay
-    assert budget["hotel"]["name"] != "Downtown Villas"  # "Downtown" in the name is no reason to pick it
-    # Not a budget trip: the best presented hotel of the right class that has a room.
+    first = budget["alternatives"][0]
+    assert budget["status"] == "not_matched" and budget["name"] == "Stay in Downtown Bali"
+    assert first["hotel"]["name"] == "City Budget Inn" and first["total"] == 9000  # the cheapest first
+    # "Downtown" in a hotel's name is no reason to put it first.
+    # Not a budget trip: the middle rate of the right class comes first, not the villa.
     again = await make("A slow trip around Bali")
-    assert again["status"] == "priced" and again["hotel"]["name"] == "Mid Hotel"  # the middle rate, not the villa
+    assert again["alternatives"][0]["hotel"]["name"] == "Mid Hotel"
 
 
 async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_live_search(
@@ -790,8 +850,9 @@ async def test_with_no_hotels_held_for_the_destination_the_stay_comes_from_a_liv
 
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
     assert asked and asked[0].city == "Bali" and asked[0].check_in == start
-    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one wins.
-    assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
+    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one is offered.
+    assert stay["status"] == "not_matched" and stay["name"] == "Stay in Bali"
+    assert stay["alternatives"][0]["hotel"]["name"] == "City Budget Inn"
 
 
 def test_a_bed_in_a_dormitory_is_never_the_price_of_a_stay():
@@ -939,8 +1000,8 @@ async def test_each_town_of_a_trip_is_searched_for_its_own_stay(
 
     (stay,) = (await client.get(f"/my-trips/{trip['code']}/stay-prices")).json()["stays"]
     assert asked and asked[0].city == "Thimphu" and asked[0].check_in == start
-    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one wins.
-    assert stay["status"] == "priced" and stay["hotel"]["name"] == "City Budget Inn"
+    # The cheapest card is another city's hostel, so it is ignored; the cheapest of this one is offered.
+    assert stay["status"] == "not_matched" and stay["alternatives"][0]["hotel"]["name"] == "City Budget Inn"
 
 
 def test_a_bed_in_a_dormitory_is_never_the_price_of_a_stay():
@@ -1228,3 +1289,30 @@ def test_one_stay_a_night_keeps_the_creators_hotel_and_its_town():
         (4, "Della Resort"), (1, "Stay in Kolad"), (7, "Stay in Matheran")
     ]
     assert kept[0]["town"] == "Lonavala"  # meals and the hotel search still look in Lonavala
+
+
+async def test_a_trip_through_several_towns_gets_a_hotel_in_each_towns_own_town_or_none():
+    from app.modules.creators import stays
+    from app.modules.hotels.models import SupplierHotel, SupplierRegion
+
+    async with SessionLocal() as session:
+        for rid, city in ((81, "KOLAD"), (82, "LONAVALA"), (83, "PUNE")):
+            session.add(SupplierRegion(region_id=rid, city_name=city, country_name="INDIA", full_name=city))
+        for n, (rid, name) in enumerate([(81, "Riverside Retreat"), (82, "Lakeview Inn"),
+                                         (83, "Hotel Great Maratha")]):
+            session.add(SupplierHotel(tj_hotel_id=f"m{n}", region_id=rid, name=name, star_rating=4.0, rank=50 + n,
+                                      hero_image=f"https://img.example/m{n}.jpg", country="India"))  # fmt: skip
+        await session.commit()
+        trip = [
+            {"id": "a", "kind": "stay", "name": "Stay in Kolad", "day": 1, "origin": "suggested", "note": ""},
+            {"id": "b", "kind": "stay", "name": "Stay in Lonavala", "day": 4, "origin": "suggested", "note": ""},
+            {"id": "c", "kind": "stay", "name": "Stay in Malshej Ghat", "day": 8, "origin": "suggested", "note": ""},
+        ]
+        got = await stays.name_the_stay(session, trip, "Maharashtra")
+    assert [(i["name"], i.get("town")) for i in got] == [
+        ("Riverside Retreat", "Kolad"),
+        ("Lakeview Inn", "Lonavala"),
+        # No hotel we hold in Malshej Ghat: left for the trip page to find one there, never a
+        # hotel from another town (it once got the same Pune hotel as every other night).
+        ("Stay in Malshej Ghat", None),
+    ]

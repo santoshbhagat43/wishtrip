@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.db.session import SessionLocal
 from app.modules.creators.models import CreatorTrip
 from app.modules.hotels import matching, photos
-from app.modules.hotels.models import StayMatch, SupplierHotel
+from app.modules.hotels.models import StayMatch, SupplierHotel, SupplierRegion
 from tests.conftest import auth
 from tests.test_creator_trips import (  # noqa: F401  (the fixtures these tests need)
     _approved_creator,
@@ -228,3 +228,39 @@ async def test_a_sight_has_no_hotel_and_a_missing_stop_is_404(client, admin, fak
     sight = (await client.get(f"/trips/{code}/stops/sight1")).json()
     assert sight["name"] == "Tanah Lot" and sight["hotel"] is None and sight["alternatives"] == []
     assert (await client.get(f"/trips/{code}/stops/nope")).status_code == 404
+
+
+async def test_a_bali_trip_is_in_indonesia_never_the_bali_in_rajasthan():
+    from app.modules.creators import stays
+
+    async with SessionLocal() as session:
+        session.add_all([
+            SupplierRegion(region_id=185149, city_name="BALI", country_name="INDIA",
+                           full_name="BALI, RAJASTHAN, INDIA", hotel_count=106),
+            SupplierRegion(region_id=718650, city_name="BALI", country_name="INDONESIA",
+                           full_name="BALI, INDONESIA", hotel_count=15033),
+            SupplierRegion(region_id=500, city_name="PUNE", country_name="INDIA",
+                           full_name="PUNE, MAHARASHTRA, INDIA", hotel_count=900),
+        ])  # fmt: skip
+        session.add_all([
+            SupplierHotel(tj_hotel_id="raj", region_id=185149, name="Praveg Caves Jawai", star_rating=4,
+                          rank=99, hero_image="https://img.example/r.jpg", city="BALI", country="India"),
+            SupplierHotel(tj_hotel_id="kuta", region_id=718650, name="Grand Mega Resort & Spa Bali",
+                          star_rating=4, rank=50, hero_image="https://img.example/k.jpg", city="KUTA",
+                          country="Indonesia"),
+        ])  # fmt: skip
+        await session.commit()
+
+        # Both are a "Bali" TripJack knows; the one with thousands of hotels is the trip's.
+        assert await photos.destination_country(session, "Bali") == "INDONESIA"
+        # A country or a state is a destination too.
+        assert await photos.destination_country(session, "Indonesia") == "INDONESIA"
+        assert await photos.destination_country(session, "Maharashtra") == "INDIA"
+        # Picking a hotel for "Stay in Ubud" on a Bali trip: never the better-ranked one in Rajasthan.
+        picked = await stays.fitting_hotels(session, "Bali", (3.0, 4.5))
+        assert [h.tj_hotel_id for h in picked] == ["kuta"]
+        # Matching a stay by name stays in the country too: the Rajasthan hotel is no Bali stay.
+        hotel, _ = await photos.best(session, "Praveg Caves Jawai", "Bali")
+        assert hotel is None
+        hotel, _ = await photos.best(session, "Grand Mega Resort & Spa", "Bali")
+        assert hotel is not None and hotel.tj_hotel_id == "kuta"

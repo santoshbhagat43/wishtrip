@@ -55,7 +55,7 @@ export function ReelScreen() {
       try {
         const data = importId
           ? unwrap(await api.GET("/reels/imports/{import_id}", { params: { path: { import_id: importId } } }))
-          : unwrap(await api.POST("/reels/imports", { body: { url: pastedUrl! } }));
+          : unwrap(await api.POST("/reels/imports", { body: { url: pastedUrl!, refresh: false, full: false } }));
         setJob(data);
         if (!importId) {
           started.current = data.id;

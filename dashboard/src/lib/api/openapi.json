@@ -17818,6 +17818,14 @@
      "checked_at": {
       "type": "string",
       "title": "Checked At"
+     },
+     "rooms": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Rooms",
+      "default": []
      }
     },
     "type": "object",
@@ -17948,6 +17956,14 @@
        }
       ],
       "title": "Checked At"
+     },
+     "rooms": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Rooms",
+      "default": []
      },
      "alternatives": {
       "items": {
