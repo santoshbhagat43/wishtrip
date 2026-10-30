@@ -494,7 +494,8 @@ def place_in_day(item: dict) -> int:
     if kind == "note" and re.match(r"check[- ]?out\b", name, re.I):
         return 104
     if kind == "travel" and name.lower().startswith("travel from"):
-        return 105
+        # Moving on in the morning comes first; later in the day, after that part's stops.
+        return 105 if base <= SLOT_BASE["morning"] else base + 30
     if kind == "travel":
         return base + 8  # the rides between the day's stops
     if kind == "food":

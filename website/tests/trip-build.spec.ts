@@ -64,7 +64,7 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   const tripNo = page.url().split("/").pop()!;
   await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
   await expect(page.getByText(/Made for you · from your reel/)).toBeVisible();
-  await expect(page.getByText("LIVE PRICE FOR YOUR TRIP", { exact: true })).toBeVisible();
+  await expect(page.getByText("Live price for your trip", { exact: true })).toBeVisible();
 
   // The plan settles: no more "Building…", every place from the reel is in it.
   await expect(page.getByText("Building your trip…")).toHaveCount(0, { timeout: 180_000 });
@@ -107,6 +107,9 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   ]));
   await page.goto(`/trip/mine/${tripNo}`);
   await expect(page.getByText("Total so far for 2")).toBeVisible();
+  // The flight card carries the live fare; what the total is made of is a tap away.
+  await expect(page.getByText(/^Return fare for 2 adults · live from TripJack/)).toBeVisible();
+  await page.getByRole("button", { name: "See what’s included" }).click();
   await expect(page.locator("strong.tabular-nums").filter({ hasText: "₹31,600" }).first()).toBeVisible(); // 18,400 + 13,200
   await expect(page.getByText("1 not priced")).toBeVisible();
   await expect(page.getByText(/Experiences, meals and transfers are priced at checkout/)).toBeVisible();

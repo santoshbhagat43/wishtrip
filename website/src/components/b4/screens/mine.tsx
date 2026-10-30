@@ -65,6 +65,7 @@ export function MineScreen() {
         pace: m.pace,
         when: m.when || undefined,
         originCity: m.origin_city || undefined,
+        start: m.start_date || undefined,
         build: {
           status: m.build_status,
           error: m.build_error,

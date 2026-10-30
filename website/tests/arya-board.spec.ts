@@ -33,7 +33,7 @@ test("Chat with Arya opens the chat with the board, and sends it once", async ({
   });
 
   await page.goto(`/trip/mine/${CODE}`);
-  await page.getByRole("button", { name: "Chat with Arya" }).click();
+  await page.getByRole("button", { name: /Ask Arya to change anything/ }).click();
   await expect(page).toHaveURL(new RegExp(`/arya\\?session=${SESSION}$`));
   await expect.poll(() => sent).toEqual([BOARD]); // sent for them, with the board in it
   await expect(page.getByRole("link", { name: "Open full board" })).toHaveAttribute("href", `/trip/mine/${CODE}`);

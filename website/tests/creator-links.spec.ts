@@ -189,10 +189,8 @@ test.describe("Reel links", () => {
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible();
     await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Goa trip");
     await expect(traveller.getByText(/^A trip by /)).toBeVisible();
-    await expect(traveller.getByRole("button", { name: "Share with family" })).toBeVisible();
-    await expect(traveller.getByText("BOOKINGS ON YOUR BOARD")).toBeVisible();
-    for (const kind of ["FLIGHTS", "STAY", "TRANSFERS"]) await expect(traveller.getByText(kind, { exact: true })).toBeVisible();
-    await expect(traveller.getByText("DAY BY DAY")).toBeVisible();
+    await expect(traveller.getByRole("button", { name: "+ Invite" })).toBeVisible();
+    await expect(traveller.getByText("Tap any card for photos, details and notes")).toBeVisible();
     await expect(traveller.getByText("DAY 1", { exact: true })).toBeVisible();
     await expect(traveller.getByText(/From the reel · 0:04/)).toBeVisible();
     await expect(traveller.getByRole("tab", { name: /Day 2/ })).toBeVisible(); // the days are tabs
@@ -200,7 +198,7 @@ test.describe("Reel links", () => {
     await expect(traveller.getByText("DAY 2", { exact: true })).toBeVisible();
     await traveller.getByRole("tab", { name: /Day 1/ }).click();
     // No dates or group yet, so no price: only TripJack's live prices are ever shown.
-    await expect(traveller.getByText("LIVE PRICES", { exact: true })).toBeVisible();
+    await expect(traveller.getByText("Live prices", { exact: true })).toBeVisible();
     await expect(traveller.getByText(/^Add your dates, the city you fly from and who’s going/)).toBeVisible();
     await expect(traveller.getByText(/₹\d/)).toHaveCount(0);
     await expect(traveller.getByRole("link", { name: "Make it mine" })).toBeVisible();
@@ -209,12 +207,12 @@ test.describe("Reel links", () => {
     await expect(traveller.getByRole("navigation", { name: "Progress" })).toHaveCount(0);
     await expect(traveller.getByText("Shape your board")).toHaveCount(0);
     await expect(traveller.getByText("Nothing is charged until you choose at checkout")).toBeVisible();
-    await expect(traveller.getByText("Change anything with Arya")).toBeVisible();
-    await expect(traveller.getByRole("link", { name: "Add something to do" })).toBeVisible();
+    // Arya is always within reach, at the foot of the board.
+    await expect(traveller.getByRole("button", { name: /Ask Arya to change anything/ })).toBeVisible();
     await expect(traveller.locator("main img").first()).toBeVisible(); // the reel's picture
-    await traveller.getByRole("button", { name: "Share with family" }).click();
-    await expect(traveller.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
-    await traveller.getByRole("button", { name: "Share with family" }).click();
+    await traveller.getByRole("button", { name: "+ Invite" }).click();
+    await expect(traveller.getByRole("group", { name: "Invite" }).getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/\?text=/);
+    await traveller.getByRole("button", { name: "+ Invite" }).click();
     if (SHOT) await traveller.screenshot({ path: `${SHOT}/shared-trip.png`, fullPage: true });
 
     // "Make it mine": the Details screen asks who is coming, then the trip is shaped around them.
@@ -236,11 +234,11 @@ test.describe("Reel links", () => {
     // The trip gets its own number, in the address.
     await expect(traveller).toHaveURL(/\/trip\/mine\/[a-z0-9]{8}$/);
     const tripNo = traveller.url().split("/").pop()!;
-    await expect(traveller.getByText(/^Made for you · based on /)).toBeVisible();
+    await expect(traveller.getByText(/Made for you · based on /)).toBeVisible();
     await expect(traveller.getByRole("heading", { level: 1 })).toHaveText("Your Goa trip");
-    await expect(traveller.locator("main").getByText(/^1 day · \d+ stops/)).toBeVisible();
+    await expect(traveller.locator("main").getByText(/\b1 day · \d+ stops/)).toBeVisible();
     await expect(traveller.getByText("2 adults, 2 children")).toBeVisible();
-    await expect(traveller.getByText("LIVE PRICE FOR YOUR TRIP", { exact: true })).toBeVisible();
+    await expect(traveller.getByText("Live price for your trip", { exact: true })).toBeVisible();
     await expect(traveller.getByText(`${tripNo.slice(0, 4)}-${tripNo.slice(4)}`.toUpperCase())).toBeVisible();
     await expect(traveller.getByRole("button", { name: "Book in one go" })).toBeVisible();
     await expect(traveller.getByText("Fort Aguada").first()).toBeVisible(); // still the creator's stops
@@ -255,7 +253,7 @@ test.describe("Reel links", () => {
     await traveller.getByLabel("Coming back on").filter({ visible: true }).fill(tripDay(1));
     await traveller.getByRole("button", { name: "Build my trip →" }).click();
     await expect(traveller).toHaveURL(new RegExp(`/trip/mine/${tripNo}$`)); // same number
-    await expect(traveller.locator("main").getByText(/^2 days · \d+ stops/)).toBeVisible();
+    await expect(traveller.locator("main").getByText(/\b2 days · \d+ stops/)).toBeVisible();
 
     await traveller.goto(`${WEBSITE}/trip/mine/zzzzzzzz`);
     await expect(traveller.getByText("We couldn’t find that trip")).toBeVisible();

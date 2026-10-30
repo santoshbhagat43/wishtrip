@@ -1425,3 +1425,19 @@ def test_the_budget_and_notes_from_the_details_screen_reach_the_planner():
     assert mine._apply(trip, config)  # a new budget or note plans the trip again
     assert (trip.budget, trip.notes) == ("40k_60k", "We love seafood")
     assert not mine._apply(trip, config)
+
+
+def test_moving_on_later_in_the_day_comes_after_that_parts_stops():
+    from app.modules.creators.builder import in_day_order
+
+    day = [
+        {"name": "Travel from Thimphu to Punakha", "kind": "travel", "day": 3, "slot": "evening"},
+        {"name": "Dochula Pass", "kind": "sight", "day": 3, "slot": "evening"},
+        {"name": "Buddha Dordenma", "kind": "sight", "day": 3, "slot": "morning"},
+        {"name": "Travel from Punakha to Paro", "kind": "travel", "day": 4, "slot": "morning"},
+        {"name": "Punakha Dzong", "kind": "sight", "day": 4, "slot": "morning"},
+    ]
+    assert [i["name"] for i in in_day_order(day)] == [
+        "Buddha Dordenma", "Dochula Pass", "Travel from Thimphu to Punakha",
+        "Travel from Punakha to Paro", "Punakha Dzong",
+    ]  # fmt: skip
