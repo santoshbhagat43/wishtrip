@@ -256,6 +256,10 @@ class TravellerTrip(UUIDPrimaryKey, Timestamps, Base):
     pace: Mapped[str] = mapped_column(String(16), default="relaxed")
     # What they typed for "When" (free text: "Dec 12–16", "Sometime in March").
     when_text: Mapped[str] = mapped_column(String(80), default="")
+    # What they chose for the whole trip's budget (an id from mine.BUDGETS, "" when not said) and
+    # anything they told us ("Mum can't walk far"): both go to the planner.
+    budget: Mapped[str] = mapped_column(String(16), default="")
+    notes: Mapped[str] = mapped_column(String(300), default="")
     # How the trip was made. `source_items` is what it is built from (the creator's stops, or the
     # reel's places) and never changes; `items` is the plan built for this party.
     source_import_id: Mapped[uuid.UUID | None] = mapped_column(

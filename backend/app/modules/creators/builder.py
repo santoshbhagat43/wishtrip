@@ -144,6 +144,8 @@ def facts(
     domestic: bool | None = None,
     route: list[dict] | None = None,
     creator_words: str = "",
+    budget: str = "",
+    notes: str = "",
 ) -> dict[str, Any]:
     return {
         "destination": destination,
@@ -153,7 +155,9 @@ def facts(
         "planning_for": for_persona,
         "pace": pace,
         "when": when or "not decided",
-        "budget": "not given (give no costs)",
+        # Their words, to shape the plan (pace, stays, what to keep easy); never priced by the AI.
+        "budget": f"{budget} for the whole trip (give no costs)" if budget else "not given (give no costs)",
+        "traveller_notes": notes or "none",
         "travelling_from": origin_city or "not given",
         "same_country_trip": "unknown" if domestic is None else domestic,
         "what_the_reel_is_about": summary,
@@ -654,6 +658,8 @@ async def build(
     route: list[dict] | None = None,
     creator_words: str = "",
     reel_only: bool = False,
+    budget: str = "",
+    notes: str = "",
 ) -> dict[str, Any]:
     """The plan: {items, summary, tips, persona, ai_built}. `reel_only`: a trip that follows a
     creator's video plans only the video's places and the journey (no meals or extra sights)."""
@@ -664,7 +670,7 @@ async def build(
             destination=destination, days=days, adults=adults, kids=kids, seniors=seniors,
             pace=pace, when=when, group=group, for_persona=who, summary=summary, must=must,
             origin_city=origin_city, reel_tips=reel_tips, domestic=domestic, route=route,
-            creator_words=creator_words,
+            creator_words=creator_words, budget=budget, notes=notes,
         )  # fmt: skip
         facts_text = json.dumps(context, ensure_ascii=False)
         messages = [

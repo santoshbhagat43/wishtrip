@@ -43,17 +43,20 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
 
   await page.goto(`/trip/details?id=${importId}`);
   await expect(page.getByRole("heading", { level: 1, name: "Your Goa trip" })).toBeVisible();
-  // Nobody is preselected, and a reel that doesn't say how long asks for the days.
-  await expect(page.getByText("To make your trip board, add the date you leave, how many days, the city you fly from and who is travelling.").last()).toBeVisible();
+  // Nobody is preselected: the dates, the city and who is going are asked for.
+  await expect(page.getByText("To make your trip board, add the date you leave, the city you fly from and who is travelling.").last()).toBeVisible();
   await page.getByRole("radio", { name: /Couple/ }).click();
-  for (let i = 0; i < 5; i++) await page.getByRole("button", { name: "More days" }).last().click();
+  // The budget and a note are optional, and go to the planner.
+  await page.getByRole("radio", { name: "₹40k–60k" }).last().click();
+  await page.getByLabel("Anything we should know? (optional)").last().fill("We love seafood.");
   // Without the date and the city they fly from, there is no trip board to build yet.
   await expect(page.getByRole("button", { name: "Build my trip →" })).toBeDisabled();
   await expect(page.getByText("To make your trip board, add the date you leave and the city you fly from.").last()).toBeVisible();
-  await fillTripDetails(page);
+  await fillTripDetails(page, undefined, 5);
+  await expect(page.getByText("5 days, 4 nights").last()).toBeVisible();
   await expect(page.getByRole("button", { name: "Build my trip →" })).toBeEnabled();
   // No estimate: a price is only ever TripJack's live answer, on the trip.
-  await expect(page.getByText(/₹\d/)).toHaveCount(0);
+  await expect(page.getByText(/^₹[\d,]+$/)).toHaveCount(0);
   await page.getByRole("button", { name: "Build my trip →" }).click();
 
   // It opens at its own number, and says it is being built (or is already done).
@@ -84,6 +87,8 @@ test("Build my trip plans the reel's places for the party and opens the trip at 
   await page.getByRole("link", { name: "Change details" }).click();
   await expect(page).toHaveURL(new RegExp(`/trip/details\\?id=${importId}&mine=${tripNo}`));
   await expect(page.getByRole("radio", { name: /Couple/ })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "₹40k–60k" }).last()).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByLabel("Anything we should know? (optional)").last()).toHaveValue("We love seafood.");
   // With live answers from TripJack, the price card is those, and says what is not priced.
   const now = new Date().toISOString();
   await page.route("**/my-trips/*/flight-price", (r) => r.fulfill({ json: {

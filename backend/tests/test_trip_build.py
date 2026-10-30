@@ -1390,3 +1390,38 @@ async def test_a_saved_board_is_shown_in_order_without_chat_placeholders(client,
         row = await session.scalar(select(TravellerTrip).where(TravellerTrip.code == trip["code"]))
         assert row.items == saved
     assert mine_module.PLACEHOLDER.match("Sample hotel option")
+
+
+def test_the_budget_and_notes_from_the_details_screen_reach_the_planner():
+    import datetime as dt
+
+    import pytest
+    from fastapi import HTTPException
+
+    from app.modules.creators import builder, mine
+    from app.modules.creators.models import TravellerTrip
+
+    facts = builder.facts(
+        destination="Goa", days=3, adults=2, kids=0, seniors=1, pace="relaxed", when="",
+        group="family", for_persona="family", summary="", must=[],
+        budget=mine.BUDGETS["under_40k"], notes="Mum can't walk far",
+    )  # fmt: skip
+    assert facts["budget"].startswith("under ₹40,000") and "no costs" in facts["budget"]
+    assert facts["traveller_notes"] == "Mum can't walk far"
+    assert builder.facts(
+        destination="Goa", days=3, adults=2, kids=0, seniors=0, pace="relaxed", when="",
+        group="couple", for_persona="couple", summary="", must=[],
+    )["budget"].startswith("not given")  # fmt: skip
+
+    leave = dt.date.today() + dt.timedelta(days=30)
+    config = mine.MineConfig(adults=2, days=3, start_date=leave, origin="DEL", budget="cheap")
+    with pytest.raises(HTTPException):
+        mine._check(config)
+    trip = TravellerTrip(adults=2, kids=0, seniors=0, days=3, pace="relaxed", group="couple",
+                         budget="", notes="")  # fmt: skip
+    config = mine.MineConfig(adults=2, days=3, start_date=leave, origin="DEL", group="couple",
+                             budget="40k_60k", notes="  We love  seafood ")  # fmt: skip
+    mine._check(config)
+    assert mine._apply(trip, config)  # a new budget or note plans the trip again
+    assert (trip.budget, trip.notes) == ("40k_60k", "We love seafood")
+    assert not mine._apply(trip, config)

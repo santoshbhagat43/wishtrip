@@ -28,7 +28,7 @@ export function MineScreen() {
         await api.PATCH("/my-trips/{code}", {
           params: { path: { code } },
           body: { adults: m.adults, kids: m.kids, seniors: m.seniors, days: m.days, pace: m.pace, when: m.when, group: m.group, arya: false,
-            start_date: m.start_date ?? null, origin: m.origin ?? "", origin_city: m.origin_city ?? "" },
+            start_date: m.start_date ?? null, origin: m.origin ?? "", origin_city: m.origin_city ?? "", budget: m.budget ?? "", notes: m.notes ?? "" },
         }),
       );
     },

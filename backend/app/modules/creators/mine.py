@@ -35,6 +35,13 @@ log = logging.getLogger(__name__)
 router = APIRouter(tags=["trips"])
 
 PACES = ("relaxed", "balanced", "packed")
+# The budget choices on the Details screen, for the whole trip, as the planner is told them.
+BUDGETS = {
+    "under_40k": "under ₹40,000",
+    "40k_60k": "₹40,000 to ₹60,000",
+    "60k_80k": "₹60,000 to ₹80,000",
+    "no_limit": "no fixed limit",
+}
 # No 0/O/1/I/L: a code read out or typed from a message stays unambiguous.
 ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 
@@ -56,6 +63,9 @@ class MineConfig(BaseModel):
     # The traveller chose to shape the trip in the Arya chat: arrange the stops by rule now and
     # let the chat do the planning, instead of building it with the AI in the background.
     arya: bool = False
+    # Optional: the budget for the whole trip (an id from BUDGETS) and anything we should know.
+    budget: str = Field(default="", max_length=16)
+    notes: str = Field(default="", max_length=300)
 
 
 class MineRead(BaseModel):
@@ -74,6 +84,8 @@ class MineRead(BaseModel):
     pace: str
     when: str
     group: str = ""
+    budget: str = ""
+    notes: str = ""
     # building: being planned now (poll again) · ready · failed (change the details to retry).
     build_status: str = "ready"
     build_error: str = ""
@@ -127,6 +139,8 @@ def _check(config: MineConfig) -> None:
         raise bad_request("Add at least one adult: every room and booking needs one.")
     if config.pace not in PACES:
         raise bad_request("Pace is relaxed, balanced or packed.")
+    if config.budget and config.budget not in BUDGETS:
+        raise bad_request("Choose a budget from the list.")
 
 
 async def _unique_code(session: AsyncSession) -> str:
@@ -175,6 +189,8 @@ async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
         pace=mine.pace,
         when=mine.when_text,
         group=mine.group,
+        budget=mine.budget,
+        notes=mine.notes,
         build_status=mine.build_status,
         build_error=mine.build_error,
         persona=mine.persona,
@@ -191,14 +207,19 @@ async def _read(session: AsyncSession, mine: TravellerTrip) -> MineRead:
 
 def _apply(mine: TravellerTrip, config: MineConfig) -> bool:
     """Take the details. True when they change what the plan should be (so it is built again)."""
-    before = (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
+    def plan_inputs() -> tuple:
+        return (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group,
+                mine.budget, mine.notes)  # fmt: skip
+
+    before = plan_inputs()
     mine.adults, mine.kids, mine.seniors = config.adults, config.kids, config.seniors
     mine.days, mine.pace, mine.group = config.days, config.pace, config.group
+    mine.budget, mine.notes = config.budget, " ".join(config.notes.split())
     mine.start_date = config.start_date
     mine.origin_code = config.origin.upper()
     mine.origin_city = " ".join(config.origin_city.split())
     mine.when_text = _when_text(config.start_date, config.days, config.when)
-    return before != (mine.adults, mine.kids, mine.seniors, mine.days, mine.pace, mine.group)
+    return before != plan_inputs()
 
 
 # --- Building the plan -------------------------------------------------------------------------
@@ -240,6 +261,8 @@ async def run_build(session: AsyncSession, ai: AIOrchestrator | None, code: str)
             pace=mine.pace,
             when=mine.when_text,
             group=mine.group,
+            budget=BUDGETS.get(mine.budget, ""),
+            notes=mine.notes,
             summary=mine.summary,
             origin_city=mine.origin_city,
             reel_tips=tips_from_reel,

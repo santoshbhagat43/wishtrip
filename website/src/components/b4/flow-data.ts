@@ -31,3 +31,11 @@ export const PACES = [
   { id: "balanced", label: "Balanced", hint: "2–3 things a day" },
   { id: "packed", label: "Packed", hint: "See it all" },
 ] as const;
+
+/** The whole trip's budget, as the traveller chooses it (optional). The ids are the API's. */
+export const BUDGETS = [
+  { id: "under_40k", label: "Under ₹40k" },
+  { id: "40k_60k", label: "₹40k–60k" },
+  { id: "60k_80k", label: "₹60k–80k" },
+  { id: "no_limit", label: "No fixed limit" },
+] as const;

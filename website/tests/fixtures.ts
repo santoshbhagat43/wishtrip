@@ -80,9 +80,14 @@ export async function signUp(page: Page) {
 
 /** The details a trip board cannot be made without: the day they leave (a month out) and the city
  *  they fly from, filled in on the Details screen the page is on. */
-export async function fillTripDetails(page: Page, from = "Bengaluru (BLR)") {
-  const start = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+/** The day a test trip leaves (30 days out), plus `n` days, as yyyy-mm-dd. */
+export const tripDay = (n = 0) => new Date(Date.now() + (30 + n) * 86_400_000).toISOString().slice(0, 10);
+
+/** The Details screen's dates and from-city. `days` sets the day they come back; without it the
+ *  return is what the reel says. */
+export async function fillTripDetails(page: Page, from = "Bengaluru (BLR)", days?: number) {
   // The form is on the page twice (phones and desktop): fill the one that is showing.
-  await page.getByLabel("Start date").filter({ visible: true }).fill(start);
-  await page.getByLabel("Travelling from").filter({ visible: true }).fill(from);
+  await page.getByLabel("Leaving on").filter({ visible: true }).fill(tripDay());
+  if (days) await page.getByLabel("Coming back on").filter({ visible: true }).fill(tripDay(days - 1));
+  await page.getByLabel("Flying from").filter({ visible: true }).fill(from);
 }

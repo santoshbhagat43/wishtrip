@@ -5201,6 +5201,16 @@ export interface components {
              * @default false
              */
             arya: boolean;
+            /**
+             * Budget
+             * @default
+             */
+            budget: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
         };
         /** MineRead */
         MineRead: {
@@ -5236,6 +5246,16 @@ export interface components {
              * @default
              */
             group: string;
+            /**
+             * Budget
+             * @default
+             */
+            budget: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
             /**
              * Build Status
              * @default ready

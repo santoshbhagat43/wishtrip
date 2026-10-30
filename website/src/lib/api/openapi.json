@@ -14370,6 +14370,18 @@
       "type": "boolean",
       "title": "Arya",
       "default": false
+     },
+     "budget": {
+      "type": "string",
+      "maxLength": 16,
+      "title": "Budget",
+      "default": ""
+     },
+     "notes": {
+      "type": "string",
+      "maxLength": 300,
+      "title": "Notes",
+      "default": ""
      }
     },
     "type": "object",
@@ -14445,6 +14457,16 @@
      "group": {
       "type": "string",
       "title": "Group",
+      "default": ""
+     },
+     "budget": {
+      "type": "string",
+      "title": "Budget",
+      "default": ""
+     },
+     "notes": {
+      "type": "string",
+      "title": "Notes",
       "default": ""
      },
      "build_status": {
