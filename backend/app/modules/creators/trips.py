@@ -3,6 +3,8 @@ shareable, affiliate-tagged link."""
 
 import copy
 import logging
+import math
+import re
 import secrets
 import time
 import uuid
@@ -16,6 +18,9 @@ from app.core.config import settings
 from app.core.errors import bad_request, not_found
 from app.modules.creators.models import Creator, CreatorLink, CreatorTrip, TripStatus
 from app.modules.media.storage import storage
+from app.modules.reels.complete import (
+    MAX_DAYS as MAX_TRIP_DAYS,
+)
 from app.modules.reels.complete import (
     MIN_DAYS,
     MIN_STOPS_PER_DAY,
@@ -119,6 +124,65 @@ def _stay_first(items: list[dict]) -> list[dict]:
     return sorted(items, key=lambda i: (i["kind"] != "stay", i["day"] or 0))
 
 
+# A stop that says no time is a daytime one, until something earlier in the day says otherwise.
+DAY_START = 150
+DINNER = 390
+
+# When in a day a stop happens, read from its own words (its name, then what the reel said about
+# it): a meal by its mealtime; any stop by the time of day it is for.
+MEALS = (
+    (re.compile(r"\b(breakfast|brunch)\b", re.I), 100),
+    (re.compile(r"\blunch\b", re.I), 210),
+    (re.compile(r"\b(dinner|supper)\b", re.I), DINNER),
+)
+TIMES = (
+    (re.compile(r"\b(sunrise|early morning)\b", re.I), 90),
+    (re.compile(r"\bsunset\b", re.I), 330),
+    (re.compile(r"\b(nightlife|night market|night ?club|pub|bar|at night)\b", re.I), 420),
+)
+
+
+def _said_time(item: dict) -> int | None:
+    for text in (str(item.get("name") or ""), str(item.get("note") or "")):
+        if item["kind"] == "food":
+            for pattern, at in MEALS:
+                if pattern.search(text):
+                    return at
+        for pattern, at in TIMES:
+            if pattern.search(text):
+                return at
+    return None
+
+
+def in_day_sequence(items: list[dict]) -> list[dict]:
+    """Each day in the order it is lived: check in first, breakfast before lunch, lunch before
+    dinner, a sunset before dinner, the night out after it. A stop that says no time keeps its
+    place in the reel among the day's daytime stops (after the last daytime one that said a time),
+    so the day still reads as the video does, but only what is for the night comes after dinner.
+    Each stop gets its part of the day (morning, afternoon, evening) to show."""
+    placed: list[tuple[int, float, int, dict]] = []
+    days = sorted({int(i.get("day") or 1) for i in items})
+    order = 0
+    for day in days:
+        last = float(DAY_START)
+        for item in (i for i in items if int(i.get("day") or 1) == day):
+            order += 1
+            if item["kind"] == "stay":
+                placed.append((day, 0.0, order, item))
+                continue
+            said = _said_time(item)
+            if said is None:
+                last += 0.001
+                at = last
+            else:
+                at = float(said)
+                if said < DINNER:
+                    last = at
+            item["slot"] = "morning" if at < 200 else "afternoon" if at < 300 else "evening"
+            placed.append((day, at, order, item))
+    return [item for *_, item in sorted(placed, key=lambda p: (p[0], p[1], p[2]))]
+
+
 def _complete_later(named: list[dict], days_hint: int | None, ai: AIOrchestrator | None) -> bool:
     """Top the trip up in the background? Only when the video's own places already make a trip
     of at least two days (so it can be shown as it is) and some are still missing."""
@@ -143,6 +207,15 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
         raise not_found("Creator")
     extracted = content.extracted or {}
     named = [_item_from_place(p) for p in content.places if p.get("kind") != "area"]
+    # Only what the reel shows: the days it says (else about three stops a day), nothing added.
+    stops = [i for i in named if i["kind"] != "stay"]
+    reel_days = min(
+        MAX_TRIP_DAYS,
+        stated_days(named)
+        or extracted.get("days_hint")
+        or math.ceil(len(stops) / STOPS_PER_DAY)
+        or 1,
+    )
     later = _complete_later(named, extracted.get("days_hint"), ai)
     if later:
         stops = [i for i in named if i["kind"] != "stay"]
@@ -163,8 +236,7 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
             days_hint=extracted.get("days_hint"),
         )
     else:
-        stops = [i for i in named if i["kind"] != "stay"]
-        plan = Plan(items=named, days=min(target_days(extracted.get("days_hint")), len(stops) or 1))
+        plan = Plan(items=named, days=reel_days)
     trip = CreatorTrip(
         creator_id=creator.id,
         title=f"{content.destination_name or 'My'} trip",
@@ -173,7 +245,9 @@ async def finish_import(session: AsyncSession, job, content, ai: AIOrchestrator 
         cover_image_key=content.thumbnail_key,
         thumbnail_image_key=content.thumbnail_key,
         source_shortcode=content.shortcode,
-        items=_stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days),
+        items=in_day_sequence(
+            _stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days)
+        ),
         completing=later,
     )
     session.add(trip)
@@ -253,7 +327,9 @@ async def complete_in_background(
                 items=copy.deepcopy(before),
                 days_hint=extracted.get("days_hint"),
             )
-            items = _stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days)
+            items = in_day_sequence(
+                _stay_first(plan.items) if plan.arranged else assign_days(plan.items, plan.days)
+            )
         except Exception:  # noqa: BLE001 - the trip stays as the video made it
             logger.exception("Could not top up trip %s", trip_id)
     await session.refresh(trip)  # the creator may have edited it while we worked

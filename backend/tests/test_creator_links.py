@@ -766,6 +766,40 @@ def _by_day(trip):
     return days
 
 
+async def test_a_creators_trip_is_only_their_reel_in_the_order_of_each_day(
+    client, whole_itineraries, monkeypatch
+):
+    # The product's rule: nothing is added to a creator's reel, and each day reads as it is lived.
+    default = type(settings).model_fields["complete_itineraries"].default
+    monkeypatch.setattr(settings, "complete_itineraries", default)
+
+    def place(name, kind, said, day):
+        return {**_named(name, kind=kind)[0], "evidence": said, "video_day": day}
+
+    whole_itineraries["places"] = [
+        place("Thalassa", "food", "dinner with a view", 1),
+        place("Fort Aguada", "sight", "the old fort", 1),
+        place("Vinayak Family Restaurant", "food", "fish thali for lunch", 1),
+        place("Chapora Fort", "sight", "watch the sunset", 1),
+        place("Anjuna night market", "experience", "shopping", 1),
+        place("Baba Au Rhum", "food", "breakfast", 2),
+        place("Morjim Beach", "sight", "a quiet beach", 2),
+    ]
+    ai = Suggester(_suggestions(10))
+    headers = await _creator(client, "reelonly@creators.example.com")
+    _, trip = await _trip_of(client, headers, ai)
+
+    assert ai.asked == []  # no AI top-up, no rearranging
+    assert {i["origin"] for i in trip["items"]} == {"reel"} and len(trip["items"]) == 7
+    days = _by_day(trip)
+    assert [i["name"] for i in days[1]] == [
+        "Fort Aguada", "Vinayak Family Restaurant", "Chapora Fort", "Thalassa",
+        "Anjuna night market",
+    ]  # lunch before dinner, the sunset before dinner, the night market after it  # fmt: skip
+    assert [i["slot"] for i in days[1]] == ["morning", "afternoon", "evening", "evening", "evening"]
+    assert [i["name"] for i in days[2]] == ["Baba Au Rhum", "Morjim Beach"]
+
+
 async def test_a_three_place_video_becomes_a_three_day_itinerary(client, whole_itineraries):
     # A 12-second short names three places and says nothing about days: it was one thin day.
     whole_itineraries["places"] = _named(

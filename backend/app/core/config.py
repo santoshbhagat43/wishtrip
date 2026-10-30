@@ -108,8 +108,9 @@ class Settings(BaseSettings):
     # rule (no AI) so the cost stays bounded; nobody is refused.
     trip_builds_per_hour: int = 120
     # Top a creator's itinerary up to a whole trip (at least two full days) from the knowledge
-    # base and clearly-labelled AI suggestions. Off only for tests of the bare reading.
-    complete_itineraries: bool = True
+    # base and clearly-labelled AI suggestions. Off: a creator's trip is only what their reel shows,
+    # nothing added (the product's rule since 2026-10-30); on only to test the top-up itself.
+    complete_itineraries: bool = False
     # When the video's own places already make a trip of two days or more, show the creator
     # those at once and add the rest in the background (a worker), instead of making them wait.
     complete_trips_in_background: bool = True

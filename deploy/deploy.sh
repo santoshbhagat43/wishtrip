@@ -60,6 +60,15 @@ if grep -qE "^SITE_PASSWORD=(off)?$" .env.production; then
   echo "Website login: user $(grep '^SITE_USER=' .env.production | cut -d= -f2-), password in .env.production (SITE_PASSWORD)."
 fi
 "${COMPOSE[@]}" up -d --build --remove-orphans
+# Caddy reads deploy/Caddyfile through a single-file mount, which keeps the old file after git
+# replaces it, and `up` doesn't recreate an unchanged container. When the routing changed,
+# recreate Caddy so it serves the new one (a few seconds of downtime).
+caddy_file="$(sha256sum deploy/Caddyfile | cut -d' ' -f1)"
+caddy_serving="$("${COMPOSE[@]}" exec -T caddy sha256sum /etc/caddy/Caddyfile < /dev/null 2>/dev/null | cut -d' ' -f1)"
+if [ "$caddy_file" != "$caddy_serving" ]; then
+  echo "Caddyfile changed: restarting Caddy."
+  "${COMPOSE[@]}" up -d --force-recreate --no-deps caddy
+fi
 "${COMPOSE[@]}" ps
 echo "$fingerprint" > "$STATE"
 echo "Deployed $(git rev-parse --short HEAD)."
