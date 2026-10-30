@@ -4,7 +4,7 @@ import { test as base, expect, type Page } from "@playwright/test";
 export const SSO_URL = process.env.SSO_URL ?? "http://sso.lvh.me:3001";
 export const API_URL = process.env.API_URL ?? "http://localhost:8000";
 /** The creator site: the same app as the website, on its own host. */
-export const CREATOR_URL = process.env.CREATOR_URL ?? "http://creator.lvh.me:3002";
+export const CREATOR_URL = process.env.CREATOR_URL ?? "http://creator.lvh.me:3003";
 
 type Fixtures = { sameOrigin: { calls: string[] } };
 

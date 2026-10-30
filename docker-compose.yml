@@ -122,14 +122,32 @@ services:
       # SSO: share the session cookie across .lvh.me and send sign-in to the SSO app.
       SESSION_COOKIE_DOMAIN: .lvh.me
       SSO_URL: http://sso.lvh.me:3001
-      # The creator portal's own host, served by this same app.
-      CREATOR_URL: http://creator.lvh.me:3002
+      # The creator site: its own app (the creator service below).
+      CREATOR_URL: http://creator.lvh.me:3003
       SITE_URL: http://app.lvh.me:3002
     ports:
       - "3002:3000"
     volumes:
       - ./website/src:/app/src
       - ./website/public:/app/public
+    depends_on:
+      - backend
+
+  # The creator site (creator.lvh.me:3003): its own app, apart from the website.
+  creator:
+    build: ./creator
+    environment:
+      BACKEND_URL: http://backend:8000
+      WATCHPACK_POLLING: "true"
+      SESSION_COOKIE_DOMAIN: .lvh.me
+      SSO_URL: http://sso.lvh.me:3001
+      SITE_URL: http://app.lvh.me:3002
+      NEXT_PUBLIC_WEBSITE_URL: http://app.lvh.me:3002
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./creator/src:/app/src
+      - ./creator/public:/app/public
     depends_on:
       - backend
 

@@ -9,7 +9,7 @@ import { useState } from "react";
 import { CoverPicker } from "@/components/creator/cover-picker";
 import { Spinner } from "@/components/ui/card";
 import { api, errorMessage, unwrap, type Schemas } from "@/lib/api/client";
-import { withoutScheme } from "@/lib/creator";
+import { WEBSITE_URL, withoutScheme } from "@/lib/creator";
 import { copyText } from "@/lib/clipboard";
 
 type Trip = Schemas["CreatorTripRead"];
@@ -119,7 +119,7 @@ export default function TripEditorPage() {
   }
 
   const published = trip.data.status === "published";
-  const shareUrl = trip.data.share_code ? `${typeof window !== "undefined" ? window.location.origin : ""}/t/${trip.data.share_code}` : "";
+  const shareUrl = trip.data.share_code ? `${WEBSITE_URL}/t/${trip.data.share_code}` : ""; // travellers open it on the website
   const filled = items.some((i) => i.name.trim());
   const change = (fn: () => void) => {
     fn();

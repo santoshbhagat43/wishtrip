@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+/* WishTrip palette: the "Option B4 · final · white" prototype. White ground, ink-navy text, one
+   teal interaction voice, a cyan commit button, and a few quiet signal colours. */
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f3f6f9;
+  --border: #e3e8ee;
+  --text: #0d2436;
+  --muted: #566e85;
+  --brand: #0a7c80;
+  --brand-strong: #086a6d;
+  --brand-soft: #dcf8f9;
+  --on-brand: #ffffff;
+  --accent: #22dde0;
+  --accent-strong: #14c9cc;
+  --accent-soft: #dcf8f9;
+  --accent-text: #0a6b6e;
+  --navy: #072338;
+  --value: #e8a93b;
+  --value-soft: #fdf1d6;
+  --ok: #0b7a57;
+  --ok-soft: #e3f5ee;
+  --warn: #b86e00;
+  --warn-soft: #fdf1d6;
+  --danger: #c43b58;
+  --danger-soft: #fbe6eb;
+  --info: #1a6094;
+  --info-soft: #e8f0fe;
+  --ai: #7a4e9a;
+  --ai-soft: #f4f0fa;
+  --shadow-sm: 0 1px 3px rgba(13, 36, 54, 0.07);
+  --shadow-md: 0 8px 22px rgba(13, 36, 54, 0.1);
+}
+
+/* Dark theme: the prototype's deep navy ground. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1620;
+    --surface: #121f2b;
+    --surface-2: #172a3a;
+    --border: #24384a;
+    --text: #e6eef4;
+    --muted: #97abbd;
+    --brand: #3fd6d9;
+    --brand-strong: #6be3e5;
+    --brand-soft: #123a44;
+    --on-brand: #062230;
+    --accent: #22dde0;
+    --accent-strong: #5be8ea;
+    --accent-soft: #123a44;
+    --accent-text: #5be8ea;
+    --navy: #e6eef4;
+    --value: #e8a93b;
+    --value-soft: #332711;
+    --ok: #37a57e;
+    --ok-soft: #143026;
+    --warn: #d69a3c;
+    --warn-soft: #332711;
+    --danger: #ea6a85;
+    --danger-soft: #3a1b25;
+    --info: #6fa8dc;
+    --info-soft: #16293b;
+    --ai: #b79be0;
+    --ai-soft: #231b30;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-value: var(--value);
+  --color-value-soft: var(--value-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-navy: var(--navy);
+  --color-ai: var(--ai);
+  --color-ai-soft: var(--ai-soft);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-display-serif);
+  --font-mono: var(--font-geist-mono);
+  --shadow-card: var(--shadow-sm);
+  --shadow-raised: var(--shadow-md);
+  --ease-brand: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, .font-display {
+  font-family: var(--font-display-serif), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+.prose-chat p { margin: 0.4rem 0; }
+.prose-chat ul { list-style: disc; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-chat ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-chat h1, .prose-chat h2, .prose-chat h3 { font-weight: 600; margin: 0.75rem 0 0.25rem; }
+.prose-chat strong { font-weight: 600; }
+
+/* Anchor links (e.g. "Join the creator program" → #apply) glide instead of jumping. */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -249,7 +249,7 @@ class Settings(BaseSettings):
     def creator_base(self) -> str:
         if self.creator_url:
             return self.creator_url.rstrip("/")
-        return f"https://{self.creator_domain}" if self.creator_domain else "http://creator.lvh.me:3002"
+        return f"https://{self.creator_domain}" if self.creator_domain else "http://creator.lvh.me:3003"
 
     @property
     def ai_enabled(self) -> bool:

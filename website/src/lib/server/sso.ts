@@ -19,26 +19,13 @@ export function publicOrigin(request: NextRequest): string {
   return `${proto}://${host}`;
 }
 
-/** The creator site's public origin, e.g. http://creator.lvh.me:3002 or https://creator.listnr.co.
- *  Served by this same app; the host decides which site a request is for. */
+/** The creator site's public origin, e.g. http://creator.lvh.me:3003 or https://creator.listnr.co.
+ *  Its own app (the creator/ project); this site links and redirects there. */
 export const CREATOR_URL = process.env.CREATOR_URL ?? "";
 
 /** The traveller website's public origin, e.g. http://app.lvh.me:3002 or https://wishtrip.listnr.co.
  *  Where the creator site sends visitors who aren't signed in (the creator programme lives there). */
 export const SITE_URL = process.env.SITE_URL ?? "";
-
-/** Is this request for the creator site (vs the traveller website)? */
-export function isCreatorHost(host: string | null | undefined): boolean {
-  if (!host) return false;
-  if (CREATOR_URL) {
-    try {
-      return new URL(CREATOR_URL).host === host;
-    } catch {
-      /* fall through */
-    }
-  }
-  return host.split(":")[0].startsWith("creator.");
-}
 
 /** The SSO login opened on creator sign-in (one-time code, email or WhatsApp, or Google). */
 export function creatorSsoUrl(returnTo: string): string {

@@ -8,10 +8,10 @@
 	reverse_proxy website:3000
 }
 
-# The creator site runs from the same website app (host-based), so it shares the gate too.
+# The creator site is its own app (creator/): none of the website's pages answer here.
 {$CREATOR_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy website:3000
+	reverse_proxy creator:3000
 }
 
 {$DASHBOARD_DOMAIN} {

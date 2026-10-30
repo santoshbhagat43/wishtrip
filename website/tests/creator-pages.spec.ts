@@ -95,6 +95,14 @@ test.describe("Creator trips and creator pages", () => {
       expect(back).toBe(`${CREATOR_URL}${clean}`);
     }
     expect((await go("/")).headers()["location"]).toContain("/creators");
+    // The creator site is its own app: the traveller website's pages don't answer there.
+    for (const page of ["/arya", "/trip/mine/abcd1234", "/destinations", "/t/goa-aaaaaa"]) {
+      const r = await go(page);
+      expect([307, 308], page).toContain(r.status());
+      const to = new URL(r.headers()["location"]);
+      expect(to.origin, page).not.toBe(new URL(CREATOR_URL).origin);
+      expect(to.pathname, page).toBe(page);
+    }
   });
 
   test("a creator staff haven't given a handle yet is still shown, at their referral code", async ({ page, request }) => {

@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { clock, inr, partySize, partyText, livePrices, useFlightPrice, useStayPrices, type Party, type PublicTrip } from "../trip-journey";
 import { useEffect, useState } from "react";
 
-import { daysFromItems, type ItineraryDay, type Stop } from "@/components/creator/itinerary-sheet";
+import { daysFromItems, type ItineraryDay, type Stop } from "../days";
 import { api, unwrap } from "@/lib/api/client";
 import { useMe } from "@/lib/session";
 

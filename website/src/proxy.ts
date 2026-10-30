@@ -1,37 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { GATE_COOKIE, gateEnabled, gateToken } from "@/lib/server/gate";
-import { ACCESS_COOKIE, REFRESH_COOKIE, roleFromToken } from "@/lib/server/session";
-import { CREATOR_URL, SITE_URL, creatorSsoUrl, isCreatorHost, publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
+import { REFRESH_COOKIE } from "@/lib/server/session";
+import { CREATOR_URL, publicOrigin, ssoLoginUrl } from "@/lib/server/sso";
 
 const PRIVATE = ["/arya", "/profile", "/saved", "/help", "/creator"];
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-/** The creator site has no "/creator" in its addresses: the dashboard is "/", an itinerary is
- *  "/<id>" and the trip editor is "/trips/<id>". Inside the app those pages live under /creator,
- *  and the proxy maps between the two. */
+/** The creator portal is its own app on the creator site, with no "/creator" in its addresses:
+ *  the dashboard is "/", an itinerary is "/<id>" and the trip editor is "/trips/<id>". Old portal
+ *  addresses on this site (bookmarks, emails) are sent there. */
 const PORTAL_OUT = [
   [/^\/creator$/, "/"],
+  [/^\/creator\/profile$/, "/profile"],
   [new RegExp(`^/creator/(${UUID})$`, "i"), "/$1"],
   [new RegExp(`^/creator/trips/(${UUID})$`, "i"), "/trips/$1"],
 ] as const;
-const PORTAL_IN = [
-  [/^\/profile$/, "/creator/profile"],
-  [new RegExp(`^/(${UUID})$`, "i"), "/creator/$1"],
-  [new RegExp(`^/trips/(${UUID})$`, "i"), "/creator/trips/$1"],
-] as const;
-
 /** The clean creator-site address for an in-app portal path, or null when it isn't one. */
 function cleanPortalPath(pathname: string): string | null {
   for (const [from, to] of PORTAL_OUT) if (from.test(pathname)) return pathname.replace(from, to);
   return null;
 }
 
-/** The in-app path behind a clean creator-site address, or null. */
-function portalTarget(pathname: string): string | null {
-  for (const [from, to] of PORTAL_IN) if (from.test(pathname)) return pathname.replace(from, to);
-  return null;
-}
 // Reachable without the site password: the gate itself.
 const GATE_PATHS = ["/gate", "/api/gate"];
 
@@ -52,6 +42,14 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // The creator site is its own app: a request for it that reaches this one (an old address, a
+  // misrouted host) goes there. None of the traveller website's pages answer on the creator domain.
+  // (Never when this is the creator site's own host, which would send it back here in a loop.)
+  const host = request.headers.get("host") ?? "";
+  if (CREATOR_URL && host.startsWith("creator.") && host !== new URL(CREATOR_URL).host) {
+    return NextResponse.redirect(new URL(`${cleanPortalPath(pathname) ?? pathname}${request.nextUrl.search}`, CREATOR_URL));
+  }
+
   if (pathname.startsWith("/api/") || pathname.startsWith("/media/")) return NextResponse.next();
 
   // Arya moved from /plan to /arya: old links, bookmarks and prompts keep working.
@@ -62,47 +60,13 @@ export async function proxy(request: NextRequest) {
   // A creator's public page, /creator/<handle>, is served from /creators/p/<handle>. A UUID there
   // is the creator portal's own itinerary page and is left alone.
   const publicCreator = pathname.match(/^\/creator\/([^/]+)$/);
-  if (publicCreator && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(publicCreator[1])) {
+  if (publicCreator && publicCreator[1] !== "profile" && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(publicCreator[1])) {
     return NextResponse.rewrite(new URL(`/creators/p/${publicCreator[1]}`, request.url));
   }
 
   const signedIn = request.cookies.has(REFRESH_COOKIE);
   const isPortal = pathname === "/creator" || pathname.startsWith("/creator/");
   const search = request.nextUrl.search;
-
-  if (isCreatorHost(request.headers.get("host"))) {
-    // --- Creator site (creator.<domain>), served by this same app ---
-    const origin = publicOrigin(request);
-    const portal = `${origin}/`;
-    // The old /creator… addresses (bookmarks, emails) go to the clean ones. The old dashboard
-    // address sends a visitor who isn't signed in straight to sign-in, as it always did.
-    if (pathname === "/creator" && !signedIn) return NextResponse.redirect(creatorSsoUrl(portal));
-    const clean = cleanPortalPath(pathname);
-    if (clean !== null) return NextResponse.redirect(new URL(`${clean}${search}`, request.url), 308);
-    // The creator programme (and its apply form) lives on the traveller website: someone who
-    // isn't signed in is taken there. The #apply in the address survives the redirect.
-    if (pathname === "/creators" && !signedIn && SITE_URL) {
-      return NextResponse.redirect(new URL(`/creators${search}`, SITE_URL));
-    }
-    if (pathname === "/") {
-      // Signed-in creators see their dashboard here; everyone else sees the creator programme.
-      const role = roleFromToken(request.cookies.get(ACCESS_COOKIE)?.value);
-      const creator = signedIn && (role === "creator" || role === null);
-      if (creator) return NextResponse.rewrite(new URL("/creator", request.url));
-      return NextResponse.redirect(new URL(`/creators`, SITE_URL || request.url));
-    }
-    const target = portalTarget(pathname);
-    if (target !== null) {
-      if (!signedIn) return NextResponse.redirect(creatorSsoUrl(`${origin}${pathname}${search}`));
-      return NextResponse.rewrite(new URL(`${target}${search}`, request.url));
-    }
-    // Every way in to signing in goes to SSO, opened on creator sign-in.
-    if (pathname === "/login" || pathname === "/signup" || pathname === "/creators/join") {
-      return NextResponse.redirect(creatorSsoUrl(portal));
-    }
-    if (isPortal && !signedIn) return NextResponse.redirect(creatorSsoUrl(`${origin}${pathname}${search}`));
-    return NextResponse.next();
-  }
 
   // --- Traveller website ---
   // The creator portal and its sign-in live on the creator site.

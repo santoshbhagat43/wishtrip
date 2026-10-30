@@ -93,7 +93,7 @@ services:
     depends_on:
       - backend
 
-  # Serves the traveler website (WEBSITE_DOMAIN) AND the creator site (CREATOR_DOMAIN), host-based.
+  # The traveller website (WEBSITE_DOMAIN). The creator site is its own app, below.
   website:
     build:
       context: ./website
@@ -104,11 +104,33 @@ services:
       # SSO: share the session cookie and send sign-in to the SSO app.
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
       SSO_URL: ${SSO_URL}
-      # The creator portal's own host, served by this same app (CREATOR_DOMAIN is Caddy's).
+      # The creator site (its own app): portal links and sign-ups are sent there.
       CREATOR_URL: https://${CREATOR_DOMAIN}
       # The traveller website's own address: the creator site sends visitors who aren't signed in there.
       SITE_URL: https://${WEBSITE_DOMAIN}
       # Private preview: /gate asks for these. The gate stays on until SITE_PUBLIC=true (launch).
+      SITE_USER: ${SITE_USER}
+      SITE_PASSWORD: ${SITE_PASSWORD}
+      SITE_PUBLIC: ${SITE_PUBLIC:-false}
+    depends_on:
+      - backend
+
+  # The creator site (CREATOR_DOMAIN): the creator portal, its own app, apart from the website.
+  creator:
+    build:
+      context: ./creator
+      dockerfile: Dockerfile.prod
+      args:
+        # Creators' links point at the traveller website (baked into the pages at build time).
+        NEXT_PUBLIC_WEBSITE_URL: https://${WEBSITE_DOMAIN}
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN}
+      SSO_URL: ${SSO_URL}
+      # Where visitors who aren't creators, and every traveller page, are sent.
+      SITE_URL: https://${WEBSITE_DOMAIN}
+      # The same private preview gate as the website, until launch.
       SITE_USER: ${SITE_USER}
       SITE_PASSWORD: ${SITE_PASSWORD}
       SITE_PUBLIC: ${SITE_PUBLIC:-false}
@@ -134,6 +156,7 @@ services:
       - caddy_config:/config
     depends_on:
       - website
+      - creator
       - dashboard
       - backend
 
