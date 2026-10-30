@@ -225,9 +225,10 @@ def test_an_oversized_file_is_refused(tmp_path, monkeypatch):
 
 
 def our_download_exits(monkeypatch, code: int, tmp_path):
-    # These tests are about our own download with SaveAPI as its fallback: Instagram reels only go
-    # that way when INSTAGRAM_VIA_SAVEAPI is off (YouTube always does).
+    # These tests are about our own download with SaveAPI as its fallback: a site only goes that
+    # way when its *_VIA_SAVEAPI setting is off.
     monkeypatch.setattr(settings, "instagram_via_saveapi", False)
+    monkeypatch.setattr(settings, "youtube_via_saveapi", False)
 
     def run(cmd, **kw):
         if code == fetch.EXIT_OK:
@@ -341,12 +342,12 @@ def test_a_youtube_video_too_long_for_saveapi_says_so(monkeypatch, tmp_path):
         reels.download("yt-dQw4w9WgXcQ", tmp_path)
 
 
-# Instagram from SaveAPI only ------------------------------------------------------------------
+# Instagram and YouTube from SaveAPI only ------------------------------------------------------
 
 
 def our_download_must_not_run(monkeypatch):
     def run(cmd, **kw):
-        raise AssertionError("instaloader must not run for Instagram")
+        raise AssertionError("our own download must not run")
 
     monkeypatch.setattr(reels.subprocess, "run", run)
 
@@ -363,7 +364,33 @@ def test_an_instagram_reel_comes_from_saveapi_without_trying_our_own_download(
     assert attempts[0].credits_spent == 1.5
 
 
-def test_youtube_still_tries_our_own_download_first(monkeypatch, tmp_path):
+def test_a_youtube_video_comes_from_saveapi_without_trying_yt_dlp(monkeypatch, tmp_path):
+    our_download_must_not_run(monkeypatch)
+    calls = saveapi_gives(monkeypatch)
+    attempts: list[reels.Attempt] = []
+    assert reels.download("yt-dQw4w9WgXcQ", tmp_path, attempts) == {"caption": "theirs"}
+    assert calls == [YT]
+    assert [(a.provider, a.platform, a.ok) for a in attempts] == [("saveapi", "youtube", True)]
+
+
+@pytest.mark.parametrize(
+    ("code", "says"),
+    [
+        ("PRIVATE_CONTENT", "private, age-restricted or removed"),
+        ("TOO_LONG", "longer than 3 minutes"),
+        ("QUOTA_EXCEEDED", "couldn't download that video"),
+    ],
+)
+def test_saveapi_failing_on_youtube_says_what_happened(monkeypatch, tmp_path, code, says):
+    our_download_must_not_run(monkeypatch)
+    saveapi_gives(monkeypatch, error=saveapi.SaveApiError(code, "nope"))
+    with pytest.raises(reels.ReelError, match=says):
+        reels.download("yt-dQw4w9WgXcQ", tmp_path)
+
+
+def test_youtube_can_still_try_our_own_download_first(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "youtube_via_saveapi", False)
+
     def run(cmd, **kw):
         (tmp_path / "meta.json").write_text('{"caption": "ours"}')
         return subprocess.CompletedProcess(cmd, fetch.EXIT_OK, "", "")

@@ -222,8 +222,8 @@ def _saveapi_failed(attempt: Attempt, exc: saveapi.SaveApiError, started: float)
 
 
 def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[Attempt]) -> dict:
-    """Fetch with SaveAPI (Instagram's way in; YouTube's when our own download failed) and record
-    the try. Raises SaveApiError."""
+    """Fetch with SaveAPI (the way in for both sites, or the fallback when our own download failed)
+    and record the try. Raises SaveApiError."""
     url = canonical_url(shortcode)
     attempt = Attempt("saveapi", "youtube" if youtube else "instagram", url, shortcode)
     attempts.append(attempt)
@@ -248,25 +248,30 @@ def _ask_saveapi(shortcode: str, workdir: Path, youtube: bool, attempts: list[At
 def download(
     shortcode: str, workdir: Path, attempts: list[Attempt] | None = None
 ) -> dict[str, Any]:
-    """The reel or video. Instagram comes from SaveAPI (when it is set up). YouTube comes from our
-    own tool first, in its own process and killed if the site makes it wait too long; then, if
-    that failed in a way another route might get round, from SaveAPI.
+    """The reel or video. Both sites come from SaveAPI when it is set up (and INSTAGRAM_VIA_SAVEAPI
+    / YOUTUBE_VIA_SAVEAPI are on). Otherwise from our own tool, in its own process and killed if
+    the site makes it wait too long; then, if that failed in a way another route might get round,
+    from SaveAPI.
     Every try is appended to `attempts` (by default the list `produce_content` is keeping)."""
     if attempts is None:
         attempts = _attempts.get()
     if attempts is None:
         attempts = []
     youtube = shortcode.startswith(YOUTUBE_PREFIX)
-    if not youtube and settings.instagram_via_saveapi and saveapi.enabled():
-        # Instagram: SaveAPI only. It answers in about two seconds where our own download takes
-        # ten or more, and needs no signed-in Instagram session. It gives no caption, so the
-        # reading rests on the screen and the voice-over.
+    via_saveapi = settings.youtube_via_saveapi if youtube else settings.instagram_via_saveapi
+    if via_saveapi and saveapi.enabled():
+        # SaveAPI only. For Instagram it answers in about two seconds where our own download takes
+        # ten or more, and needs no signed-in session (it gives no caption, so the reading rests
+        # on the screen and the voice-over). YouTube refuses our server outright.
         try:
-            return _ask_saveapi(shortcode, workdir, False, attempts)
+            return _ask_saveapi(shortcode, workdir, youtube, attempts)
         except saveapi.SaveApiError as exc:
             raise (
-                _saveapi_error(exc, False)
-                or ReelError("We couldn't download that reel. Try again in a bit.")
+                _saveapi_error(exc, youtube)
+                or ReelError(
+                    f"We couldn't download that {'video' if youtube else 'reel'}. "
+                    "Try again in a bit."
+                )
             ) from exc
     module = "app.modules.reels.fetch_youtube" if youtube else "app.modules.reels.fetch"
     target = canonical_url(shortcode) if youtube else shortcode

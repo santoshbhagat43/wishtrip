@@ -135,6 +135,10 @@ class Settings(BaseSettings):
     # Instagram reels come from SaveAPI only (about 2 s, no Instagram login needed); false = our
     # own instaloader first, SaveAPI as its fallback. Without a key, instaloader is used either way.
     instagram_via_saveapi: bool = True
+    # YouTube videos from SaveAPI only: YouTube asks a data-centre server to "confirm you're not a
+    # bot", so our own download (yt-dlp) failed every time on the server. False = yt-dlp first,
+    # SaveAPI as its fallback (e.g. with YOUTUBE_PROXY or YOUTUBE_COOKIES_FILE set).
+    youtube_via_saveapi: bool = True
     instagram_username: str | None = None
     instagram_session_file: str | None = None
 
@@ -255,7 +259,11 @@ class Settings(BaseSettings):
     def creator_base(self) -> str:
         if self.creator_url:
             return self.creator_url.rstrip("/")
-        return f"https://{self.creator_domain}" if self.creator_domain else "http://creator.lvh.me:3003"
+        return (
+            f"https://{self.creator_domain}"
+            if self.creator_domain
+            else "http://creator.lvh.me:3003"
+        )
 
     @property
     def ai_enabled(self) -> bool:

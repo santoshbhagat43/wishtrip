@@ -445,6 +445,8 @@ def test_the_download_uses_the_tool_for_the_site(
     import subprocess
 
     calls = []
+    # Without SaveAPI: our own tool for each site.
+    monkeypatch.setattr(settings, "saveapi_key", None)
 
     def run(cmd, **kw):
         calls.append(cmd)
@@ -469,6 +471,7 @@ def test_the_download_uses_the_tool_for_the_site(
 def test_a_youtube_failure_says_why(monkeypatch, tmp_path, code, words):
     import subprocess
 
+    monkeypatch.setattr(settings, "saveapi_key", None)
     monkeypatch.setattr(
         service.subprocess,
         "run",
